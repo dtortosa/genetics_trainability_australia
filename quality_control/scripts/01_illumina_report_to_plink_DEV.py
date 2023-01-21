@@ -30,11 +30,10 @@ os.getcwd()
 
 ##Plink Installation
 
-#I have downloaded Plink ([link](https://www.cog-genomics.org/plink/)) and copied the executable ("plink") to `bin`, so we can use Plink from any place just typing `plink`. We are using Plink version 1.9 (Dec 2022).
+#I have downloaded Plink ([link](https://www.cog-genomics.org/plink/)) and copied the executable ("plink") to `bin`, so we can use Plink from any place just typing `plink`. We are using Plink version 1.9 (see singularity recipe for the version used).
 
-#os.system("plink --version")
+os.system("plink --version")
 
-####TO DO IN SINGULARITY
 
 
 #Note that there is Plink 1.9 ([link](https://www.cog-genomics.org/plink/1.9/)) and Plink 2.0 ([link](https://www.cog-genomics.org/plink/2.0/)), these are not connected but different programs. 
@@ -142,10 +141,6 @@ f'The number of mito SNPs is less than 1500: {final_report1.loc[final_report1["C
 # **Position**
 # 
 # Then, we have the position, which is an integer.
-
-# In[18]:
-
-
 print(f'The type of Position is integer? {final_report1["Position"].dtype == "int64"}')
 print(f'There are no NAs? {final_report1.loc[final_report1["Position"].isna()].shape[0] == 0}')
 
@@ -155,9 +150,6 @@ print(f'There are no NAs? {final_report1.loc[final_report1["Position"].isna()].s
 # Then, we have the GT and GC scores, which are quality measures.
 
 # The most important QC parameter is the GenTrain score. The GenTrain score is computed from the GenTrain 2.0 clustering algorithm. It is a measurement of SNP calling quality, ranging from 0 to 1, with higher value meaning better quality ([link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6171493/)).
-
-# In[25]:
-
 
 print(f'The type of GT score is integer? {final_report1["GT Score"].dtype == "float64"}')
 print(f'There are no NAs? {final_report1.loc[final_report1["GT Score"].isna()].shape[0] == 0}')
@@ -173,9 +165,6 @@ print(f'Max is equal or lower than 1? {np.max(final_report1["GT Score"]) <= 1}')
 
 # The third most important QC parameter is call frequency, which measures the percentage of samples with successful calls for that SNP. The call frequency also ranges from 0 to 1, with higher meaning more samples have successful calls for this SNP ([link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6171493/)).
 
-# In[27]:
-
-
 print(f'The type of GT score is integer? {final_report1["GC Score"].dtype == "float64"}')
 print(f'There are no NAs? {final_report1.loc[final_report1["GC Score"].isna()].shape[0] == 0}')
 print(f'Min is equal of higher than 0? {np.min(final_report1["GC Score"]) >= 0}')
@@ -185,6 +174,7 @@ print(f'Max is equal or lower than 1? {np.max(final_report1["GC Score"]) <= 1}')
 # **Log R ratio and BAF**
 # 
 # These metrics could be used to detect copy number variation (e.g., deletions) without having whole genome sequencing ([Nandolo et al 2018](https://www.youtube.com/watch?v=_-Gu9hO8aFM&ab_channel=GenomicsBootCamp)).
+
 
 # **Alleles**
 # 
@@ -199,50 +189,28 @@ print(f'Max is equal or lower than 1? {np.max(final_report1["GC Score"]) <= 1}')
 # - Top/Bottom (Top/Bot) Strand:Top/Bot nomenclature was developed by Illumina using sequence-based context to assign strand designations that does not change regardless of database or genome assembly used. (e.g., depending on the NCBI Genome Build referenced, strand and allele designations can change). Top/Bot is not directly related to Fwd/Rev or (+/-).Top/Bot strand is determined by examining the SNP and the surrounding DNA sequence and it only applies to SNPs with two possible alleles. See the Top/Bot A/B Allele bulletin for more details ([link](https://www.illumina.com/documents/products/technotes/technote_topbot.pdf), [link](https://support.illumina.com/bulletins/2017/06/how-to-interpret-dna-strand-and-allele-information-for-infinium-.html)).
 
 # See the different allele names for some SNPs with rs number:
-
-# In[20]:
-
-
-final_report1.loc[final_report1["SNP Name"].apply(lambda x: "rs" in x), ['SNP Name', 
-                                                                         'Allele1 - AB', 
-                                                                         'Allele2 - AB', 
-                                                                         'Allele1 - Top', 
-                                                                         'Allele2 - Top', 
-                                                                         'Allele1 - Forward',
-                                                                         'Allele2 - Forward', 
-                                                                         'Allele1 - Design', 
-                                                                         'Allele2 - Design',
-                                                                         'ILMN Strand', 
-                                                                         'SNP']]
-
+final_report1.loc[final_report1["SNP Name"].apply(lambda x: "rs" in x), ['SNP Name', 'Allele1 - AB', 'Allele2 - AB', 'Allele1 - Top', 'Allele2 - Top', 'Allele1 - Forward','Allele2 - Forward','Allele1 - Design', 'Allele2 - Design','ILMN Strand', 'SNP']]
+    #get several allele columns for tose rows having rs in the SNP name
 
 # For example, rs9999844 has for foward, the aleles indicated in dbSNP. But this does not work always. For example, according to dbSNP, rs999994 is C/T, but we have G.
 # 
 # We will use Allele-Foward in general, but we will have to check the alleles at some point, maybe after selecting SNPs for the polygenic score?
 
+
 # **Other columns**
 # 
 # There still other columns, probably related to the plots in the report of illumina, but we are not going to explore them for now unless the QC tutorials make use of them.
-
-# In[22]:
-
-
 final_report1.columns
 
 
-# ## Load and explore the sample and snp maps
-
+## Load and explore the sample and snp maps
 # We need these maps in order to generate the inputs for Plink (see below).
 
 # **SNP map**
-
-# In[4]:
-
-
 snp_map = pd.read_csv("data/example_data/SNP_Map.txt",
-                      delimiter="\t", 
-                      header=0,
-                      low_memory=False) 
+    delimiter="\t", 
+    header=0,
+    low_memory=False) 
     #low_memory: Internally process the file in chunks, 
     #resulting in lower memory use while parsing, 
     #but possibly mixed type inference. To ensure no mixed 
@@ -251,113 +219,51 @@ snp_map
 
 
 # Check we have the same number of SNPs in the final report and the SNP map
-
-# In[26]:
-
-
 f'Number of SNP matches between SNP map and final report? {snp_map.shape[0] == final_report1.shape[0]}'
 
 
 # Therefore, we have a row per SNP, having each SNP an Index and a Name
-
-# In[35]:
-
-
 print(f'Unique cases are the number of rows? {len(np.unique(snp_map["Index"]))==snp_map.shape[0]}')
 print(f'Unique cases are the number of rows? {len(np.unique(snp_map["Name"]))==snp_map.shape[0]}')
 
 
 # Each SNP has its chromose, having autosomals but also MT, zero cases and sex chromosomes..
-
-# In[38]:
-
-
 np.unique(snp_map["Chromosome"])
 
 
 # We have SNPS that have chromosome zero, and they also have position zero. They seem to be outdated SNPs.
-
-# In[39]:
-
-
-f'SNPs with chromosome zero are less than 1000? {snp_map.loc[snp_map["Chromosome"] == "0"].shape[0] < 1000}'
-
-
-# In[50]:
-
-
-f'Chromosome zero SNPs have also position zero? {np.unique(snp_map.loc[snp_map["Chromosome"] == "0", "Position"]) == 0}'
+print(f'SNPs with chromosome zero are less than 1000? {snp_map.loc[snp_map["Chromosome"] == "0"].shape[0] < 1000}')
+print(f'Chromosome zero SNPs have also position zero? {np.unique(snp_map.loc[snp_map["Chromosome"] == "0", "Position"]) == 0}')
 
 
 # We have also SNPs in chromosome XY.
-
-# In[40]:
-
-
-snp_map.loc[snp_map["Chromosome"] == "XY"]
-
-
-# In[41]:
-
-
-f'The number of XY SNPs is less than 1000: {snp_map.loc[snp_map["Chromosome"] == "XY"].shape[0]<1000}'
-
-
-# These seems to be pseudoautosomal regions (PAR), i.e., homologous sequences of nucleotides on the X and Y chromosomes. Therefore, this should be ok, the error is to put them in X or XY while the convention is to set them as XY ([link; section Sex-chromosome marker annotation](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5100670/)).
+print(snp_map.loc[snp_map["Chromosome"] == "XY"])
+print(f'The number of XY SNPs is less than 1000: {snp_map.loc[snp_map["Chromosome"] == "XY"].shape[0]<1000}')
+    # These seems to be pseudoautosomal regions (PAR), i.e., homologous sequences of nucleotides on the X and Y chromosomes. Therefore, this should be ok, the error is to put them in X or XY while the convention is to set them as XY ([link; section Sex-chromosome marker annotation](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5100670/)).
 
 # We have also mitochondrial SNPs.
-
-# In[43]:
-
-
-snp_map.loc[snp_map["Chromosome"] == "MT"]
-
-
-# In[44]:
-
-
-f'The number of mito SNPs is less than 1500: {snp_map.loc[snp_map["Chromosome"] == "MT"].shape[0]<1500}'
+print(snp_map.loc[snp_map["Chromosome"] == "MT"])
+print(f'The number of mito SNPs is less than 1500: {snp_map.loc[snp_map["Chromosome"] == "MT"].shape[0]<1500}')
 
 
 # Then, we have GenTrain score for each SNP.
-
-# In[53]:
-
-
-f'There is no NA? {all(snp_map["GenTrain Score"].notna())}'
-
-
-# In[56]:
-
-
-f'Float? {snp_map["GenTrain Score"].dtype == "float64"}'
-
-
-# In[57]:
-
-
+print(f'There is no NA? {all(snp_map["GenTrain Score"].notna())}')
+print(f'Float? {snp_map["GenTrain Score"].dtype == "float64"}')
 print(snp_map["GenTrain Score"].describe())
 
 
 # There is also allele and strand information. Not sure what strand is shown, but we are going to use foward in final report anyways.
 
 # The SNP I checked with mismatch between dbSNP and my database has also mismatch here.
-
-# In[60]:
-
-
 snp_map.loc[snp_map["Name"] == "rs999994"]
 
 
 # **Sample map**
 
-# In[5]:
-
-
 sample_map = pd.read_csv("data/example_data/Sample_Map.txt",
-                      delimiter="\t", 
-                      header=0,
-                      low_memory=False) 
+    delimiter="\t", 
+    header=0,
+    low_memory=False) 
     #low_memory: Internally process the file in chunks, 
     #resulting in lower memory use while parsing, 
     #but possibly mixed type inference. To ensure no mixed 
@@ -366,63 +272,39 @@ sample_map
 
 
 # The number of samples should be 216 because this is the number of final reports present in the first batch
-
-# In[62]:
-
-
 sample_map.shape[0] == 216
 
 
 # We have index and ID for each sample
-
-# In[63]:
-
-
 print(f'Unique cases are the number of rows? {len(np.unique(sample_map["Index"]))==sample_map.shape[0]}')
 print(f'Unique cases are the number of rows? {len(np.unique(sample_map["ID"]))==sample_map.shape[0]}')
 
 
 # We have gender information, whith male, female and Unknown. This is estimated from illumina, not from the study!!
-
-# In[65]:
-
-
-np.unique(sample_map["Gender"])
+print(np.unique(sample_map["Gender"]))
 
 
 # There are three individuals with unknown sex according to Illumina data. These are indeed the three problematic individuals according to the logR value, which is above the Illumina expecation of 0.3.
-
-# In[66]:
-
-
-sample_map.loc[sample_map["Gender"] == "Unknown"]
-
-
-# In[71]:
-
-
-f'Unknown sex is below 10? {sample_map.loc[(sample_map["Gender"] == "Unknown")].shape[0] < 10}'
-
+print(sample_map.loc[sample_map["Gender"] == "Unknown"])
+print(f'Unknown sex is below 10? {sample_map.loc[(sample_map["Gender"] == "Unknown")].shape[0] < 10}')
 
 # Then, we have columns for ID of the parents, but this is not the case in our study.
+
 
 # ## Load phenotype data
 
 # This include reported sex and VO2 max data.
-
-# In[5]:
-
-
 pheno_data = pd.read_csv("data/pheno_data/combact gene DNA GWAS 23062022_all_dna_samples.csv",
-                      delimiter=",", 
-                      header=0,
-                      low_memory=False) 
+    delimiter=",", 
+    header=0,
+    low_memory=False) 
     #low_memory: Internally process the file in chunks, 
     #resulting in lower memory use while parsing, 
     #but possibly mixed type inference. To ensure no mixed 
     #types either set False, or specify the type with the dtype parameter. 
 pheno_data
 
+###POR AQUII
 
 # We have gender (F/M) with some NAs
 
