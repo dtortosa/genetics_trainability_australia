@@ -2,18 +2,26 @@
 # coding: utf-8
 
 
-###############################################
-### CONVERT ILLUMINA REPORT TO PLINK FORMAT ###
-###############################################
+#########################################################
+######## CONVERT ILLUMINA REPORT TO PLINK FORMAT ########
+#########################################################
 
 
-##set WD
+
+##################
+#### Starting ####
+##################
+
+#set the working directory
 import os
 os.chdir("/home/dftortosa/singularity/australian_army_bishop/quality_control/")
 os.getcwd()
 
 
-##data available
+
+###########################################
+#### General info about available data ####
+###########################################
 
 #I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
     #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version	2.0.4). This includes a hader with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. This is a BPM file.
@@ -28,13 +36,13 @@ os.getcwd()
 #In particular, we are going to use the a paper about QC by Ritchie.There is a first version 2011 ([link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and a second version in 2022 ([link](https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603)).
 
 
-##Plink Installation
+
+############################
+#### Plink Installation ####
+############################
 
 #I have downloaded Plink ([link](https://www.cog-genomics.org/plink/)) and copied the executable ("plink") to `bin`, so we can use Plink from any place just typing `plink`. We are using Plink version 1.9 (see singularity recipe for the version used).
-
 os.system("plink --version")
-
-
 
 #Note that there is Plink 1.9 ([link](https://www.cog-genomics.org/plink/1.9/)) and Plink 2.0 ([link](https://www.cog-genomics.org/plink/2.0/)), these are not connected but different programs. 
     #This [threat](https://www.biostars.org/p/299855/#:~:text=The%20main%20difference%20is%20that,for%20a%20while%20to%20come.) of biostars explains the differences:
@@ -42,7 +50,7 @@ os.system("plink --version")
         # So, **you should stick to 1.9 as long as it's good enough for the jobs you need to perform. But once you need to do something outside 1.9's scope, you're likely to find that 2.0 already has the additional feature you need** (or it'll be added quickly after you ask for it)"
 
 
-## Plink dummy example
+##Plink dummy example
 
 # Follow the general usage page ([link](https://www.cog-genomics.org/plink/1.9/general_usage)) of plink and run the toy example found in the downloaded folder.
 
@@ -78,7 +86,10 @@ os.system("plink --version")
     # Since the prefix is a required parameter, invoking --out without it will cause PLINK to quit during command line parsing:
 
 
-##Exploration of a final report
+
+#######################################
+#### Exploration of a final report ####
+#######################################
 
 #Explore the final report file of one sample. 
 
@@ -291,9 +302,12 @@ print(f'Unknown sex is below 10? {sample_map.loc[(sample_map["Gender"] == "Unkno
 # Then, we have columns for ID of the parents, but this is not the case in our study.
 
 
-# ## Load phenotype data
 
-# This include reported sex and VO2 max data.
+################################
+#### Explore phenotype data ####
+################################
+
+#This include reported sex and VO2 max data.
 pheno_data = pd.read_csv("data/pheno_data/combact gene DNA GWAS 23062022_all_dna_samples.csv",
     delimiter=",", 
     header=0,
@@ -304,369 +318,220 @@ pheno_data = pd.read_csv("data/pheno_data/combact gene DNA GWAS 23062022_all_dna
     #types either set False, or specify the type with the dtype parameter. 
 pheno_data
 
-###POR AQUII
-
 # We have gender (F/M) with some NAs
+print(pheno_data["Gender"].describe())
+print(f'NAs for sex: {pheno_data[pheno_data["Gender"].isna()].shape[0]}')
 
-# In[12]:
-
-
-pheno_data["Gender"].describe()
-
-
-# In[20]:
-
-
-f'NAs for sex: {pheno_data[pheno_data["Gender"].isna()].shape[0]}'
-
+#the NAs for sex have no data at all
+print(pheno_data.loc[pheno_data["Gender"].isna(),:])
 
 # Also age, which is a float, as shown in the paper
-
-# In[21]:
-
-
 pheno_data["Age"].describe()
+
+# We also have the ID of the sample
+print(pheno_data["AGRF code"])
+
+# This code is the ID of the samples in the sample map of illumina.
+# We have almost all samples of the first batch included in the pheno data, we only lack one individual.
+print(f'Number of samples in sample map: {sample_map.shape[0]}')
+print(f'Number of samples of pheno_data included in sample map')
+print(pheno_data[pheno_data["AGRF code"].isin(sample_map["ID"])].shape[0])
 
 
 # Then, different body mass and cardiorespiratory fitness variables.
 # 
 # NOT CHECKED FOR NOW.
 
-# We also have the ID of the sample
-
-# In[36]:
 
 
-pheno_data["AGRF code"]
-
-
-# This code is the ID of the samples in the sample map of illumina.
-# 
-# We have almost all samples of the first batch included in the pheno data, we only lack one individual.
-
-# In[39]:
-
-
-pheno_data[pheno_data["AGRF code"].isin(sample_map["ID"])].shape[0]
-
-
-# ## Conversion of final report to Plink inputs
+####################################################
+#### Conversion of final report to Plink inputs ####
+####################################################
 
 # We are going to convert the illumina report (BPM file) to lgen file that can be used as input in Plink. This seems to be trivial ([link](https://www.biostars.org/p/51928/)), but we are going to use a tutorial just in case ([link](https://www.youtube.com/watch?v=5_pNby7l2dE&t=1s&ab_channel=GenomicsBootCamp), [link](https://pastebin.com/pzgw7JVp)).
-# 
+
 # The final report has 1 line for the SNP of one individual. We have separated final reports for each individual. This is close to the lgen format of plink.
-# 
+
 # Therefore, our goal is to create lgen, also the fam and map files required to load the lgen in Plink. Some information might be missing in the final report, so you need to replace them.
 
+
+#############
+# lgen file #
+#############
+
 # **lgen file [plink info](https://www.cog-genomics.org/plink/1.9/formats#lgen)**
-# 
-# A text file with no header line, and one line per genotype call (or just not-homozygous-major calls if 'lgen-ref' was invoked) usually with the following five fields:
-# 
-# - Family ID
-# - Within-family ID
-# - Variant identifier
-# - Allele call 1 ('0' for missing)
-# - Allele call 2
+    # A text file with no header line, and one line per genotype call (or just not-homozygous-major calls if 'lgen-ref' was invoked) usually with the following five fields:
+        #Family ID
+        #Within-family ID
+        #Variant identifier
+        #Allele call 1 ('0' for missing)
+        #Allele call 2
 
 # As we have each sample in a separated final report, we need to bind them in order to get all the genotype calls
 
 # Get first the paths for each final report
-
-# In[60]:
-
-
 import glob
 list_reports_files_full_path = glob.glob("data/example_data/ILGSA24-17303_FinalReport*") 
     #I prefer using the glob module, as it does pattern matching and expansion.
         #https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
 list_reports_files_full_path
 
-
 # Load the data.frame selecting only the colums needed for the lgen file
-
-# In[73]:
-
-
-list_df_reports = [pd.read_csv(path,
-                               skiprows=10, #skip first 10 rows to get only the data
-                               usecols=["Sample ID", #load only a subset of the columns
-                                        "SNP Name", 
-                                        "Allele1 - Forward", 
-                                        "Allele2 - Forward"],                               
-                               header=0,
-                               sep='\t',
-                               low_memory=False) #to avoid problems with mixed types
-                   for path in list_reports_files_full_path]
-#for the 1000 files, we should parallelize
-
+#using loop for now, BUT THIS SHOULD BE PARALLELIZED
+list_df_reports = [
+    pd.read_csv(
+        path, 
+        skiprows=10, #skip first 10 rows to get only the data
+        usecols=[
+            "Sample ID", #load only a subset of the columns
+            "SNP Name", 
+            "Allele1 - Forward", 
+            "Allele2 - Forward"],                               
+        header=0,
+        sep='\t',
+        low_memory=False) #to avoid problems with mixed types
+    for path in list_reports_files_full_path]
 
 # You can see how the selection of less columns decreases the size using the first final_report as example. We reduce the size almost 6 times.
-
-# In[51]:
-
-
 import sys
-
-#get the size of final_report1 as a whole and then to only the selected columns
-#divide by 10^6 to get MBs
 print(sys.getsizeof(final_report1)/(10**6))
 print(sys.getsizeof(final_report1[["Sample ID", "SNP Name", "Allele1 - Forward", "Allele2 - Forward"]])/(10**6))
-
+    #get the size of final_report1 as a whole and then to only the selected columns
+    #divide by 10^6 to get MBs
 
 # The rest of necessary columns like sample ID or sample SNP and position/chromsome are just repeated across final_reports but in the sample and SNP map are not duplicated, so we can just use these smaller files to get these required columns. See next sections.
 
 # We get a list with one DF per final report
-
-# In[76]:
-
-
-list_df_reports[0]
-
-
-# In[29]:
-
-
-f'Do we have as many DFs as paths we got? {len(list_df_reports) == len(list_reports_files_full_path)}'
-
+print(list_df_reports[0])
+print(f'Do we have as many DFs as paths we got? {len(list_df_reports) == len(list_reports_files_full_path)}')
 
 # Concatenate, because we have one row per SNP and sample, so we can just concateneate DFs.
-
-# In[132]:
-
-
-full_final_report = pd.concat(objs=list_df_reports, #list DFs
-                              axis=0, #concatenate along rows
-                              ignore_index=True) #clear the existing index and reset it
-
+full_final_report = pd.concat(
+    objs=list_df_reports, #list DFs
+    axis=0, #concatenate along rows
+    ignore_index=True) #clear the existing index and reset it
 
 # We should have as many rows as the total sum of rows across the list of DFs
+print(f'Do we have all the genotype calls? {full_final_report.shape[0] == sum([element.shape[0] for element in list_df_reports])}')
 
-# In[39]:
-
-
-f'Do we have all the genotype calls? {full_final_report.shape[0] == sum([element.shape[0] for element in list_df_reports])}'
-
-
-# In[133]:
-
-
-full_final_report
-
+#take a look
+print(full_final_report)
 
 # We have I and D as genotype calls, we will have to check that
+print(np.unique(full_final_report["Allele1 - Forward"]))
 
-# In[144]:
-
-
-np.unique(full_final_report["Allele1 - Forward"])
-
-
-# Make a copy, using copy(), so modifications to the data or indices of the copy will not be reflected in the original object
-
-# In[145]:
-
-
+#Make a copy, using copy(), so modifications to the data or indices of the copy will not be reflected in the original object
 lgen_file_raw = full_final_report.copy()
 
-
 # Change to "0" those genotype calls with "--" to match the format of Plink
+#allele 1
+lgen_file_raw.loc[
+    (lgen_file_raw["Allele1 - Forward"] == "-") | 
+    (lgen_file_raw["Allele1 - Forward"] == "--"), 
+    "Allele1 - Forward"] = "0"
+#allele 2
+lgen_file_raw.loc[
+    (lgen_file_raw["Allele2 - Forward"] == "-") | 
+    (lgen_file_raw["Allele2 - Forward"] == "--"), 
+    "Allele2 - Forward"] = "0"
 
-# In[146]:
-
-
-lgen_file_raw.loc[(lgen_file_raw["Allele1 - Forward"] == "-") | 
-                      (lgen_file_raw["Allele1 - Forward"] == "--"), 
-                      "Allele1 - Forward"] = "0"
-
-
-# In[147]:
-
-
-lgen_file_raw.loc[(lgen_file_raw["Allele2 - Forward"] == "-") | 
-                      (lgen_file_raw["Allele2 - Forward"] == "--"), 
-                      "Allele2 - Forward"] = "0"
-
-
-# Check we do not have "--" or "-" in alleles
-
-# In[148]:
-
-
-print("-" not in np.unique(lgen_raw["Allele1 - Forward"]))
-print("--" not in np.unique(lgen_raw["Allele1 - Forward"]))
-print("-" not in np.unique(lgen_raw["Allele2 - Forward"]))
-print("--" not in np.unique(lgen_raw["Allele2 - Forward"]))
-
+# Check that all SNPs do NOT have "-" or "--" for allele 1 and 2
+all(~lgen_file_raw["Allele1 - Forward"].isin(["-", "--"]))
+all(~lgen_file_raw["Allele1 - Forward"].isin(["-", "--"]))
+    #"~" to negate 
 
 # Add additional columns that are required for lgen files
-
-# In[149]:
-
-
 lgen_file_raw["FID"] = "combat"
 
-
-# In[159]:
-
-
-lgen_file_raw
-
-
 # Reorder the columns
-
-# In[160]:
-
-
 lgen_file = lgen_file_raw[["FID", "Sample ID", "SNP Name", "Allele1 - Forward", "Allele2 - Forward"]]
 
+#look
+print(lgen_file)
 
-# In[161]:
-
-
-lgen_file
-
-
-# Save without header:
-
-# In[166]:
-
-
+#Save without header:
 lgen_file.to_csv("data/plink_inputs_example/batch1_example.lgen",
-                 sep="\t",
-                 header=None,
-                 index=False)
+    sep="\t",
+    header=None,
+    index=False)
 
 
-# 
-# 
+############
+# fam file #
+############
+
 # **Fam file ([PLINK sample information file](https://www.cog-genomics.org/plink/1.9/formats#fam))**
-# 
-# A text file with no header line, and one line per sample with the following six fields:
-# 
-# - Family ID ('FID')
-# - Within-family ID ('IID'; cannot be '0')
-# - Within-family ID of father ('0' if father isn't in dataset)
-# - Within-family ID of mother ('0' if mother isn't in dataset)
-# - Sex code ('1' = male, '2' = female, '0' = unknown)
-# - Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
+    # A text file with no header line, and one line per sample with the following six fields:
+        # - Family ID ('FID')
+        # - Within-family ID ('IID'; cannot be '0')
+        # - Within-family ID of father ('0' if father isn't in dataset)
+        # - Within-family ID of mother ('0' if mother isn't in dataset)
+        # - Sex code ('1' = male, '2' = female, '0' = unknown)
+        # - Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
 
 # We can get the self-reported sex and sample ID from the pheno data.
-
-# In[167]:
-
-
 fam_file_raw = pheno_data.loc[:, ["Gender", "AGRF code"]]
-fam_file_raw
-
+print(fam_file_raw)
 
 # Codify the sex variable following plink notation
-
-# In[168]:
-
-
 fam_file_raw.loc[fam_file_raw["Gender"].isna(), "Gender"] = "0"
 fam_file_raw.loc[fam_file_raw["Gender"] == "M", "Gender"] = "1"
 fam_file_raw.loc[fam_file_raw["Gender"] == "F", "Gender"] = "2"
-np.unique(fam_file_raw["Gender"])
-
+print(np.unique(fam_file_raw["Gender"]))
 
 # Add the family variables and the phenotype (not added for now)
-
-# In[169]:
-
-
 fam_file_raw["FID"] = "combat" #ID for the whole study
-fam_file_raw["IID_father"] = "0"
-fam_file_raw["IID_mother"] = "0"
+fam_file_raw["IID_father"] = "0" #'0' if father isn't in dataset
+fam_file_raw["IID_mother"] = "0" 
 fam_file_raw["phenotype"] = -9 #this is no data for phenotype
 
-
 # Reorder
-
-# In[170]:
-
-
 fam_file = fam_file_raw[["FID", "AGRF code", "IID_father", "IID_mother", "Gender", "phenotype"]]
-
-
-# In[171]:
-
-
-fam_file
-
+print(fam_file)
 
 # Save without header:
-
-# In[172]:
-
-
 fam_file.to_csv("data/plink_inputs_example/batch1_example.fam",
-                sep="\t",
-                header=None,
-                index=False)
+    sep="\t",
+    header=None,
+    index=False)
 
+
+############
+# map file #
+############
 
 # **Map file [Plink info](https://www.cog-genomics.org/plink/1.9/formats#map)**
-# 
+
 # A text file with no header line, and one line per variant with the following 3-4 fields:
-# 
-# - Chromosome code. PLINK 1.9 also permits contig names here, but most older programs do not.
-# - Variant identifier
-# - Position in morgans or centimorgans (optional; also safe to use dummy value of '0')
-# - Base-pair coordinate
+    # - Chromosome code. PLINK 1.9 also permits contig names here, but most older programs do not.
+    # - Variant identifier
+    # - Position in morgans or centimorgans (optional; also safe to use dummy value of '0')
+    # - Base-pair coordinate
 
 # We can get this information from the SNP map.
-# 
-# We could also get this information from the final report but, as shown in previous lines, we have only loaded the columns required for the lgen file because we have to load hundreds of final reports and concatenate them, so it will use less memory with less columns. The Indexes and positions are not duplicated in SNP map, only 1 row per SNP, being a much smaller file.
-
-# In[173]:
-
-
-final_report1
-
+    # We could also get this information from the final report but, as shown in previous lines, we have only loaded the columns required for the lgen file because we have to load hundreds of final reports and concatenate them, so it will use less memory with less columns. The Indexes and positions are not duplicated in SNP map, only 1 row per SNP, being a much smaller file.
+print(final_report1)
 
 # Make a copy with copy(), so modifications to the data or indices of the copy will not be reflected in the original object
-
-# In[174]:
-
-
 map_file_raw = snp_map.copy()
-map_file_raw
+print(map_file_raw)
 
-
-# In[175]:
-
-
+#set genetic position as dummy
 map_file_raw["centimorgans"] = 0 #dummy value of zero
 
-
-# In[176]:
-
-
-map_file = map_file_raw[["Chromosome", "Name", "centimorgans", "Position"]]
-
-
-# In[177]:
-
-
-map_file
-
+#select columns
+map_file = map_file_raw.loc[:, ["Chromosome", "Name", "centimorgans", "Position"]]
+print(map_file)
 
 # Save
-
-# In[178]:
-
-
 map_file.to_csv("data/plink_inputs_example/batch1_example.map",
-                sep="\t",
-                header=None,
-                index=False)
-
-
-# In[ ]:
+    sep="\t",
+    header=None,
+    index=False)
 
 
 
+#POR AQUIIII
 
 
 # CHECK THE THREE FILES
@@ -744,6 +609,8 @@ fam_file_raw.iloc[1422,:]
 # - check genotype calls that are I or D
 #     - how plink deals with this?
 # - ask David about the samples without phenotype in the excel file?
+    #the last 42
+#Ask david about the sample included in first bath but without phenotype data
 
 # In[ ]:
 

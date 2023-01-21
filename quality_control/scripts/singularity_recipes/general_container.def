@@ -38,6 +38,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 %files
 
 	#copy the binary of plink (2023_01_16) and save it in /bin so we can use the command "plink"
+	#https://www.cog-genomics.org/plink/
 	/home/dftortosa/singularity/australian_army_bishop/plink_versions/plink_linux_x86_64_20230116/plink /bin/plink
 
     #From the original folder in the host, we copy a R script to a new folder in the container called scripts. NEVER PUT ANYTHING ELSE IN THE LINE WITH SOURCE AND DESTINATION, GIVES ERROR.
@@ -94,7 +95,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	python3.9 get-pip.py
 
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
-	python3.9 -m pip install sklearn
+	python3.9 -m pip install scikit-learn
 	python3.9 -m pip install eli5
 	python3.9 -m pip install tensorflow
 	python3.9 -m pip install scikeras

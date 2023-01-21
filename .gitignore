@@ -1,4 +1,5 @@
 *.sif
+*.ipynb_checkpoints
 
 /quality_control/data
-
+/plink_versions
