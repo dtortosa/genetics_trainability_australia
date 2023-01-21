@@ -116,7 +116,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#pip3.9 install --upgrade pandas
 	
 	#give rights to run the bash script
-	chmod +x opt/scripts/bash_optuna_processes.sh
+	#chmod +x opt/scripts/bash_optuna_processes.sh
 	
 
 #############################

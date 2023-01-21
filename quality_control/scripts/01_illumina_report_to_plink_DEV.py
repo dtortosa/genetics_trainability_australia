@@ -1,141 +1,108 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Starting with quality control
 
-# In[1]:
+###############################################
+### CONVERT ILLUMINA REPORT TO PLINK FORMAT ###
+###############################################
 
 
+##set WD
 import os
-
-os.chdir("/media/dftortosa/Windows/Users/dftor/Documents/diego_docs/science/other_projects/australian_army_bishop/quality_control")
-
+os.chdir("/home/dftortosa/singularity/australian_army_bishop/quality_control/")
 os.getcwd()
 
 
-# ## Data available
+##data available
 
-# I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
-# 
-# - The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version	2.0.4). This includes a hader with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. This is a BPM file.
-#     - From this file, we can obtain the a lgen file. It is just taking the first few columns of the FinalReport. Plink has an option to read the .lgen format and convert it to PED file (see below; [link](https://www.biostars.org/p/13302/))
-# 
-# - A SNP map file with the physical positions of the snps.
-# 
-# - A sample map file with info for each individual, like the sex, ID..
+#I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
+    #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version	2.0.4). This includes a hader with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. This is a BPM file.
+        #From this file, we can obtain the a lgen file. It is just taking the first few columns of the FinalReport. Plink has an option to read the .lgen format and convert it to PED file (see below; [link](https://www.biostars.org/p/13302/))
+    #A SNP map file with the physical positions of the snps.
+    #A sample map file with info for each individual, like the sex, ID..
 
-# It is usually recommended to prepare this data to create a ped file with Plink, which is a tool to process genetic data ([link](https://www.cog-genomics.org/plink/)), perform some filtering and QC analyses and then export as VCF ([link](https://www.biostars.org/p/210516/), [link](https://www.biostars.org/p/135156/), [link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and use packages like Hail in python.
-# 
-# There is an interesting alternative, gtc2vcf ([link](https://github.com/freeseek/gtc2vcf), [link](https://software.broadinstitute.org/software/gtc2vcf/)), which can directly transform Ilumina reports into VCF files from command line. We are going to use Plink, though, because it is much more widely used and there are tutorials and best practice papers using it.
-# 
-# In particular, we are going to use the a paper about QC by Ritchie.There is a first version 2011 ([link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and a second version in 2022 ([link](https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603)).
-# 
-# 
+#It is usually recommended to prepare this data to create a ped file with Plink, which is a tool to process genetic data ([link](https://www.cog-genomics.org/plink/)), perform some filtering and QC analyses and then export as VCF ([link](https://www.biostars.org/p/210516/), [link](https://www.biostars.org/p/135156/), [link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and use packages like Hail in python.
 
-# ## Plink Installation
+#There is an interesting alternative, gtc2vcf ([link](https://github.com/freeseek/gtc2vcf), [link](https://software.broadinstitute.org/software/gtc2vcf/)), which can directly transform Ilumina reports into VCF files from command line. We are going to use Plink, though, because it is much more widely used and there are tutorials and best practice papers using it.
 
-# I have downloaded Plink ([link](https://www.cog-genomics.org/plink/)) and copied the executable ("plink") to `bin`, so we can use Plink from any place just typing `plink`. We are using Plink version 1.9 (Dec 2022).
-
-# In[2]:
+#In particular, we are going to use the a paper about QC by Ritchie.There is a first version 2011 ([link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and a second version in 2022 ([link](https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603)).
 
 
-get_ipython().run_cell_magic('bash', '', '\nplink --version\n')
+##Plink Installation
+
+#I have downloaded Plink ([link](https://www.cog-genomics.org/plink/)) and copied the executable ("plink") to `bin`, so we can use Plink from any place just typing `plink`. We are using Plink version 1.9 (Dec 2022).
+
+#os.system("plink --version")
+
+####TO DO IN SINGULARITY
 
 
-# Note that there is Plink 1.9 ([link](https://www.cog-genomics.org/plink/1.9/)) and Plink 2.0 ([link](https://www.cog-genomics.org/plink/2.0/)), these are not connected but different programs. 
-# 
-# This [threat](https://www.biostars.org/p/299855/#:~:text=The%20main%20difference%20is%20that,for%20a%20while%20to%20come.) of biostars explains the differences:
-# 
-# "The main difference is that plink 1.9 is essentially finished, while plink 2.0 is an alpha-stage program which will have significant unfinished components for a while to come. As a consequence, current development priorities for plink 2.0 are centered around things which are impossible to do with plink 1.9, such as handling multiallelic/phased variants and dosage data and reliably tracking REF/ALT alleles; while things that plink 1.9 already handles perfectly well, such as working with .ped/.map file pairs, have been deliberately deprioritized for now.
-# 
-# So, **you should stick to 1.9 as long as it's good enough for the jobs you need to perform. But once you need to do something outside 1.9's scope, you're likely to find that 2.0 already has the additional feature you need** (or it'll be added quickly after you ask for it)"
+#Note that there is Plink 1.9 ([link](https://www.cog-genomics.org/plink/1.9/)) and Plink 2.0 ([link](https://www.cog-genomics.org/plink/2.0/)), these are not connected but different programs. 
+    #This [threat](https://www.biostars.org/p/299855/#:~:text=The%20main%20difference%20is%20that,for%20a%20while%20to%20come.) of biostars explains the differences:
+        # "The main difference is that plink 1.9 is essentially finished, while plink 2.0 is an alpha-stage program which will have significant unfinished components for a while to come. As a consequence, current development priorities for plink 2.0 are centered around things which are impossible to do with plink 1.9, such as handling multiallelic/phased variants and dosage data and reliably tracking REF/ALT alleles; while things that plink 1.9 already handles perfectly well, such as working with .ped/.map file pairs, have been deliberately deprioritized for now.
+        # So, **you should stick to 1.9 as long as it's good enough for the jobs you need to perform. But once you need to do something outside 1.9's scope, you're likely to find that 2.0 already has the additional feature you need** (or it'll be added quickly after you ask for it)"
 
-# ## Plink dummy example
+
+## Plink dummy example
 
 # Follow the general usage page ([link](https://www.cog-genomics.org/plink/1.9/general_usage)) of plink and run the toy example found in the downloaded folder.
 
-# In[3]:
-
-
-get_ipython().run_cell_magic('bash', '', '\ncd /media/dftortosa/Windows/Users/dftor/Documents/diego_docs/science/software/plink/plink_linux_x86_64_20221210\n\nplink --file toy --freq --out toy_analysis\n')
+#os.system("cd /media/dftortosa/Windows/Users/dftor/Documents/diego_docs/science/software/plink/plink_linux_x86_64_20221210; plink --file toy --freq --out toy_analysis')
 
 
 # Explanation of the arguments
-# 
-# - "--file toy" tells PLINK to use the genomic data in the text files toy.ped and toy.map. You'll see several other ways to specify input data on the next page.
-#     - toy.map has two rows, one for each SNP ([link](https://www.cog-genomics.org/plink/1.9/formats#map)).
-#         - Chromosome code. PLINK 1.9 also permits contig names here, but most older programs do not.
-#         - Variant identifier
-#         - Position in morgans or centimorgans (optional; also safe to use dummy value of '0')
-#         - Base-pair coordinate 
-#         - All lines must have the same number of columns (so either no lines contain the morgans/centimorgans column, or all of them do).
-#     - toy.ped. Contains no header line, and one line per sample with 2V+6 fields where V is the number of variants. 
-#         - The first six fields are the same as those in a .fam file:
-#             - Family ID ('FID')
-#             - Within-family ID ('IID'; cannot be '0')
-#             - Within-family ID of father ('0' if father isn't in dataset)
-#             - Within-family ID of mother ('0' if mother isn't in dataset)
-#             - Sex code ('1' = male, '2' = female, '0' = unknown)
-#             - Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
-#         - The seventh and eighth fields are allele calls for the first variant in the .map file ('0' = no call); the 9th and 10th are allele calls for the second variant; and so on.
-#         - If all alleles are single-character, PLINK 1.9 will correctly parse the more compact "compound genotype" variant of this format, where each genotype call is represented as a single two-character string. This does not require the use of an additional loading flag. You can produce such a file with "--recode compound-genotypes". 
-#         - It is also possible to load .ped files missing some initial fields.
-# - --freq tells PLINK to generate an allele frequency report. The full range of supported calculations is summarized under "Main functions" in the sidebar, and the formats of all reports are described in the file formats appendix.
-# - --out is for the output file prefix.
-# 
+    # - "--file toy" tells PLINK to use the genomic data in the text files toy.ped and toy.map. You'll see several other ways to specify input data on the next page.
+        #toy.map has two rows, one for each SNP ([link](https://www.cog-genomics.org/plink/1.9/formats#map)).
+            #- Chromosome code. PLINK 1.9 also permits contig names here, but most older programs do not.
+            #- Variant identifier
+            #- Position in morgans or centimorgans (optional; also safe to use dummy value of          '0')
+            #- Base-pair coordinate 
+            #- All lines must have the same number of columns (so either no lines contain the morgans/centimorgans column, or all of them do).
+        #- toy.ped. Contains no header line, and one line per sample with 2V+6 fields where V is the number of variants. 
+            #- The first six fields are the same as those in a .fam file:
+                #Family ID ('FID')
+                #Within-family ID ('IID'; cannot be '0')
+                #Within-family ID of father ('0' if father isn't in dataset)
+                #Within-family ID of mother ('0' if mother isn't in dataset)
+                #Sex code ('1' = male, '2' = female, '0' = unknown)
+                #Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
+            #The seventh and eighth fields are allele calls for the first variant in the .map file ('0' = no call); the 9th and 10th are allele calls for the second variant; and so on.
+        #If all alleles are single-character, PLINK 1.9 will correctly parse the more compact "compound genotype" variant of this format, where each genotype call is represented as a single two-character string. This does not require the use of an additional loading flag. You can produce such a file with "--recode compound-genotypes". 
+        #It is also possible to load .ped files missing some initial fields.
+            # - --freq tells PLINK to generate an allele frequency report. The full range of supported calculations is summarized under "Main functions" in the sidebar, and the formats of all reports are described in the file formats appendix.
+            # - --out is for the output file prefix.
+ 
 # So this particular combination makes PLINK calculate allele frequencies in toy.ped + toy.map, and write a report to toy_analysis.frq.
-
-# Here ([link](https://www.cog-genomics.org/plink/1.9/general_usage)) you can find information about the flag usage in plink. As an example, we are going to work with --out flag.
-# 
-# By default, the output files generated by PLINK all have names of the form 'plink.<one of these extensions>'. This is fine for a single run, but as soon as you make more use of PLINK, you'll start causing results from previous runs to be overwritten.
-# 
-# Therefore, you usually want to choose a different output file prefix for each run. --out causes 'plink' to be replaced with the prefix you provide. E.g. in the example above, "--out toy_analysis" caused PLINK to create a file named toy_analysis.frq instead of plink.frq.
-# 
-# Since the prefix is a required parameter, invoking --out without it will cause PLINK to quit during command line parsing:
-
-# In[4]:
+    # Here ([link](https://www.cog-genomics.org/plink/1.9/general_usage)) you can find information about the flag usage in plink. As an example, we are going to work with --out flag.
+    # By default, the output files generated by PLINK all have names of the form 'plink.<one of these extensions>'. This is fine for a single run, but as soon as you make more use of PLINK, you'll start causing results from previous runs to be overwritten.
+    # Therefore, you usually want to choose a different output file prefix for each run. --out causes 'plink' to be replaced with the prefix you provide. E.g. in the example above, "--out toy_analysis" caused PLINK to create a file named toy_analysis.frq instead of plink.frq.
+    # Since the prefix is a required parameter, invoking --out without it will cause PLINK to quit during command line parsing:
 
 
-get_ipython().run_cell_magic('bash', '', '\nplink --file toy --freq --out\n')
+##Exploration of a final report
 
+#Explore the final report file of one sample. 
 
-# ##  Exploration of a final report
-
-# Explore the final report file of one sample.
-
-# We are going to avoid the header, so we skip the first 10 rows leaving a total of 40 rows, i.e., 39 SNPs plus the columns names.
+#We are going to avoid the header, so we skip the first 10 rows leaving a total of 40 rows, i.e., 39 SNPs plus the columns names.
 
 # In[2]:
 
 
 import pandas as pd
 
-
 final_report1 = pd.read_csv("data/example_data/ILGSA24-17303_FinalReport1.txt",
-                           skiprows=10, #skip rows with the header
-                           delimiter="\t",
-                           low_memory=False) 
-    #low_memory: Internally process the file in chunks, 
-    #resulting in lower memory use while parsing, 
-    #but possibly mixed type inference. To ensure no mixed 
-    #types either set False, or specify the type with the dtype parameter. 
+    skiprows=10, #skip rows with the header
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
 final_report1
 
-
-# See columns names (see this [tutorial](https://www.youtube.com/watch?v=_-Gu9hO8aFM&ab_channel=GenomicsBootCamp)):
-
-# In[18]:
-
-
+#See columns names (see this [tutorial](https://www.youtube.com/watch?v=_-Gu9hO8aFM&ab_channel=GenomicsBootCamp)):
 final_report1.columns
 
 
 # **Sample identification**
-# 
 # The first three columns are about the sample. At least in our case, we have 1 final report for each sample, i.e., each individual (see below), so these columns should have only one value in the entire file. The same sample index and ID. We do not have sample name.
-
-# In[3]:
-
 
 import numpy as np
 
@@ -148,9 +115,6 @@ print(f'Unique cases are 1? {len(np.unique(final_report1["Sample Name"]))==1}')
 # 
 # Then, we have the SNP indexes and names. We should have a different value for each row, i.e., the number of unique cases should be the same than the number of rows, i.e., no duplicates. Therefore, **we have as many rows as SNPs**.
 
-# In[36]:
-
-
 print(f'Unique cases are the number of rows? {len(np.unique(final_report1["SNP Index"]))==final_report1.shape[0]}')
 print(f'Unique cases are the number of rows? {len(np.unique(final_report1["SNP Name"]))==final_report1.shape[0]}')
 
@@ -158,54 +122,20 @@ print(f'Unique cases are the number of rows? {len(np.unique(final_report1["SNP N
 # **Chromosome data**
 # 
 # Then, we have the chromosome. We have some extrange cases like chromosome 0, XY and MT
-
-# In[28]:
-
-
 np.unique(final_report1["Chr"])
 
 
 # We have 210 SNPs out 600K that have chromosome zero, and they also have position zero. These seem to be outdated SNPs as they do not have any physical position.
-
-# In[49]:
-
-
 f'SNPs with chromosome zero are less than 1000? {final_report1.loc[final_report1["Chr"] == "0"].shape[0] < 1000}'
-
-
-# In[50]:
-
-
 f'Chromosome zero SNPs have also position zero? {np.unique(final_report1.loc[final_report1["Chr"] == "0", "Position"]) == 0}'
 
-
 # We have also SNPs in chromosome XY.
-
-# In[48]:
-
-
-final_report1.loc[final_report1["Chr"] == "XY"]
-
-
-# In[54]:
-
-
+print(final_report1.loc[final_report1["Chr"] == "XY"])
 f'The number of XY SNPs is less than 1000: {final_report1.loc[final_report1["Chr"] == "XY"].shape[0]<1000}'
-
-
-# These seems to be pseudoautosomal regions (PAR), i.e., homologous sequences of nucleotides on the X and Y chromosomes. Therefore, this should be ok, the error is to put them in X or XY while the convention is to set them as XY ([link; section Sex-chromosome marker annotation](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5100670/)).
+    #These seems to be pseudoautosomal regions (PAR), i.e., homologous sequences of nucleotides on the X and Y chromosomes. Therefore, this should be ok, the error is to put them in X or XY while the convention is to set them as XY ([link; section Sex-chromosome marker annotation](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5100670/)).
 
 # We have also mitochondrial SNPs.
-
-# In[51]:
-
-
-final_report1.loc[final_report1["Chr"] == "MT"]
-
-
-# In[55]:
-
-
+print(final_report1.loc[final_report1["Chr"] == "MT"])
 f'The number of mito SNPs is less than 1500: {final_report1.loc[final_report1["Chr"] == "MT"].shape[0]<1500}'
 
 
