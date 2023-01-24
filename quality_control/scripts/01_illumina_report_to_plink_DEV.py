@@ -342,6 +342,10 @@ print(pheno_data[pheno_data["AGRF code"].isin(sample_map["ID"])].shape[0])
 # 
 # NOT CHECKED FOR NOW.
 
+#note that we have last rows with individuals of the study that have no phenotype data
+print("Number of samples without phenotype data")
+print(sum(pheno_data["Gender"].isna()))
+
 
 
 ####################################################
@@ -469,14 +473,62 @@ lgen_file.to_csv("data/plink_inputs_example/batch1_example.lgen",
         # - Sex code ('1' = male, '2' = female, '0' = unknown)
         # - Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
 
+##check sex variable
+#before creating the fam file, we need to see what is going on with the sex, because there are differences between phenotype dataset and the sample map of the first batch
+
+#first check if we have samples with genetic but no phenotipic data
+print("How many samples have genetic but no phenotipic data:")
+print(f'{sum(~sample_map["ID"].isin(pheno_data["AGRF code"]))} out {sample_map.shape[0]} samples in the batch')
+
+#merge the sample map and pheno_data retaining only those samples with ID in the batch
+test_sample_map = sample_map.merge(
+    pheno_data, 
+    left_on="ID", #use the column with IDs in sample_map
+    right_on="AGRF code", #use the column with IDs in pheno_data
+    suffixes=["_sample_map", "_pheno_data"], #set the suffix for repeated columns (e.g., Gender)
+    how="left") #only IDs from the sample_map
+
+#recode sex column in sample_map to match coding of pheno_data
+test_sample_map.loc[test_sample_map["Gender_sample_map"] == "Male", "Gender_sample_map"] = "M"
+test_sample_map.loc[test_sample_map["Gender_sample_map"] == "Female", "Gender_sample_map"] = "F"
+    #Male instead of M and Female instead of F
+
+#see samples with different sex between datasets
+unmatched_sex = test_sample_map.loc[
+    (test_sample_map["Gender_pheno_data"] != test_sample_map["Gender_sample_map"]) & 
+    ~test_sample_map["Gender_pheno_data"].isna(), 
+    ["Gender_pheno_data", "Gender_sample_map", "ID", "AGRF code"]]
+
+#we have some cases with problematic sex
+print("how many sample have different sex between sample map (batch data) and phenotipic data?")
+print(unmatched_sex.shape[0])
+print("See these cases")
+print(unmatched_sex)
+
+#FOR NOW, we are going to use the sex reported in the phenotipic data, but we have to ask to David. We will add this sex to the sample_map
+
 # We can get the self-reported sex and sample ID from the pheno data.
-fam_file_raw = pheno_data.loc[:, ["Gender", "AGRF code"]]
+fam_file_raw = sample_map.loc[:, ["ID", "Gender"]]
 print(fam_file_raw)
 
-# Codify the sex variable following plink notation
-fam_file_raw.loc[fam_file_raw["Gender"].isna(), "Gender"] = "0"
-fam_file_raw.loc[fam_file_raw["Gender"] == "M", "Gender"] = "1"
-fam_file_raw.loc[fam_file_raw["Gender"] == "F", "Gender"] = "2"
+#remove those samples without phenotyipic data
+#IMPORTANT HERE, we lose samples with genetic data because they do not have pheno data and hence, no sex data from the study can be obtained, only illumina
+#fam_file_raw = fam_file_raw.loc[fam_file_raw["ID"].isin(pheno_data["AGRF code"]), :]
+
+# Codify the sex variable following plink notation and considering the sex in pheno_data
+fam_file_raw.loc[
+    (fam_file_raw["ID"].isin(pheno_data.loc[pheno_data["Gender"].isna(), "AGRF code"])) | 
+    (~fam_file_raw["ID"].isin(pheno_data["AGRF code"])), 
+    "Gender"] = "0"
+    #set as 0 the sex of those samples whose
+        #ID is associated to NA gender in pheno_data
+        #OR
+        #ID is NOT included in pheno_data
+fam_file_raw.loc[
+    fam_file_raw["ID"].isin(pheno_data.loc[pheno_data["Gender"] == "M", "AGRF code"]), 
+    "Gender"] = "1"
+    #set as 1 the sex of those samples whose ID is associated with Gender=M in pheno_data
+fam_file_raw.loc[fam_file_raw["ID"].isin(pheno_data.loc[pheno_data["Gender"] == "F", "AGRF code"]), "Gender"] = "2"
 print(np.unique(fam_file_raw["Gender"]))
 
 # Add the family variables and the phenotype (not added for now)
@@ -486,7 +538,7 @@ fam_file_raw["IID_mother"] = "0"
 fam_file_raw["phenotype"] = -9 #this is no data for phenotype
 
 # Reorder
-fam_file = fam_file_raw[["FID", "AGRF code", "IID_father", "IID_mother", "Gender", "phenotype"]]
+fam_file = fam_file_raw[["FID", "ID", "IID_father", "IID_mother", "Gender", "phenotype"]]
 print(fam_file)
 
 # Save without header:
@@ -530,125 +582,196 @@ map_file.to_csv("data/plink_inputs_example/batch1_example.map",
     index=False)
 
 
+############
+# map file #
+############
 
-#POR AQUIIII
+#checks map and lgen_file
+print("All snps of the map_file are included in the lgen_file?")
+print(all(map_file["Name"].isin(lgen_file["SNP Name"])))
+print("All snps of the lgen_file are included in the map_file?")
+print(all(lgen_file["SNP Name"].isin(map_file["Name"])))
 
-
-# CHECK THE THREE FILES
-
-# Remove SNPs/samples not included in the lgen file!!! 
-
-# In[ ]:
-
-
-
-
-
-# Change to ped file with PLINK 
-
-# In[181]:
-
-
-import os 
-
-os.system("ls data/plink_inputs_example")
+#checks fam_file and lgen_file
+print("All samples of the fam_file are included in the lgen_file?")
+print(all(fam_file["ID"].isin(lgen_file["Sample ID"])))
+    #this can be FALSE because we have used only two final_reports, i.e., 2 individuals
+print("All samples of the lgen_file are included in the fam_file?")
+print(all(lgen_file["Sample ID"].isin(fam_file["ID"])))
 
 
-# In[191]:
+#######################
+# Convert to ped file #
+#######################
+
+#calculate the ped file using the lgen, map and fam files
+os.system("cd data/plink_inputs_example; plink --lfile batch1_example --recode --out batch1_example_plink")
+    #go to the folder with plink inputs
+    #--lfile for loading the lgen file, which should be accompanied by a .fam and .map files having the same name except the extension.
+        #https://www.cog-genomics.org/plink/1.9/formats
+    #--recode creates a new text fileset, after applying sample/variant filters and other operations. By default, the fileset includes a .ped and a .map file, readable with --file.
+        #https://www.cog-genomics.org/plink/1.9/data#recode
+    #--out for the output name
+
+#This creates several files with the name used in --out, i.e., "batch1_example_plink"
+
+##.ped
+    #Original standard text format for sample pedigree information and genotype calls. Normally must be accompanied by a .map file; Haploview requires an accompanying .info file instead. Loaded with --file, and produced by --recode.
+    #Contains no header line, and one line per sample with 2V+6 fields (columns) where V is the number of variants (as many columns as variants). The first six fields are the same as those in a .fam file. The seventh and eighth fields are allele calls for the first variant in the .map file ('0' = no call); the 9th and 10th are allele calls for the second variant; and so on.
+    #If all alleles are single-character, PLINK 1.9 will correctly parse the more compact "compound genotype" variant of this format, where each genotype call is represented as a single two-character string. This does not require the use of an additional loading flag. You can produce such a file with "--recode compound-genotypes".
+#.ped too many columns to be loaded
+
+##map.
+    #Variant information file accompanying a .ped text pedigree + genotype table. Also generated by "--recode rlist".
+    #A text file with no header line, and one line per variant with the following 3-4 fields:
+        #Chromosome code. PLINK 1.9 also permits contig names here, but most older programs do not.
+        #Variant identifier
+        #Position in morgans or centimorgans (optional; also safe to use dummy value of '0')
+        #Base-pair coordinate
+    #All lines must have the same number of columns (so either no lines contain the morgans/centimorgans column, or all of them do)
+
+#see the map file
+map_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.map",
+    names=["chromosome", "snp_name", "genetic_position", "pair_base"],
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+print(map_plink)
+
+#chromosomes
+print("see the chromosome names and compare with the original map")
+print(np.unique(map_plink["chromosome"]))
+print(np.unique(snp_map["Chromosome"]))
+    #we have 22 autosomals, then X, Y, XY, MT, i.e., a total of 26 chromosomes
+
+#variant names
+print("check that the snp names are the same than those in the original map")
+print(all(map_plink["snp_name"].isin(snp_map["Name"])))
+print(all(snp_map["Name"].isin(map_plink["snp_name"])))
+
+#genetic position
+print("genetic position is always zero?")
+print(np.unique(map_plink["genetic_position"]) == 0)
+    #all zero, which is considered as none
+
+##nosex
+    #List of samples with ambiguous sex codes
+    #https://www.cog-genomics.org/plink/1.9/output
+
+#see the file
+nosex_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.nosex",
+    names=["FID", "ID"],
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+print(nosex_plink)
+
+#check
+print("The IDs in nosex are the same than those IDs of the fam file with unknown sex?")
+print(all(nosex_plink["ID"].isin(fam_file.loc[fam_file["Gender"]=="0", "ID"])))
+print(all(fam_file.loc[fam_file["Gender"]=="0", "ID"].isin(nosex_plink["ID"])))
+
+##.hh
+    #Produced automatically when the input data contains heterozygous calls where they shouldn't be possible (haploid chromosomes, male X/Y), or there are nonmissing calls for nonmales on the Y chromosome.
+    #A text file with one line per error (sorted primarily by variant ID, secondarily by sample ID) with the following three fields:
+        #Family ID
+        #Within-family ID
+        #Variant ID
+    #https://www.cog-genomics.org/plink/1.9/formats#hh
+
+#see the file
+hh_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.hh",
+    names=["FID", "ID", "snp_name"],
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+print(hh_plink)
+
+#check
+print("heterozygous calls are caused by samples with problematic sex?")
+print(unmatched_sex["AGRF code"].isin(hh_plink["ID"]))
+print(hh_plink["ID"].isin(unmatched_sex["AGRF code"]))
+
+#see the cases
+#for each heterozygous and problematic case
+for row_index, hh_case in hh_plink.iterrows():
+
+    #see case
+    print("###################################")
+    print("Problematic case number " + str(row_index))
+    print("###################################")
+    print(hh_case)
+
+    #See gender
+    print("##########\nGender of the case according to sample map:\n##########")
+    gender_case = fam_file.loc[fam_file["ID"] == hh_case["ID"], ["ID", "Gender"]]
+    print(gender_case)
+
+    #see genotype
+    print("##########\nGenotype according to lgen file:\n##########")
+    lgen_case = lgen_file.loc[(lgen_file["Sample ID"] == hh_case["ID"]) & (lgen_file["SNP Name"] == hh_case["snp_name"]), :]
+    print(lgen_case)
+
+    #see chromosome
+    print("##########\nChromosome according map file:\n##########")
+    map_case = map_file.loc[map_file["Name"] == hh_case["snp_name"], :]
+    print(map_case)
+
+    #check
+    print("##########\nthe problematic case is male and X chromosome, but it has two genotypes, which is not possible for a male?\n##########")
+    print(
+        (gender_case["Gender"].values == "1") & 
+        (map_case["Chromosome"].values == "X") & 
+        (~lgen_case[["Allele1 - Forward", "Allele2 - Forward"]].isna().values).all())
+
+##.log
+    #info about the session, random seed, input files..
+
+#now load the ped file and calculate the 
 
 
-import os 
+#################
+# Load ped file #
+#################
 
-os.system("cd data/plink_inputs_example; plink --nonfounders --lfile batch1_example --recode --out batch1_example_plink")
+#load the ped file in plink and calculate frequency of snps
+os.system("cd data/plink_inputs_example; plink --file batch1_example_plink --freq --out  batch1_example_plink_analysis")
+    #--file indicate name of the ped and map files.
+    #--freq generates an allele frequency report.
+    #--output is the prefix of the output files generated
+    #https://www.cog-genomics.org/plink/1.9/general_usage
 
-#I have not checked this code
+##frq file
+    #Produced by --freq. Valid input for --read-freq.
+    #A text file with a header line, and then one line per variant with the following six fields:
+        #CHR Chromosome code
+        #SNP Variant identifier
+        #A1  Allele 1 (usually minor)
+        #A2  Allele 2 (usually major)
+        #MAF Allele 1 frequency
+        #NCHROBS Number of allele observations
 
 
-# This error is caused because in the phenotype file, row 1423 is empty and then we have rows with sample ID but no phenotype, so we should remove all rows from 1423, 
+##POR AQUIII
 
-# In[ ]:
+#NO SE PUEDE CARGAR BIEN POR DELIMITATION
 
-
-fam_file_raw.iloc[1422,:]
-
-
-# In[ ]:
-
-
-
+#see the file
+freq_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink_analysis.frq",
+    header=0,
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+print(freq_plink)
 
 
 # Full tutorial for plink
 # 
 # https://genomicsbootcamp.github.io/book/
-
-# In[ ]:
-
-
+#MIRA ALSO INPUT FILETEIRNG IN PLINK
+#https://www.cog-genomics.org/plink/1.9/filter
 
 
-
-# In[ ]:
-
-
-
-
-
-# Things to check when QC:
-# 
-# - Check the genome build. I have manually checked some SNPs and they have the position of hg38.
-#     - YOU ARE NOT ADDED CENTIMORGANS, SO BE CAREFUL WITH WHAT PLINK DO ABOUT LD.
-# - Remove zero chromosomes
-#     - also MT, X, Y and XY?
-# - Check strand, because the foward strand of illumina not always matches that of dbSNP
-#     - StrandScript is a software to check and solve that
-# - Check the illumina pdf report for the first batch (zip file in initial stuff), because they say there are three problematic samples.
-#     - these three sample also have unknown sex according to illumina data!!
-# - check sex between illumina and real sex data (pheno_data)
-#     - remove uknown sex individuals?
-# - check genotype calls that are I or D
-#     - how plink deals with this?
-# - ask David about the samples without phenotype in the excel file?
-    #the last 42
-#Ask david about the sample included in first bath but without phenotype data
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-get_ipython().run_cell_magic('bash', '', '\ncd /home/dftortosa/Desktop\n\nplink --file ILGSA24-17873 --freq --out ILGSA24-17873_analysis\n')
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-get_ipython().run_cell_magic('bash', '', '\ncd data/example_data\n\n#https://www.cog-genomics.org/plink/1.9/formats#lgen\n\n#plink --lfile example_ILGSA24-17303_FinalReport1.txt --recode\n\n#https://www.biostars.org/p/51928/\n')
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
 
 
 
@@ -674,13 +797,38 @@ get_ipython().run_cell_magic('bash', '', '\ncd data/example_data\n\n#https://www
 # 
 # solution for the error: https://askubuntu.com/questions/54904/unzip-error-end-of-central-directory-signature-not-found
 
-# In[ ]:
 
 
 
 
+# Things to check when QC:
+# 
+# - Check the genome build. I have manually checked some SNPs and they have the position of hg38.
+#     - YOU ARE NOT ADDED CENTIMORGANS, SO BE CAREFUL WITH WHAT PLINK DO ABOUT LD.
+# - Remove zero chromosomes
+#     - also MT, X, Y and XY?
+#think how to combine the batches
+    #https://github.com/satijalab/seurat/issues/3631
+    #https://groups.google.com/g/plink2-users/c/SPRgIOBENgI/m/T-4S3TNcAAAJ
+# - Check strand, because the foward strand of illumina not always matches that of dbSNP
+#     - StrandScript is a software to check and solve that
+# - Check the illumina pdf report for the first batch (zip file in initial stuff), because they say there are three problematic samples.
+#     - these three sample also have unknown sex according to illumina data!!
+# - check sex between illumina and real sex data (pheno_data)
+#     - remove uknown sex individuals?
+    #we have the three problematic cases with sex unknown and two more with the opposite sex
+    #ASK DAVID about what sex to use. I guess we should stick to the reported in the phenotype data
+#there also 2 males and two snps in X that have two genotypes!
+    #      FID        ID   snp_name
+    #0  combat  7691CPSO  rs5917469
+    #1  combat  7684BSAO  rs5955017
+# - check genotype calls that are I or D
+#     - how plink deals with this?
+# - ask David about the samples without phenotype in the excel file?
+    #the last 42
+#Ask david about the sample included in first bath but without phenotype data
 
-# In[ ]:
+
 
 
 
@@ -690,3 +838,4 @@ get_ipython().run_cell_magic('bash', '', '\ncd data/example_data\n\n#https://www
 # - A tutorial on conducting genome‐wide association studies: Quality control and statistical analysis
 # - Genetic prediction of complex traits with polygenic scores: a statistical review
 # - Addressing the challenges of polygenic scores in human genetic research
+#Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
