@@ -1,0 +1,523 @@
+PLINK v1.90b7 64-bit (16 Jan 2023)
+Unique cases are 1? True
+Unique cases are 1? True
+Unique cases are 1? True
+Unique cases are the number of rows? True
+Unique cases are the number of rows? True
+        Sample Index Sample ID  ...  Top Genomic Sequence  Customer Strand
+14065              1  7684BSAO  ...                   NaN              TOP
+16165              1  7684BSAO  ...                   NaN              BOT
+16166              1  7684BSAO  ...                   NaN              BOT
+312826             1  7684BSAO  ...                   NaN              TOP
+312832             1  7684BSAO  ...                   NaN              TOP
+...              ...       ...  ...                   ...              ...
+647731             1  7684BSAO  ...                   NaN              BOT
+647740             1  7684BSAO  ...                   NaN              BOT
+647776             1  7684BSAO  ...                   NaN              TOP
+648034             1  7684BSAO  ...                   NaN              BOT
+653171             1  7684BSAO  ...                   NaN              TOP
+
+[878 rows x 30 columns]
+        Sample Index Sample ID  ...  Top Genomic Sequence  Customer Strand
+8158               1  7684BSAO  ...                   NaN              TOP
+8159               1  7684BSAO  ...                   NaN              TOP
+8160               1  7684BSAO  ...                   NaN              BOT
+8161               1  7684BSAO  ...                   NaN              BOT
+8162               1  7684BSAO  ...                   NaN              BOT
+...              ...       ...  ...                   ...              ...
+545420             1  7684BSAO  ...                   NaN              BOT
+545421             1  7684BSAO  ...                   NaN              BOT
+591382             1  7684BSAO  ...                   NaN              TOP
+593585             1  7684BSAO  ...                   NaN              TOP
+604840             1  7684BSAO  ...                   NaN              TOP
+
+[1138 rows x 30 columns]
+The type of Position is integer? True
+There are no NAs? True
+The type of GT score is integer? True
+There are no NAs? True
+Min is equal of higher than 0? True
+Max is equal or lower than 1? True
+The type of GT score is integer? True
+There are no NAs? True
+Min is equal of higher than 0? True
+Max is equal or lower than 1? True
+Unique cases are the number of rows? True
+Unique cases are the number of rows? True
+SNPs with chromosome zero are less than 1000? True
+Chromosome zero SNPs have also position zero? [ True]
+         Index           Name Chromosome  ...  ILMN Strand  Customer Strand NormID
+14065    14066     exm2262791         XY  ...          BOT              TOP      6
+16165    16166     exm2273223         XY  ...          TOP              BOT      6
+16166    16167     exm2273224         XY  ...          BOT              BOT      1
+312826  312827  JHU_X.1211573         XY  ...          TOP              TOP     34
+312832  312833  JHU_X.1215195         XY  ...          BOT              TOP     34
+...        ...            ...        ...  ...          ...              ...    ...
+647731  647732      rs9786294         XY  ...          BOT              BOT      3
+647740  647741      rs9786334         XY  ...          TOP              BOT      3
+647776  647777      rs9786468         XY  ...          TOP              TOP      3
+648034  648035      rs9792836         XY  ...          TOP              BOT      3
+653171  653172   w23000898302         XY  ...          BOT              TOP      3
+
+[878 rows x 9 columns]
+The number of XY SNPs is less than 1000: True
+         Index        Name Chromosome  ...  ILMN Strand  Customer Strand NormID
+8158      8159    200610-1         MT  ...          BOT              TOP      6
+8159      8160  200610-100         MT  ...          BOT              TOP      6
+8160      8161  200610-102         MT  ...          TOP              BOT      1
+8161      8162  200610-105         MT  ...          TOP              BOT      6
+8162      8163  200610-110         MT  ...          TOP              BOT      1
+...        ...         ...        ...  ...          ...              ...    ...
+545420  545421  rs62581340         MT  ...          BOT              BOT      3
+545421  545422  rs62581341         MT  ...          BOT              BOT    203
+591382  591383  rs75214962         MT  ...          BOT              TOP      3
+593585  593586  rs75577869         MT  ...          BOT              TOP      3
+604840  604841  rs77417897         MT  ...          BOT              TOP      4
+
+[1138 rows x 9 columns]
+The number of mito SNPs is less than 1500: True
+There is no NA? True
+Float? True
+count    654027.000000
+mean          0.807331
+std           0.087710
+min           0.000000
+25%           0.782200
+50%           0.817900
+75%           0.856800
+max           0.965100
+Name: GenTrain Score, dtype: float64
+Unique cases are the number of rows? True
+Unique cases are the number of rows? True
+['Female' 'Male' 'Unknown']
+     Index  Name        ID  ... Parent2  Replicate      SentrixPosition
+37      38   NaN  7699ZSSO  ...     NaN        NaN  205422690078_R03C02
+70      71   NaN  3400SMJJ  ...     NaN        NaN  205422690083_R10C02
+149    150   NaN  2498STAA  ...     NaN        NaN  205422690121_R11C01
+
+[3 rows x 11 columns]
+Unknown sex is below 10? True
+count     1422
+unique       2
+top          M
+freq      1228
+Name: Gender, dtype: object
+NAs for sex: 42
+     Gender  Age  ...  Week 8 Pred VO2max  AGRF code
+1422    NaN  NaN  ...                 NaN        NaN
+1423    NaN  NaN  ...                 NaN   7798JWSO
+1424    NaN  NaN  ...                 NaN   6865SOMS
+1425    NaN  NaN  ...                 NaN   3484ACJJ
+1426    NaN  NaN  ...                 NaN   2192HHMJ
+1427    NaN  NaN  ...                 NaN   2197AFMJ
+1428    NaN  NaN  ...                 NaN   7600HPDO
+1429    NaN  NaN  ...                 NaN   7693KLNO
+1430    NaN  NaN  ...                 NaN   7698ATMO
+1431    NaN  NaN  ...                 NaN   7698JJJO
+1432    NaN  NaN  ...                 NaN   7699CMOO
+1433    NaN  NaN  ...                 NaN   7797BWAO
+1434    NaN  NaN  ...                 NaN   2370MDJA
+1435    NaN  NaN  ...                 NaN   0290JKSM
+1436    NaN  NaN  ...                 NaN   0298CCJM
+1437    NaN  NaN  ...                 NaN   0201GHFM
+1438    NaN  NaN  ...                 NaN   0280PAMM
+1439    NaN  NaN  ...                 NaN   0295MCMM
+1440    NaN  NaN  ...                 NaN   0295MDDM
+1441    NaN  NaN  ...                 NaN   0296CGMM
+1442    NaN  NaN  ...                 NaN   0297JKMM
+1443    NaN  NaN  ...                 NaN   4494BWMA
+1444    NaN  NaN  ...                 NaN   7273NMDS
+1445    NaN  NaN  ...                 NaN   4499JTMA
+1446    NaN  NaN  ...                 NaN   0199AMDM
+1447    NaN  NaN  ...                 NaN   0299AHNJ
+1448    NaN  NaN  ...                 NaN   1499MYSM
+1449    NaN  NaN  ...                 NaN   1195HBNM
+1450    NaN  NaN  ...                 NaN   4400JWSA
+1451    NaN  NaN  ...                 NaN   7700JMAO
+1452    NaN  NaN  ...                 NaN   6296WWJM
+1453    NaN  NaN  ...                 NaN   2378ADNA
+1454    NaN  NaN  ...                 NaN   2397PAFA
+1455    NaN  NaN  ...                 NaN   2397NCAA
+1456    NaN  NaN  ...                 NaN   4495CMOA
+1457    NaN  NaN  ...                 NaN   6201JJJJ
+1458    NaN  NaN  ...                 NaN   6200DPDJ
+1459    NaN  NaN  ...                 NaN   2471AWMA
+1460    NaN  NaN  ...                 NaN   6897TSSS
+1461    NaN  NaN  ...                 NaN   6899DWOS
+1462    NaN  NaN  ...                 NaN   6296TONJ
+1463    NaN  NaN  ...                 NaN   7799BTDO
+
+[42 rows x 9 columns]
+0       8244TCOJ
+1       6976MCJS
+2       3484JSJJ
+3       1389HSNM
+4       7593DBAO
+          ...   
+1459    2471AWMA
+1460    6897TSSS
+1461    6899DWOS
+1462    6296TONJ
+1463    7799BTDO
+Name: AGRF code, Length: 1464, dtype: object
+Number of samples in sample map: 216
+Number of samples of pheno_data included in sample map
+215
+Number of samples without phenotype data
+42
+631.959649
+163.38272
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to batch1_example_plink.log.
+Options in effect:
+  --lfile batch1_example
+  --out batch1_example_plink
+  --recode
+
+64162 MB RAM detected; reserving 32081 MB for main workspace.
+Processing .lgen file... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%30%31%32%33%34%35%36%37%38%39%40%41%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%80%81%82%83%84%85%86%87%88%89%90%91%91%92%93%94%95%96%97%98%99%100%done.
+--lfile: batch1_example_plink-temporary.bed +
+batch1_example_plink-temporary.bim + batch1_example_plink-temporary.fam
+written.
+654027 variants loaded from .bim file.
+216 people (165 males, 17 females, 34 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to batch1_example_plink.nosex .
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 216 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Warning: 2 het. haploid genotypes present (see batch1_example_plink.hh ); many
+commands treat these as missing.
+Total genotyping rate is 0.00921031.
+654027 variants and 216 people pass filters and QC.
+Note: No phenotypes present.
+--recode ped to batch1_example_plink.ped + batch1_example_plink.map ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+       Sample ID       SNP Name Allele1 - Forward Allele2 - Forward
+0       7684BSAO    1:103380393                 A                 G
+1       7684BSAO    1:109439680                 A                 A
+2       7684BSAO    1:110198788                 T                 T
+3       7684BSAO    1:110201112                 C                 C
+4       7684BSAO    1:110201667                 C                 C
+...          ...            ...               ...               ...
+654022  7684BSAO  Y:8804321-A-C                 A                 A
+654023  7684BSAO  Y:8852748-A-C                 A                 A
+654024  7684BSAO  Y:8894070-A-T                 A                 A
+654025  7684BSAO  Y:9145267-T-C                 T                 T
+654026  7684BSAO  Y:9785736-A-G                 A                 A
+
+[654027 rows x 4 columns]
+Do we have as many DFs as paths we got? True
+Do we have all the genotype calls? True
+        Sample ID       SNP Name Allele1 - Forward Allele2 - Forward
+0        7684BSAO    1:103380393                 A                 G
+1        7684BSAO    1:109439680                 A                 A
+2        7684BSAO    1:110198788                 T                 T
+3        7684BSAO    1:110201112                 C                 C
+4        7684BSAO    1:110201667                 C                 C
+...           ...            ...               ...               ...
+1308049  7691CPSO  Y:8804321-A-C                 A                 A
+1308050  7691CPSO  Y:8852748-A-C                 A                 A
+1308051  7691CPSO  Y:8894070-A-T                 A                 A
+1308052  7691CPSO  Y:9145267-T-C                 T                 T
+1308053  7691CPSO  Y:9785736-A-G                 A                 A
+
+[1308054 rows x 4 columns]
+['-' 'A' 'C' 'D' 'G' 'I' 'T']
+            FID Sample ID       SNP Name Allele1 - Forward Allele2 - Forward
+0        combat  7684BSAO    1:103380393                 A                 G
+1        combat  7684BSAO    1:109439680                 A                 A
+2        combat  7684BSAO    1:110198788                 T                 T
+3        combat  7684BSAO    1:110201112                 C                 C
+4        combat  7684BSAO    1:110201667                 C                 C
+...         ...       ...            ...               ...               ...
+1308049  combat  7691CPSO  Y:8804321-A-C                 A                 A
+1308050  combat  7691CPSO  Y:8852748-A-C                 A                 A
+1308051  combat  7691CPSO  Y:8894070-A-T                 A                 A
+1308052  combat  7691CPSO  Y:9145267-T-C                 T                 T
+1308053  combat  7691CPSO  Y:9785736-A-G                 A                 A
+
+[1308054 rows x 5 columns]
+How many samples have genetic but no phenotipic data:
+1 out 216 samples in the batch
+how many sample have different sex between sample map (batch data) and phenotipic data?
+5
+See these cases
+    Gender_pheno_data Gender_sample_map        ID AGRF code
+21                  M                 F  7699ISMO  7699ISMO
+30                  F                 M  7696ZSOO  7696ZSOO
+37                  M           Unknown  7699ZSSO  7699ZSSO
+70                  M           Unknown  3400SMJJ  3400SMJJ
+149                 M           Unknown  2498STAA  2498STAA
+           ID  Gender
+0    7684BSAO    Male
+1    7691CPSO    Male
+2    7688MRFO    Male
+3    7698ATMO  Female
+4    7695NKSO    Male
+..        ...     ...
+211  6897TSSS    Male
+212  6997EDFS  Female
+213  6900CBNS    Male
+214  6991HBJS    Male
+215  1200ATFM    Male
+
+[216 rows x 2 columns]
+['0' '1' '2']
+        FID        ID IID_father IID_mother Gender  phenotype
+0    combat  7684BSAO          0          0      1         -9
+1    combat  7691CPSO          0          0      1         -9
+2    combat  7688MRFO          0          0      1         -9
+3    combat  7698ATMO          0          0      0         -9
+4    combat  7695NKSO          0          0      1         -9
+..      ...       ...        ...        ...    ...        ...
+211  combat  6897TSSS          0          0      0         -9
+212  combat  6997EDFS          0          0      2         -9
+213  combat  6900CBNS          0          0      1         -9
+214  combat  6991HBJS          0          0      1         -9
+215  combat  1200ATFM          0          0      1         -9
+
+[216 rows x 6 columns]
+        Sample Index Sample ID  ...  Top Genomic Sequence  Customer Strand
+0                  1  7684BSAO  ...                   NaN              TOP
+1                  1  7684BSAO  ...                   NaN              TOP
+2                  1  7684BSAO  ...                   NaN              BOT
+3                  1  7684BSAO  ...                   NaN              TOP
+4                  1  7684BSAO  ...                   NaN              BOT
+...              ...       ...  ...                   ...              ...
+654022             1  7684BSAO  ...                   NaN              TOP
+654023             1  7684BSAO  ...                   NaN              TOP
+654024             1  7684BSAO  ...                   NaN              BOT
+654025             1  7684BSAO  ...                   NaN              BOT
+654026             1  7684BSAO  ...                   NaN              TOP
+
+[654027 rows x 30 columns]
+         Index           Name Chromosome  ...  ILMN Strand  Customer Strand NormID
+0            1    1:103380393          1  ...          BOT              TOP     28
+1            2    1:109439680          1  ...          TOP              TOP      1
+2            3    1:110198788          1  ...          BOT              BOT      4
+3            4    1:110201112          1  ...          BOT              TOP    101
+4            5    1:110201667          1  ...          BOT              BOT      1
+...        ...            ...        ...  ...          ...              ...    ...
+654022  654023  Y:8804321-A-C          Y  ...          BOT              TOP      3
+654023  654024  Y:8852748-A-C          Y  ...          BOT              TOP      3
+654024  654025  Y:8894070-A-T          Y  ...          TOP              BOT    203
+654025  654026  Y:9145267-T-C          Y  ...          BOT              BOT      3
+654026  654027  Y:9785736-A-G          Y  ...          TOP              TOP      3
+
+[654027 rows x 9 columns]
+       Chromosome           Name  centimorgans   Position
+0               1    1:103380393             0  102914837
+1               1    1:109439680             0  108897058
+2               1    1:110198788             0  109656166
+3               1    1:110201112             0  109658490
+4               1    1:110201667             0  109659045
+...           ...            ...           ...        ...
+654022          Y  Y:8804321-A-C             0    8936280
+654023          Y  Y:8852748-A-C             0    8984707
+654024          Y  Y:8894070-A-T             0    9026029
+654025          Y  Y:9145267-T-C             0    9307658
+654026          Y  Y:9785736-A-G             0    9948127
+
+[654027 rows x 4 columns]
+All snps of the map_file are included in the lgen_file?
+True
+All snps of the lgen_file are included in the map_file?
+True
+All samples of the fam_file are included in the lgen_file?
+False
+All samples of the lgen_file are included in the fam_file?
+True
+        chromosome  ... pair_base
+0                0  ...         0
+1                0  ...         0
+2                0  ...         0
+3                0  ...         0
+4                0  ...         0
+...            ...  ...       ...
+654022          26  ...     16456
+654023          26  ...     16465
+654024          26  ...     16482
+654025          26  ...     16519
+654026          26  ...     16527
+
+[654027 rows x 4 columns]
+see the chromosome names and compare with the original map
+[ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+ 24 25 26]
+['0' '1' '10' '11' '12' '13' '14' '15' '16' '17' '18' '19' '2' '20' '21'
+ '22' '3' '4' '5' '6' '7' '8' '9' 'MT' 'X' 'XY' 'Y']
+check that the snp names are the same than those in the original map
+True
+True
+genetic position is always zero?
+[ True]
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to batch1_example_plink_analysis.log.
+Options in effect:
+  --file batch1_example_plink
+  --freq
+  --out batch1_example_plink_analysis
+
+64162 MB RAM detected; reserving 32081 MB for main workspace.
+Scanning .ped file... 0%1%1%2%2%3%3%4%4%5%5%6%6%6%7%7%8%8%9%9%10%10%11%11%12%12%12%13%13%14%14%15%15%16%16%17%17%18%18%18%19%19%20%20%21%21%22%22%23%23%24%24%25%25%25%26%26%27%27%28%28%29%29%30%30%31%31%31%32%32%33%33%34%34%35%35%36%36%37%37%37%38%38%39%39%40%40%41%41%42%42%43%43%43%44%44%45%45%46%46%47%47%48%48%49%49%50%50%50%51%51%52%52%53%53%54%54%55%55%56%56%56%57%57%58%58%59%59%60%60%61%61%62%62%62%63%63%64%64%65%65%66%66%67%67%68%68%68%69%69%70%70%71%71%72%72%73%73%74%74%75%75%75%76%76%77%77%78%78%79%79%80%80%81%81%81%82%82%83%83%84%84%85%85%86%86%87%87%87%88%88%89%89%90%90%91%91%92%92%93%93%93%94%94%95%95%96%96%97%97%98%98%99%99%100%.ped scan complete (for binary autoconversion).
+Performing single-pass .bed write (654027 variants, 216 people).
+0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%--file: batch1_example_plink_analysis-temporary.bed +
+batch1_example_plink_analysis-temporary.bim +
+batch1_example_plink_analysis-temporary.fam written.
+654027 variants loaded from .bim file.
+216 people (165 males, 17 females, 34 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to batch1_example_plink_analysis.nosex .
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 216 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Warning: 2 het. haploid genotypes present (see batch1_example_plink_analysis.hh
+); many commands treat these as missing.
+Total genotyping rate is 0.00921031.
+--freq: Allele frequencies (founders only) written to
+batch1_example_plink_analysis.frq .
+       FID        ID
+0   combat  7698ATMO
+1   combat  7699CMOO
+2   combat  7698JJJO
+3   combat  7600HPDO
+4   combat  7693KLNO
+5   combat  7700JMAO
+6   combat  7797BWAO
+7   combat  7798JWSO
+8   combat  7799BTDO
+9   combat  3484ACJJ
+10  combat  6296WWJM
+11  combat  0201GHFM
+12  combat  0298CCJM
+13  combat  0295MDDM
+14  combat  0295MCMM
+15  combat  0296CGMM
+16  combat  0290JKSM
+17  combat  0297JKMM
+18  combat  0299AHNJ
+19  combat  0280PAMM
+20  combat  2397PAFA
+21  combat  2378ADNA
+22  combat  2397NCAA
+23  combat  2370MDJA
+24  combat  2397LDJA
+25  combat  2471AWMA
+26  combat  4494BWMA
+27  combat  4499JTMA
+28  combat  4495CMOA
+29  combat  6201JJJJ
+30  combat  6296TONJ
+31  combat  6200DPDJ
+32  combat  6899DWOS
+33  combat  6897TSSS
+The IDs in nosex are the same than those IDs of the fam file with unknown sex?
+True
+True
+      FID        ID   snp_name
+0  combat  7691CPSO  rs5917469
+1  combat  7684BSAO  rs5955017
+heterozygous calls are caused by samples with problematic sex?
+21     False
+30     False
+37     False
+70     False
+149    False
+Name: AGRF code, dtype: bool
+0    False
+1    False
+Name: ID, dtype: bool
+###################################
+Problematic case number 0
+###################################
+FID            combat
+ID           7691CPSO
+snp_name    rs5917469
+Name: 0, dtype: object
+##########
+Gender of the case according to sample map:
+##########
+         ID Gender
+1  7691CPSO      1
+##########
+Genotype according to lgen file:
+##########
+            FID Sample ID   SNP Name Allele1 - Forward Allele2 - Forward
+1184358  combat  7691CPSO  rs5917469                 A                 G
+##########
+Chromosome according map file:
+##########
+       Chromosome       Name  centimorgans  Position
+530331          X  rs5917469             0  42242539
+##########
+the problematic case is male and X chromosome, but it has two genotypes, which is not possible for a male?
+##########
+[ True]
+###################################
+Problematic case number 1
+###################################
+FID            combat
+ID           7684BSAO
+snp_name    rs5955017
+Name: 1, dtype: object
+##########
+Gender of the case according to sample map:
+##########
+         ID Gender
+0  7684BSAO      1
+##########
+Genotype according to lgen file:
+##########
+           FID Sample ID   SNP Name Allele1 - Forward Allele2 - Forward
+533046  combat  7684BSAO  rs5955017                 G                 C
+##########
+Chromosome according map file:
+##########
+       Chromosome       Name  centimorgans   Position
+533046          X  rs5955017             0  143419323
+##########
+the problematic case is male and X chromosome, but it has two genotypes, which is not possible for a male?
+##########
+[ True]
+      FID        ID   snp_name
+0  combat  7691CPSO  rs5917469
+1  combat  7684BSAO  rs5955017
+check that hh_file generated in analysis is identical to the hh_file generated when creating the .ped file
+True
+       FID        ID
+0   combat  7698ATMO
+1   combat  7699CMOO
+2   combat  7698JJJO
+3   combat  7600HPDO
+4   combat  7693KLNO
+5   combat  7700JMAO
+6   combat  7797BWAO
+7   combat  7798JWSO
+8   combat  7799BTDO
+9   combat  3484ACJJ
+10  combat  6296WWJM
+11  combat  0201GHFM
+12  combat  0298CCJM
+13  combat  0295MDDM
+14  combat  0295MCMM
+15  combat  0296CGMM
+16  combat  0290JKSM
+17  combat  0297JKMM
+18  combat  0299AHNJ
+19  combat  0280PAMM
+20  combat  2397PAFA
+21  combat  2378ADNA
+22  combat  2397NCAA
+23  combat  2370MDJA
+24  combat  2397LDJA
+25  combat  2471AWMA
+26  combat  4494BWMA
+27  combat  4499JTMA
+28  combat  4495CMOA
+29  combat  6201JJJJ
+30  combat  6296TONJ
+31  combat  6200DPDJ
+32  combat  6899DWOS
+33  combat  6897TSSS
+check that nosex_file generated in analysis is identical to the nosex_file generated when creating the .ped file
+True

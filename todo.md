@@ -1,5 +1,7 @@
 1. urgent stuff
 
+- prepare one single container that includes a python script we can call from a bash script and give it arguments (like for optuna). In the same bash script run the script with first batch, add & so without finishing run again the script with the second batch.
+
 - Things to check when QC:
     - batch data
         - There are two batches (ILGSA24-17303 and ILGSA24-17873), being the data separated for these. 
