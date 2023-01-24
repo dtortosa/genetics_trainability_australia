@@ -727,8 +727,6 @@ for row_index, hh_case in hh_plink.iterrows():
 ##.log
     #info about the session, random seed, input files..
 
-#now load the ped file and calculate the 
-
 
 #################
 # Load ped file #
@@ -751,91 +749,43 @@ os.system("cd data/plink_inputs_example; plink --file batch1_example_plink --fre
         #MAF Allele 1 frequency
         #NCHROBS Number of allele observations
 
+#I cannot load this file due to different delimiters in the file
 
-##POR AQUIII
-
-#NO SE PUEDE CARGAR BIEN POR DELIMITATION
+##hh_file
+    #Produced automatically when the input data contains heterozygous calls where they shouldn't be possible (haploid chromosomes, male X/Y), or there are nonmissing calls for nonmales on the Y chromosome.
+    #A text file with one line per error (sorted primarily by variant ID, secondarily by sample ID) with the following three fields:
+        #Family ID
+        #Within-family ID
+        #Variant ID
+    #https://www.cog-genomics.org/plink/1.9/formats#hh
 
 #see the file
-freq_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink_analysis.frq",
-    header=0,
+hh_plink_analysis = pd.read_csv("data/plink_inputs_example/batch1_example_plink_analysis.hh",
+    names=["FID", "ID", "snp_name"],
     delimiter="\t", 
     low_memory=False) 
     #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
-print(freq_plink)
+print(hh_plink_analysis)
 
+#check
+print("check that hh_file generated in analysis is identical to the hh_file generated when creating the .ped file")
+print(hh_plink_analysis.equals(hh_plink))
 
-# Full tutorial for plink
-# 
-# https://genomicsbootcamp.github.io/book/
-#MIRA ALSO INPUT FILETEIRNG IN PLINK
-#https://www.cog-genomics.org/plink/1.9/filter
+##nosex
+    #List of samples with ambiguous sex codes
+    #https://www.cog-genomics.org/plink/1.9/output
 
+#see the file
+nosex_plink_analysis = pd.read_csv("data/plink_inputs_example/batch1_example_plink_analysis.nosex",
+    names=["FID", "ID"],
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+print(nosex_plink_analysis)
 
+#check
+print("check that nosex_file generated in analysis is identical to the nosex_file generated when creating the .ped file")
+print(nosex_plink_analysis.equals(nosex_plink))
 
-
-
-
-
-# There are two batches (ILGSA24-17303 and ILGSA24-17873), being the data separated for these. 
-# 
-# - In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps.
-#     - In the initial_stuff folder there is a zip called "ILGSA24-17303.zip" that I may downloaded from the initial location where this data was stored in summer 2022. There are Plink files, but I am not sure this is the correct data and I cannot find the final_report files.
-# 
-# - In 17873, we have the IDAT files with probs intensity from the microarrays used to genotype (first zips), the final reports (CAGRF20093767.zip) and a inputs for plink. But all of this only for 1248 individuals, not the whole cohort.
-#     - CAGRF20093767.zip includes the final reports of 1248 individuals, along with the sample and snp maps.
-
-# warning [CAGRF20093767.zip]:  32332459452 extra bytes at beginning or within zipfile
-#   (attempting to process anyway)
-# error [CAGRF20093767.zip]:  start of central directory not found;
-#   zipfile corrupt.
-#   (please check that you have transferred or created the zipfile in the
-#   appropriate BINARY mode and that you have compiled UnZip properly)
-# 
-# 
-# CHECK WARNING
-# 
-# solution for the error: https://askubuntu.com/questions/54904/unzip-error-end-of-central-directory-signature-not-found
-
-
-
-
-
-# Things to check when QC:
-# 
-# - Check the genome build. I have manually checked some SNPs and they have the position of hg38.
-#     - YOU ARE NOT ADDED CENTIMORGANS, SO BE CAREFUL WITH WHAT PLINK DO ABOUT LD.
-# - Remove zero chromosomes
-#     - also MT, X, Y and XY?
-#think how to combine the batches
-    #https://github.com/satijalab/seurat/issues/3631
-    #https://groups.google.com/g/plink2-users/c/SPRgIOBENgI/m/T-4S3TNcAAAJ
-# - Check strand, because the foward strand of illumina not always matches that of dbSNP
-#     - StrandScript is a software to check and solve that
-# - Check the illumina pdf report for the first batch (zip file in initial stuff), because they say there are three problematic samples.
-#     - these three sample also have unknown sex according to illumina data!!
-# - check sex between illumina and real sex data (pheno_data)
-#     - remove uknown sex individuals?
-    #we have the three problematic cases with sex unknown and two more with the opposite sex
-    #ASK DAVID about what sex to use. I guess we should stick to the reported in the phenotype data
-#there also 2 males and two snps in X that have two genotypes!
-    #      FID        ID   snp_name
-    #0  combat  7691CPSO  rs5917469
-    #1  combat  7684BSAO  rs5955017
-# - check genotype calls that are I or D
-#     - how plink deals with this?
-# - ask David about the samples without phenotype in the excel file?
-    #the last 42
-#Ask david about the sample included in first bath but without phenotype data
-
-
-
-
-
-
-
-# - Quality Control Procedures for Genome-Wide Association Studies
-# - A tutorial on conducting genome‐wide association studies: Quality control and statistical analysis
-# - Genetic prediction of complex traits with polygenic scores: a statistical review
-# - Addressing the challenges of polygenic scores in human genetic research
-#Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
+##.log
+    #info about the session, random seed, input files..
