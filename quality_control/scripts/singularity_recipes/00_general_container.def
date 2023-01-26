@@ -170,14 +170,14 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 
 #Command to build, enter interactively or run
 	#now apply the definition file final_test_def for creating a container
-		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/general_container.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/general_container.def
+		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/00_general_container.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/00_general_container.def
 			#In the definition file is indicate that we will take an Ubuntu 20.04 container from the Singularity library. We do not need anything else. We do not need a previous image in the host system! The definition file has the instructions to get the required container from the library.
 	#you can run this image interactively with shell. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/general_container.sif
+		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/00_general_container.sif
 	#to run the container. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/general_container.sif
+		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/00_general_container.sif
 
 %labels
     Author dftortosa

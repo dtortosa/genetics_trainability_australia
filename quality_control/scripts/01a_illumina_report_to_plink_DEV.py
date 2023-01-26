@@ -110,7 +110,7 @@ os.system("plink --version")
 
 import pandas as pd
 
-final_report1 = pd.read_csv("data/example_data/ILGSA24-17303_FinalReport1.txt",
+final_report1 = pd.read_csv("data/genetic_data/example_data/ILGSA24-17303_FinalReport1.txt",
     skiprows=10, #skip rows with the header
     delimiter="\t", 
     low_memory=False) 
@@ -228,7 +228,7 @@ final_report1.columns
 # We need these maps in order to generate the inputs for Plink (see below).
 
 # **SNP map**
-snp_map = pd.read_csv("data/example_data/SNP_Map.txt",
+snp_map = pd.read_csv("data/genetic_data/example_data/SNP_Map.txt",
     delimiter="\t", 
     header=0,
     low_memory=False) 
@@ -281,7 +281,7 @@ snp_map.loc[snp_map["Name"] == "rs999994"]
 
 # **Sample map**
 
-sample_map = pd.read_csv("data/example_data/Sample_Map.txt",
+sample_map = pd.read_csv("data/genetic_data/example_data/Sample_Map.txt",
     delimiter="\t", 
     header=0,
     low_memory=False) 
@@ -385,7 +385,7 @@ print(sum(pheno_data["Gender"].isna()))
 
 # Get first the paths for each final report
 import glob
-list_reports_files_full_path = glob.glob("data/example_data/ILGSA24-17303_FinalReport*") 
+list_reports_files_full_path = glob.glob("data/genetic_data/example_data/ILGSA24-17303_FinalReport*") 
     #I prefer using the glob module, as it does pattern matching and expansion.
         #https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
 list_reports_files_full_path
@@ -464,7 +464,7 @@ lgen_file = lgen_file_raw[["FID", "Sample ID", "SNP Name", "Allele1 - Forward", 
 print(lgen_file)
 
 #Save without header:
-lgen_file.to_csv("data/plink_inputs_example/batch1_example.lgen",
+lgen_file.to_csv("data/genetic_data/plink_inputs_example/batch1_example.lgen",
     sep="\t",
     header=None,
     index=False)
@@ -552,7 +552,7 @@ fam_file = fam_file_raw[["FID", "ID", "IID_father", "IID_mother", "Gender", "phe
 print(fam_file)
 
 # Save without header:
-fam_file.to_csv("data/plink_inputs_example/batch1_example.fam",
+fam_file.to_csv("data/genetic_data/plink_inputs_example/batch1_example.fam",
     sep="\t",
     header=None,
     index=False)
@@ -586,7 +586,7 @@ map_file = map_file_raw.loc[:, ["Chromosome", "Name", "centimorgans", "Position"
 print(map_file)
 
 # Save
-map_file.to_csv("data/plink_inputs_example/batch1_example.map",
+map_file.to_csv("data/genetic_data/plink_inputs_example/batch1_example.map",
     sep="\t",
     header=None,
     index=False)
@@ -615,7 +615,7 @@ print(all(lgen_file["Sample ID"].isin(fam_file["ID"])))
 #######################
 
 #calculate the ped file using the lgen, map and fam files
-os.system("cd data/plink_inputs_example; plink --lfile batch1_example --recode --out batch1_example_plink")
+os.system("cd data/genetic_data/plink_inputs_example; plink --lfile batch1_example --recode --out batch1_example_plink")
     #go to the folder with plink inputs
     #--lfile for loading the lgen file, which should be accompanied by a .fam and .map files having the same name except the extension.
         #https://www.cog-genomics.org/plink/1.9/formats
@@ -641,7 +641,7 @@ os.system("cd data/plink_inputs_example; plink --lfile batch1_example --recode -
     #All lines must have the same number of columns (so either no lines contain the morgans/centimorgans column, or all of them do)
 
 #see the map file
-map_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.map",
+map_plink = pd.read_csv("data/genetic_data/plink_inputs_example/batch1_example_plink.map",
     names=["chromosome", "snp_name", "genetic_position", "pair_base"],
     delimiter="\t", 
     low_memory=False) 
@@ -669,7 +669,7 @@ print(np.unique(map_plink["genetic_position"]) == 0)
     #https://www.cog-genomics.org/plink/1.9/output
 
 #see the file
-nosex_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.nosex",
+nosex_plink = pd.read_csv("data/genetic_data/plink_inputs_example/batch1_example_plink.nosex",
     names=["FID", "ID"],
     delimiter="\t", 
     low_memory=False) 
@@ -690,7 +690,7 @@ print(all(fam_file.loc[fam_file["Gender"]=="0", "ID"].isin(nosex_plink["ID"])))
     #https://www.cog-genomics.org/plink/1.9/formats#hh
 
 #see the file
-hh_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.hh",
+hh_plink = pd.read_csv("data/genetic_data/plink_inputs_example/batch1_example_plink.hh",
     names=["FID", "ID", "snp_name"],
     delimiter="\t", 
     low_memory=False) 
@@ -743,7 +743,7 @@ for row_index, hh_case in hh_plink.iterrows():
 #################
 
 #load the ped file in plink and calculate frequency of snps
-os.system("cd data/plink_inputs_example; plink --file batch1_example_plink --freq --out  batch1_example_plink_analysis")
+os.system("cd data/genetic_data/plink_inputs_example; plink --file batch1_example_plink --freq --out  batch1_example_plink_analysis")
     #--file indicate name of the ped and map files.
     #--freq generates an allele frequency report.
     #--output is the prefix of the output files generated
@@ -770,7 +770,7 @@ os.system("cd data/plink_inputs_example; plink --file batch1_example_plink --fre
     #https://www.cog-genomics.org/plink/1.9/formats#hh
 
 #see the file
-hh_plink_analysis = pd.read_csv("data/plink_inputs_example/batch1_example_plink_analysis.hh",
+hh_plink_analysis = pd.read_csv("data/genetic_data/plink_inputs_example/batch1_example_plink_analysis.hh",
     names=["FID", "ID", "snp_name"],
     delimiter="\t", 
     low_memory=False) 
@@ -786,7 +786,7 @@ print(hh_plink_analysis.equals(hh_plink))
     #https://www.cog-genomics.org/plink/1.9/output
 
 #see the file
-nosex_plink_analysis = pd.read_csv("data/plink_inputs_example/batch1_example_plink_analysis.nosex",
+nosex_plink_analysis = pd.read_csv("data/genetic_data/plink_inputs_example/batch1_example_plink_analysis.nosex",
     names=["FID", "ID"],
     delimiter="\t", 
     low_memory=False) 

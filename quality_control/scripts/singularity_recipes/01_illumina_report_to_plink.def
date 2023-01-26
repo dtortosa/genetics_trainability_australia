@@ -41,6 +41,9 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#https://www.cog-genomics.org/plink/
 	/home/dftortosa/singularity/australian_army_bishop/plink_versions/plink_linux_x86_64_20230116/plink /bin/plink
 
+	#copy script
+	/home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/01b_illumina_report_to_plink.py /opt/scripts/01b_illumina_report_to_plink.py
+
     #From the original folder in the host, we copy a R script to a new folder in the container called scripts. NEVER PUT ANYTHING ELSE IN THE LINE WITH SOURCE AND DESTINATION, GIVES ERROR.
     #https://groups.google.com/a/lbl.gov/forum/#!topic/singularity/4NFDsohnxgg
 
@@ -116,8 +119,9 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#pip3.9 install --upgrade pandas
 	
 	#give rights to run the bash script
-	#chmod +x opt/scripts/bash_optuna_processes.sh
+	chmod +x opt/scripts/01b_illumina_report_to_plink.py
 	
+
 
 #############################
 ########## TEST #############
@@ -157,7 +161,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 %runscript
 
 	#run scripts. NOT USE "&", each script have to be run after the previous one have been run
-	#/./opt/scripts/bash_optuna_processes.sh > bash_optuna_processes.out 2>&1
+	/./opt/scripts/01b_illumina_report_to_plink.py > 01b_illumina_report_to_plink.out 2>&1
 		#to get output and errors in the same file
 		#see bash script for details
 
@@ -170,14 +174,14 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 
 #Command to build, enter interactively or run
 	#now apply the definition file final_test_def for creating a container
-		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/general_container.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/general_container.def
+		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/01_illumina_report_to_plink.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/01_illumina_report_to_plink.def
 			#In the definition file is indicate that we will take an Ubuntu 20.04 container from the Singularity library. We do not need anything else. We do not need a previous image in the host system! The definition file has the instructions to get the required container from the library.
 	#you can run this image interactively with shell. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/general_container.sif
+		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/01_illumina_report_to_plink.sif
 	#to run the container. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/general_container.sif
+		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/01_illumina_report_to_plink.sif
 
 %labels
     Author dftortosa

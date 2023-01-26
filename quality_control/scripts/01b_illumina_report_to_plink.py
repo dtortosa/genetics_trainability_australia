@@ -22,16 +22,207 @@
 #### Starting ####
 ##################
 
-#set the working directory
+
+######
+# wd #
+######
+
+#
+print("\n#########print the working directory#########")
 import os
-os.chdir("/home/dftortosa/singularity/australian_army_bishop/quality_control/")
-os.getcwd()
+print(os.getcwd())
+
+#you can also use the "!" character, but only whithin ipython, it does not work if you run the script as a program
+#message="hola mundo"
+#!echo {message}
+#!pwd
+    #https://jakevdp.github.io/PythonDataScienceHandbook/01.05-ipython-and-shell-commands.html
+
+
+#######################################
+# Passing arugments of python program #
+#######################################
+
+#define input arugments to be passed when running this script in bash
+#we will use a bash script to run this python program two times instead of doing a function and parallelize that function. In this way, the same python script is run for each batch and if we want to run again one batch, we just need to modify the bash script, not the python program. This makes sense because we have only two batches, and the parallelization will occur inside each batch. Importantly, we can also have separated .out files, so we can look at the checks separately.
+import sys
+import argparse
+parser=argparse.ArgumentParser()
+parser.add_argument("--batch_name", help="Name of the batch used as input")
+args=parser.parse_args()
+
+#get the arguments of the function that have been passed through command line
+#batch_name = args.batch_name
+batch_name = "ILGSA24-17303"
+#batch_name = "ILGSA24-17873"
+    #for debugging
+
+#
+print("########################################\n########################################")
+print("Starting batch number: " + batch_name)
+print("########################################\n########################################")
+
+
+#########################################
+# Unzip files of the batch in temp dict #
+#########################################
+
+#set the name of the zip file to be unzzipped for each batch
+if batch_name=="ILGSA24-17303":
+    zip_name="ILGSA24-17303"
+elif batch_name=="ILGSA24-17873":
+    zip_name="CAGRF20093767"
+
+#create temporary folder to save
+import tempfile
+temp_dir = tempfile.TemporaryDirectory()
+#print(temp_dir.name)
+
+#to remove the dir
+#temp_dir.cleanup()
+    #https://stackoverflow.com/questions/3223604/how-to-create-a-temporary-directory-and-get-its-path-file-name
+
+#read only the zip and get list of files in it
+import zipfile
+zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
+zipinfos = zipdata.infolist()
+
+#get the name of each zip file
+names_files = [zipinfo.filename for zipinfo in zipinfos]
+
+#iterate across files and get only final reports
+#we are using a loop because it is a bit faster than zipdata.extractall. Parallelizing does not seems to be a good solution for unzipping and I got problems with pool. This takes a few minutes anyways.
+    #parallel slower
+        #https://stackoverflow.com/questions/43313666/python-parallel-processing-to-unzip-files
+    #count time
+        #https://stackoverflow.com/questions/1557571/how-do-i-get-time-of-a-python-programs-execution
+
+import numpy as np
+#zipinfo=zipinfos[np.where([element == zip_name + "/SNP_Map.txt" for element in names_files])[0][0]]
+#zipinfo=zipinfos[np.where([element == zip_name + "/Sample_Map.txt" for element in names_files])[0][0]]
+for zipinfo in zipinfos:
+
+    #fir the file name starts with the adequate zip (batch) name and FinalReport
+    if (zipinfo.filename.startswith(zip_name + "/" + zip_name + "_FinalReport")) | (zipinfo.filename.startswith(zip_name + "/SNP_Map.txt")) | (zipinfo.filename.startswith(zip_name + "/Sample_Map.txt")):
+
+        #rename by removing the name of the parent folder, so we only get the file not the parent folder
+        zipinfo.filename = zipinfo.filename.split(zip_name+"/")[1]
+        
+        #extract the file in the temp dict
+        zipdata.extract(zipinfo, temp_dir.name)
+            #https://stackoverflow.com/questions/44079913/renaming-the-extracted-file-from-zipfile/56362289#56362289
+            #https://stackoverflow.com/questions/13765486/how-to-unzip-specific-folder-from-a-zip-with-python
+
+#get the number of files extract
+import subprocess
+#run the command to count
+get_n_files = subprocess.Popen(
+    args="ls " + temp_dir.name + " | wc -l", 
+    shell=True, #If true, the command will be executed through the shell.
+    stdout=subprocess.PIPE).stdout
+    #https://unix.stackexchange.com/questions/418616/python-how-to-print-value-that-comes-from-os-system
+#read and transform to int
+n_files = int(get_n_files.read())
+#check
+print("#####################\n#####################")
+print("the number of files extracted is the number of samples?: ")
+print("#####################\n#####################")
+if batch_name == "ILGSA24-17303":
+    correct_number_files = 216 + 2
+elif batch_name == "ILGSA24-17873":
+    correct_number_files = 1248 + 2
+    #plus 2 because we also extracted sample and snp maps
+print(n_files == correct_number_files)
+
+
+import glob
+list_files = glob.glob(temp_dir.name + "/*")
+list_files
+
+len(list_files) == correct_number_files
+
+list_files_samples = [file for file in list_files if file.startswith(temp_dir.name + "/" + zip_name)]
+list_files_samples
+
+import pandas as pd
+sample_map = pd.read_csv(temp_dir.name + "/Sample_Map.txt",
+    header=0,
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+sample_map
+
+len(np.unique(sample_map["ID"])) == len(list_files_samples)
+
+
+snp_map = pd.read_csv(temp_dir.name + "/SNP_Map.txt",
+    header=0,
+    delimiter="\t", 
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+snp_map
+
+#sample_path = list_files_samples[0]
+def read_final_reports(sample_path):
+    final_report = pd.read_csv(
+        sample_path,
+        skiprows=10, #skip rows with the header
+        delimiter="\t", 
+        low_memory=False)
+        #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
+    return final_report
+
+#read_final_reports(list_files_samples[0])
+
+import multiprocessing as mp
+
+#open the pool with 5 cores
+pool = mp.Pool(5)
+
+#run the function to calculate distance of each gene to the closest
+#selective pressure gene. This takes the gene IDs as inputs
+#and the function will calculate the distance for each gene id
+#https://stackoverflow.com/questions/64763867/parallel-processing-of-each-row-in-pandas-iteration
+list_df_samples = pool.map(read_final_reports, list_files_samples[0:20])
+#close the pool
+pool.close()
+
+
+check_across_reports = []
+for df_sample in list_df_samples:
+
+    check_across_reports.append((list_df_samples[0].columns.equals(df_sample.columns)) & (list_df_samples[0]["SNP Name"].equals(df_sample["SNP Name"])))
+
+all(check_across_reports)
+
+all_reports = pd.concat(list_df_samples, axis=0)
+
+
+print(len(list_df_samples))
+
+all_reports.shape
 
 
 
 ###########################################
 #### General info about available data ####
 ###########################################
+
+#Batches
+    #Within combat_genes.zip, we have two batches (ILGSA24-17303 and ILGSA24-17873), being the data separated in these two.
+    #In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps.
+        #In the initial_stuff folder there is a zip called "ILGSA24-17303.zip" that I may downloaded from the initial location where this data was stored in summer 2022. There are Plink files, but I am not sure this is the correct data and I cannot find the final_report files.
+    #In 17873, we have the IDAT files with probs intensity from the microarrays used to genotype (first zips), the final reports+sample/snp maps (CAGRF20093767.zip) and a inputs for plink. But all of this only for 1248 individuals, not the whole cohort.
+    #the phenotype csv has 1264 samples, not having phenotype data for 41 of them.
+        #1248+216=1464
+
+    #WARNING ABOUT UNZIPPING TO CHECK
+        #warning [CAGRF20093767.zip]:  32332459452 extra bytes at beginning or within zipfile (attempting to process anyway)
+        #error [CAGRF20093767.zip]:  start of central directory not found; zipfile corrupt. (please check that you have transferred or created the zipfile in the appropriate BINARY mode and that you have compiled UnZip properly)
+        #CHECK WARNING
+        #solution for the error: https://askubuntu.com/questions/54904/unzip-error-end-of-central-directory-signature-not-found
+
+
 
 #I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
     #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version	2.0.4). This includes a hader with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. This is a BPM file.
@@ -40,10 +231,16 @@ os.getcwd()
     #A sample map file with info for each individual, like the sex, ID..
 
 #It is usually recommended to prepare this data to create a ped file with Plink, which is a tool to process genetic data ([link](https://www.cog-genomics.org/plink/)), perform some filtering and QC analyses and then export as VCF ([link](https://www.biostars.org/p/210516/), [link](https://www.biostars.org/p/135156/), [link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and use packages like Hail in python.
+    #https://hail.is/docs/0.2/tutorials/01-genome-wide-association-study.html
 
 #There is an interesting alternative, gtc2vcf ([link](https://github.com/freeseek/gtc2vcf), [link](https://software.broadinstitute.org/software/gtc2vcf/)), which can directly transform Ilumina reports into VCF files from command line. We are going to use Plink, though, because it is much more widely used and there are tutorials and best practice papers using it.
 
 #In particular, we are going to use the a paper about QC by Ritchie.There is a first version 2011 ([link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and a second version in 2022 ([link](https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603)).
+
+
+
+
+
 
 
 
@@ -799,3 +996,13 @@ print(nosex_plink_analysis.equals(nosex_plink))
 
 ##.log
     #info about the session, random seed, input files..
+
+
+
+
+###ELIMINNA TEMP FOLDER
+
+################################
+
+#remove the temp dir
+temp_dir.cleanup()
