@@ -448,37 +448,11 @@ lgen_file = lgen_file[["FID", "Sample ID", "SNP Name", "Allele1 - Forward", "All
 print(lgen_file)
 
 #Save without header:
-lgen_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".lgen",
+lgen_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".lgen.gz",
     sep="\t",
     header=None,
+    compression='gzip',
     index=False)
-
-#COMPRESS WHEN SAVING DIRECLYY WITH PANDAS
-#POR AQUIII
-
-
-
-###ELIMINNA TEMP FOLDER
-
-################################
-
-#remove the temp dir
-temp_dir.cleanup()
-
-
-
-
-
-
-
-'''
-
-
-
-
-
-
-
 
 
 ############
@@ -496,6 +470,41 @@ temp_dir.cleanup()
 
 ##check sex variable
 #before creating the fam file, we need to see what is going on with the sex, because there are differences between phenotype dataset and the sample map of the first batch
+
+#POR AQUIII
+
+#load pheno data
+#This include reported sex and VO2 max data.
+pheno_data = pd.read_csv("data/pheno_data/combact gene DNA GWAS 23062022_all_dna_samples.csv",
+    delimiter=",", 
+    header=0,
+    low_memory=False) 
+    #low_memory: Internally process the file in chunks, 
+    #resulting in lower memory use while parsing, 
+    #but possibly mixed type inference. To ensure no mixed 
+    #types either set False, or specify the type with the dtype parameter. 
+pheno_data
+
+# We have gender (F/M) with some NAs
+print(pheno_data["Gender"].describe())
+print(f'NAs for sex: {pheno_data[pheno_data["Gender"].isna()].shape[0]}')
+
+#the NAs for sex have no data at all
+print(pheno_data.loc[pheno_data["Gender"].isna(),:])
+
+# Also age, which is a float, as shown in the paper
+pheno_data["Age"].describe()
+
+# We also have the ID of the sample
+print(pheno_data["AGRF code"])
+
+# This code is the ID of the samples in the sample map of illumina.
+# We have almost all samples of the first batch included in the pheno data, we only lack one individual.
+print(f'Number of samples in sample map: {sample_map.shape[0]}')
+print(f'Number of samples of pheno_data included in sample map')
+print(pheno_data[pheno_data["AGRF code"].isin(sample_map["ID"])].shape[0])
+
+
 
 #first check if we have samples with genetic but no phenotipic data
 print("How many samples have genetic but no phenotipic data:")
@@ -567,6 +576,34 @@ fam_file.to_csv("data/plink_inputs_example/batch1_example.fam",
     sep="\t",
     header=None,
     index=False)
+
+
+
+
+###ELIMINNA TEMP FOLDER
+
+################################
+
+#remove the temp dir
+temp_dir.cleanup()
+
+
+
+
+
+
+
+'''
+
+
+
+
+
+
+
+
+
+
 
 
 ############
