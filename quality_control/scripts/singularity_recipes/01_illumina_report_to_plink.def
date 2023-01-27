@@ -98,6 +98,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	python3.9 get-pip.py
 
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
+	python3.9 -m pip install natsort
 	python3.9 -m pip install scikit-learn
 	python3.9 -m pip install eli5
 	python3.9 -m pip install tensorflow

@@ -91,6 +91,9 @@ zipinfos = zipdata.infolist()
 names_files = [zipinfo.filename for zipinfo in zipinfos]
 
 #iterate across files and get only final reports
+print("#####################\n#####################")
+print("Unzipping data: ")
+print("#####################\n#####################")
 #we are using a loop because it is a bit faster than zipdata.extractall. Parallelizing does not seems to be a good solution for unzipping and I got problems with pool. This takes a few minutes anyways.
     #parallel slower
         #https://stackoverflow.com/questions/43313666/python-parallel-processing-to-unzip-files
@@ -107,7 +110,8 @@ for zipinfo in zipinfos:
 
         #rename by removing the name of the parent folder, so we only get the file not the parent folder
         zipinfo.filename = zipinfo.filename.split(zip_name+"/")[1]
-        
+        print(zipinfo.filename)
+
         #extract the file in the temp dict
         zipdata.extract(zipinfo, temp_dir.name)
             #https://stackoverflow.com/questions/44079913/renaming-the-extracted-file-from-zipfile/56362289#56362289
@@ -139,6 +143,13 @@ import glob
 list_files = glob.glob(temp_dir.name + "/*")
 list_files
 
+#natural sorting, 1,10, 21.. that works with numbers + strings like 1b, 5c...
+from natsort import natsorted
+list_files = natsorted(list_files)
+    #https://github.com/SethMMorton/natsort#installation
+
+
+
 len(list_files) == correct_number_files
 
 list_files_samples = [file for file in list_files if file.startswith(temp_dir.name + "/" + zip_name)]
@@ -162,8 +173,15 @@ snp_map = pd.read_csv(temp_dir.name + "/SNP_Map.txt",
     #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
 snp_map
 
+print("#####################\n#####################")
+print("Reading the final reports into a list")
+print("#####################\n#####################")
+
 #sample_path = list_files_samples[0]
 def read_final_reports(sample_path):
+
+    print(sample_path.split(temp_dir.name+"/")[1])
+
     final_report = pd.read_csv(
         sample_path,
         skiprows=10, #skip rows with the header
@@ -188,19 +206,50 @@ list_df_samples = pool.map(read_final_reports, list_files_samples[0:20])
 pool.close()
 
 
-check_across_reports = []
-for df_sample in list_df_samples:
+len(list_df_samples) == sample_map.shape[0]
 
-    check_across_reports.append((list_df_samples[0].columns.equals(df_sample.columns)) & (list_df_samples[0]["SNP Name"].equals(df_sample["SNP Name"])))
+check_across_reports_list = []
+#index=0; df_sample = list_df_samples[0]
+for index, df_sample in enumerate(list_df_samples):
 
-all(check_across_reports)
+    check_1 = int(list_files_samples[index].split(temp_dir.name+"/"+zip_name+"_FinalReport")[1].split(".txt")[0]) == df_sample["Sample Index"].unique()[0]
+
+    check_2 = list_df_samples[0].columns.equals(df_sample.columns)
+
+    check_3 = snp_map["Name"].equals(df_sample["SNP Name"])
+    check_4 = snp_map["Chromosome"].equals(df_sample["Chr"])
+    check_5 = snp_map["Position"].equals(df_sample["Position"])
+    check_6 = df_sample["Sample ID"].unique()[0] == sample_map.iloc[index, :].loc["ID"]
+    check_7 = df_sample["Sample Index"].unique()[0] == sample_map.iloc[index, :].loc["Index"]
+        #we have ordered the final_reports so first goes the report of sample 1, then 2...
+
+    check_across_reports_list.append(tuple([check_1, check_2, check_3, check_4, check_5, check_6, check_7]))
+
+check_across_reports_df = pd.DataFrame(check_across_reports_list)
+
+check_across_reports_df.columns = ["check_" + str(number) for number in np.arange(1, check_across_reports_df.shape[1]+1, 1)]
+
+
+check_across_reports_df.all(axis=0)
 
 all_reports = pd.concat(list_df_samples, axis=0)
 
 
-print(len(list_df_samples))
+#check number of rows
+all_reports.shape[0] == sample_map.shape[0]*snp_map.shape[0]
 
-all_reports.shape
+
+len(all_reports["Sample ID"].unique()) == sample_map.shape[0]
+all(all_reports["Sample ID"].isin(sample_map["ID"]))
+all(all_reports["Sample Index"].unique() == sample_map["Index"])
+
+
+len(all_reports["SNP Name"].unique()) == snp_map.shape[0]
+all(all_reports["SNP Name"].unique() == snp_map["Name"])
+
+all(all_reports["Chr"].unique() == snp_map["Chromosome"].unique())
+all(all_reports["Position"].unique() == snp_map["Position"].unique())
+
 
 
 
