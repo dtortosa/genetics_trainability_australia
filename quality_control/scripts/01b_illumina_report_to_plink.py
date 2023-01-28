@@ -432,7 +432,7 @@ lgen_file.loc[
 
 #check
 print("\n#####################\n#####################")
-print("Check that all SNPs do NOT have "-" or "--" for allele 1 and 2")
+print("Check that all SNPs do NOT have '-' or '--' for allele 1 and 2")
 print("#####################\n#####################")
 all(~np.isin(lgen_file["Allele1 - Forward"].unique(), test_elements=["-", "--"]))
 all(~np.isin(lgen_file["Allele2 - Forward"].unique(), test_elements=["-", "--"]))
@@ -459,6 +459,10 @@ lgen_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".lgen.gz",
 # fam file #
 ############
 
+print("\n#####################\n#####################")
+print("Preparing fam file")
+print("#####################\n#####################")
+
 # **Fam file ([PLINK sample information file](https://www.cog-genomics.org/plink/1.9/formats#fam))**
     # A text file with no header line, and one line per sample with the following six fields:
         # - Family ID ('FID')
@@ -471,111 +475,149 @@ lgen_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".lgen.gz",
 ##check sex variable
 #before creating the fam file, we need to see what is going on with the sex, because there are differences between phenotype dataset and the sample map of the first batch
 
-#POR AQUIII
+print("\n#####################\n#####################")
+print("Check sex in sample map and phenotype data")
+print("#####################\n#####################")
 
-#load pheno data
-#This include reported sex and VO2 max data.
-pheno_data = pd.read_csv("data/pheno_data/combact gene DNA GWAS 23062022_all_dna_samples.csv",
-    delimiter=",", 
+#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
+pheno_data = pd.read_excel(
+    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
     header=0,
-    low_memory=False) 
-    #low_memory: Internally process the file in chunks, 
-    #resulting in lower memory use while parsing, 
-    #but possibly mixed type inference. To ensure no mixed 
-    #types either set False, or specify the type with the dtype parameter. 
-pheno_data
+    sheet_name="All DNA samples")
+print(pheno_data)
 
-# We have gender (F/M) with some NAs
-print(pheno_data["Gender"].describe())
-print(f'NAs for sex: {pheno_data[pheno_data["Gender"].isna()].shape[0]}')
+#there are several phenotypes, see dev version for details about possible errors.
+#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
 
-#the NAs for sex have no data at all
-print(pheno_data.loc[pheno_data["Gender"].isna(),:])
+#beep test 8 has an error, "o" letter instead "0" number in one sample
+print(pheno_data.loc[pheno_data["Week 8 beep test"] == "11.1O", "Week 8 beep test"])
 
-# Also age, which is a float, as shown in the paper
-pheno_data["Age"].describe()
+#change 11.1O for 11.10
+pheno_data.loc[pheno_data["Week 8 beep test"] == "11.1O", "Week 8 beep test"] = 11.10
 
-# We also have the ID of the sample
-print(pheno_data["AGRF code"])
+#check
+print("\n#####################\n#####################")
+print("All samples with genetic data are included in pheno_data?")
+print("#####################\n#####################")
+print(sum(sample_map["ID"].isin(pheno_data["AGRF code"])) == sample_map.shape[0])
 
-# This code is the ID of the samples in the sample map of illumina.
-# We have almost all samples of the first batch included in the pheno data, we only lack one individual.
-print(f'Number of samples in sample map: {sample_map.shape[0]}')
-print(f'Number of samples of pheno_data included in sample map')
-print(pheno_data[pheno_data["AGRF code"].isin(sample_map["ID"])].shape[0])
+print("\n#####################\n#####################")
+print("How many samples with genetic data are included in pheno_data?")
+print("#####################\n#####################")
+print(f'{sum(sample_map["ID"].isin(pheno_data["AGRF code"]))} out {sample_map.shape[0]}')
 
-
-
-#first check if we have samples with genetic but no phenotipic data
-print("How many samples have genetic but no phenotipic data:")
-print(f'{sum(~sample_map["ID"].isin(pheno_data["AGRF code"]))} out {sample_map.shape[0]} samples in the batch')
-
-#merge the sample map and pheno_data retaining only those samples with ID in the batch
-test_sample_map = sample_map.merge(
-    pheno_data, 
-    left_on="ID", #use the column with IDs in sample_map
-    right_on="AGRF code", #use the column with IDs in pheno_data
-    suffixes=["_sample_map", "_pheno_data"], #set the suffix for repeated columns (e.g., Gender)
-    how="left") #only IDs from the sample_map
-
-#recode sex column in sample_map to match coding of pheno_data
-test_sample_map.loc[test_sample_map["Gender_sample_map"] == "Male", "Gender_sample_map"] = "M"
-test_sample_map.loc[test_sample_map["Gender_sample_map"] == "Female", "Gender_sample_map"] = "F"
-    #Male instead of M and Female instead of F
-
-#see samples with different sex between datasets
-unmatched_sex = test_sample_map.loc[
-    (test_sample_map["Gender_pheno_data"] != test_sample_map["Gender_sample_map"]) & 
-    ~test_sample_map["Gender_pheno_data"].isna(), 
-    ["Gender_pheno_data", "Gender_sample_map", "ID", "AGRF code"]]
-
-#we have some cases with problematic sex
-print("how many sample have different sex between sample map (batch data) and phenotipic data?")
-print(unmatched_sex.shape[0])
-print("See these cases")
-print(unmatched_sex)
-
-#FOR NOW, we are going to use the sex reported in the phenotipic data, but we have to ask to David. We will add this sex to the sample_map
-
-# We can get the self-reported sex and sample ID from the pheno data.
-fam_file_raw = sample_map.loc[:, ["ID", "Gender"]]
-print(fam_file_raw)
+#get sample IDs and gender from sample map, then modify using pheno_data
+fam_file = sample_map.loc[:, ["ID", "Gender"]]
 
 #remove those samples without phenotyipic data
 #IMPORTANT HERE, we lose samples with genetic data because they do not have pheno data and hence, no sex data from the study can be obtained, only illumina
 #fam_file_raw = fam_file_raw.loc[fam_file_raw["ID"].isin(pheno_data["AGRF code"]), :]
+    #IN CASE YOU NEED TO REMOVE
 
 # Codify the sex variable following plink notation and considering the sex in pheno_data
-fam_file_raw.loc[
-    (fam_file_raw["ID"].isin(pheno_data.loc[pheno_data["Gender"].isna(), "AGRF code"])) | 
-    (~fam_file_raw["ID"].isin(pheno_data["AGRF code"])), 
+fam_file.loc[
+    (fam_file["ID"].isin(pheno_data.loc[pheno_data["Gender"].isna(), "AGRF code"])) | 
+    (~fam_file["ID"].isin(pheno_data["AGRF code"])), 
     "Gender"] = "0"
     #set as 0 the sex of those samples whose
         #ID is associated to NA gender in pheno_data
         #OR
         #ID is NOT included in pheno_data
-fam_file_raw.loc[
-    fam_file_raw["ID"].isin(pheno_data.loc[pheno_data["Gender"] == "M", "AGRF code"]), 
+fam_file.loc[
+    fam_file["ID"].isin(pheno_data.loc[pheno_data["Gender"] == "M", "AGRF code"]), 
     "Gender"] = "1"
     #set as 1 the sex of those samples whose ID is associated with Gender=M in pheno_data
-fam_file_raw.loc[fam_file_raw["ID"].isin(pheno_data.loc[pheno_data["Gender"] == "F", "AGRF code"]), "Gender"] = "2"
-print(np.unique(fam_file_raw["Gender"]))
+fam_file.loc[
+    fam_file["ID"].isin(pheno_data.loc[pheno_data["Gender"] == "F", "AGRF code"]), 
+    "Gender"] = "2"
+
+#check
+print("\n#####################\n#####################")
+print("The new sex variable is correctly coded?")
+print("#####################\n#####################")
+print((len(fam_file["Gender"].unique()) == 3) & (np.isin(fam_file["Gender"].unique(), test_elements=["1", "2", "0"])).all())
+    #only three possible sexes, being 1, 2 and 0.
 
 # Add the family variables and the phenotype (not added for now)
-fam_file_raw["FID"] = "combat" #ID for the whole study
-fam_file_raw["IID_father"] = "0" #'0' if father isn't in dataset
-fam_file_raw["IID_mother"] = "0" 
-fam_file_raw["phenotype"] = -9 #this is no data for phenotype
+fam_file["FID"] = "combat" #ID for the whole study
+fam_file["IID_father"] = "0" #'0' if father isn't in dataset
+fam_file["IID_mother"] = "0" 
+fam_file["phenotype"] = -9 #this is no data for phenotype
 
 # Reorder
-fam_file = fam_file_raw[["FID", "ID", "IID_father", "IID_mother", "Gender", "phenotype"]]
+fam_file = fam_file[["FID", "ID", "IID_father", "IID_mother", "Gender", "phenotype"]]
+
+print("\n#####################\n#####################")
+print("See fam file:")
+print("#####################\n#####################")
 print(fam_file)
 
-# Save without header:
-fam_file.to_csv("data/plink_inputs_example/batch1_example.fam",
+#save without header:
+fam_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".fam.gz",
     sep="\t",
     header=None,
+    compression='gzip',
     index=False)
+
+
+############
+# map file #
+############
+
+print("\n#####################\n#####################")
+print("Preparing map file")
+print("#####################\n#####################")
+
+# **Map file [Plink info](https://www.cog-genomics.org/plink/1.9/formats#map)**
+
+# A text file with no header line, and one line per variant with the following 3-4 fields:
+    # - Chromosome code. PLINK 1.9 also permits contig names here, but most older programs do not.
+    # - Variant identifier
+    # - Position in morgans or centimorgans (optional; also safe to use dummy value of '0')
+    # - Base-pair coordinate
+
+# We can get this information from the SNP map.
+# Make a copy with copy(), so modifications to the data or indices of the copy will not be reflected in the original object
+map_file = snp_map.copy()
+print(map_file)
+
+#set genetic position as dummy
+map_file["centimorgans"] = 0 #dummy value of zero
+
+#select columns
+map_file = map_file.loc[:, ["Chromosome", "Name", "centimorgans", "Position"]]
+print(map_file)
+
+# Save
+map_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".map.gz",
+    sep="\t",
+    header=None,
+    compression='gzip',
+    index=False)
+
+
+#################################
+# check with lgen and map files #
+#################################
+
+print("\n#####################\n#####################")
+print("check with lgen and map files")
+print("#####################\n#####################")
+
+####por aquii
+
+#checks map and lgen_file
+print("All snps of the map_file are included in the lgen_file?")
+print(all(map_file["Name"].isin(lgen_file["SNP Name"])))
+print("All snps of the lgen_file are included in the map_file?")
+print(all(lgen_file["SNP Name"].isin(map_file["Name"])))
+
+#checks fam_file and lgen_file
+print("All samples of the fam_file are included in the lgen_file?")
+print(all(fam_file["ID"].isin(lgen_file["Sample ID"])))
+    #this can be FALSE because we have used only two final_reports, i.e., 2 individuals
+print("All samples of the lgen_file are included in the fam_file?")
+print(all(lgen_file["Sample ID"].isin(fam_file["ID"])))
 
 
 
@@ -606,56 +648,9 @@ temp_dir.cleanup()
 
 
 
-############
-# map file #
-############
-
-# **Map file [Plink info](https://www.cog-genomics.org/plink/1.9/formats#map)**
-
-# A text file with no header line, and one line per variant with the following 3-4 fields:
-    # - Chromosome code. PLINK 1.9 also permits contig names here, but most older programs do not.
-    # - Variant identifier
-    # - Position in morgans or centimorgans (optional; also safe to use dummy value of '0')
-    # - Base-pair coordinate
-
-# We can get this information from the SNP map.
-    # We could also get this information from the final report but, as shown in previous lines, we have only loaded the columns required for the lgen file because we have to load hundreds of final reports and concatenate them, so it will use less memory with less columns. The Indexes and positions are not duplicated in SNP map, only 1 row per SNP, being a much smaller file.
-print(final_report1)
-
-# Make a copy with copy(), so modifications to the data or indices of the copy will not be reflected in the original object
-map_file_raw = snp_map.copy()
-print(map_file_raw)
-
-#set genetic position as dummy
-map_file_raw["centimorgans"] = 0 #dummy value of zero
-
-#select columns
-map_file = map_file_raw.loc[:, ["Chromosome", "Name", "centimorgans", "Position"]]
-print(map_file)
-
-# Save
-map_file.to_csv("data/plink_inputs_example/batch1_example.map",
-    sep="\t",
-    header=None,
-    index=False)
 
 
-############
-# map file #
-############
 
-#checks map and lgen_file
-print("All snps of the map_file are included in the lgen_file?")
-print(all(map_file["Name"].isin(lgen_file["SNP Name"])))
-print("All snps of the lgen_file are included in the map_file?")
-print(all(lgen_file["SNP Name"].isin(map_file["Name"])))
-
-#checks fam_file and lgen_file
-print("All samples of the fam_file are included in the lgen_file?")
-print(all(fam_file["ID"].isin(lgen_file["Sample ID"])))
-    #this can be FALSE because we have used only two final_reports, i.e., 2 individuals
-print("All samples of the lgen_file are included in the fam_file?")
-print(all(lgen_file["Sample ID"].isin(fam_file["ID"])))
 
 
 #######################

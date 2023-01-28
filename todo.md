@@ -27,7 +27,7 @@
             - these three sample also have unknown sex according to illumina data!!
         - check sex between illumina and real sex data (pheno_data)
             - remove uknown sex individuals?
-        - we have the three problematic cases with sex unknown and two more with the opposite sex
+        - we have the three problematic cases with sex unknown and two more with the opposite sex between illumina and phenotype data
     - ASK DAVID about what sex to use. I guess we should stick to the reported in the phenotype data
     - there also 2 males and two snps in X that have two genotypes!
         -       FID        ID   snp_name
@@ -35,9 +35,20 @@
         - 1  combat  7684BSAO  rs5955017
     - check genotype calls that are I or D
         - how plink deals with this?
-    - ask David about the samples without phenotype in the excel file?
-        - the last 42
-    - Ask david about the sample included in first bath but without phenotype data
+
+    - pheno_data
+        - samples without phenotype
+            - Ask david about the sample included in first batch but without phenotype data
+            - also about the 42 samples the bottom with no phenotyipic daata
+            - I guess these samples should be removed from all analyses?
+                - remove after quality control?
+        - ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
+        - in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
+            - body mass week 1 and 8
+            - VO2 max week 1
+        - sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
+        - I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
+        - some rows are coloured, there is something special about these samples it could be relevant for the analysis?
 
 
 2. Tutorials

@@ -317,16 +317,12 @@ print(f'Unknown sex is below 10? {sample_map.loc[(sample_map["Gender"] == "Unkno
 #### Explore phenotype data ####
 ################################
 
-#This include reported sex and VO2 max data.
-pheno_data = pd.read_csv("data/pheno_data/combact gene DNA GWAS 23062022_all_dna_samples.csv",
-    delimiter=",", 
+#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
+pheno_data = pd.read_excel(
+    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
     header=0,
-    low_memory=False) 
-    #low_memory: Internally process the file in chunks, 
-    #resulting in lower memory use while parsing, 
-    #but possibly mixed type inference. To ensure no mixed 
-    #types either set False, or specify the type with the dtype parameter. 
-pheno_data
+    sheet_name="All DNA samples")
+print(pheno_data)
 
 # We have gender (F/M) with some NAs
 print(pheno_data["Gender"].describe())
@@ -347,10 +343,25 @@ print(f'Number of samples in sample map: {sample_map.shape[0]}')
 print(f'Number of samples of pheno_data included in sample map')
 print(pheno_data[pheno_data["AGRF code"].isin(sample_map["ID"])].shape[0])
 
+#then we have body mass and cardiorespiratory fitness variables
 
-# Then, different body mass and cardiorespiratory fitness variables.
-# 
-# NOT CHECKED FOR NOW.
+#beep test 8 has an error, "o" letter instead "0" number in one sample
+print(pheno_data.loc[pheno_data["Week 8 beep test"] == "11.1O", "Week 8 beep test"])
+
+#change 11.1O for 11.10
+pheno_data.loc[pheno_data["Week 8 beep test"] == "11.1O", "Week 8 beep test"] = 11.10
+
+#convert the column to float, because the wrong sample with the string made the whole column to be considered as string
+pheno_data["Week 8 beep test"] = pd.to_numeric(pheno_data["Week 8 beep test"])
+    #https://stackoverflow.com/questions/15891038/change-column-type-in-pandas
+
+#some of these columns have zero but also NA. Zero body mass or VO2 max does not make sense, so it should be an error.
+print((np.min(pheno_data["Week 1 Body Mass"]) == 0) & (sum(pheno_data["Week 1 Body Mass"].isna()) > 0))
+print((np.min(pheno_data["Week 8 Body Mass"]) == 0) & (sum(pheno_data["Week 1 Body Mass"].isna()) > 0))
+print((np.min(pheno_data["Week 1 Beep test"]) == 0) & (sum(pheno_data["Week 1 Beep test"].isna()) > 0))
+print((np.min(pheno_data["Week 8 beep test"]) == 0) & (sum(pheno_data["Week 8 beep test"].isna()) > 0))
+print((np.min(pheno_data["Week 1 Pred VO2max"]) == 0) & (sum(pheno_data["Week 1 Pred VO2max"].isna()) > 0))
+print((np.min(pheno_data["Week 8 Pred VO2max"]) == 0) & (sum(pheno_data["Week 8 Pred VO2max"].isna()) > 0))
 
 #note that we have last rows with individuals of the study that have no phenotype data
 print("Number of samples without phenotype data")
