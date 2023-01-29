@@ -85,6 +85,13 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#update again after you have updated the repository
 	apt -y update
 
+	#install faster compressor
+	apt -y install pigz
+
+	#install java for pyspark
+	#https://stackoverflow.com/questions/38747713/running-spark-on-linux-java-home-not-set-error
+	apt -y install openjdk-8-jdk
+
 	#Install python
 	apt -y install python3.9
 
@@ -98,6 +105,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	python3.9 get-pip.py
 
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
+	python3.9 -m pip install pyspark
 	python3.9 -m pip install openpyxl
 	python3.9 -m pip install natsort
 	python3.9 -m pip install scikit-learn

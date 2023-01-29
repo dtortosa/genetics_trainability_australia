@@ -135,8 +135,10 @@ print("#######################################\n################################
     #count time
         #https://stackoverflow.com/questions/1557571/how-do-i-get-time-of-a-python-programs-execution
 import numpy as np
+#zipinfo=zipinfos[1]
 #zipinfo=zipinfos[np.where([element == zip_name + "/SNP_Map.txt" for element in names_files])[0][0]]
 #zipinfo=zipinfos[np.where([element == zip_name + "/Sample_Map.txt" for element in names_files])[0][0]]
+import os
 for zipinfo in zipinfos:
 
     #fir the file name starts with the adequate zip (batch) name and FinalReport
@@ -150,6 +152,17 @@ for zipinfo in zipinfos:
         zipdata.extract(zipinfo, temp_dir.name)
             #https://stackoverflow.com/questions/44079913/renaming-the-extracted-file-from-zipfile/56362289#56362289
             #https://stackoverflow.com/questions/13765486/how-to-unzip-specific-folder-from-a-zip-with-python
+
+        #if the selected file is a FinalReport
+        if zipinfo.filename.startswith(zip_name + "_FinalReport"):
+
+            #remove the first 10 lines of the file, which is the head 
+            os.system("cd " + temp_dir.name + "; tail -n +11 " + zipinfo.filename + " > tmp.txt && mv tmp.txt " + zipinfo.filename)
+                #if you use tail with "+number_line" you can get all lines starting from the selected number of line
+                    #tail is faster than sed
+                #then save the result in a temporal file and overwrite the original file. The && will make sure that the file doesn't get overwritten when there is a problem.
+                    #https://stackoverflow.com/questions/339483/how-can-i-remove-the-first-line-of-a-text-file-using-bash-sed-script
+                    #https://www.baeldung.com/linux/remove-first-line-text-file
 
 #get the number of files extract
 import subprocess
@@ -225,13 +238,130 @@ print("#######################################\n################################
 print(len(list_files_samples) == len(sample_map["ID"]))
 
 
-#########################################
-# Reading the final reports into a list #
-#########################################
+
+
+
+#####POR AQUIII
+
+##remove header with shell in all files, maybe within the unzipping function?
+
+
+#spark gives us the possibility to analyze big datasets with much less ram and relatively fast. You can work with multiple final reports, being all connected, making possible to make queries on them, but not being all loaded in memory
+
+
+from pyspark.sql import SparkSession
+spark = SparkSession \
+    .builder \
+    .appName("how to read csv file") \
+    .getOrCreate()
+    #in case "refused connection" error, you have to commenting the first two lines "/etc/hosts", the ones with 127.0.0.1 IP. Indeed sparks "prefers" not to use this IP
+        #https://stackoverflow.com/questions/24881757/apache-spark-connection-refused-for-worker
+    #CHECK THIS
+        #select number of cores
+            #https://stackoverflow.com/questions/24622108/apache-spark-the-number-of-cores-vs-the-number-of-executors
+
+
+
+
+
+
+
+
+#############################
+# Reading the final reports #
+#############################
 
 print("\n#####################\n#####################")
-print("Reading the final reports into a list")
+print("Reading the final reports")
 print("#####################\n#####################")
+
+from pyspark.sql.types import StructType, IntegerType, StringType, DoubleType, BooleanType
+
+
+#SELECT THE CORRECT TYPES!! NOT CHECKED!!
+schema = StructType() \
+      .add("Sample Index",IntegerType(),True) \
+      .add("Sample ID",IntegerType(),True) \
+      .add("Sample Name",StringType(),True) \
+      .add("SNP Index",StringType(),True) \
+      .add("SNP Name",StringType(),True) \
+      .add("Chr",StringType(),True) \
+      .add("Position",IntegerType(),True) \
+      .add("GT Score",DoubleType(),True) \
+      .add("GC Score",IntegerType(),True) \
+      .add("Allele1 - AB",DoubleType(),True) \
+      .add("Allele2 - AB",DoubleType(),True) \
+      .add("Allele1 - Top",StringType(),True) \
+      .add("Allele2 - Top",StringType(),True) \
+      .add("Allele1 - Forward",StringType(),True) \
+      .add("Allele2 - Forward",StringType(),True) \
+      .add("Allele1 - Design",BooleanType(),True) \
+      .add("Allele2 - Design",StringType(),True) \
+      .add("Theta",IntegerType(),True) \
+      .add("R",IntegerType(),True) \
+      .add("X Raw",StringType(),True) \
+      .add("Y Raw",StringType(),True) \
+      .add("X",StringType(),True) \
+      .add("Y",StringType(),True) \
+      .add("B Allele Freq",StringType(),True) \
+      .add("Log R Ratio",StringType(),True) \
+      .add("SNP Aux",StringType(),True) \
+      .add("SNP",StringType(),True) \
+      .add("ILMN Strand",StringType(),True) \
+      .add("Top Genomic Sequence",StringType(),True) \
+      .add("Customer Strand",StringType(),True)
+
+
+
+
+#create a spark DF with all the samples
+df_samples = spark.read.option("delimiter", "\t").option("header", True).csv(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt")
+    #Note this DF is NOT in memory, but you can make queries to go through the whole data while using few RAM
+    #read using tab, using first row as header and then go to specific folder and select all files with the batch name and being final reports
+    #IMPORTANT, all the files have to have the same schema to work in this way. We already checked that all final reports are the same.
+        #https://stackoverflow.com/questions/69350586/pyspark-read-multiple-csv-files-at-once
+
+#see
+df_samples.printSchema()
+
+
+df_samples.select(df_samples["Position"]+1).show()
+
+df_samples.schema.names
+    #https://stackoverflow.com/questions/39746752/how-to-get-name-of-dataframe-column-in-pyspark
+
+
+df_subset = df_samples.select(["Sample Index", "Sample ID", "SNP Index", "SNP Name", "Chr", "Position", "Allele1 - Forward", "Allele2 - Forward"])
+
+df_subset.show()
+
+df_subset.orderBy("Sample Index").show()
+    #to use in specific order
+        #https://stackoverflow.com/questions/54071665/pyspark-read-multiple-csv-files-into-a-dataframe-in-order
+
+
+n_rows = df_subset.count() 
+
+n_rows == snp_map.shape[0]*sample_map.shape[0]
+
+
+
+df_subset_2 = df.select(["Sample ID", "SNP Name", "Chr", "Allele1 - Forward", "Allele2 - Forward"])
+
+#you can save each final report separately
+#df_subset_2.write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "full.txt")
+    #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
+
+#or a single file
+df_subset_2.coalesce(1).write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "_full")
+    #https://sparkbyexamples.com/spark/spark-write-dataframe-single-csv-file/
+    #https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/#dataframe-%20coalesce
+
+#https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#creating-dataframes
+
+
+
+
 
 #sample_path = list_files_samples[0]
 def read_final_reports(sample_path):
@@ -601,56 +731,20 @@ map_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".map.gz",
 #################################
 
 print("\n#####################\n#####################")
-print("check with lgen and map files")
+print("checks with lgen, map and fam files")
 print("#####################\n#####################")
-
-####por aquii
-
-#checks map and lgen_file
-print("All snps of the map_file are included in the lgen_file?")
-print(all(map_file["Name"].isin(lgen_file["SNP Name"])))
-print("All snps of the lgen_file are included in the map_file?")
-print(all(lgen_file["SNP Name"].isin(map_file["Name"])))
-
-#checks fam_file and lgen_file
-print("All samples of the fam_file are included in the lgen_file?")
-print(all(fam_file["ID"].isin(lgen_file["Sample ID"])))
-    #this can be FALSE because we have used only two final_reports, i.e., 2 individuals
-print("All samples of the lgen_file are included in the fam_file?")
-print(all(lgen_file["Sample ID"].isin(fam_file["ID"])))
+print("SNPs are the same in lgen and map files?")
+print(np.array_equal(lgen_file["SNP Name"].unique(), map_file["Name"].values))
+print("samples are the same in lgen and fam files?")
+print(np.array_equal(lgen_file["Sample ID"].unique(), fam_file["ID"].values))
 
 
+#################################
+# check with lgen and map files #
+#################################
 
-
-###ELIMINNA TEMP FOLDER
-
-################################
-
-#remove the temp dir
-temp_dir.cleanup()
-
-
-
-
-
-
-
-'''
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+del([lgen_file, map_file, fam_file])
+gc.collect()
 
 
 #######################
@@ -658,13 +752,35 @@ temp_dir.cleanup()
 #######################
 
 #calculate the ped file using the lgen, map and fam files
-os.system("cd data/plink_inputs_example; plink --lfile batch1_example --recode --out batch1_example_plink")
+import os
+os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".lgen.gz")
+os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".map.gz")
+os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".fam.gz")
+
+
+os.system("cd data/genetic_data; plink --lfile plink_inputs/" + batch_name + " --recode --out plink_ped_files/" + batch_name + "_plink")
     #go to the folder with plink inputs
     #--lfile for loading the lgen file, which should be accompanied by a .fam and .map files having the same name except the extension.
         #https://www.cog-genomics.org/plink/1.9/formats
     #--recode creates a new text fileset, after applying sample/variant filters and other operations. By default, the fileset includes a .ped and a .map file, readable with --file.
         #https://www.cog-genomics.org/plink/1.9/data#recode
     #--out for the output name
+
+os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".lgen")
+os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".map")
+os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".fam")
+
+os.system("cd data/genetic_data/plink_ped_files; gzip " + batch_name + "_plink.map")
+os.system("cd data/genetic_data/plink_ped_files; gzip " + batch_name + "_plink.ped")
+
+
+###compress with pigz?
+#memory issiues, we woulld need between 5-10 times of RAM than data we have, so we have 130GB, requiring between 650 and 1300GB. We are using more in the HPC with optuna across 50 cores...
+    #https://wesmckinney.com/blog/apache-arrow-pandas-internals/
+
+#pyspark used in TDI?
+
+
 
 #This creates several files with the name used in --out, i.e., "batch1_example_plink"
 
@@ -710,6 +826,50 @@ print(np.unique(map_plink["genetic_position"]) == 0)
 ##nosex
     #List of samples with ambiguous sex codes
     #https://www.cog-genomics.org/plink/1.9/output
+
+
+
+###maybe use pigz to compress the lgen file? ofr compressing seems to be much more faster because uses several cores, it is less useful for decompressing
+    #https://stackoverflow.com/questions/12313242/utilizing-multi-core-for-targzip-bzip-compression-decompression
+
+
+
+
+###ELIMINNA TEMP FOLDER
+
+################################
+
+#remove the temp dir
+temp_dir.cleanup()
+
+#stop spark env
+spark.stop()
+
+
+
+
+
+
+
+'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #see the file
 nosex_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.nosex",
