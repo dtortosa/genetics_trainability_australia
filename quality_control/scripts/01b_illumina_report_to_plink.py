@@ -88,8 +88,8 @@ args=parser.parse_args()
 #for debugging
 #batch_name = "ILGSA24-17873"
 batch_name = "ILGSA24-17303"
-n_cores = 5
-n_samples = 30
+n_cores = 7
+n_samples = None
 
 #starting
 print("#################################################################################################################################\n#################################################################################################################################")
@@ -156,7 +156,7 @@ for zipinfo in zipinfos:
         #if the selected file is a FinalReport
         if zipinfo.filename.startswith(zip_name + "_FinalReport"):
 
-            #remove the first 10 lines of the file, which is the head 
+            #remove the first 10 lines of the file, which is the header
             os.system("cd " + temp_dir.name + "; tail -n +11 " + zipinfo.filename + " > tmp.txt && mv tmp.txt " + zipinfo.filename)
                 #if you use tail with "+number_line" you can get all lines starting from the selected number of line
                     #tail is faster than sed
@@ -239,80 +239,73 @@ print(len(list_files_samples) == len(sample_map["ID"]))
 
 
 
+####################################
+# read illumina reports with spark #
+####################################
 
-
-#####POR AQUIII
-
-##remove header with shell in all files, maybe within the unzipping function?
-
+print("\n#####################\n#####################")
+print("Reading the final reports with spark")
+print("#####################\n#####################")
 
 #spark gives us the possibility to analyze big datasets with much less ram and relatively fast. You can work with multiple final reports, being all connected, making possible to make queries on them, but not being all loaded in memory
 
+#the header of the final reports has been remove, so now the first row has the column names of the genotype data, but no illumina info about the report
 
+#open a Spark session
+#sparkcontext, which is used by TDI, is going to be deprecated
 from pyspark.sql import SparkSession
-spark = SparkSession \
-    .builder \
-    .appName("how to read csv file") \
+spark = SparkSession.builder \
+    .appName("working with illumina reports") \
+    .master("local[" + str(n_cores) + "]") \
     .getOrCreate()
+    #master: local (not cluster) and selecting number cores instead of using all "*"
+        #https://sparkbyexamples.com/spark/what-does-setmaster-local-mean-in-spark/#:~:text=What%20does%20setMaster(local%5B*%5D)%20in%20Spark%3F,a%20SparkSession%20or%20SparkConf%20object.&text=Here%2C%20setMaster()%20denotes%20where,URL%20for%20a%20distributed%20cluster.
+    #.config() to change configuration
+        #https://stackoverflow.com/questions/41886346/spark-2-1-0-session-config-settings-pyspark 
     #in case "refused connection" error, you have to commenting the first two lines "/etc/hosts", the ones with 127.0.0.1 IP. Indeed sparks "prefers" not to use this IP
         #https://stackoverflow.com/questions/24881757/apache-spark-connection-refused-for-worker
     #CHECK THIS
         #select number of cores
             #https://stackoverflow.com/questions/24622108/apache-spark-the-number-of-cores-vs-the-number-of-executors
 
+#we are going to work with data frames
+    #https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#spark-sql-dataframes-and-datasets-guide
 
-
-
-
-
-
-
-#############################
-# Reading the final reports #
-#############################
-
-print("\n#####################\n#####################")
-print("Reading the final reports")
-print("#####################\n#####################")
-
+#define the scheme, i.e., the type of the data
 from pyspark.sql.types import StructType, IntegerType, StringType, DoubleType, BooleanType
-
-
-#SELECT THE CORRECT TYPES!! NOT CHECKED!!
 schema = StructType() \
-      .add("Sample Index",IntegerType(),True) \
-      .add("Sample ID",IntegerType(),True) \
-      .add("Sample Name",StringType(),True) \
-      .add("SNP Index",StringType(),True) \
-      .add("SNP Name",StringType(),True) \
-      .add("Chr",StringType(),True) \
-      .add("Position",IntegerType(),True) \
-      .add("GT Score",DoubleType(),True) \
-      .add("GC Score",IntegerType(),True) \
-      .add("Allele1 - AB",DoubleType(),True) \
-      .add("Allele2 - AB",DoubleType(),True) \
-      .add("Allele1 - Top",StringType(),True) \
-      .add("Allele2 - Top",StringType(),True) \
-      .add("Allele1 - Forward",StringType(),True) \
-      .add("Allele2 - Forward",StringType(),True) \
-      .add("Allele1 - Design",BooleanType(),True) \
-      .add("Allele2 - Design",StringType(),True) \
-      .add("Theta",IntegerType(),True) \
-      .add("R",IntegerType(),True) \
-      .add("X Raw",StringType(),True) \
-      .add("Y Raw",StringType(),True) \
-      .add("X",StringType(),True) \
-      .add("Y",StringType(),True) \
-      .add("B Allele Freq",StringType(),True) \
-      .add("Log R Ratio",StringType(),True) \
-      .add("SNP Aux",StringType(),True) \
-      .add("SNP",StringType(),True) \
-      .add("ILMN Strand",StringType(),True) \
-      .add("Top Genomic Sequence",StringType(),True) \
-      .add("Customer Strand",StringType(),True)
-
-
-
+    .add("Sample Index",IntegerType(), nullable=True) \
+    .add("Sample ID",StringType(), nullable=True) \
+    .add("Sample Name",StringType(), nullable=True) \
+    .add("SNP Index",IntegerType(), nullable=True) \
+    .add("SNP Name",StringType(), nullable=True) \
+    .add("Chr",IntegerType(), nullable=True) \
+    .add("Position",IntegerType(), nullable=True) \
+    .add("GT Score",DoubleType(), nullable=True) \
+    .add("GC Score",DoubleType(), nullable=True) \
+    .add("Allele1 - AB",StringType(), nullable=True) \
+    .add("Allele2 - AB",StringType(), nullable=True) \
+    .add("Allele1 - Top",StringType(), nullable=True) \
+    .add("Allele2 - Top",StringType(), nullable=True) \
+    .add("Allele1 - Forward",StringType(), nullable=True) \
+    .add("Allele2 - Forward",StringType(), nullable=True) \
+    .add("Allele1 - Design",StringType(), nullable=True) \
+    .add("Allele2 - Design",StringType(), nullable=True) \
+    .add("Theta",DoubleType(), nullable=True) \
+    .add("R",DoubleType(), nullable=True) \
+    .add("X Raw",IntegerType(), nullable=True) \
+    .add("Y Raw",IntegerType(), nullable=True) \
+    .add("X",DoubleType(), nullable=True) \
+    .add("Y",DoubleType(), nullable=True) \
+    .add("B Allele Freq",DoubleType(), nullable=True) \
+    .add("Log R Ratio",DoubleType(), nullable=True) \
+    .add("SNP Aux",DoubleType(), nullable=True) \
+    .add("SNP",StringType(), nullable=True) \
+    .add("ILMN Strand",StringType(), nullable=True) \
+    .add("Top Genomic Sequence",StringType(), nullable=True) \
+    .add("Customer Strand",StringType(),nullable=True)
+        #nullable means you can have null values
+        #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
 
 #create a spark DF with all the samples
 df_samples = spark.read.option("delimiter", "\t").option("header", True).csv(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt")
@@ -321,92 +314,84 @@ df_samples = spark.read.option("delimiter", "\t").option("header", True).csv(tem
     #IMPORTANT, all the files have to have the same schema to work in this way. We already checked that all final reports are the same.
         #https://stackoverflow.com/questions/69350586/pyspark-read-multiple-csv-files-at-once
 
-#see
-df_samples.printSchema()
+print("\n#####################\n#####################")
+print("inspect the data and do some operations to see what spark can do")
+print("#####################\n#####################")
 
 
-df_samples.select(df_samples["Position"]+1).show()
-
-df_samples.schema.names
+#see schema and column names separately
+print(df_samples.printSchema())
+print(df_samples.schema.names)
     #https://stackoverflow.com/questions/39746752/how-to-get-name-of-dataframe-column-in-pyspark
 
+#you can do operations on the columns
+df_samples.select(df_samples["Position"]+1).show()
 
-df_subset = df_samples.select(["Sample Index", "Sample ID", "SNP Index", "SNP Name", "Chr", "Position", "Allele1 - Forward", "Allele2 - Forward"])
+#select only columns of interest
+df_samples_subset = df_samples.select(["Sample Index", "Sample ID", "SNP Index", "SNP Name", "Chr", "Position", "Allele1 - Forward", "Allele2 - Forward"])
+df_samples_subset.show()
 
-df_subset.show()
+#you can also do SQL queries
+#SQL vs pandas in spark, not great differences
+    #https://www.confessionsofadataguy.com/dataframes-vs-sparksql-which-one-should-you-choose/
+# Register the DataFrame as a SQL temporary view
+df_samples_subset.createOrReplaceTempView("df_samples_subset_sql")
+#do the query, asking for rows with chromosome 1
+spark \
+    .sql("SELECT * FROM df_samples_subset_sql WHERE Chr=1") \
+    .show()
 
-df_subset.orderBy("Sample Index").show()
+#reorder using chromosome inverse
+df_samples_subset.orderBy("Chr", ascending=False).show()
     #to use in specific order
         #https://stackoverflow.com/questions/54071665/pyspark-read-multiple-csv-files-into-a-dataframe-in-order
 
 
-n_rows = df_subset.count() 
-
-n_rows == snp_map.shape[0]*sample_map.shape[0]
-
-
-
-df_subset_2 = df.select(["Sample ID", "SNP Name", "Chr", "Allele1 - Forward", "Allele2 - Forward"])
-
-#you can save each final report separately
-#df_subset_2.write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "full.txt")
-    #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
-
-#or a single file
-df_subset_2.coalesce(1).write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "_full")
-    #https://sparkbyexamples.com/spark/spark-write-dataframe-single-csv-file/
-    #https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/#dataframe-%20coalesce
-
-#https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#creating-dataframes
-
-
-
-
-
-#sample_path = list_files_samples[0]
-def read_final_reports(sample_path):
-
-    #print name of selected report
-    print(sample_path.split(temp_dir.name+"/")[1])
-
-    #read the selected report and return it
-    final_report = pd.read_csv(
-        sample_path,
-        skiprows=10, #skip rows with the header
-        usecols=[
-            "Sample Index", #load only a subset of the columns. GREAT DECREASE OF SIZE.
-            "Sample ID",
-            "SNP Index",
-            "SNP Name",
-            "Chr",
-            "Position",
-            "Allele1 - Forward", 
-            "Allele2 - Forward"],
-        delimiter="\t", 
-        low_memory=False)
-        #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
-    return final_report
-
-#try the function
-#read_final_reports(list_files_samples[0])
-
-#run in parallel and save the resulting DFs in a list
-import multiprocessing as mp
-pool = mp.Pool(n_cores)
-list_df_samples = pool.map(read_final_reports, list_files_samples)
-    #apply function across reports
-pool.close()
+#calculate the number of reports, i.e., samples
+n_unique_samples = spark \
+    .sql("SELECT DISTINCT input_file_name() AS filename FROM df_samples_subset_sql") \
+    .count()
+        #count the number of distinct file names. Rows of the same report will have the same file name
 
 #check
 print("\n#####################\n#####################")
-print("We have as many DFs as samples in sample map?")
+print("We have as many unique samples in illumina reports as samples in sample map?")
 print("#####################\n#####################")
-print(len(list_df_samples) == sample_map.shape[0])
+print(n_unique_samples == sample_map.shape[0])
+
+#count the number of genotypes, i.e., total number of rows
+n_genotypes = df_samples_subset.count() 
+
+#check
+print("\n#####################\n#####################")
+print("We have as many genotypes as samples*snps in the maps")
+print("#####################\n#####################")
+print(n_genotypes == snp_map.shape[0]*sample_map.shape[0])
 
 #checks
 print("\n#####################\n#####################")
 print("Multiple checks within each sample")
 print("#####################\n#####################")
+
+
+split_col = pyspark.sql.functions.split(df['my_str_col'], '-')
+df = df.withColumn('NAME1', split_col.getItem(0))
+
+spark \
+    .sql("SELECT DISTINCT input_file_name() AS filename FROM df_samples_subset_sql") \
+    .show()
+
+
+split_col = pyspark.sql.functions.split(df_samples_subset['my_str_col'], '-')
+df = df.withColumn('NAME1', split_col.getItem(0))
+
+
+resultdf = spark.sql("SELECT input_file_name() AS filename, count(*) FROM df_samples_subset_sql GROUP BY filename")
+resultdf.show()
+    #https://insightsndata.com/get-file-names-when-reading-data-from-adls-into-azure-databricks-dfdcfa852b5c
+
+
+
 check_across_reports_list = []
 #index=0; df_sample=list_df_samples[0]
 for index, df_sample in enumerate(list_df_samples):
@@ -583,6 +568,21 @@ lgen_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".lgen.gz",
     header=None,
     compression='gzip',
     index=False)
+
+
+
+#you can save each final report separately
+#df_subset_2.write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "full.txt")
+    #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
+
+#or a single file
+df_subset_2.coalesce(1).write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "_full")
+    #https://sparkbyexamples.com/spark/spark-write-dataframe-single-csv-file/
+    #https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/#dataframe-%20coalesce
+
+#https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#creating-dataframes
+
+
 
 
 ############

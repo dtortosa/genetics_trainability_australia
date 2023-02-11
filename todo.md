@@ -49,6 +49,12 @@
         - sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
         - I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
         - some rows are coloured, there is something special about these samples it could be relevant for the analysis?
+        - there is data about ancestry? I am, black, whites... I will do analyses to detect genetic outliers but it would be good if we have this data.
+
+    - IMPUTATION?
+        - using high cove 1000 KGP1?
+            - One of the major applications of the phase 3 1kGP call set has been its widespread use as a reference panel for variant imputation in sparse, array-based genotyping data with a goal of improving the statistical power of downstream genome-wide association studies (GWAS) and facilitating fine-mapping of causal variants. As part of this publication, we release an improved reference imputation panel based on the high-coverage WGS consisting of SNV, INDEL, and SV calls across the 3,202 1kGP samples, including full trios.
+            - https://www.cell.com/cell/fulltext/S0092-8674(22)00991-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0092867422009916%3Fshowall%3Dtrue
 
 
 2. Tutorials
@@ -62,3 +68,6 @@
 - Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
 - Genetic prediction of complex traits with polygenic scores: a statistical review
 - Addressing the challenges of polygenic scores in human genetic research
+- https://www.varianteffect.org/
+- functional tools
+    - Regulatory dissection of the severe COVID-19 risk locus introgressed by Neanderthals
