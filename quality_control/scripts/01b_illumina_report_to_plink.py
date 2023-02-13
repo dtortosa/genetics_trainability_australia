@@ -208,43 +208,12 @@ if n_samples != None:
     list_files_samples = list_files_samples[0:n_samples]
 
 
-############################
-# Load sample and snp maps #
-############################
-
-print("\n#######################################\n#######################################")
-print("Load sample and snp maps: ")
-print("#######################################\n#######################################")
-
-import pandas as pd
-snp_map = pd.read_csv(temp_dir.name + "/SNP_Map.txt",
-    header=0,
-    delimiter="\t", 
-    low_memory=False) 
-    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
-print(snp_map)
-
-sample_map = pd.read_csv(temp_dir.name + "/Sample_Map.txt",
-    header=0,
-    delimiter="\t", 
-    low_memory=False) 
-    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
-print(sample_map)
-
-#check
-print("\n#######################################\n#######################################")
-print("The number of final reports is equal to IDs of sample map?: ")
-print("#######################################\n#######################################")
-print(len(list_files_samples) == len(sample_map["ID"]))
-
-
-
-####################################
-# read illumina reports with spark #
-####################################
+#############################################
+# read illumina reports and maps with spark #
+#############################################
 
 print("\n#####################\n#####################")
-print("Reading the final reports with spark")
+print("read illumina reports and maps with spark")
 print("#####################\n#####################")
 
 #spark gives us the possibility to analyze big datasets with much less ram and relatively fast. You can work with multiple final reports, being all connected, making possible to make queries on them, but not being all loaded in memory
@@ -308,9 +277,10 @@ schema = StructType() \
         #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
 
 #create a spark DF with all the samples
-df_samples = spark.read.option("delimiter", "\t").option("header", True).csv(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt")
+df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(schema).csv(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt")
     #Note this DF is NOT in memory, but you can make queries to go through the whole data while using few RAM
     #read using tab, using first row as header and then go to specific folder and select all files with the batch name and being final reports
+    #use the previously defined schema
     #IMPORTANT, all the files have to have the same schema to work in this way. We already checked that all final reports are the same.
         #https://stackoverflow.com/questions/69350586/pyspark-read-multiple-csv-files-at-once
 
@@ -328,8 +298,47 @@ print(df_samples.schema.names)
 df_samples.select(df_samples["Position"]+1).show()
 
 #select only columns of interest
-df_samples_subset = df_samples.select(["Sample Index", "Sample ID", "SNP Index", "SNP Name", "Chr", "Position", "Allele1 - Forward", "Allele2 - Forward"])
+df_samples_subset_raw = df_samples.select(["Sample Index", "Sample ID", "SNP Index", "SNP Name", "Chr", "Position", "Allele1 - Forward", "Allele2 - Forward"])
+df_samples_subset_raw.show()
+
+#add a column with the input file name
+from pyspark.sql.functions import input_file_name
+df_samples_subset = df_samples_subset_raw.withColumn("input_file", input_file_name())
 df_samples_subset.show()
+
+#load the maps
+snp_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema).csv(temp_dir.name+ "/" + "SNP_Map.txt")
+sample_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema).csv(temp_dir.name+ "/" + "Sample_Map.txt")
+print(snp_map.printSchema())
+print(sample_map.printSchema())
+
+
+###POR AQUIII
+###ADD SCHEMA FOR EACH OF THE FILE, THEN DO THE CHECKS FOR THESE TWO FILES, AND THEN GO TO DO CHECKS WITH ILLUMINA REPORTS
+
+    .add("Index",IntegerType(), nullable=True) \
+    .add("Name",StringType(), nullable=True) \
+    .add("Chromosome",StringType(), nullable=True) \
+    .add("GenTrain Score",DoubleType(), nullable=True) \
+    .add("NormID",IntegerType(), nullable=True) \
+    .add("ID",StringType(), nullable=True) \
+    .add("Gender",StringType(), nullable=True) \
+    .add("Plate",StringType(), nullable=True) \
+    .add("Well",StringType(), nullable=True) \
+    .add("Group",StringType(), nullable=True) \
+    .add("Parent1",StringType(), nullable=True) \
+    .add("Parent2",StringType(), nullable=True) \
+    .add("Replicate",StringType(), nullable=True) \
+    .add("SentrixPosition",StringType(), nullable=True) \
+
+
+#check
+print("\n#######################################\n#######################################")
+print("The number of final reports is equal to IDs of sample map?: ")
+print("#######################################\n#######################################")
+print(len(list_files_samples) == len(sample_map["ID"]))
+
+
 
 #you can also do SQL queries
 #SQL vs pandas in spark, not great differences
@@ -346,12 +355,8 @@ df_samples_subset.orderBy("Chr", ascending=False).show()
     #to use in specific order
         #https://stackoverflow.com/questions/54071665/pyspark-read-multiple-csv-files-into-a-dataframe-in-order
 
-
-#calculate the number of reports, i.e., samples
-n_unique_samples = spark \
-    .sql("SELECT DISTINCT input_file_name() AS filename FROM df_samples_subset_sql") \
-    .count()
-        #count the number of distinct file names. Rows of the same report will have the same file name
+#calculate the number of reports, i.e., samples as the number of unique input_file names
+n_unique_samples = df_samples_subset.select("input_file").distinct().count()
 
 #check
 print("\n#####################\n#####################")
@@ -373,35 +378,62 @@ print("\n#####################\n#####################")
 print("Multiple checks within each sample")
 print("#####################\n#####################")
 
+#check that the sample ID is the same than that showed in the input file name
+from pyspark.sql.functions import split, concat, col, lit
+#define the two columns to be compared
+col_input_name_check = split(col("input_file"), "file:" + temp_dir.name + "/" + batch_name + "_").getItem(1)
+    #prepare a column from splitting the input_file column and get the second item, which is FinalReportXX.txt, where XX is the index of the sample. This column was previously created.
+col_index_check = concat(lit("FinalReport"), col("Sample Index"), lit(".txt"))
+    #prepare a column concatenating FinalReport and .txt as literal values to the sample index, so we have the same format than in the input file name
+df_samples_subset \
+    .withColumn("check_1", col_index_check == col_input_name_check) \
+    .select("check_1") \
+    .distinct() \
+    .show()
+    #to the orignal data.frame, add a new column comparing the two previously defined columns, select the column with the check, get the distinct values and show.
+    #Only true should be present.
 
-split_col = pyspark.sql.functions.split(df['my_str_col'], '-')
-df = df.withColumn('NAME1', split_col.getItem(0))
+#check that each sample has the same number of row
+df_samples_subset \
+    .groupBy("Sample Index") \
+    .count() \
+    .toDF("Sample Index", "count") \
+    .withColumn("check_2", col("count") == snp_map.shape[0]) \
+    .select("check_2") \
+    .distinct() \
+    .show()
+    #group rows per sample, count the number of rows per sample, convert to DF, then create a new column checking whether count is equal to the number of snps in the map, select that column and see if only true
 
-spark \
-    .sql("SELECT DISTINCT input_file_name() AS filename FROM df_samples_subset_sql") \
+
+df_samples_subset.filter(col("SNP Index").isin(list(snp_map["Index"])))
+
+
+snp_map_spark = spark.read.option("delimiter", "\t").option("header", True).csv(temp_dir.name+ "/SNP_Map.txt")
+
+
+
+
+df_samples_subset \
+    .withColumnRenamed("SNP Index", "Index") \
+    .join(snp_map, ["Index"], "leftanti") \
+    .show()
+
+df_samples_subset \
+    .join(snp_map, col("SNP Index") == col("Index"), "inner") \
     .show()
 
 
-split_col = pyspark.sql.functions.split(df_samples_subset['my_str_col'], '-')
-df = df.withColumn('NAME1', split_col.getItem(0))
+df_samples_subset \
+    .withColumn("check_3", col("SNP Index").isin(snp_map["Index"])) \
+    .select("check_3") \
+    .distinct() \
+    .show()
 
+    .withColumn("check_4", col("SNP Name") == snp_map["Name"]) \
+    .withColumn("check_5", col("Chr") == snp_map["Chromosome"]) \
+    .withColumn("check_6", col("Position") == snp_map["Position"]) \
 
-resultdf = spark.sql("SELECT input_file_name() AS filename, count(*) FROM df_samples_subset_sql GROUP BY filename")
-resultdf.show()
-    #https://insightsndata.com/get-file-names-when-reading-data-from-adls-into-azure-databricks-dfdcfa852b5c
-
-
-
-check_across_reports_list = []
-#index=0; df_sample=list_df_samples[0]
-for index, df_sample in enumerate(list_df_samples):
-
-    #the ID of the sample in the DF is the same than in the name of the original FinalReport?
-    check_1 = df_sample["Sample Index"].unique()[0] == int(list_files_samples[index].split(temp_dir.name+"/"+zip_name+"_FinalReport")[1].split(".txt")[0])
-
-    #DF has the same columns than the first DF of the list?
-    check_2 = df_sample.columns.equals(list_df_samples[0].columns)
-        #if all DFs have the same columns than the first DF, then all have the same columns and we can concat
+#try to get distinct of different columns at the same time?
 
     #check that index, name, chromosome and position of all SNPs are the same than in the snp map. They should be in the exact same order in all files
     check_3 = df_sample["SNP Index"].equals(snp_map["Index"])
