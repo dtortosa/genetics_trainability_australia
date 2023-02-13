@@ -242,13 +242,13 @@ spark = SparkSession.builder \
 
 #define the scheme, i.e., the type of the data
 from pyspark.sql.types import StructType, IntegerType, StringType, DoubleType, BooleanType
-schema = StructType() \
+schema_reports = StructType() \
     .add("Sample Index",IntegerType(), nullable=True) \
     .add("Sample ID",StringType(), nullable=True) \
     .add("Sample Name",StringType(), nullable=True) \
     .add("SNP Index",IntegerType(), nullable=True) \
     .add("SNP Name",StringType(), nullable=True) \
-    .add("Chr",IntegerType(), nullable=True) \
+    .add("Chr",StringType(), nullable=True) \
     .add("Position",IntegerType(), nullable=True) \
     .add("GT Score",DoubleType(), nullable=True) \
     .add("GC Score",DoubleType(), nullable=True) \
@@ -273,11 +273,12 @@ schema = StructType() \
     .add("ILMN Strand",StringType(), nullable=True) \
     .add("Top Genomic Sequence",StringType(), nullable=True) \
     .add("Customer Strand",StringType(),nullable=True)
+        #Chr has to be string because in case we have Y, X or other stuff
         #nullable means you can have null values
         #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
 
 #create a spark DF with all the samples
-df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(schema).csv(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt")
+df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(schema_reports).csv(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt")
     #Note this DF is NOT in memory, but you can make queries to go through the whole data while using few RAM
     #read using tab, using first row as header and then go to specific folder and select all files with the batch name and being final reports
     #use the previously defined schema
@@ -307,7 +308,21 @@ df_samples_subset = df_samples_subset_raw.withColumn("input_file", input_file_na
 df_samples_subset.show()
 
 #load the maps
-snp_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema).csv(temp_dir.name+ "/" + "SNP_Map.txt")
+#create schemas
+schema_map = StructType() \
+    .add("Index",IntegerType(), nullable=True) \
+    .add("Name",StringType(), nullable=True) \
+    .add("Chromosome",StringType(), nullable=True) \
+    .add("GenTrain Score",DoubleType(), nullable=True) \
+    .add("SNP",StringType(), nullable=True) \
+    .add("ILMN Strand",StringType(), nullable=True) \
+    .add("Customer Strand",StringType(),nullable=True) \
+    .add("NormID",StringType(),nullable=True)
+        #Chr has to be string because in case we have Y, X or other stuff
+        #nullable means you can have null values
+        #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
+#read
+snp_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema_map).csv(temp_dir.name+ "/" + "SNP_Map.txt")
 sample_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema).csv(temp_dir.name+ "/" + "Sample_Map.txt")
 print(snp_map.printSchema())
 print(sample_map.printSchema())
@@ -316,10 +331,9 @@ print(sample_map.printSchema())
 ###POR AQUIII
 ###ADD SCHEMA FOR EACH OF THE FILE, THEN DO THE CHECKS FOR THESE TWO FILES, AND THEN GO TO DO CHECKS WITH ILLUMINA REPORTS
 
-    .add("Index",IntegerType(), nullable=True) \
-    .add("Name",StringType(), nullable=True) \
-    .add("Chromosome",StringType(), nullable=True) \
-    .add("GenTrain Score",DoubleType(), nullable=True) \
+
+
+
     .add("NormID",IntegerType(), nullable=True) \
     .add("ID",StringType(), nullable=True) \
     .add("Gender",StringType(), nullable=True) \
@@ -330,6 +344,9 @@ print(sample_map.printSchema())
     .add("Parent2",StringType(), nullable=True) \
     .add("Replicate",StringType(), nullable=True) \
     .add("SentrixPosition",StringType(), nullable=True) \
+        #Chr has to be string because in case we have Y, X or other stuff
+        #nullable means you can have null values
+        #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
 
 
 #check
