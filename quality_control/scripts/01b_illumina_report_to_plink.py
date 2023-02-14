@@ -240,6 +240,26 @@ spark = SparkSession.builder \
 #we are going to work with data frames
     #https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#spark-sql-dataframes-and-datasets-guide
 
+#we need the same column order in all illumina reports in order to use all of them with spark. For that, extract the column names for each report using pandas. Only header
+# Get first the paths for each final report
+list_reports_files_full_path = glob.glob(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt") 
+    #I prefer using the glob module, as it does pattern matching and expansion.
+        #https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
+#read header of each report
+import pandas as pd
+list_df_reports = [
+    pd.read_csv(
+        path, 
+        nrows=0, #no rows
+        header=0, #only header
+        sep='\t',
+        low_memory=False) #to avoid problems with mixed types
+    for path in list_reports_files_full_path]
+print("\n#####################\n#####################")
+print("all the columns in each report are the same than in the first report?")
+print("#####################\n#####################")
+all([(np.array(report.columns) == np.array(list_df_reports[0].columns)).all() for report in list_df_reports])
+
 #define the scheme, i.e., the type of the data
 from pyspark.sql.types import StructType, IntegerType, StringType, DoubleType, BooleanType
 schema_reports = StructType() \
@@ -309,10 +329,11 @@ df_samples_subset.show()
 
 #load the maps
 #create schemas
-schema_map = StructType() \
+schema_snp_map = StructType() \
     .add("Index",IntegerType(), nullable=True) \
     .add("Name",StringType(), nullable=True) \
     .add("Chromosome",StringType(), nullable=True) \
+    .add("Position",IntegerType(), nullable=True) \
     .add("GenTrain Score",DoubleType(), nullable=True) \
     .add("SNP",StringType(), nullable=True) \
     .add("ILMN Strand",StringType(), nullable=True) \
@@ -321,20 +342,9 @@ schema_map = StructType() \
         #Chr has to be string because in case we have Y, X or other stuff
         #nullable means you can have null values
         #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
-#read
-snp_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema_map).csv(temp_dir.name+ "/" + "SNP_Map.txt")
-sample_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema).csv(temp_dir.name+ "/" + "Sample_Map.txt")
-print(snp_map.printSchema())
-print(sample_map.printSchema())
-
-
-###POR AQUIII
-###ADD SCHEMA FOR EACH OF THE FILE, THEN DO THE CHECKS FOR THESE TWO FILES, AND THEN GO TO DO CHECKS WITH ILLUMINA REPORTS
-
-
-
-
-    .add("NormID",IntegerType(), nullable=True) \
+schema_sample_map = StructType() \
+    .add("Index",IntegerType(), nullable=True) \
+    .add("Name",StringType(), nullable=True) \
     .add("ID",StringType(), nullable=True) \
     .add("Gender",StringType(), nullable=True) \
     .add("Plate",StringType(), nullable=True) \
@@ -344,9 +354,39 @@ print(sample_map.printSchema())
     .add("Parent2",StringType(), nullable=True) \
     .add("Replicate",StringType(), nullable=True) \
     .add("SentrixPosition",StringType(), nullable=True) \
-        #Chr has to be string because in case we have Y, X or other stuff
         #nullable means you can have null values
         #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
+#read
+snp_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema_snp_map).csv(temp_dir.name+ "/" + "SNP_Map.txt")
+sample_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema_sample_map).csv(temp_dir.name+ "/" + "Sample_Map.txt")
+print(snp_map.printSchema())
+print(sample_map.printSchema())
+
+#check the column names of the three files are correct
+snp_map_pandas = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
+    delimiter="\t",
+    nrows=0, #no rows, only header 
+    header=0,
+    low_memory=False)
+sample_map_pandas = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
+    delimiter="\t",
+    nrows=0, #no rows, only header 
+    header=0,
+    low_memory=False) 
+print("\n#####################\n#####################")
+print("check the column names of the three files are correct")
+print("#####################\n#####################")
+print(all(df_samples.schema.names == list_df_reports[0].columns))
+print(all(snp_map.schema.names == snp_map_pandas.columns))
+print(all(sample_map.schema.names == sample_map_pandas.columns))
+
+
+
+
+###POR AQUIII
+###ADD SCHEMA FOR EACH OF THE FILE, THEN DO THE CHECKS FOR THESE TWO FILES, AND THEN GO TO DO CHECKS WITH ILLUMINA REPORTS
+
+
 
 
 #check
