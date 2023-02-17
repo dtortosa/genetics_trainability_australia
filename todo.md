@@ -71,3 +71,5 @@
 - https://www.varianteffect.org/
 - functional tools
     - Regulatory dissection of the severe COVID-19 risk locus introgressed by Neanderthals
+- PRSet: Pathway-based polygenic risk score analyses and software
+

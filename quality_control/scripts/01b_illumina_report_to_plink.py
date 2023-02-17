@@ -258,7 +258,7 @@ list_df_reports = [
 print("\n#####################\n#####################")
 print("all the columns in each report are the same than in the first report?")
 print("#####################\n#####################")
-all([(np.array(report.columns) == np.array(list_df_reports[0].columns)).all() for report in list_df_reports])
+print(all([(np.array(report.columns) == np.array(list_df_reports[0].columns)).all() for report in list_df_reports]))
 
 #define the scheme, i.e., the type of the data
 from pyspark.sql.types import StructType, IntegerType, StringType, DoubleType, BooleanType
@@ -370,7 +370,6 @@ snp_map_pandas = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
     low_memory=False)
 sample_map_pandas = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
     delimiter="\t",
-    nrows=0, #no rows, only header 
     header=0,
     low_memory=False) 
 print("\n#####################\n#####################")
@@ -379,23 +378,6 @@ print("#####################\n#####################")
 print(all(df_samples.schema.names == list_df_reports[0].columns))
 print(all(snp_map.schema.names == snp_map_pandas.columns))
 print(all(sample_map.schema.names == sample_map_pandas.columns))
-
-
-
-
-###POR AQUIII
-###ADD SCHEMA FOR EACH OF THE FILE, THEN DO THE CHECKS FOR THESE TWO FILES, AND THEN GO TO DO CHECKS WITH ILLUMINA REPORTS
-
-
-
-
-#check
-print("\n#######################################\n#######################################")
-print("The number of final reports is equal to IDs of sample map?: ")
-print("#######################################\n#######################################")
-print(len(list_files_samples) == len(sample_map["ID"]))
-
-
 
 #you can also do SQL queries
 #SQL vs pandas in spark, not great differences
@@ -419,16 +401,17 @@ n_unique_samples = df_samples_subset.select("input_file").distinct().count()
 print("\n#####################\n#####################")
 print("We have as many unique samples in illumina reports as samples in sample map?")
 print("#####################\n#####################")
-print(n_unique_samples == sample_map.shape[0])
+print(n_unique_samples == sample_map_pandas.shape[0])
+print(len(list_files_samples) == sample_map_pandas.shape[0])
 
 #count the number of genotypes, i.e., total number of rows
-n_genotypes = df_samples_subset.count() 
+n_genotypes = df_samples_subset.count()
 
 #check
 print("\n#####################\n#####################")
 print("We have as many genotypes as samples*snps in the maps")
 print("#####################\n#####################")
-print(n_genotypes == snp_map.shape[0]*sample_map.shape[0])
+print(n_genotypes == snp_map.count()*sample_map.count())
 
 #checks
 print("\n#####################\n#####################")
@@ -450,47 +433,64 @@ df_samples_subset \
     #to the orignal data.frame, add a new column comparing the two previously defined columns, select the column with the check, get the distinct values and show.
     #Only true should be present.
 
-#check that each sample has the same number of row
+#check that each sample has the same number of rows
 df_samples_subset \
     .groupBy("Sample Index") \
     .count() \
     .toDF("Sample Index", "count") \
-    .withColumn("check_2", col("count") == snp_map.shape[0]) \
+    .withColumn("check_2", col("count") == snp_map.count()) \
     .select("check_2") \
     .distinct() \
     .show()
     #group rows per sample, count the number of rows per sample, convert to DF, then create a new column checking whether count is equal to the number of snps in the map, select that column and see if only true
 
-
-df_samples_subset.filter(col("SNP Index").isin(list(snp_map["Index"])))
-
-
-snp_map_spark = spark.read.option("delimiter", "\t").option("header", True).csv(temp_dir.name+ "/SNP_Map.txt")
-
-
-
-
-df_samples_subset \
+#check that all genotypes belong to SNPs included in SNP map according to index
+n_genotypes_matching_snp_map_1 = df_samples_subset \
     .withColumnRenamed("SNP Index", "Index") \
-    .join(snp_map, ["Index"], "leftanti") \
-    .show()
+    .join(snp_map, ["Index"], "inner") \
+    .count()
+        #rename the index column in reports to have the same name than in the map
+        #make inner join by SNP index between reports and snp map
+        #those rows with an SNP index not included in the report or in the map, are removed
+        #thus, the remaining are the genotypes with shared index
+        #if the number of genotypes is not equal to the original file, then we have a problem 
+check_3 = n_genotypes == n_genotypes_matching_snp_map_1
 
-df_samples_subset \
-    .join(snp_map, col("SNP Index") == col("Index"), "inner") \
-    .show()
+#check that all genotypes belong to SNPs included in SNP map according to name
+n_genotypes_matching_snp_map_2 = df_samples_subset \
+    .withColumnRenamed("SNP Name", "Name") \
+    .join(snp_map, ["Name"], "inner") \
+    .count()
+check_4 = n_genotypes == n_genotypes_matching_snp_map_2
+
+#check that all genotypes belong to SNPs included in SNP map according to chromosome
+n_genotypes_matching_snp_map_3 = df_samples_subset \
+    .withColumnRenamed("Chr", "Chromosome") \
+    .join(snp_map, ["Chromosome"], "inner") \
+    .count()
+check_5 = n_genotypes == n_genotypes_matching_snp_map_3
+
+#check that all genotypes belong to SNPs included in SNP map according to Position
+n_genotypes_matching_snp_map_4 = df_samples_subset \
+    .join(snp_map, ["Position"], "inner") \
+    .count()
+check_6 = n_genotypes == n_genotypes_matching_snp_map_4
 
 
-df_samples_subset \
-    .withColumn("check_3", col("SNP Index").isin(snp_map["Index"])) \
-    .select("check_3") \
-    .distinct() \
-    .show()
+#maybe you can do custom operations within groups
+#https://stackoverflow.com/questions/39600160/apply-a-custom-function-to-a-spark-dataframe-group
+#https://www.databricks.com/blog/2017/10/30/introducing-vectorized-udfs-for-pyspark.html
 
-    .withColumn("check_4", col("SNP Name") == snp_map["Name"]) \
-    .withColumn("check_5", col("Chr") == snp_map["Chromosome"]) \
-    .withColumn("check_6", col("Position") == snp_map["Position"]) \
+from pyspark.sql.functions import pandas_udf, PandasUDFType
+@pandas_udf("x double", PandasUDFType.GROUPED_MAP)  # doctest: +SKIP
+def eso(x):
+    return(x+1)
 
-#try to get distinct of different columns at the same time?
+
+df_sample_subset["Position"]
+
+df_samples_subset.groupBy("Sample ID").apply(eso)
+
 
     #check that index, name, chromosome and position of all SNPs are the same than in the snp map. They should be in the exact same order in all files
     check_3 = df_sample["SNP Index"].equals(snp_map["Index"])
