@@ -173,7 +173,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
     export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3
     	#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
 
-    #set the python version for spark
+    #set the python version for pyspark
     export PYSPARK_PYTHON=/usr/bin/python3.9
 	export PYSPARK_DRIVER_PYTHON=/usr/bin/python3.9
 

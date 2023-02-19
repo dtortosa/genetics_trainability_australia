@@ -365,7 +365,6 @@ print(sample_map.printSchema())
 #check the column names of the three files are correct
 snp_map_pandas = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
     delimiter="\t",
-    nrows=0, #no rows, only header 
     header=0,
     low_memory=False)
 sample_map_pandas = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
@@ -444,6 +443,29 @@ df_samples_subset \
     .show()
     #group rows per sample, count the number of rows per sample, convert to DF, then create a new column checking whether count is equal to the number of snps in the map, select that column and see if only true
 
+
+def calc_checks(pdf):
+
+    df = pd.DataFrame(columns=["index", "check_1"])
+
+    df["index"] = pdf["Sample Index"]
+    df["check_1"] = all(np.array(pdf["SNP Index"]) == np.array(snp_map_pandas["Index"]))
+    return df
+
+
+schema_checks = StructType() \
+    .add("index",IntegerType(), nullable=True) \
+    .add("check_1", BooleanType(), nullable=True) \
+
+
+
+df_samples_subset.groupby("Sample Index").applyInPandas(calc_checks, schema_checks).show()
+
+#aggreate grouups by counting only true cases?
+    #https://stackoverflow.com/questions/49021972/pyspark-count-rows-on-condition
+
+
+
 #check that all genotypes belong to SNPs included in SNP map according to index
 n_genotypes_matching_snp_map_1 = df_samples_subset \
     .withColumnRenamed("SNP Index", "Index") \
@@ -485,20 +507,24 @@ from pyspark.sql.functions import pandas_udf, PandasUDFType
 
 
 
+
+
 # Input/output are both a pandas.DataFrame
-def eso(pdf):
-    return pdf.assign(v=pdf["Position"]+pdf["Sample Index"])
-
-df_samples_subset.groupby("Sample Index").applyInPandas(eso, df_samples_subset.schema).show()
-
-#error, you have to delete python 3.6 which is the defult
-    #https://stackoverflow.com/questions/48260412/environment-variables-pyspark-python-and-pyspark-driver-python
+def PreProcess(pdf):   
+    df = pd.DataFrame(columns=['index','position_index'])  
+    df['index']=pdf["Sample Index"]  
+    df['position_index']=pdf["Position"]+pdf["Sample Index"]  
+    return df
 
 
-def check_with_maps()
+schema_2 = StructType() \
+    .add("index",IntegerType(), nullable=True) \
+    .add("position_index",IntegerType(), nullable=True) \
 
-df_sample["SNP Index"].equals(snp_map["Index"])
 
+df_samples_subset.groupby("Sample Index").applyInPandas(PreProcess, schema_2).show()
+
+#https://stackoverflow.com/questions/63403001/pyspark-pandas-udf-runtimeerror-number-of-columns-of-the-returned-doesnt-match
 
 
 
