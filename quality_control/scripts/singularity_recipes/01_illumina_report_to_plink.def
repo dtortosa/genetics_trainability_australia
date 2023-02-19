@@ -88,9 +88,25 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#install faster compressor
 	apt -y install pigz
 
+	#install wget to download spark
+	apt -y install wget
+
 	#install java for pyspark
 	#https://stackoverflow.com/questions/38747713/running-spark-on-linux-java-home-not-set-error
 	apt -y install openjdk-8-jdk
+
+	#install apache spark, pyspark will connect to spark
+		#https://stackoverflow.com/questions/33887227/how-to-upgrade-spark-to-newer-version/33914992#33914992
+	#download apache spark in usr/local/bin
+	wget -P /usr/local/bin https://dlcdn.apache.org/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
+		#https://www.apache.org/dyn/closer.lua/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
+	#unzip
+	tar -zxf /usr/local/bin/spark-3.3.2-bin-hadoop3.tgz -C /usr/local/bin
+	#set the path of spark as environmental variable in our bash profile, so it is always present
+	#echo "#spark setup" >> ~/.bashrc
+	#echo "export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3" >> ~/.bashrc
+		#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
+		#we do this better in env, because singualirty uses its own bashrc file
 
 	#Install python
 	apt -y install python3.9
@@ -107,16 +123,16 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
 	python3.9 -m pip install pyspark
 	python3.9 -m pip install PyArrow #for pandas group by functions in pyspark
-	python3.9 -m pip install openpyxl
+	#python3.9 -m pip install openpyxl
 	python3.9 -m pip install natsort
-	python3.9 -m pip install scikit-learn
-	python3.9 -m pip install eli5
-	python3.9 -m pip install tensorflow
-	python3.9 -m pip install scikeras
-	python3.9 -m pip install optuna
+	#python3.9 -m pip install scikit-learn
+	#python3.9 -m pip install eli5
+	#python3.9 -m pip install tensorflow
+	#python3.9 -m pip install scikeras
+	#python3.9 -m pip install optuna
 	python3.9 -m pip install numpy
-	python3.9 -m pip install scipy
-	python3.9 -m pip install matplotlib
+	#python3.9 -m pip install scipy
+	#python3.9 -m pip install matplotlib
 	python3.9 -m pip install pandas
 	python3.9 -m pip install ipython
 	#python3.9 -m pip install bpython #this intepreter gives me problems with the indents. iPython works better
@@ -152,6 +168,14 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 
 %environment
     export LC_ALL=C #The $LC_ALL variable is useful for many programs (often written in Perl) that complain when no locale is set.
+
+	#set the path of spark as environmental variable in our bash profile, so it is always present
+    export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3
+    	#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
+
+    #set the python version for spark
+    export PYSPARK_PYTHON=/usr/bin/python3.9
+	export PYSPARK_DRIVER_PYTHON=/usr/bin/python3.9
 
 
 

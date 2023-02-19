@@ -371,7 +371,7 @@ snp_map_pandas = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
 sample_map_pandas = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
     delimiter="\t",
     header=0,
-    low_memory=False) 
+    low_memory=False)
 print("\n#####################\n#####################")
 print("check the column names of the three files are correct")
 print("#####################\n#####################")
@@ -482,17 +482,40 @@ check_6 = n_genotypes == n_genotypes_matching_snp_map_4
 #https://www.databricks.com/blog/2017/10/30/introducing-vectorized-udfs-for-pyspark.html
 
 from pyspark.sql.functions import pandas_udf, PandasUDFType
-@pandas_udf("x double", PandasUDFType.GROUPED_MAP)  # doctest: +SKIP
-def eso(x):
-    return(x+1)
 
 
-df_sample_subset["Position"]
 
-df_samples_subset.groupBy("Sample ID").apply(eso)
+# Input/output are both a pandas.DataFrame
+def eso(pdf):
+    return pdf.assign(v=pdf["Position"]+pdf["Sample Index"])
+
+df_samples_subset.groupby("Sample Index").applyInPandas(eso, df_samples_subset.schema).show()
+
+#error, you have to delete python 3.6 which is the defult
+    #https://stackoverflow.com/questions/48260412/environment-variables-pyspark-python-and-pyspark-driver-python
 
 
-    #check that index, name, chromosome and position of all SNPs are the same than in the snp map. They should be in the exact same order in all files
+def check_with_maps()
+
+df_sample["SNP Index"].equals(snp_map["Index"])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#check that index, name, chromosome and position of all SNPs are the same than in the snp map. They should be in the exact same order in all files
     check_3 = df_sample["SNP Index"].equals(snp_map["Index"])
     check_4 = df_sample["SNP Name"].equals(snp_map["Name"])
     check_5 = df_sample["Chr"].equals(snp_map["Chromosome"])
