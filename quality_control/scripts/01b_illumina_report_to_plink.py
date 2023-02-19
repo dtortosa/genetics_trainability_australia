@@ -89,7 +89,7 @@ args=parser.parse_args()
 #batch_name = "ILGSA24-17873"
 batch_name = "ILGSA24-17303"
 n_cores = 7
-n_samples = None
+n_samples = 10
 
 #starting
 print("#################################################################################################################################\n#################################################################################################################################")
@@ -118,9 +118,10 @@ temp_dir = tempfile.TemporaryDirectory()
     #https://stackoverflow.com/questions/3223604/how-to-create-a-temporary-directory-and-get-its-path-file-name
 
 #read only the zip and get list of files in it
+import numpy as np
 import zipfile
 zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
-zipinfos = zipdata.infolist()
+zipinfos = zipdata.infolist()[0:n_samples+1]
 
 #get the name of each zip file
 names_files = [zipinfo.filename for zipinfo in zipinfos]
@@ -226,11 +227,14 @@ from pyspark.sql import SparkSession
 spark = SparkSession.builder \
     .appName("working with illumina reports") \
     .master("local[" + str(n_cores) + "]") \
+    .config("spark.driver.memory", "6g") \
     .getOrCreate()
     #master: local (not cluster) and selecting number cores instead of using all "*"
         #https://sparkbyexamples.com/spark/what-does-setmaster-local-mean-in-spark/#:~:text=What%20does%20setMaster(local%5B*%5D)%20in%20Spark%3F,a%20SparkSession%20or%20SparkConf%20object.&text=Here%2C%20setMaster()%20denotes%20where,URL%20for%20a%20distributed%20cluster.
     #.config() to change configuration
         #https://stackoverflow.com/questions/41886346/spark-2-1-0-session-config-settings-pyspark 
+    #increase the memory for executor, if not, we get refused connection error, probably because java is killed due to out of memory problems
+        #https://stackoverflow.com/questions/49995044/bizarre-exception-from-pyspark-of-local-mode-in-docker-container
     #in case "refused connection" error, you have to commenting the first two lines "/etc/hosts", the ones with 127.0.0.1 IP. Indeed sparks "prefers" not to use this IP
         #https://stackoverflow.com/questions/24881757/apache-spark-connection-refused-for-worker
     #CHECK THIS
@@ -457,9 +461,18 @@ schema_checks = StructType() \
     .add("index",IntegerType(), nullable=True) \
     .add("check_1", BooleanType(), nullable=True) \
 
+import pyspark.sql.functions as F
 
 
-df_samples_subset.groupby("Sample Index").applyInPandas(calc_checks, schema_checks).show()
+cnt_cond = lambda cond: F.sum(F.when(cond, 1).otherwise(0))
+
+check_3 = df_samples_subset \
+    .groupby("Sample Index") \
+    .applyInPandas(calc_checks, schema_checks) \
+    .agg(
+        cnt_cond(F.col("check_1") == False).alias('check_1_cnt')) \
+    .show()
+
 
 #aggreate grouups by counting only true cases?
     #https://stackoverflow.com/questions/49021972/pyspark-count-rows-on-condition
