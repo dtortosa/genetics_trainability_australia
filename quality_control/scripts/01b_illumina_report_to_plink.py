@@ -448,30 +448,57 @@ df_samples_subset \
     #group rows per sample, count the number of rows per sample, convert to DF, then create a new column checking whether count is equal to the number of snps in the map, select that column and see if only true
 
 
+#check that index, name, chromosome and position of all SNPs are the same than in the snp map. They should be in the exact same order in all files
+
+#pdf = pd.read_csv(temp_dir.name+ "/" + batch_name + "_FinalReport24.txt", delimiter="\t", header=0, low_memory=False)
+
+
 def calc_checks(pdf):
 
-    df = pd.DataFrame(columns=["index", "check_1"])
+    df = pd.DataFrame(columns=["index", "check_3", "check_4", "check_5", "check_6"])
 
     df["index"] = pdf["Sample Index"]
-    df["check_1"] = all(np.array(pdf["SNP Index"]) == np.array(snp_map_pandas["Index"]))
+    df["check_3"] = all(np.array(pdf["SNP Index"]) == np.array(snp_map_pandas["Index"]))
+    df["check_4"] = all(np.array(pdf["SNP Name"]) == np.array(snp_map_pandas["Name"]))
+    df["check_5"] = all(np.array(pdf["Chr"]) == np.array(snp_map_pandas["Chromosome"]))
+    df["check_6"] = all(np.array(pdf["Position"]) == np.array(snp_map_pandas["Position"]))
+    df["check_7"] = np.isin(np.array(pdf["Sample ID"][0]), np.array(sample_map_pandas["ID"]))
+    df["check_8"] = np.isin(np.array(pdf["Sample Index"][0]), np.array(sample_map_pandas["Index"]))
     return df
 
 
 schema_checks = StructType() \
     .add("index",IntegerType(), nullable=True) \
-    .add("check_1", BooleanType(), nullable=True) \
+    .add("check_3", BooleanType(), nullable=True) \
+    .add("check_4", BooleanType(), nullable=True) \
+    .add("check_5", BooleanType(), nullable=True) \
+    .add("check_6", BooleanType(), nullable=True) \
+    .add("check_7", BooleanType(), nullable=True) \
+    .add("check_8", BooleanType(), nullable=True)
 
 import pyspark.sql.functions as F
 
 
 cnt_cond = lambda cond: F.sum(F.when(cond, 1).otherwise(0))
 
-check_3 = df_samples_subset \
+checks_raw = df_samples_subset \
     .groupby("Sample Index") \
     .applyInPandas(calc_checks, schema_checks) \
     .agg(
-        cnt_cond(F.col("check_1") == False).alias('check_1_cnt')) \
-    .show()
+        cnt_cond(F.col("check_3") == True).alias('check_3_cnt'), 
+        cnt_cond(F.col("check_4") == True).alias('check_4_cnt'), 
+        cnt_cond(F.col("check_5") == True).alias('check_5_cnt'), 
+        cnt_cond(F.col("check_6") == True).alias('check_6_cnt'), 
+        cnt_cond(F.col("check_7") == True).alias('check_7_cnt'), 
+        cnt_cond(F.col("check_8") == True).alias('check_8_cnt'), 
+        F.count("*").alias("check_9")) \
+    .collect()
+        #count is for the total number of genotypes, but maybe we need number of samples?
+
+
+for index, check in enumerate(checks_raw[0]):
+    print("CHECK " + str(index) + ": " + str(check == n_genotypes))
+
 
 
 #aggreate grouups by counting only true cases?
@@ -479,91 +506,7 @@ check_3 = df_samples_subset \
 
 
 
-#check that all genotypes belong to SNPs included in SNP map according to index
-n_genotypes_matching_snp_map_1 = df_samples_subset \
-    .withColumnRenamed("SNP Index", "Index") \
-    .join(snp_map, ["Index"], "inner") \
-    .count()
-        #rename the index column in reports to have the same name than in the map
-        #make inner join by SNP index between reports and snp map
-        #those rows with an SNP index not included in the report or in the map, are removed
-        #thus, the remaining are the genotypes with shared index
-        #if the number of genotypes is not equal to the original file, then we have a problem 
-check_3 = n_genotypes == n_genotypes_matching_snp_map_1
 
-#check that all genotypes belong to SNPs included in SNP map according to name
-n_genotypes_matching_snp_map_2 = df_samples_subset \
-    .withColumnRenamed("SNP Name", "Name") \
-    .join(snp_map, ["Name"], "inner") \
-    .count()
-check_4 = n_genotypes == n_genotypes_matching_snp_map_2
-
-#check that all genotypes belong to SNPs included in SNP map according to chromosome
-n_genotypes_matching_snp_map_3 = df_samples_subset \
-    .withColumnRenamed("Chr", "Chromosome") \
-    .join(snp_map, ["Chromosome"], "inner") \
-    .count()
-check_5 = n_genotypes == n_genotypes_matching_snp_map_3
-
-#check that all genotypes belong to SNPs included in SNP map according to Position
-n_genotypes_matching_snp_map_4 = df_samples_subset \
-    .join(snp_map, ["Position"], "inner") \
-    .count()
-check_6 = n_genotypes == n_genotypes_matching_snp_map_4
-
-
-#maybe you can do custom operations within groups
-#https://stackoverflow.com/questions/39600160/apply-a-custom-function-to-a-spark-dataframe-group
-#https://www.databricks.com/blog/2017/10/30/introducing-vectorized-udfs-for-pyspark.html
-
-from pyspark.sql.functions import pandas_udf, PandasUDFType
-
-
-
-
-
-# Input/output are both a pandas.DataFrame
-def PreProcess(pdf):   
-    df = pd.DataFrame(columns=['index','position_index'])  
-    df['index']=pdf["Sample Index"]  
-    df['position_index']=pdf["Position"]+pdf["Sample Index"]  
-    return df
-
-
-schema_2 = StructType() \
-    .add("index",IntegerType(), nullable=True) \
-    .add("position_index",IntegerType(), nullable=True) \
-
-
-df_samples_subset.groupby("Sample Index").applyInPandas(PreProcess, schema_2).show()
-
-#https://stackoverflow.com/questions/63403001/pyspark-pandas-udf-runtimeerror-number-of-columns-of-the-returned-doesnt-match
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#check that index, name, chromosome and position of all SNPs are the same than in the snp map. They should be in the exact same order in all files
-    check_3 = df_sample["SNP Index"].equals(snp_map["Index"])
-    check_4 = df_sample["SNP Name"].equals(snp_map["Name"])
-    check_5 = df_sample["Chr"].equals(snp_map["Chromosome"])
-    check_6 = df_sample["Position"].equals(snp_map["Position"])
-    
-    #check that ID and index of the sample is the same than in the corresponding row in sample map.
-    check_7 = df_sample["Sample ID"].unique()[0] == sample_map.iloc[index, :].loc["ID"]
-    check_8 = df_sample["Sample Index"].unique()[0] == sample_map.iloc[index, :].loc["Index"]
-        #Note that we have ordered the final_reports so first goes the report of sample 1, then 2... Therefore, the final report with index 1 is the the one of the sample 1 which goes first in the sample map.
 
     #make a tuple with all checks and append it to empty list
     check_across_reports_list.append(tuple([check_1, check_2, check_3, check_4, check_5, check_6, check_7, check_8]))
