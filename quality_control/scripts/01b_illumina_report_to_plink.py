@@ -204,9 +204,6 @@ print(len(list_files) == correct_number_files)
 #extract the names of the final reports only, which start with the zip name
 list_files_samples = [file for file in list_files if file.startswith(temp_dir.name + "/" + zip_name)]
 
-#if we set n_samples, then reduce the number of samples using this arugment
-if n_samples != None:
-    list_files_samples = list_files_samples[0:n_samples]
 
 
 #############################################
@@ -309,10 +306,11 @@ df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(
     #IMPORTANT, all the files have to have the same schema to work in this way. We already checked that all final reports are the same.
         #https://stackoverflow.com/questions/69350586/pyspark-read-multiple-csv-files-at-once
 
+#check
 print("\n#####################\n#####################")
-print("inspect the data and do some operations to see what spark can do")
+print("check the column names of the reports DF is correct")
 print("#####################\n#####################")
-
+print(all(df_samples.schema.names == list_df_reports[0].columns))
 
 #see schema and column names separately
 print(df_samples.printSchema())
@@ -332,55 +330,14 @@ df_samples_subset = df_samples_subset_raw.withColumn("input_file", input_file_na
 df_samples_subset.show()
 
 #load the maps
-#create schemas
-schema_snp_map = StructType() \
-    .add("Index",IntegerType(), nullable=True) \
-    .add("Name",StringType(), nullable=True) \
-    .add("Chromosome",StringType(), nullable=True) \
-    .add("Position",IntegerType(), nullable=True) \
-    .add("GenTrain Score",DoubleType(), nullable=True) \
-    .add("SNP",StringType(), nullable=True) \
-    .add("ILMN Strand",StringType(), nullable=True) \
-    .add("Customer Strand",StringType(),nullable=True) \
-    .add("NormID",StringType(),nullable=True)
-        #Chr has to be string because in case we have Y, X or other stuff
-        #nullable means you can have null values
-        #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
-schema_sample_map = StructType() \
-    .add("Index",IntegerType(), nullable=True) \
-    .add("Name",StringType(), nullable=True) \
-    .add("ID",StringType(), nullable=True) \
-    .add("Gender",StringType(), nullable=True) \
-    .add("Plate",StringType(), nullable=True) \
-    .add("Well",StringType(), nullable=True) \
-    .add("Group",StringType(), nullable=True) \
-    .add("Parent1",StringType(), nullable=True) \
-    .add("Parent2",StringType(), nullable=True) \
-    .add("Replicate",StringType(), nullable=True) \
-    .add("SentrixPosition",StringType(), nullable=True) \
-        #nullable means you can have null values
-        #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
-#read
-snp_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema_snp_map).csv(temp_dir.name+ "/" + "SNP_Map.txt")
-sample_map = spark.read.option("delimiter", "\t").option("header", True).schema(schema_sample_map).csv(temp_dir.name+ "/" + "Sample_Map.txt")
-print(snp_map.printSchema())
-print(sample_map.printSchema())
-
-#check the column names of the three files are correct
-snp_map_pandas = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
+snp_map = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
     delimiter="\t",
     header=0,
     low_memory=False)
-sample_map_pandas = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
+sample_map = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
     delimiter="\t",
     header=0,
     low_memory=False)
-print("\n#####################\n#####################")
-print("check the column names of the three files are correct")
-print("#####################\n#####################")
-print(all(df_samples.schema.names == list_df_reports[0].columns))
-print(all(snp_map.schema.names == snp_map_pandas.columns))
-print(all(sample_map.schema.names == sample_map_pandas.columns))
 
 #you can also do SQL queries
 #SQL vs pandas in spark, not great differences
@@ -404,8 +361,8 @@ n_unique_samples = df_samples_subset.select("input_file").distinct().count()
 print("\n#####################\n#####################")
 print("We have as many unique samples in illumina reports as samples in sample map?")
 print("#####################\n#####################")
-print(n_unique_samples == sample_map_pandas.shape[0])
-print(len(list_files_samples) == sample_map_pandas.shape[0])
+print(n_unique_samples == sample_map.shape[0])
+print(len(list_files_samples) == sample_map.shape[0])
 
 #count the number of genotypes, i.e., total number of rows
 n_genotypes = df_samples_subset.count()
@@ -414,7 +371,7 @@ n_genotypes = df_samples_subset.count()
 print("\n#####################\n#####################")
 print("We have as many genotypes as samples*snps in the maps")
 print("#####################\n#####################")
-print(n_genotypes == snp_map.count()*sample_map.count())
+print(n_genotypes == snp_map.shape[0]*sample_map.shape[0])
 
 #checks
 print("\n#####################\n#####################")
@@ -422,11 +379,11 @@ print("Multiple checks within each sample")
 print("#####################\n#####################")
 
 #check that the sample ID is the same than that showed in the input file name
-from pyspark.sql.functions import split, concat, col, lit
+import pyspark.sql.functions as F
 #define the two columns to be compared
-col_input_name_check = split(col("input_file"), "file:" + temp_dir.name + "/" + batch_name + "_").getItem(1)
+col_input_name_check = F.split(F.col("input_file"), "file://" + temp_dir.name + "/" + batch_name + "_").getItem(1)
     #prepare a column from splitting the input_file column and get the second item, which is FinalReportXX.txt, where XX is the index of the sample. This column was previously created.
-col_index_check = concat(lit("FinalReport"), col("Sample Index"), lit(".txt"))
+col_index_check = F.concat(F.lit("FinalReport"), F.col("Sample Index"), F.lit(".txt"))
     #prepare a column concatenating FinalReport and .txt as literal values to the sample index, so we have the same format than in the input file name
 df_samples_subset \
     .withColumn("check_1", col_index_check == col_input_name_check) \
@@ -436,37 +393,50 @@ df_samples_subset \
     #to the orignal data.frame, add a new column comparing the two previously defined columns, select the column with the check, get the distinct values and show.
     #Only true should be present.
 
-#check that each sample has the same number of rows
+#check we have the correct number of samples
+n_distinct_samples = df_samples_subset \
+    .select(df_samples_subset["Sample ID"]) \
+    .distinct() \
+    .count()
+print("CHECK 2:") 
+print(n_distinct_samples == sample_map.shape[0])
+print(n_distinct_samples == len(list_files_samples))
+    #list_files is a list with the file names of the final reports
+
+#check that each sample has the same number of rows, i.e., SNPs
 df_samples_subset \
     .groupBy("Sample Index") \
     .count() \
     .toDF("Sample Index", "count") \
-    .withColumn("check_2", col("count") == snp_map.count()) \
-    .select("check_2") \
+    .withColumn("check_2.5", F.col("count") == snp_map.shape[0]) \
+    .select("check_2.5") \
     .distinct() \
     .show()
     #group rows per sample, count the number of rows per sample, convert to DF, then create a new column checking whether count is equal to the number of snps in the map, select that column and see if only true
 
-
-#check that index, name, chromosome and position of all SNPs are the same than in the snp map. They should be in the exact same order in all files
-
+#do more checks
+#define function to do the checks. this will work on each final report as a pandas DF
 #pdf = pd.read_csv(temp_dir.name+ "/" + batch_name + "_FinalReport24.txt", delimiter="\t", header=0, low_memory=False)
-
-
 def calc_checks(pdf):
 
-    df = pd.DataFrame(columns=["index", "check_3", "check_4", "check_5", "check_6"])
+    #create a pandas DF with the column names of the checks
+    df = pd.DataFrame(columns=["index", "check_3", "check_4", "check_5", "check_6", "check_7", "check_8", "check_9"])
 
+    #fill the different columns
     df["index"] = pdf["Sample Index"]
-    df["check_3"] = all(np.array(pdf["SNP Index"]) == np.array(snp_map_pandas["Index"]))
-    df["check_4"] = all(np.array(pdf["SNP Name"]) == np.array(snp_map_pandas["Name"]))
-    df["check_5"] = all(np.array(pdf["Chr"]) == np.array(snp_map_pandas["Chromosome"]))
-    df["check_6"] = all(np.array(pdf["Position"]) == np.array(snp_map_pandas["Position"]))
-    df["check_7"] = np.isin(np.array(pdf["Sample ID"][0]), np.array(sample_map_pandas["ID"]))
-    df["check_8"] = np.isin(np.array(pdf["Sample Index"][0]), np.array(sample_map_pandas["Index"]))
+        #get the index of the sample
+    df["check_3"] = len(pdf["SNP Index"].unique()) == snp_map.shape[0]
+        #the number of unique SNP indexes is exactly the number of SNPs in the map?
+    df["check_4"] = all(pdf["SNP Index"].values == snp_map["Index"].values)
+    df["check_5"] = all(pdf["SNP Name"].values == snp_map["Name"].values)
+    df["check_6"] = all(pdf["Chr"].values == snp_map["Chromosome"].values)
+    df["check_7"] = all(pdf["Position"].values == snp_map["Position"].values)
+        #each row (i.e., genotype) has exactly the same data regarding SNP, position... than int eh snp map?
+    df["check_8"] = np.isin(pdf["Sample ID"].values[0], sample_map["ID"].values)
+    df["check_9"] = np.isin(pdf["Sample Index"].values[0], sample_map["Index"].values)
+        #the sample ID (all rows of a report belongs to the same sample) is included in the sample map?
     return df
-
-
+#define schema of resulting DF
 schema_checks = StructType() \
     .add("index",IntegerType(), nullable=True) \
     .add("check_3", BooleanType(), nullable=True) \
@@ -474,13 +444,11 @@ schema_checks = StructType() \
     .add("check_5", BooleanType(), nullable=True) \
     .add("check_6", BooleanType(), nullable=True) \
     .add("check_7", BooleanType(), nullable=True) \
-    .add("check_8", BooleanType(), nullable=True)
-
-import pyspark.sql.functions as F
-
-
+    .add("check_8", BooleanType(), nullable=True) \
+    .add("check_9", BooleanType(), nullable=True)
+#define a function to calculate conditional count only when condition is satisfied
 cnt_cond = lambda cond: F.sum(F.when(cond, 1).otherwise(0))
-
+#run the checks
 checks_raw = df_samples_subset \
     .groupby("Sample Index") \
     .applyInPandas(calc_checks, schema_checks) \
@@ -491,91 +459,36 @@ checks_raw = df_samples_subset \
         cnt_cond(F.col("check_6") == True).alias('check_6_cnt'), 
         cnt_cond(F.col("check_7") == True).alias('check_7_cnt'), 
         cnt_cond(F.col("check_8") == True).alias('check_8_cnt'), 
-        F.count("*").alias("check_9")) \
+        cnt_cond(F.col("check_9") == True).alias('check_9_cnt')) \
     .collect()
-        #count is for the total number of genotypes, but maybe we need number of samples?
+        #group by sample, and within each sample calculate the checks and generate a DF. This DF has a row per genotype, so all genotypes of the same sample are repeated, because of this we aggreagte
+        #count only those cases that are true for each check, so we get just 1 row and 5 columns with the total number of Trues
+            #https://stackoverflow.com/questions/49021972/pyspark-count-rows-on-condition
 
-
+#The total number of trues in each checks should be equal to the number of genotypes, although we did operations within sample
 for index, check in enumerate(checks_raw[0]):
-    print("CHECK " + str(index) + ": " + str(check == n_genotypes))
+    print("CHECK " + str(index+3) + ": " + str(check == n_genotypes))
 
-
-
-#aggreate grouups by counting only true cases?
-    #https://stackoverflow.com/questions/49021972/pyspark-count-rows-on-condition
-
-
-
-
-
-    #make a tuple with all checks and append it to empty list
-    check_across_reports_list.append(tuple([check_1, check_2, check_3, check_4, check_5, check_6, check_7, check_8]))
-
-#convert to DF and add column names
-check_across_reports_df = pd.DataFrame(check_across_reports_list)
-check_across_reports_df.columns = ["check_" + str(number) for number in np.arange(1, check_across_reports_df.shape[1]+1, 1)]
-    #as many checks as columns we have in the DF + 1, because the end of the range is NOT included.
-
-#see if all true across all rows of each column
-print(check_across_reports_df.all(axis=0))
-
-#check
-print("\n#####################\n#####################")
-print("The multiple checks are done across all samples?")
-print("#####################\n#####################")
-print(check_across_reports_df.shape[0] == len(list_df_samples))
-
-#concat
-print("\n#####################\n#####################")
-print("concatenate all DFs into one single DF, i.e., all_reports")
-print("#####################\n#####################")
-all_reports = pd.concat(
-    list_df_samples, 
-    axis=0, #concatenate along rows
-    ignore_index=True) #clear the existing index and reset it, so do we have different indexes for each combination of snp and sample
-print(all_reports)
-
-#check
-print("\n#####################\n#####################")
-print("all_reports has the correct number of rows?")
-print("#####################\n#####################")
-print(all_reports.shape[0] == sample_map.shape[0]*snp_map.shape[0])
-    #number of SNPs should be the number of samples times the number of snps per sample
-print(all_reports.shape[0] == sum([element.shape[0] for element in list_df_samples]))
-    #we should have as many rows as the total sum of rows across the list of DFs
-
-#checks samples
-print("\n#####################\n#####################")
-print("all_reports has the correct samples")
-print("#####################\n#####################")
-print(np.array_equal(all_reports["Sample ID"].unique(), sample_map["ID"].values))
-print(np.array_equal(all_reports["Sample Index"].unique(), sample_map["Index"].values))
-
-#checks snps
-print("\n#####################\n#####################")
-print("all_reports has the correct snps")
-print("#####################\n#####################")
-print(np.array_equal(all_reports["SNP Index"].unique(), snp_map["Index"].values))
-print(np.array_equal(all_reports["SNP Name"].unique(), snp_map["Name"].values))
-print(np.array_equal(all_reports["Chr"].unique(), snp_map["Chromosome"].unique()))
-print(np.array_equal(all_reports["Position"].unique(), snp_map["Position"].unique()))
+#check that the distinct sample IDs are the same than the IDs in the sample map
+distinct_sample_ids = df_samples_subset \
+    .select(df_samples_subset["Sample ID"]) \
+    .distinct() \
+    .collect()
+print("CHECK 10")
+print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
 
 #see unique alleles
 print("\n#####################\n#####################")
 print("see unique alleles")
 print("#####################\n#####################")
-print(all_reports["Allele1 - Forward"].unique())
-print(all_reports["Allele2 - Forward"].unique())
-
-#remove the list of DFs
-import gc
-del(list_df_samples)
-gc.collect()
-
-#save all_reports
-#all_reports.to_csv("data/genetic_data/illumina_batches/"+batch_name+"_all_samples.txt",
-#    sep="\t",
-#    index=False)
+df_samples_subset \
+    .select(df_samples_subset["Allele1 - Forward"]) \
+    .distinct() \
+    .show()
+df_samples_subset \
+    .select(df_samples_subset["Allele2 - Forward"]) \
+    .distinct() \
+    .show()
 
 
 ######################
@@ -665,6 +578,14 @@ lgen_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".lgen.gz",
 
 
 
+
+###SAVE THE DATA
+
+#we can data in binary plink format splitter across many files, this can be merged, so we can just save the results of spark in different csvs
+    #book plink, tutorial chirstofer
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
+
+
 #you can save each final report separately
 #df_subset_2.write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "full.txt")
     #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
@@ -675,6 +596,9 @@ df_subset_2.coalesce(1).write.option("header", True).option("delimiter", "\t").c
     #https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/#dataframe-%20coalesce
 
 #https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#creating-dataframes
+
+
+
 
 
 
