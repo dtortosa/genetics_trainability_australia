@@ -123,7 +123,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
 	python3.9 -m pip install pyspark
 	python3.9 -m pip install PyArrow #for pandas group by functions in pyspark
-	#python3.9 -m pip install openpyxl
+	python3.9 -m pip install openpyxl
 	python3.9 -m pip install natsort
 	#python3.9 -m pip install scikit-learn
 	#python3.9 -m pip install eli5

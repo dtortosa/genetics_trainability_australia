@@ -534,73 +534,75 @@ print("#####################\n#####################")
         #Allele call 2
 
 #subset all_reports selecting some columns. The non-selected columns were used for checks
-lgen_file = all_reports.loc[:, ["Sample ID", "SNP Name", "Allele1 - Forward", "Allele2 - Forward"]]
-
-#remove all_reports
-del(all_reports)
-gc.collect()
+lgen_file = df_samples_subset.select(["Sample ID", "SNP Name", "Allele1 - Forward", "Allele2 - Forward"])
+lgen_file.show()
 
 # Change to "0" those genotype calls with "--" to match the format of Plink
 #allele 1
-lgen_file.loc[
-    (lgen_file["Allele1 - Forward"] == "-") | 
-    (lgen_file["Allele1 - Forward"] == "--"), 
-    "Allele1 - Forward"] = "0"
-#allele 2
-lgen_file.loc[
-    (lgen_file["Allele2 - Forward"] == "-") | 
-    (lgen_file["Allele2 - Forward"] == "--"), 
-    "Allele2 - Forward"] = "0"
+lgen_file = lgen_file \
+    .withColumn("Allele1 - Forward_final", \
+        F.when( \
+            (lgen_file["Allele1 - Forward"] == "-") | (lgen_file["Allele1 - Forward"] == "--"), \
+            "0") \
+            .otherwise(lgen_file["Allele1 - Forward"])) \
+    .withColumn("Allele2 - Forward_final", \
+        F.when( \
+            (lgen_file["Allele2 - Forward"] == "-") | (lgen_file["Allele2 - Forward"] == "--"), \
+            "0") \
+            .otherwise(lgen_file["Allele2 - Forward"])) \
+    .drop("Allele1 - Forward") \
+    .drop("Allele2 - Forward")
+        #https://stackoverflow.com/questions/44773758/how-to-conditionally-replace-value-in-a-column-based-on-evaluation-of-expression
+        #https://stackoverflow.com/questions/29600673/how-to-delete-columns-in-pyspark-dataframe
+lgen_file.show()
 
 #check
 print("\n#####################\n#####################")
 print("Check that all SNPs do NOT have '-' or '--' for allele 1 and 2")
 print("#####################\n#####################")
-all(~np.isin(lgen_file["Allele1 - Forward"].unique(), test_elements=["-", "--"]))
-all(~np.isin(lgen_file["Allele2 - Forward"].unique(), test_elements=["-", "--"]))
-    #"~" to negate 
+(lgen_file \
+    .filter( \
+        (lgen_file["Allele1 - Forward_final"].isin(["-", "--"])) | (lgen_file["Allele2 - Forward_final"].isin(["-", "--"]))) \
+    .count()) == 0
+        #https://stackoverflow.com/questions/63330350/pyspark-dataframe-filter-column-contains-multiple-value
 
 #Add additional columns that are required for lgen files
-lgen_file["FID"] = "combat"
+lgen_file = lgen_file \
+    .withColumn("FID", F.lit("combat"))
 
 # Reorder the columns
-lgen_file = lgen_file[["FID", "Sample ID", "SNP Name", "Allele1 - Forward", "Allele2 - Forward"]]
+lgen_file = lgen_file \
+    .select(["FID", "Sample ID", "SNP Name", "Allele1 - Forward_final", "Allele2 - Forward_final"])
+        #https://stackoverflow.com/questions/42912156/python-pyspark-data-frame-rearrange-columns
 
 #look
-print(lgen_file)
+lgen_file.show()
 
-#Save without header:
-lgen_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".lgen.gz",
-    sep="\t",
-    header=None,
-    compression='gzip',
-    index=False)
+#save the data
 
-
-
-
-###SAVE THE DATA
-
-#we can data in binary plink format splitter across many files, this can be merged, so we can just save the results of spark in different csvs
+#we can data in binary plink format split across many files, this can be then merged, so we can just save the results of spark in different csv file
     #book plink, tutorial chirstofer
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
-
 #you can save each final report separately
-#df_subset_2.write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "full.txt")
-    #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
+lgen_file.write \
+    .option("header", False) \
+    .option("delimiter", "\t") \
+    .option("compression", "gzip") \
+    .csv("data/genetic_data/plink_inputs/" + batch_name + "/")
+        #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
+        #https://stackoverflow.com/questions/40163996/how-to-save-a-dataframe-as-compressed-gzipped-csv
 
 #or a single file
-df_subset_2.coalesce(1).write.option("header", True).option("delimiter", "\t").csv(temp_dir.name + "/" + batch_name + "_full")
+#df_subset_2 \
+#    .coalesce(1) \
+#    .write \
+#        .option("header", True) \
+#        .option("delimiter", "\t") \
+#        .option("compression", "gzip") \
+#        .csv(temp_dir.name + "/" + batch_name + "/lgen_files")
     #https://sparkbyexamples.com/spark/spark-write-dataframe-single-csv-file/
     #https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/#dataframe-%20coalesce
-
-#https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#creating-dataframes
-
-
-
-
-
 
 
 ############
@@ -752,17 +754,27 @@ print("\n#####################\n#####################")
 print("checks with lgen, map and fam files")
 print("#####################\n#####################")
 print("SNPs are the same in lgen and map files?")
-print(np.array_equal(lgen_file["SNP Name"].unique(), map_file["Name"].values))
+unique_snp_names = lgen_file \
+    .select("SNP Name") \
+    .distinct() \
+    .collect()
+np.array_equal(np.array(unique_snp_names), map_file["Name"].values)
 print("samples are the same in lgen and fam files?")
-print(np.array_equal(lgen_file["Sample ID"].unique(), fam_file["ID"].values))
+unique_sample_ids = lgen_file \
+    .select("Sample ID") \
+    .distinct() \
+    .collect()
+np.array_equal(np.array(unique_sample_ids), fam_file["Sample ID"].values)
 
 
-#################################
-# check with lgen and map files #
-#################################
 
-del([lgen_file, map_file, fam_file])
-gc.collect()
+os.system("cd data/genetic_data/plink_inputs/" + batch_name + "; gunzip -k *.csv.gz")
+
+
+os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".lgen.gz")
+
+##POR AQUII
+#LA IDEA ES cambiar el nomber de los archivos descomprimidos y luego hacer un loop con plink? mira como se pueden leer varios archivos en plink, mira libro
 
 
 #######################
