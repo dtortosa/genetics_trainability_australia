@@ -88,7 +88,7 @@ args=parser.parse_args()
 #for debugging
 #batch_name = "ILGSA24-17873"
 batch_name = "ILGSA24-17303"
-n_cores = 7
+n_cores = 4
 n_samples = 10
 
 #starting
@@ -768,13 +768,57 @@ np.array_equal(np.array(unique_sample_ids), fam_file["Sample ID"].values)
 
 
 
-os.system("cd data/genetic_data/plink_inputs/" + batch_name + "; gunzip -k *.csv.gz")
+import glob
+path_pattern = "data/genetic_data/plink_inputs/" + batch_name + "/*csv.gz"
+lgen_full_paths = glob.glob(path_pattern, recursive=False)
 
 
-os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".lgen.gz")
+#natural sorting, 1,10, 21.. that works with numbers + strings like 1b, 5c...
+from natsort import natsorted
+lgen_full_paths = natsorted(lgen_full_paths)
+    #https://github.com/SethMMorton/natsort#installation
+
+
+#lgen_full_path = lgen_full_paths[0]
+def plink_inputs_prep(lgen_full_path):
+
+    lgen_file_name = lgen_full_path.split("/")[-1]
+    lgen_file_name_no_ext = lgen_file_name.split(".csv.gz")[0]
+    sample_number = lgen_file_name.split("-")[1]
+    lgen_path = "/".join(lgen_full_path.split("/")[0:-1])
+
+    #decompress the lgen file
+    os.system("cd " + lgen_path + "; gunzip -k " + lgen_file_name + "; mv " + lgen_file_name_no_ext + ".csv " + lgen_file_name_no_ext + ".lgen")
+
+    os.system("cd data/genetic_data/plink_inputs/; gunzip -k " + batch_name + ".fam.gz " + "; mv " + batch_name + ".fam " + batch_name + "/" + lgen_file_name_no_ext + ".fam")
+    os.system("cd data/genetic_data/plink_inputs/; gunzip -k " + batch_name + ".map.gz " + "; mv " + batch_name + ".map " + batch_name + "/" + lgen_file_name_no_ext + ".map")
+    os.system("rm -rf data/genetic_data/plink_ped_files/sample_" + sample_number + "; mkdir data/genetic_data/plink_ped_files/sample_" + sample_number)
+    os.system("cd data/genetic_data/; plink --lfile plink_inputs/" + batch_name + "/" + lgen_file_name_no_ext + " --recode --out plink_ped_files/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number)
+
+    os.system("cd data/genetic_data/plink_inputs/" + batch_name + "; rm " + lgen_file_name_no_ext + ".lgen; rm " + lgen_file_name_no_ext + ".map; rm " + lgen_file_name_no_ext + ".fam")
+
+
+###POR AQUI: MIRA COMO CREAR BED FILE DESDE LGEN, PORQUE ES ARCHIVO COMPRIMIDO!! SI NO, CADA PED FILE OCUPA 550MB! QUE POR 1400 HACEN 800GB!!!!
+
+plink_inputs_prep(lgen_full_paths[1])
+
+
 
 ##POR AQUII
-#LA IDEA ES cambiar el nomber de los archivos descomprimidos y luego hacer un loop con plink? mira como se pueden leer varios archivos en plink, mira libro
+#creas function que 
+    #coja un lgen spark DF as input,
+    #decompress 
+    #copy the map and fam files (the same for all lgen files) 
+    #and change their names to the name of the lgen file except the extension
+    #run plink --lfile (see below) and select as output name a name that includes the number of the sample. This will generate ped and map file with this name
+    #remove the decompressed file
+#when we have ped and map files for each sample
+    #create a txt with the prefix of each sample per line
+    #use it as input for --merge
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
+#this produces a single map and fam files for ALL sample
+
+
 
 
 #######################
