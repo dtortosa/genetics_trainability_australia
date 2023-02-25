@@ -88,8 +88,8 @@ args=parser.parse_args()
 #for debugging
 #batch_name = "ILGSA24-17873"
 batch_name = "ILGSA24-17303"
-n_cores = 4
-n_samples = 10
+n_cores = 2
+n_samples = 4
 
 #starting
 print("#################################################################################################################################\n#################################################################################################################################")
@@ -408,8 +408,8 @@ df_samples_subset \
     .groupBy("Sample Index") \
     .count() \
     .toDF("Sample Index", "count") \
-    .withColumn("check_2.5", F.col("count") == snp_map.shape[0]) \
-    .select("check_2.5") \
+    .withColumn("check_2b", F.col("count") == snp_map.shape[0]) \
+    .select("check_2b") \
     .distinct() \
     .show()
     #group rows per sample, count the number of rows per sample, convert to DF, then create a new column checking whether count is equal to the number of snps in the map, select that column and see if only true
@@ -584,12 +584,16 @@ lgen_file.show()
     #book plink, tutorial chirstofer
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
+#prepare folders to save the lgen files
+os.system("rm -rf data/genetic_data/plink_inputs")
+os.system("rm -rf data/genetic_data/plink_inputs/" + batch_name + "; mkdir -p data/genetic_data/plink_inputs/" + batch_name)
+
 #you can save each final report separately
 lgen_file.write \
     .option("header", False) \
     .option("delimiter", "\t") \
     .option("compression", "gzip") \
-    .csv("data/genetic_data/plink_inputs/" + batch_name + "/")
+    .csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/")
         #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
         #https://stackoverflow.com/questions/40163996/how-to-save-a-dataframe-as-compressed-gzipped-csv
 
@@ -703,7 +707,7 @@ print("#####################\n#####################")
 print(fam_file)
 
 #save without header:
-fam_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".fam.gz",
+fam_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + ".fam.gz",
     sep="\t",
     header=None,
     compression='gzip',
@@ -739,7 +743,7 @@ map_file = map_file.loc[:, ["Chromosome", "Name", "centimorgans", "Position"]]
 print(map_file)
 
 # Save
-map_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + ".map.gz",
+map_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + ".map.gz",
     sep="\t",
     header=None,
     compression='gzip',
@@ -764,54 +768,172 @@ unique_sample_ids = lgen_file \
     .select("Sample ID") \
     .distinct() \
     .collect()
-np.array_equal(np.array(unique_sample_ids), fam_file["Sample ID"].values)
+np.array_equal(np.array(unique_sample_ids), fam_file["ID"].values)
 
 
 
+############################
+#### create plink files ####
+############################
+
+#list the lgen files
 import glob
-path_pattern = "data/genetic_data/plink_inputs/" + batch_name + "/*csv.gz"
+path_pattern = "data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/*csv.gz"
 lgen_full_paths = glob.glob(path_pattern, recursive=False)
-
+#check
+print("\n#####################\n#####################")
+print("We have the correct number of lgen files? i.e., one per sample?")
+print("#####################\n#####################")
+print(len(lgen_full_paths) == fam_file.shape[0])
 
 #natural sorting, 1,10, 21.. that works with numbers + strings like 1b, 5c...
 from natsort import natsorted
 lgen_full_paths = natsorted(lgen_full_paths)
     #https://github.com/SethMMorton/natsort#installation
 
+#create a folder to save the bed files for the selected batch
+import os
+os.system("rm -rf data/genetic_data/plink_bed_files/" + batch_name + "; mkdir -p data/genetic_data/plink_bed_files/" + batch_name)
 
-#lgen_full_path = lgen_full_paths[0]
+#remove lgen files that are descompressed in case they were decompressed before
+os.system("rm -rf data/genetic_data/plink_inputs/ILGSA24-17303/inputs_sample*")
+
+#define function to calculate the bed file for each lgen file
+#lgen_full_path = lgen_full_paths[3]
 def plink_inputs_prep(lgen_full_path):
 
+    #extract the name of the lgen file and path
     lgen_file_name = lgen_full_path.split("/")[-1]
     lgen_file_name_no_ext = lgen_file_name.split(".csv.gz")[0]
     sample_number = lgen_file_name.split("-")[1]
     lgen_path = "/".join(lgen_full_path.split("/")[0:-1])
 
-    #decompress the lgen file
-    os.system("cd " + lgen_path + "; gunzip -k " + lgen_file_name + "; mv " + lgen_file_name_no_ext + ".csv " + lgen_file_name_no_ext + ".lgen")
+    #create a folder to temporary save the plink inputs
+    os.system("cd " + lgen_path + "; rm -rf inputs_sample_" + sample_number + "; mkdir -p inputs_sample_" + sample_number)
 
-    os.system("cd data/genetic_data/plink_inputs/; gunzip -k " + batch_name + ".fam.gz " + "; mv " + batch_name + ".fam " + batch_name + "/" + lgen_file_name_no_ext + ".fam")
-    os.system("cd data/genetic_data/plink_inputs/; gunzip -k " + batch_name + ".map.gz " + "; mv " + batch_name + ".map " + batch_name + "/" + lgen_file_name_no_ext + ".map")
-    os.system("rm -rf data/genetic_data/plink_ped_files/sample_" + sample_number + "; mkdir data/genetic_data/plink_ped_files/sample_" + sample_number)
-    os.system("cd data/genetic_data/; plink --lfile plink_inputs/" + batch_name + "/" + lgen_file_name_no_ext + " --recode --out plink_ped_files/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number)
+    #decompress the lgen file and move it to the folder of the sample
+    os.system("cd " + lgen_path + "; gunzip -k " + lgen_file_name + "; mv " + lgen_file_name_no_ext + ".csv " + "inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen")
 
-    os.system("cd data/genetic_data/plink_inputs/" + batch_name + "; rm " + lgen_file_name_no_ext + ".lgen; rm " + lgen_file_name_no_ext + ".map; rm " + lgen_file_name_no_ext + ".fam")
+    #get the ID of this sample from the lgen file
+    lgen_file_selected_sample = pd.read_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen", 
+        delimiter="\t",
+        header=None, 
+        low_memory=False)
+    selected_sample_id = np.unique(lgen_file_selected_sample[1])[0]
+
+    #get the row of the fam file corresponding to the selected sample
+    #if we use the whole fam file, we would get a ped file with as many rows as sample, but as we are only using the final report of one sample, all the rest of rows would be zero.
+    #we need a a fma file with one row, so we can generate a ped file with one row for the sample selected.
+    fam_file_to_subset = pd.read_csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + ".fam.gz", 
+        delimiter="\t", 
+        header=None, 
+        low_memory=False)
+    select_fam = fam_file_to_subset.loc[fam_file_to_subset[1] == selected_sample_id, :]
+    
+    #save that as the fam file for this sample
+    select_fam.to_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".fam", 
+        sep='\t',
+        header=False, 
+        index=False)
+
+    #remove the lgen file
+    del(lgen_file_selected_sample)
+
+    #copy the whole map file, in this case, we have the same snps, i.e., the same map in all samples. Indeed, illumina gives one map for the whole batch. Save the file in the folder of the sample
+    os.system("cd data/genetic_data/plink_inputs/" + batch_name + "; gunzip -c " + batch_name + ".map.gz > " + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".map")
+        #c flag: writes the output stream to stdout and then you can use > to redirect to another folder. This will leave the compressed file untouched.
+            #https://superuser.com/questions/45650/how-do-you-gunzip-a-file-and-keep-the-gz-file
+
+    #create a folder to save the bed file of the sample
+    os.system("rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number)
+
+    #create ped files file using the lgen files
+    os.system("cd data/genetic_data/; plink --lfile plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + " --out plink_bed_files/" + batch_name + "/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number + " --recode")
+        #--lfile let you to load lgen files
+            #https://www.cog-genomics.org/plink/1.9/formats#lgen
+        #--recode let you to create ped/map files
+            #https://www.cog-genomics.org/plink/1.9/formats#ped
+
+    #convert the ped file to bed
+    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; plink --file " + batch_name + "_sample_" + sample_number + " --out " + batch_name + "_sample_" + sample_number + " --make-bed")
+        #--file let you load ped files
+            #https://www.cog-genomics.org/plink/1.9/formats#ped
+        #--make-bed creates bed file
+            #https://www.cog-genomics.org/plink/1.9/formats#bed
+            #https://zzz.bwh.harvard.edu/plink/binary.shtml
+        #you could just do these two step in one loading the lgen file and using make-bed
+            #https://icb.med.cornell.edu/wiki/index.php/Plink/howto
+        #bed file is NOT the bed format of USCS!! It is a plink format more compacted and it seems is faster to work with. It is in hexadecimal, meaning that the genotypes are not stored as number but in just two letters. For example, in 0xdc, the two last letters are storing the genotype of several individuals. dc in binary is 11011100. This means that the first sample is is 00, i.e., homozygous for the first allele of this snp in the bim file, the second sample is mozygous for the second allele of this snp in the bim file, and so on... If you more samples, another hexa code is added until all samples are coded and then it moves to the next snp...
+            #https://www.cog-genomics.org/plink/1.9/formats#bed
+            #https://www.biostars.org/p/113166/
+            #https://coolconversion.com/math/binary-octal-hexa-decimal/Convert_binary_number_11011100_in_decimal_
+
+    #remove the files we are not interested in
+    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".ped")
+    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".map")
+        #we already have a map file that also include the bases in bim
+    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".log")
+    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; FILE = ")
+    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".hh")
+        #the hh file says there is a genotype that is diplodi but should be haplo, like Y in male
+        #it is created when doing other operations like calculate the frequency
+
+    #remove also the folder with the inputs for the sample
+    os.system("rm -rf data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number)
+
+#open a pool
+import multiprocessing as mp
+pool = mp.Pool(processes=n_cores)
+
+#apply the function across the pool
+results_pararllelize = [pool.apply_async(plink_inputs_prep, args=(lgen_file,)) for lgen_file in lgen_full_paths]
+
+#close the pool
+pool.close()
+
+#wait for the completion of all scheduled jobs
+pool.join() #without this, the script is finished without that all populations have been finished.
+    #https://stackoverflow.com/questions/44896547/python-apply-async-doesnt-execute-function
 
 
-###POR AQUI: MIRA COMO CREAR BED FILE DESDE LGEN, PORQUE ES ARCHIVO COMPRIMIDO!! SI NO, CADA PED FILE OCUPA 550MB! QUE POR 1400 HACEN 800GB!!!!
 
-plink_inputs_prep(lgen_full_paths[1])
+
+os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/; ls -R ILGSA24-17303_sample_*")
+    #TRYING TO EXTRACT ALL BED FILES AND MOVE THEM TO THE SAME FOLDER, THEN, i CAN EXTRACT THEIR NAMES, MAKE A FILE WITH THEIR NAMES AND USE IT WITH MERGINING  
+
+
+#get all bed files recursively, i.e., across all ("**") folders 
+bed_full_paths = glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/**/*.bed", recursive=True)
+    #https://www.geeksforgeeks.org/how-to-use-glob-function-to-find-files-recursively-in-python/
+
+
+bed_file_names = [path.split("/")[-1].split(".")[0] for path in bed_full_paths]
+
+
+with open(r'E:/demos/files_demos/account/sales.txt', 'w') as fp:
+    fp.write('\n'.join(bed_file_names))
+        #https://pynative.com/python-write-list-to-file/
+
+
+
+#CHECK THE DIFFERENT FORMATS GENErated
+
+
+#PROBLEM, we only have one sample per bed/bim file, so the bim file which is a map file with also the alele options, will have partial information. for example, if the unique sample is homozigous for a SNP, e.g., AA, the map in that position will have A and 0, because there are no more alleles.
+
+#the point is, when merging, this is solved?
+
+
+
+#os.system("cd /home/dftortosa/singularity/australian_army_bishop/quality_control/data/genetic_data/plink_bed_files/ILGSA24-17303/sample_00002; plink --bfile ILGSA24-17303_sample_00002 --freq --out  batch1_example_plink_analysis")
+
+
+
+
 
 
 
 ##POR AQUII
-#creas function que 
-    #coja un lgen spark DF as input,
-    #decompress 
-    #copy the map and fam files (the same for all lgen files) 
-    #and change their names to the name of the lgen file except the extension
-    #run plink --lfile (see below) and select as output name a name that includes the number of the sample. This will generate ped and map file with this name
-    #remove the decompressed file
 #when we have ped and map files for each sample
     #create a txt with the prefix of each sample per line
     #use it as input for --merge
@@ -832,7 +954,7 @@ os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".map.g
 os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".fam.gz")
 
 
-os.system("cd data/genetic_data; plink --lfile plink_inputs/" + batch_name + " --recode --out plink_ped_files/" + batch_name + "_plink")
+os.system("cd data/genetic_data; plink --lfile plink_inputs/" + batch_name + " --recode --out plink_bed_files/" + batch_name + "_plink")
     #go to the folder with plink inputs
     #--lfile for loading the lgen file, which should be accompanied by a .fam and .map files having the same name except the extension.
         #https://www.cog-genomics.org/plink/1.9/formats
@@ -844,8 +966,8 @@ os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".lgen")
 os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".map")
 os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".fam")
 
-os.system("cd data/genetic_data/plink_ped_files; gzip " + batch_name + "_plink.map")
-os.system("cd data/genetic_data/plink_ped_files; gzip " + batch_name + "_plink.ped")
+os.system("cd data/genetic_data/plink_bed_files; gzip " + batch_name + "_plink.map")
+os.system("cd data/genetic_data/plink_bed_files; gzip " + batch_name + "_plink.ped")
 
 
 ###compress with pigz?
