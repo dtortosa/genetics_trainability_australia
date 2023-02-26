@@ -59,13 +59,18 @@
 
 2. Tutorials
 
+- cool tutorial merging data with 1KGP using plink!!
+    - https://www.biostars.org/p/335605/
+- tutorial christopher chang
+    - https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 - general tutorial of QC with plink
     - https://genomicsbootcamp.github.io/book/
+- Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
+    - paper augusto, shap values.
 - Quality Control Procedures for Genome-Wide Association Studies
     - there is a version of 2011 and new one in 2022 with github repo
     - https://github.com/RitchieLab/GWAS-QC#basic-overview
 - A tutorial on conducting genome‐wide association studies: Quality control and statistical analysis
-- Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
 - Genetic prediction of complex traits with polygenic scores: a statistical review
 - Addressing the challenges of polygenic scores in human genetic research
 - https://www.varianteffect.org/

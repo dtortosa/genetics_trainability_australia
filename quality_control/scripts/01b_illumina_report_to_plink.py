@@ -819,6 +819,8 @@ import os
 os.system(
     "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "; \
     mkdir -p data/genetic_data/plink_bed_files/" + batch_name)
+    #mkdir
+        #p flag: A flag which enables the command to create parent directories as necessary. If the directories exist, no error is specified
 
 #remove lgen files that are descompressed in case they were decompressed before
 os.system("rm -rf data/genetic_data/plink_inputs/ILGSA24-17303/inputs_sample*")
@@ -877,27 +879,29 @@ def plink_inputs_prep(lgen_full_path):
 
     #create a folder to save the bed file of the sample
     os.system(
-        "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; \
-        mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number)
+        "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; \
+        mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number)
 
     #create ped files file using the lgen files
     os.system(
-        "cd data/genetic_data/; \
+        "cd ./data/genetic_data/; \
         plink \
-            --lfile plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + " \
-            --out plink_bed_files/" + batch_name + "/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number + " \
+            --lfile ./plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + " \
+            --out ./plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number + " \
             --recode")
-        #--lfile let you to load lgen files
-            #https://www.cog-genomics.org/plink/1.9/formats#lgen
-        #--recode let you to create ped/map files
-            #https://www.cog-genomics.org/plink/1.9/formats#ped
+        #go to the folder with plink inputs
+        #--lfile for loading the lgen file, which should be accompanied by a .fam and .map files having the same name except the extension.
+            #https://www.cog-genomics.org/plink/1.9/formats
+        #--recode creates a new text fileset, after applying sample/variant filters and other operations. By default, the fileset includes a .ped and a .map file, readable with --file.
+            #https://www.cog-genomics.org/plink/1.9/data#recode
+        #--out for the output name
 
     #convert the ped file to bed
     os.system(
-        "cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; \
+        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; \
         plink \
-            --file " + batch_name + "_sample_" + sample_number + " \
-            --out " + batch_name + "_sample_" + sample_number + " \
+            --file ./" + batch_name + "_sample_" + sample_number + " \
+            --out ./" + batch_name + "_sample_" + sample_number + " \
             --make-bed")
         #--file let you load ped files
             #https://www.cog-genomics.org/plink/1.9/formats#ped
@@ -913,12 +917,20 @@ def plink_inputs_prep(lgen_full_path):
 
     #remove the files we are not interested in
     os.system(
-        "cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; \
-        rm " + batch_name + "_sample_" + sample_number + ".ped; \
-        rm " + batch_name + "_sample_" + sample_number + ".map; \
-        rm " + batch_name + "_sample_" + sample_number + ".hh")
+        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; \
+        rm ./" + batch_name + "_sample_" + sample_number + ".ped; \
+        rm ./" + batch_name + "_sample_" + sample_number + ".map")
         #the hh file says there is a genotype that is diplodi but should be haplo, like Y in male
         #it is created when doing other operations like calculate the frequency
+
+    #remove hh files only if exists
+    os.system(
+        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; " \
+        "FILE=./" + batch_name + "_sample_" + sample_number + ".hh; \
+        if test -f $FILE; then \
+            rm ./" + batch_name + "_sample_" + sample_number + ".hh; \
+        fi")
+        #https://linuxize.com/post/bash-check-if-file-exists/
 
     #remove also the folder with the inputs for the sample
     os.system("rm -rf data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number)
@@ -934,8 +946,12 @@ results_pararllelize = [pool.apply_async(plink_inputs_prep, args=(lgen_file,)) f
 pool.close()
 
 #wait for the completion of all scheduled jobs
-pool.join() #without this, the script is finished without that all populations have been finished.
+pool.join() #without this, the script is finished without that all samples have been finished.
     #https://stackoverflow.com/questions/44896547/python-apply-async-doesnt-execute-function
+
+#NOTE: 
+    #when we have one sample per bed file, the bim file, which is a map file with also the alele options, will have partial information. for example, if the unique sample is homozigous for a SNP, e.g., AA, the map in that position will have A and 0, because there are no more alleles.
+        #no problem, when a sample with the other allele is included, the bim file adds the other allele. I have checked several cases before and after mergin all bed/bim files into one file.
 
 
 
@@ -950,18 +966,18 @@ print("#####################\n#####################")
 #create a folder to save the binary files of all samples and then merge
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
-    rm -rf data_to_merge; mkdir -p data_to_merge")
+    rm -rf ./02_data_to_merge; mkdir -p ./02_data_to_merge")
 
 #copy the bed/bim/fam files of all samples to the same folder
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
-    find ./  | \
+    find ./01_bed_per_sample/  | \
         egrep '" + batch_name + ".*(bed|bim|fam)' | \
         while read file_path; \
-            do cp $file_path ./data_to_merge/; \
+            do cp $file_path ./02_data_to_merge/; \
         done")
     #cd to the folder with bed files for the selected batch
-    #find in that directory ("./")
+    #find in a subfolder with bed files per sample
         #any file starting with batch name and ending with bed/bim/fam extensions
         #read the paths of these files
             #copy the file to the folder for merging
@@ -969,12 +985,12 @@ os.system(
         #https://unix.stackexchange.com/questions/189210/find-command-multiple-conditions
 
 #get all bed files paths and names
-bed_full_paths = glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/" + batch_name + "*.bed", recursive=False)
+bed_full_paths = glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/" + batch_name + "*.bed", recursive=False)
     #https://www.geeksforgeeks.org/how-to-use-glob-function-to-find-files-recursively-in-python/
 bed_file_names = [path.split("/")[-1].split(".")[0] for path in bed_full_paths]
 
 #save the names in a txt file
-with open(r"./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/list_to_merge.txt", "w") as fp:
+with open(r"./data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/list_to_merge.txt", "w") as fp:
     fp.write("\n".join(bed_file_names))
         #each name in a different line so we have to add "\n" to the name
         #https://pynative.com/python-write-list-to-file/
@@ -982,15 +998,17 @@ with open(r"./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge
 #create folder to save merged data
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
-    rm -rf merged_data; \
-    mkdir -p merged_data")
+    rm -rf 03_merged_data; \
+    mkdir -p 03_merged_data")
 
 #merge with plink
 os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/; \
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/; \
     plink \
         --merge-list ./list_to_merge.txt \
-        --out ../merged_data/" + batch_name + "_merged_data")
+        --out ../03_merged_data/" + batch_name + "_merged_data")
+    #run plink on 02_data_to_merge where all the bed files are located
+    #then save the output in a folder outside this folder ("../")    
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
 
@@ -1016,16 +1034,16 @@ os.system(
 #create a folder to do operations related to duplicates
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_merged_data/; \
-    rm -rf ./duplicates; \
-    mkdir -p ./duplicates")
+    rm -rf ./00_duplicates; \
+    mkdir -p ./00_duplicates")
 
 #list duplicates
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     plink \
-        --bfile ./merged_data/" + batch_name + "_merged_data \
+        --bfile ./03_merged_data/" + batch_name + "_merged_data \
         --list-duplicate-vars suppress-first ids-only\
-        --out  ./04_inspect_merged_data/duplicates/" + batch_name + "_duplicates")
+        --out  ./04_inspect_merged_data/00_duplicates/" + batch_name + "_duplicates")
         #list-duplicate-vars to list duplicates by POSITION
             #suppress-first prevents the first variant in each group from being reported (since, if you're removing duplicates, you probably want to keep one member of each group).
             #ids-only modifier removes the header and the position/allele columns, so the generated list can be used as input for --exclude
@@ -1034,7 +1052,7 @@ os.system(
 
 #load the duplicate list
 duplicate_cases = pd.read_csv(
-    "./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar", 
+    "./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_merged_data/00_duplicates/" + batch_name + "_duplicates.dupvar", 
     sep="\t", 
     header=None,
     low_memory=False)
@@ -1063,8 +1081,8 @@ os.system(
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     plink \
-        --bfile ./merged_data/" + batch_name + "_merged_data \
-        -exclude ./04_inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar \
+        --bfile ./03_merged_data/" + batch_name + "_merged_data \
+        -exclude ./04_inspect_merged_data/00_duplicates/" + batch_name + "_duplicates.dupvar \
         --out  ./05_filter_dataset/00_duplicates/" + batch_name + "_merged_data_no_snp_dup \
         --make-bed")
         #-exclude a list with the SNP names as input to remove snps
@@ -1096,17 +1114,22 @@ os.system(
 #remove the files we are not interested in
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/05_filter_dataset/00_duplicates/; \
-    rm " + batch_name + "_duplicates.dupvar; \
-    rm " + batch_name + "*.hh")
+    rm " + batch_name + "_duplicates.dupvar")
+
+#remove hh files only if they are present
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/05_filter_dataset/00_duplicates; " \
+    "n_hh_files=$(ls *.hh | wc -l); \
+    if [ $n_hh_files -gt 0 ]; then \
+        rm ./" + batch_name + "*.hh; \
+    fi")
+    #count the number of files with the "hh" extension
+    #if that number is greater than 0, then remove all the hh files
 
 
 
 #POR AQUIII
-#open a folder for sample data starting with 00
-#then open folder for merge, to save data merged and then insecpt and filter
-
-
-
+#look for hetero cases and remove
 
 
 #search for duplicates snp positions. there is a link to convert gsa names to rsi!
@@ -1114,25 +1137,18 @@ os.system(
     #https://www.biostars.org/p/277737/
 
 
-#CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
+#CHECK THE DIFFERENT FORMATS GENErated in ped/bim...
 
-#cool tutorial merging data with 1KGP using plink!!
-    #https://www.biostars.org/p/335605/
+
+#CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
 
 #make the merging with parallel options in plink?
 
-#maybe no remove log file? you have the complete list of warnings there
 
 ##IMPORTANT, wen merging different batches, check same strand
     #https://www.biostars.org/p/310290/
 
 
-#CHECK THE DIFFERENT FORMATS GENErated in ped/bim...
-
-
-#PROBLEM, we only have one sample per bed/bim file, so the bim file which is a map file with also the alele options, will have partial information. for example, if the unique sample is homozigous for a SNP, e.g., AA, the map in that position will have A and 0, because there are no more alleles.
-
-#the point is, when merging, this is solved?
 
 
 
@@ -1143,52 +1159,6 @@ os.system(
 
 
 
-##POR AQUII
-#when we have ped and map files for each sample
-    #create a txt with the prefix of each sample per line
-    #use it as input for --merge
-        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
-#this produces a single map and fam files for ALL sample
-
-
-
-
-#######################
-# Convert to ped file #
-#######################
-
-#calculate the ped file using the lgen, map and fam files
-import os
-os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".lgen.gz")
-os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".map.gz")
-os.system("cd data/genetic_data/plink_inputs; gunzip -k " + batch_name + ".fam.gz")
-
-
-os.system("cd data/genetic_data; plink --lfile plink_inputs/" + batch_name + " --recode --out plink_bed_files/" + batch_name + "_plink")
-    #go to the folder with plink inputs
-    #--lfile for loading the lgen file, which should be accompanied by a .fam and .map files having the same name except the extension.
-        #https://www.cog-genomics.org/plink/1.9/formats
-    #--recode creates a new text fileset, after applying sample/variant filters and other operations. By default, the fileset includes a .ped and a .map file, readable with --file.
-        #https://www.cog-genomics.org/plink/1.9/data#recode
-    #--out for the output name
-
-os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".lgen")
-os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".map")
-os.system("cd data/genetic_data/plink_inputs; rm " + batch_name + ".fam")
-
-os.system("cd data/genetic_data/plink_bed_files; gzip " + batch_name + "_plink.map")
-os.system("cd data/genetic_data/plink_bed_files; gzip " + batch_name + "_plink.ped")
-
-
-###compress with pigz?
-#memory issiues, we woulld need between 5-10 times of RAM than data we have, so we have 130GB, requiring between 650 and 1300GB. We are using more in the HPC with optuna across 50 cores...
-    #https://wesmckinney.com/blog/apache-arrow-pandas-internals/
-
-#pyspark used in TDI?
-
-
-
-#This creates several files with the name used in --out, i.e., "batch1_example_plink"
 
 ##.ped
     #Original standard text format for sample pedigree information and genotype calls. Normally must be accompanied by a .map file; Haploview requires an accompanying .info file instead. Loaded with --file, and produced by --recode.
