@@ -403,13 +403,32 @@ print(n_distinct_samples == sample_map.shape[0])
 print(n_distinct_samples == len(list_files_samples))
     #list_files is a list with the file names of the final reports
 
+#check we do not have duplicated SNP names
+n_distinct_snp_names = df_samples_subset \
+    .select(df_samples_subset["SNP Name"]) \
+    .distinct() \
+    .count()
+print("CHECK 2b:") 
+print(n_distinct_snp_names == snp_map.shape[0])
+
+#check we do not have duplicated SNP positions
+n_distinct_snp_positions = df_samples_subset \
+    .select(df_samples_subset["Position"]) \
+    .distinct() \
+    .count()
+print("CHECK 2c:")
+diff_n_snps_distinct_position = snp_map.shape[0] - n_distinct_snp_positions
+if diff_n_snps_distinct_position != 0:
+    print("IMPORTANT: DO WE HAVE DUPLICATED POSITIONS")
+    print(f"The difference between the number of SNPs in the map and the distinct positions is {diff_n_snps_distinct_position}")
+
 #check that each sample has the same number of rows, i.e., SNPs
 df_samples_subset \
     .groupBy("Sample Index") \
     .count() \
     .toDF("Sample Index", "count") \
-    .withColumn("check_2b", F.col("count") == snp_map.shape[0]) \
-    .select("check_2b") \
+    .withColumn("check_2d", F.col("count") == snp_map.shape[0]) \
+    .select("check_2d") \
     .distinct() \
     .show()
     #group rows per sample, count the number of rows per sample, convert to DF, then create a new column checking whether count is equal to the number of snps in the map, select that column and see if only true
@@ -797,7 +816,9 @@ lgen_full_paths = natsorted(lgen_full_paths)
 
 #create a folder to save the bed files for the selected batch
 import os
-os.system("rm -rf data/genetic_data/plink_bed_files/" + batch_name + "; mkdir -p data/genetic_data/plink_bed_files/" + batch_name)
+os.system(
+    "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "; \
+    mkdir -p data/genetic_data/plink_bed_files/" + batch_name)
 
 #remove lgen files that are descompressed in case they were decompressed before
 os.system("rm -rf data/genetic_data/plink_inputs/ILGSA24-17303/inputs_sample*")
@@ -813,10 +834,14 @@ def plink_inputs_prep(lgen_full_path):
     lgen_path = "/".join(lgen_full_path.split("/")[0:-1])
 
     #create a folder to temporary save the plink inputs
-    os.system("cd " + lgen_path + "; rm -rf inputs_sample_" + sample_number + "; mkdir -p inputs_sample_" + sample_number)
+    os.system(
+        "cd " + lgen_path + "; rm -rf inputs_sample_" + sample_number + "; \
+        mkdir -p inputs_sample_" + sample_number)
 
     #decompress the lgen file and move it to the folder of the sample
-    os.system("cd " + lgen_path + "; gunzip -k " + lgen_file_name + "; mv " + lgen_file_name_no_ext + ".csv " + "inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen")
+    os.system(
+        "cd " + lgen_path + "; gunzip -k " + lgen_file_name + "; \
+        mv " + lgen_file_name_no_ext + ".csv " + "inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen")
 
     #get the ID of this sample from the lgen file
     lgen_file_selected_sample = pd.read_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen", 
@@ -844,22 +869,36 @@ def plink_inputs_prep(lgen_full_path):
     del(lgen_file_selected_sample)
 
     #copy the whole map file, in this case, we have the same snps, i.e., the same map in all samples. Indeed, illumina gives one map for the whole batch. Save the file in the folder of the sample
-    os.system("cd data/genetic_data/plink_inputs/" + batch_name + "; gunzip -c " + batch_name + ".map.gz > " + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".map")
+    os.system(
+        "cd data/genetic_data/plink_inputs/" + batch_name + "; \
+        gunzip -c " + batch_name + ".map.gz > " + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".map")
         #c flag: writes the output stream to stdout and then you can use > to redirect to another folder. This will leave the compressed file untouched.
             #https://superuser.com/questions/45650/how-do-you-gunzip-a-file-and-keep-the-gz-file
 
     #create a folder to save the bed file of the sample
-    os.system("rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number)
+    os.system(
+        "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; \
+        mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number)
 
     #create ped files file using the lgen files
-    os.system("cd data/genetic_data/; plink --lfile plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + " --out plink_bed_files/" + batch_name + "/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number + " --recode")
+    os.system(
+        "cd data/genetic_data/; \
+        plink \
+            --lfile plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + " \
+            --out plink_bed_files/" + batch_name + "/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number + " \
+            --recode")
         #--lfile let you to load lgen files
             #https://www.cog-genomics.org/plink/1.9/formats#lgen
         #--recode let you to create ped/map files
             #https://www.cog-genomics.org/plink/1.9/formats#ped
 
     #convert the ped file to bed
-    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; plink --file " + batch_name + "_sample_" + sample_number + " --out " + batch_name + "_sample_" + sample_number + " --make-bed")
+    os.system(
+        "cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; \
+        plink \
+            --file " + batch_name + "_sample_" + sample_number + " \
+            --out " + batch_name + "_sample_" + sample_number + " \
+            --make-bed")
         #--file let you load ped files
             #https://www.cog-genomics.org/plink/1.9/formats#ped
         #--make-bed creates bed file
@@ -873,11 +912,11 @@ def plink_inputs_prep(lgen_full_path):
             #https://coolconversion.com/math/binary-octal-hexa-decimal/Convert_binary_number_11011100_in_decimal_
 
     #remove the files we are not interested in
-    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".ped")
-    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".map")
-        #we already have a map file that also include the bases in bim
-    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".log")
-    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".hh")
+    os.system(
+        "cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; \
+        rm " + batch_name + "_sample_" + sample_number + ".ped; \
+        rm " + batch_name + "_sample_" + sample_number + ".map; \
+        rm " + batch_name + "_sample_" + sample_number + ".hh")
         #the hh file says there is a genotype that is diplodi but should be haplo, like Y in male
         #it is created when doing other operations like calculate the frequency
 
@@ -909,7 +948,9 @@ print("merge binaries of all samples")
 print("#####################\n#####################")
 
 #create a folder to save the binary files of all samples and then merge
-os.system("cd ./data/genetic_data/plink_bed_files/" + batch_name + "; rm -rf data_to_merge; mkdir -p data_to_merge")
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
+    rm -rf data_to_merge; mkdir -p data_to_merge")
 
 #copy the bed/bim/fam files of all samples to the same folder
 os.system(
@@ -938,22 +979,135 @@ with open(r"./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge
         #each name in a different line so we have to add "\n" to the name
         #https://pynative.com/python-write-list-to-file/
 
+#create folder to save merged data
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
+    rm -rf merged_data; \
+    mkdir -p merged_data")
+
 #merge with plink
-os.system("cd ./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/; plink --merge-list list_to_merge.txt --out merged_data")
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/; \
+    plink \
+        --merge-list ./list_to_merge.txt \
+        --out ../merged_data/" + batch_name + "_merged_data")
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
 
 
-#ERROR HERE, WE SHOULD HAVE THE SAME SNPS IN ALL SAMPLES
-#Warning: Variants 'rs387907306.1' and 'rs387907306' have the same position.
-#Warning: Variants 'rs113445782' and 'GSA-rs113445782' have the same position.
-#Warning: Variants 'rs36083022' and 'GSA-rs36083022' have the same position.
-#5435 more same-position warnings: see log file.
+############################################
+#### inspect the merged data with plink ####
+############################################
+
+print("\n#####################\n#####################")
+print("inspect the merged data with plink")
+print("#####################\n#####################")
+
+#create general folder to do operations
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    rm -rf ./inspect_merged_data; \
+    mkdir -p ./inspect_merged_data")
+
+
+#see duplicates
+print("\n#####################\n#####################")
+print("see duplicates")
+print("#####################\n#####################")
+
+#there are duplicated positions in the original snp map, because of this we see the warning when merging. There are a total of
+    #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
+    #https://www.biostars.org/p/281276/
+
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/; \
+    rm -rf ./duplicates; \
+    mkdir -p ./duplicates")
+
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    plink \
+        --bfile ./data_to_merge/" + batch_name + "_merged_data \
+        --list-duplicate-vars suppress-first ids-only\
+        --out  ./inspect_merged_data/duplicates/" + batch_name + "_duplicates")
+        #list-duplicate-vars to list duplicates by POSITION
+            #suppress-first prevents the first variant in each group from being reported (since, if you're removing duplicates, you probably want to keep one member of each group).
+            #ids-only modifier removes the header and the position/allele columns, so the generated list can be used as input for --exclude
+                #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
+
+duplicate_cases = pd.read_csv(
+    "./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar", 
+    sep="\t", 
+    header=0,
+    low_memory=False)
+
+print("\n#####################\n#####################")
+print("the number of duplicaes according with plink matches my previous estimation with spark?")
+print("#####################\n#####################")
+print(duplicate_cases.shape[0] == diff_n_snps_distinct_position)
 
 
 
+#remove these duplicates
+#duplicated positions should be merged or removed
+
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/; \
+    rm -rf ./filter_dataset/duplicates/; \
+    mkdir -p ./filter_dataset/duplicates/")
+
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    plink \
+        --bfile ./data_to_merge/" + batch_name + "_merged_data \
+        -exclude ./inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar \
+        --out  ./inspect_merged_data/filter_dataset/duplicates/" + batch_name + "_merged_data_no_snp_dup \
+        --make-bed")
 
 
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/filter_dataset/duplicates/; \
+    plink \
+        --bfile ./" + batch_name + "_merged_data_no_snp_dup \
+        --list-duplicate-vars suppress-first ids-only\
+        --out  ./" + batch_name + "_duplicates")
+
+
+#count number of duplicates
+
+print("\n#####################\n#####################")
+print("Do we have zero duplicated positions after filtering?")
+print("#####################\n#####################")
+
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/filter_dataset/duplicates/ \
+    n_lines=wc -l " + batch_name + "_duplicates.dupvar; \
+    if [ $n_lines==0 ]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+#
+
+
+
+#in plink 2 you can also look for duplicates in ID, but we already check SNP names duplicates with spark and it is seems is ok
+
+
+#search for duplicates snp positions. there is a link to convert gsa names to rsi!
+    #https://www.biostars.org/post/search/?query=duplicated+snp+names+illumina
+    #https://www.biostars.org/p/277737/
+
+
+#cool tutorial merging data with 1KGP using plink!!
+    #https://www.biostars.org/p/335605/
+
+#make the merging with parallel options in plink?
+
+#maybe no remove log file? you have the complete list of warnings there
+
+##IMPORTANT, wen merging different batches, check same strand
+    #https://www.biostars.org/p/310290/
 
 
 #CHECK THE DIFFERENT FORMATS GENErated in ped/bim...
@@ -965,7 +1119,6 @@ os.system("cd ./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_mer
 
 
 
-#os.system("cd /home/dftortosa/singularity/australian_army_bishop/quality_control/data/genetic_data/plink_bed_files/ILGSA24-17303/sample_00002; plink --bfile ILGSA24-17303_sample_00002 --freq --out  batch1_example_plink_analysis")
 
 
 
