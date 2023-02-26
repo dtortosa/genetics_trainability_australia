@@ -772,9 +772,13 @@ np.array_equal(np.array(unique_sample_ids), fam_file["ID"].values)
 
 
 
-############################
-#### create plink files ####
-############################
+##########################################
+#### create plink binaries per sample ####
+##########################################
+
+print("\n#####################\n#####################")
+print("create plink binaries per sample")
+print("#####################\n#####################")
 
 #list the lgen files
 import glob
@@ -873,7 +877,6 @@ def plink_inputs_prep(lgen_full_path):
     os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".map")
         #we already have a map file that also include the bases in bim
     os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".log")
-    os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; FILE = ")
     os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/sample_" + sample_number + "; rm " + batch_name + "_sample_" + sample_number + ".hh")
         #the hh file says there is a genotype that is diplodi but should be haplo, like Y in male
         #it is created when doing other operations like calculate the frequency
@@ -897,26 +900,63 @@ pool.join() #without this, the script is finished without that all populations h
 
 
 
+#######################################
+#### merge binaries of all samples ####
+#######################################
 
-os.system("cd data/genetic_data/plink_bed_files/" + batch_name + "/; ls -R ILGSA24-17303_sample_*")
-    #TRYING TO EXTRACT ALL BED FILES AND MOVE THEM TO THE SAME FOLDER, THEN, i CAN EXTRACT THEIR NAMES, MAKE A FILE WITH THEIR NAMES AND USE IT WITH MERGINING  
+print("\n#####################\n#####################")
+print("merge binaries of all samples")
+print("#####################\n#####################")
 
+#create a folder to save the binary files of all samples and then merge
+os.system("cd ./data/genetic_data/plink_bed_files/" + batch_name + "; rm -rf data_to_merge; mkdir -p data_to_merge")
 
-#get all bed files recursively, i.e., across all ("**") folders 
-bed_full_paths = glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/**/*.bed", recursive=True)
+#copy the bed/bim/fam files of all samples to the same folder
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
+    find ./  | \
+        egrep '" + batch_name + ".*(bed|bim|fam)' | \
+        while read file_path; \
+            do cp $file_path ./data_to_merge/; \
+        done")
+    #cd to the folder with bed files for the selected batch
+    #find in that directory ("./")
+        #any file starting with batch name and ending with bed/bim/fam extensions
+        #read the paths of these files
+            #copy the file to the folder for merging
+        #https://stackoverflow.com/questions/15617016/copy-all-files-with-a-certain-extension-from-all-subdirectories
+        #https://unix.stackexchange.com/questions/189210/find-command-multiple-conditions
+
+#get all bed files paths and names
+bed_full_paths = glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/" + batch_name + "*.bed", recursive=False)
     #https://www.geeksforgeeks.org/how-to-use-glob-function-to-find-files-recursively-in-python/
-
-
 bed_file_names = [path.split("/")[-1].split(".")[0] for path in bed_full_paths]
 
-
-with open(r'E:/demos/files_demos/account/sales.txt', 'w') as fp:
-    fp.write('\n'.join(bed_file_names))
+#save the names in a txt file
+with open(r"./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/list_to_merge.txt", "w") as fp:
+    fp.write("\n".join(bed_file_names))
+        #each name in a different line so we have to add "\n" to the name
         #https://pynative.com/python-write-list-to-file/
 
+#merge with plink
+os.system("cd ./data/genetic_data/plink_bed_files/" + batch_name + "/data_to_merge/; plink --merge-list list_to_merge.txt --out merged_data")
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
 
-#CHECK THE DIFFERENT FORMATS GENErated
+
+#ERROR HERE, WE SHOULD HAVE THE SAME SNPS IN ALL SAMPLES
+#Warning: Variants 'rs387907306.1' and 'rs387907306' have the same position.
+#Warning: Variants 'rs113445782' and 'GSA-rs113445782' have the same position.
+#Warning: Variants 'rs36083022' and 'GSA-rs36083022' have the same position.
+#5435 more same-position warnings: see log file.
+
+
+
+
+
+
+
+#CHECK THE DIFFERENT FORMATS GENErated in ped/bim...
 
 
 #PROBLEM, we only have one sample per bed/bim file, so the bim file which is a map file with also the alele options, will have partial information. for example, if the unique sample is homozigous for a SNP, e.g., AA, the map in that position will have A and 0, because there are no more alleles.
