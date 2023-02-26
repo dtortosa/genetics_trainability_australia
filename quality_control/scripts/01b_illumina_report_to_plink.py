@@ -995,109 +995,126 @@ os.system(
 
 
 
-############################################
-#### inspect the merged data with plink ####
-############################################
+#############################
+#### look for duplicates ####
+#############################
 
 print("\n#####################\n#####################")
-print("inspect the merged data with plink")
+print("look for duplicates")
 print("#####################\n#####################")
 
 #create general folder to do operations
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    rm -rf ./inspect_merged_data; \
-    mkdir -p ./inspect_merged_data")
+    rm -rf ./04_inspect_merged_data; \
+    mkdir -p ./04_inspect_merged_data")
 
-
-#see duplicates
-print("\n#####################\n#####################")
-print("see duplicates")
-print("#####################\n#####################")
-
-#there are duplicated positions in the original snp map, because of this we see the warning when merging. There are a total of
+#there are duplicated positions in the original snp map, because of this we see a warning when merging. This is common in illumina data
     #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
     #https://www.biostars.org/p/281276/
 
+#create a folder to do operations related to duplicates
 os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/; \
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_merged_data/; \
     rm -rf ./duplicates; \
     mkdir -p ./duplicates")
 
+#list duplicates
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     plink \
-        --bfile ./data_to_merge/" + batch_name + "_merged_data \
+        --bfile ./merged_data/" + batch_name + "_merged_data \
         --list-duplicate-vars suppress-first ids-only\
-        --out  ./inspect_merged_data/duplicates/" + batch_name + "_duplicates")
+        --out  ./04_inspect_merged_data/duplicates/" + batch_name + "_duplicates")
         #list-duplicate-vars to list duplicates by POSITION
             #suppress-first prevents the first variant in each group from being reported (since, if you're removing duplicates, you probably want to keep one member of each group).
             #ids-only modifier removes the header and the position/allele columns, so the generated list can be used as input for --exclude
                 #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
+        #in plink 2 you can also look for duplicates in ID, but we already check SNP names duplicates with spark and it is seems is ok
 
+#load the duplicate list
 duplicate_cases = pd.read_csv(
-    "./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar", 
+    "./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar", 
     sep="\t", 
-    header=0,
+    header=None,
     low_memory=False)
 
+#check
 print("\n#####################\n#####################")
-print("the number of duplicaes according with plink matches my previous estimation with spark?")
+print("the number of duplicates according with plink matches my previous estimation with spark?")
 print("#####################\n#####################")
 print(duplicate_cases.shape[0] == diff_n_snps_distinct_position)
 
 
+##remove these duplicates
+#duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem.
 
-#remove these duplicates
-#duplicated positions should be merged or removed
+#if there are more than 2% of duplicates, stop
+if (duplicate_cases.shape[0]/n_genotypes)*100 > 2:
+    raise ValueError("ERROR! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
 
+#open a folder to save filtered dataset
 os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/; \
-    rm -rf ./filter_dataset/duplicates/; \
-    mkdir -p ./filter_dataset/duplicates/")
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    rm -rf ./05_filter_dataset/00_duplicates/; \
+    mkdir -p ./05_filter_dataset/00_duplicates/")
 
+#filter these snps
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     plink \
-        --bfile ./data_to_merge/" + batch_name + "_merged_data \
-        -exclude ./inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar \
-        --out  ./inspect_merged_data/filter_dataset/duplicates/" + batch_name + "_merged_data_no_snp_dup \
+        --bfile ./merged_data/" + batch_name + "_merged_data \
+        -exclude ./04_inspect_merged_data/duplicates/" + batch_name + "_duplicates.dupvar \
+        --out  ./05_filter_dataset/00_duplicates/" + batch_name + "_merged_data_no_snp_dup \
         --make-bed")
+        #-exclude a list with the SNP names as input to remove snps
 
-
+#check again for duplicates
 os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/filter_dataset/duplicates/; \
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/05_filter_dataset/00_duplicates/; \
     plink \
         --bfile ./" + batch_name + "_merged_data_no_snp_dup \
         --list-duplicate-vars suppress-first ids-only\
         --out  ./" + batch_name + "_duplicates")
 
-
 #count number of duplicates
-
 print("\n#####################\n#####################")
 print("Do we have zero duplicated positions after filtering?")
 print("#####################\n#####################")
-
 os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/inspect_merged_data/filter_dataset/duplicates/ \
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/05_filter_dataset/00_duplicates/ \
     n_lines=wc -l " + batch_name + "_duplicates.dupvar; \
     if [ $n_lines==0 ]; then \
         echo 'TRUE'; \
     else \
         echo 'FALSE'; \
     fi")
-#
+    #count the number of lines in the duplicates list
+    #if the number of lines is zero, perfect because there no snp duplicated by position
+    #else False
+
+#remove the files we are not interested in
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/05_filter_dataset/00_duplicates/; \
+    rm " + batch_name + "_duplicates.dupvar; \
+    rm " + batch_name + "*.hh")
 
 
 
-#in plink 2 you can also look for duplicates in ID, but we already check SNP names duplicates with spark and it is seems is ok
+#POR AQUIII
+#open a folder for sample data starting with 00
+#then open folder for merge, to save data merged and then insecpt and filter
+
+
+
 
 
 #search for duplicates snp positions. there is a link to convert gsa names to rsi!
     #https://www.biostars.org/post/search/?query=duplicated+snp+names+illumina
     #https://www.biostars.org/p/277737/
 
+
+#CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
 
 #cool tutorial merging data with 1KGP using plink!!
     #https://www.biostars.org/p/335605/
