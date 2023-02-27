@@ -587,7 +587,7 @@ print("#####################\n#####################")
 
 #Add additional columns that are required for lgen files
 lgen_file = lgen_file \
-    .withColumn("FID", F.lit("combat"))
+    .withColumn("FID", F.lit("combat_" + batch_name))
 
 # Reorder the columns
 lgen_file = lgen_file \
@@ -712,7 +712,7 @@ print((len(fam_file["Gender"].unique()) == 3) & (np.isin(fam_file["Gender"].uniq
     #only three possible sexes, being 1, 2 and 0.
 
 # Add the family variables and the phenotype (not added for now)
-fam_file["FID"] = "combat" #ID for the whole study
+fam_file["FID"] = "combat_" + batch_name #ID for the whole study
 fam_file["IID_father"] = "0" #'0' if father isn't in dataset
 fam_file["IID_mother"] = "0" 
 fam_file["phenotype"] = -9 #this is no data for phenotype
@@ -1125,6 +1125,7 @@ os.system(
     fi")
     #count the number of files with the "hh" extension
     #if that number is greater than 0, then remove all the hh files
+
 
 
 
