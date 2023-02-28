@@ -74,7 +74,7 @@ import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input")
 parser.add_argument("--n_cores", type=int, default=5, help="Number of cores requested")
-parser.add_argument("--n_samples", type=int, default=None, help="Number of samples to be analyzed")
+parser.add_argument("--n_samples", type=int, default=2, help="Number of samples to be analyzed")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -603,6 +603,16 @@ lgen_file = lgen_file \
     .select(["FID", "Sample ID", "SNP Name", "Allele1 - Forward_final", "Allele2 - Forward_final"])
         #https://stackoverflow.com/questions/42912156/python-pyspark-data-frame-rearrange-columns
 
+#change the column of sample ID
+lgen_file = lgen_file \
+    .withColumnRenamed("Sample ID", "sample_id")
+        #this column name will be used when writing the data per sample, so it is better to avoid the spaces
+
+#duplicate sample_id column because when you partition by that column during writing, it gets removed
+lgen_file = lgen_file \
+    .withColumn("sample", F.col("sample_id"))
+    #https://stackoverflow.com/questions/44575911/spark-how-to-prevent-dataframewriter-from-dropping-the-partitioning-columns-on
+
 #look
 lgen_file.show()
 
@@ -615,25 +625,41 @@ lgen_file.show()
 #prepare folders to save the lgen files
 os.system("rm -rf data/genetic_data/plink_inputs/" + batch_name + "; mkdir -p data/genetic_data/plink_inputs/" + batch_name)
 
-#you can save each final report separately
-lgen_file.write \
-    .option("header", False) \
-    .option("delimiter", "\t") \
-    .option("compression", "gzip") \
-    .csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/")
+#you can save each final report separately by ID
+lgen_file \
+    .write \
+        .partitionBy("sample") \
+        .option("header", False) \
+        .option("delimiter", "\t") \
+        .option("compression", "gzip") \
+        .csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/")
         #https://stackoverflow.com/questions/47780397/saving-dataframe-records-in-a-tab-delimited-file
         #https://stackoverflow.com/questions/40163996/how-to-save-a-dataframe-as-compressed-gzipped-csv
+        #https://sparkbyexamples.com/pyspark/pyspark-partitionby-example/
 
-#or a single file
-#df_subset_2 \
+#NOTE about cores and partitions
+    #Note that the number of files generated depends on the size of each file and the number of cores. So if you have 5 cores, i.e., local[5], at least you will get 5 partions of the data.
+    #you can check the number of partitions with "lgen_file.rdd.getNumPartitions()".
+    #I have been doing analyses with the partitions that my local/clusterlet me, i.e., 5 in my laptop and tens in the HPC.
+    #Then, when writing, I specify that I want the data of each sample separated in different folders with "partitionBy". I do not care if several files are saved in the same individual if all belong to the same Sample ID, later i will merge the data
+        #https://sparkbyexamples.com/pyspark/pyspark-partitionby-example/
+        #https://stackoverflow.com/questions/48143159/spark-write-to-disk-with-n-files-less-than-n-partitions
+
+#or a single file you can use PARTITION OR COALESCEN
+#lgen_file \
 #    .coalesce(1) \
 #    .write \
 #        .option("header", True) \
 #        .option("delimiter", "\t") \
 #        .option("compression", "gzip") \
-#        .csv(temp_dir.name + "/" + batch_name + "/lgen_files")
+#        .csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/")
     #https://sparkbyexamples.com/spark/spark-write-dataframe-single-csv-file/
     #https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/#dataframe-%20coalesce
+
+#remove the duplicated sample column
+lgen_file = lgen_file \
+    .drop("sample")
+lgen_file.show()
 
 
 ############
@@ -792,7 +818,7 @@ unique_snp_names = lgen_file \
 np.array_equal(np.array(unique_snp_names), map_file["Name"].values)
 print("samples are the same in lgen and fam files?")
 unique_sample_ids = lgen_file \
-    .select("Sample ID") \
+    .select("sample_id") \
     .distinct() \
     .collect()
 np.array_equal(np.array(unique_sample_ids), fam_file["ID"].values)
@@ -807,15 +833,37 @@ print("\n#####################\n#####################")
 print("create plink binaries per sample")
 print("#####################\n#####################")
 
-#list the lgen files
+#list the of folders with the lgen data per sample
 import glob
-path_pattern = "data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/*csv.gz"
-lgen_full_paths = glob.glob(path_pattern, recursive=False)
+lgen_full_paths = glob.glob("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/sample=*", recursive=False)
 #check
 print("\n#####################\n#####################")
-print("We have the correct number of lgen files? i.e., one per sample?")
+print("We have the correct number of lgen folders? i.e., one per sample?")
 print("#####################\n#####################")
 print(len(lgen_full_paths) == fam_file.shape[0])
+
+#get the extensions of the files in these folders
+list_files = glob.glob("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/**/*.csv.gz", recursive=True)
+list_files = [path.split("/")[-1] for path in list_files]
+list_extensions = ["-".join(path.split("-")[2:]) for path in list_files]
+    #load paths of all compressed partitions of the lgen files for all samples
+    #split each one by "/" and select the last one to get the file name
+    #split each one by "-" and select all except the first two, then join with "-" so we get only the extension avoiding the partition name
+    
+#then check all files have the same extension. They should even if the belong to different samples
+print("\n#####################\n#####################")
+print("lgen files have the correct extension?")
+print("#####################\n#####################")
+if all([file == list_extensions[0] for file in list_extensions]):
+
+    #perfect
+    print("TRUE")
+
+    #extract the extension with file type
+    lgen_extension = list_extensions[0]
+    lgen_extension = lgen_extension.split(".csv.gz")[0]
+else:
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE EXTENSION OF THE LGEN FILES")
 
 #natural sorting, 1,10, 21.. that works with numbers + strings like 1b, 5c...
 from natsort import natsorted
@@ -830,35 +878,84 @@ os.system(
     #mkdir
         #p flag: A flag which enables the command to create parent directories as necessary. If the directories exist, no error is specified
 
-#remove lgen files that are descompressed in case they were decompressed before
-os.system("rm -rf data/genetic_data/plink_inputs/ILGSA24-17303/inputs_sample*")
-
 #define function to calculate the bed file for each lgen file
-#lgen_full_path = lgen_full_paths[3]
+#lgen_full_path = lgen_full_paths[1]
 def plink_inputs_prep(lgen_full_path):
 
+    ##por aquiii
+
+    sample_id_file = lgen_full_path.split("/")[-1]
+
     #extract the name of the lgen file and path
-    lgen_file_name = lgen_full_path.split("/")[-1]
-    lgen_file_name_no_ext = lgen_file_name.split(".csv.gz")[0]
-    sample_number = lgen_file_name.split("-")[1]
-    lgen_path = "/".join(lgen_full_path.split("/")[0:-1])
+    #lgen_file_name = lgen_full_path.split("/")[-1]
+    #lgen_file_name_no_ext = lgen_file_name.split(".csv.gz")[0]
+    #sample_number = lgen_file_name.split("-")[1]
+    #lgen_path = "/".join(lgen_full_path.split("/")[0:-1])
 
     #create a folder to temporary save the plink inputs
-    os.system(
-        "cd " + lgen_path + "; rm -rf inputs_sample_" + sample_number + "; \
-        mkdir -p inputs_sample_" + sample_number)
+    #os.system(
+    #    "cd " + lgen_full_path + "; rm -rf inputs_sample_" + sample_number + "; \
+    #    mkdir -p inputs_sample_" + sample_number)
 
-    #decompress the lgen file and move it to the folder of the sample
+    #decompress the different partitions of the lgen file but remove just in case before that
     os.system(
-        "cd " + lgen_path + "; gunzip -k " + lgen_file_name + "; \
-        mv " + lgen_file_name_no_ext + ".csv " + "inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen")
+        "cd " + lgen_full_path + "; \
+        rm *" + lgen_extension + ".csv; \
+        gunzip -k *" + lgen_extension + ".csv.gz")
+
+
+
+    files_selected_sample = glob.glob(lgen_full_path + "/*.csv", recursive=False)
+    files_selected_sample = natsorted(files_selected_sample)
+        #to have the same order of snps than in the snp map 
+    list_dfs = [
+        pd.read_csv(
+            path, 
+            header=None,
+            sep='\t',
+            low_memory=False) #to avoid problems with mixed types
+        for path in files_selected_sample]
+    len(list_dfs) == len(files_selected_sample)
+
+    # Concatenate, because we have one row per SNP and sample, so we can just concateneate DFs.
+    lgen_file_selected_sample = pd.concat(
+        objs=list_dfs, #list DFs
+        axis=0, #concatenate along rows
+        ignore_index=True) #clear the existing index and reset it
+    
+    # We should have as many rows as the total sum of rows across the list of DFs
+    print(f' {lgen_file_selected_sample.shape[0] == sum([element.shape[0] for element in list_dfs])}')
+
+    print(all(lgen_file_selected_sample[2] == snp_map["Name"]))
+    print(len(np.unique(lgen_file_selected_sample[2])) == snp_map.shape[0])
+
+
+    #POR AQUII
+
 
     #get the ID of this sample from the lgen file
-    lgen_file_selected_sample = pd.read_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen", 
-        delimiter="\t",
-        header=None, 
-        low_memory=False)
-    selected_sample_id = np.unique(lgen_file_selected_sample[1])[0]
+    #lgen_file_selected_sample = pd.read_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen", 
+    #    delimiter="\t",
+    #    header=None, 
+    #    low_memory=False)
+    
+
+    selected_sample_id = np.unique(lgen_file_selected_sample[1])
+
+
+
+    #check whether 
+        #the number of unique Sample IDs is equal to 1 AND
+        #the number of unique SNP names is not equal than the number of SNPs in the snp map OR
+        #the SNP names are not exactly the same than in the snp map
+    sample_checks = \
+        (len(selected_sample_id) == 1) and \
+        (len(np.unique(lgen_file_selected_sample[2])) == snp_map.shape[0]) and \
+        all(lgen_file_selected_sample[2] == snp_map["Name"])
+    if sample_checks: #if all True
+        print("WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPLE " + selected_sample_id)
+    else:
+        raise ValueError("ERROR! FALSE! WE HAVE IMPORTANT ERRORS IN THE LGEN FILE OF SAMPLE")
 
     #get the row of the fam file corresponding to the selected sample
     #if we use the whole fam file, we would get a ped file with as many rows as sample, but as we are only using the final report of one sample, all the rest of rows would be zero.
@@ -867,8 +964,12 @@ def plink_inputs_prep(lgen_full_path):
         delimiter="\t", 
         header=None, 
         low_memory=False)
-    select_fam = fam_file_to_subset.loc[fam_file_to_subset[1] == selected_sample_id, :]
+    select_fam = fam_file_to_subset.loc[fam_file_to_subset[1] == selected_sample_id[0], :]
     
+    #additional check about the number of samples in the lgen file
+    if select_fam.shape[0] != 1:
+        raise ValueError("ERROR! FALSE! WE DO NOT HAVE 1 SAMPLE IN THE FAM FILE")
+
     #save that as the fam file for this sample
     select_fam.to_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".fam", 
         sep='\t',
@@ -1162,7 +1263,9 @@ temp_dir.cleanup()
 #stop spark env
 spark.stop()
 
+
 #the second batch fails because it produces too much splits, it should be 2 only but we see 4
+    #SOLVED, but do checks about the samples separations
 
 #search for duplicates snp positions. there is a link to convert gsa names to rsi!
     #https://www.biostars.org/post/search/?query=duplicated+snp+names+illumina
