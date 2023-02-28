@@ -882,8 +882,6 @@ os.system(
 #lgen_full_path = lgen_full_paths[1]
 def plink_inputs_prep(lgen_full_path):
 
-    ##por aquiii
-
     sample_id_file = lgen_full_path.split("/")[-1]
 
     #extract the name of the lgen file and path
@@ -926,36 +924,32 @@ def plink_inputs_prep(lgen_full_path):
     # We should have as many rows as the total sum of rows across the list of DFs
     print(f' {lgen_file_selected_sample.shape[0] == sum([element.shape[0] for element in list_dfs])}')
 
-    print(all(lgen_file_selected_sample[2] == snp_map["Name"]))
-    print(len(np.unique(lgen_file_selected_sample[2])) == snp_map.shape[0])
-
-
-    #POR AQUII
-
-
-    #get the ID of this sample from the lgen file
-    #lgen_file_selected_sample = pd.read_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".lgen", 
-    #    delimiter="\t",
-    #    header=None, 
-    #    low_memory=False)
-    
 
     selected_sample_id = np.unique(lgen_file_selected_sample[1])
 
+    
 
 
     #check whether 
         #the number of unique Sample IDs is equal to 1 AND
+        #the ID in the file is the same than the ID in the name of the folder
         #the number of unique SNP names is not equal than the number of SNPs in the snp map OR
         #the SNP names are not exactly the same than in the snp map
     sample_checks = \
         (len(selected_sample_id) == 1) and \
+        (selected_sample_id == sample_id_file.split("=")[1]) and \
         (len(np.unique(lgen_file_selected_sample[2])) == snp_map.shape[0]) and \
         all(lgen_file_selected_sample[2] == snp_map["Name"])
     if sample_checks: #if all True
         print("WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPLE " + selected_sample_id)
     else:
         raise ValueError("ERROR! FALSE! WE HAVE IMPORTANT ERRORS IN THE LGEN FILE OF SAMPLE")
+
+    #save 
+    lgen_file_selected_sample.to_csv(lgen_full_path + "/" + sample_id_file + ".lgen", 
+        sep='\t',
+        header=False, 
+        index=False)
 
     #get the row of the fam file corresponding to the selected sample
     #if we use the whole fam file, we would get a ped file with as many rows as sample, but as we are only using the final report of one sample, all the rest of rows would be zero.
@@ -971,7 +965,7 @@ def plink_inputs_prep(lgen_full_path):
         raise ValueError("ERROR! FALSE! WE DO NOT HAVE 1 SAMPLE IN THE FAM FILE")
 
     #save that as the fam file for this sample
-    select_fam.to_csv(lgen_path + "/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".fam", 
+    select_fam.to_csv(lgen_full_path + "/" + sample_id_file + ".fam", 
         sep='\t',
         header=False, 
         index=False)
@@ -982,20 +976,20 @@ def plink_inputs_prep(lgen_full_path):
     #copy the whole map file, in this case, we have the same snps, i.e., the same map in all samples. Indeed, illumina gives one map for the whole batch. Save the file in the folder of the sample
     os.system(
         "cd data/genetic_data/plink_inputs/" + batch_name + "; \
-        gunzip -c " + batch_name + ".map.gz > " + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + ".map")
+        gunzip -c " + batch_name + ".map.gz > " + batch_name + "_lgen_files/" + sample_id_file + "/" + sample_id_file + ".map")
         #c flag: writes the output stream to stdout and then you can use > to redirect to another folder. This will leave the compressed file untouched.
             #https://superuser.com/questions/45650/how-do-you-gunzip-a-file-and-keep-the-gz-file
 
     #create a folder to save the bed file of the sample
     os.system(
-        "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; \
-        mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number)
+        "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
+        mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file)
 
     #create ped files file using the lgen files
     os.system(
         "cd ./data/genetic_data/; \
         plink \
-            --lfile ./plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number + "/" + lgen_file_name_no_ext + " \
+            --lfile ./plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + " \
             --out ./plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number + " \
             --recode")
         #go to the folder with plink inputs
