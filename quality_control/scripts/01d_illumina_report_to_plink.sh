@@ -10,11 +10,15 @@
 		#https://www.cyberciti.biz/faq/linux-redirect-error-output-to-file/
 
 #run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
-./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17303" --n_cores=5 --n_samples=30 > 01b_illumina_report_to_plink_ILGSA24_17303.out 2>&1 &
+./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17303" --n_cores=5 --n_samples=216 > 01b_illumina_report_to_plink_ILGSA24_17303.out 2>&1 &
+	#n_samples=216
 sleep 1s
 	#we need delay the next process in order to leave time just in case
 	#https://stackoverflow.com/questions/49944364/how-to-run-two-commands-but-with-a-delay-on-the-second-command-without-stopping
-./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17873" --n_cores=5 --n_samples=30 > 01b_illumina_report_to_plink_ILGSA24_17873.out 2>&1 &
+./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17873" --n_cores=5 --n_samples=1248 > 01b_illumina_report_to_plink_ILGSA24_17873.out 2>&1 &
+	#n_samples=1248
+
+
 
 
 ####RUN THE SCRIPT TO MERGE BOTH BATCHES AND PERFORM ANAKYSES OF BATCHES EFFECT

@@ -28,6 +28,8 @@
     #https://www.biostars.org/p/310290/
 
 
+#check there is not overlap in individuals between cbatches, no indivuals is both batches
+
 #filter by chromosome
     #check strange chromosome numbers (non-autosomal)
     #also check that no genetic position is added

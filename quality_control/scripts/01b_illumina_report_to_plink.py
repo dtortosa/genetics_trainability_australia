@@ -121,7 +121,17 @@ temp_dir = tempfile.TemporaryDirectory()
 import numpy as np
 import zipfile
 zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
-zipinfos = zipdata.infolist()[0:n_samples+1]
+zipinfos = zipdata.infolist()
+
+#if we have selected only a subset of samples, then we have to make the subset of samples and then manually select the SNP and Sample maps
+if (batch_name=="ILGSA24-17303" and int(n_samples)<216) | (batch_name=="ILGSA24-17873" and int(n_samples)<1248):
+    
+    #select a subset of the samples
+    zipinfos = zipinfos[0:n_samples+1]
+
+    #add the paths for SNP and sample maps
+    zipinfos.append(zipdata.infolist()[np.where([element.filename == zip_name + "/SNP_Map.txt" for element in zipdata.infolist()])[0][0]])
+    zipinfos.append(zipdata.infolist()[np.where([element.filename == zip_name + "/Sample_Map.txt" for element in zipdata.infolist()])[0][0]])
 
 #get the name of each zip file
 names_files = [zipinfo.filename for zipinfo in zipinfos]
@@ -243,7 +253,7 @@ spark = SparkSession.builder \
 
 #we need the same column order in all illumina reports in order to use all of them with spark. For that, extract the column names for each report using pandas. Only header
 # Get first the paths for each final report
-list_reports_files_full_path = glob.glob(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt") 
+list_reports_files_full_path = glob.glob(temp_dir.name+ "/" + zip_name + "_FinalReport*.txt") 
     #I prefer using the glob module, as it does pattern matching and expansion.
         #https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
 #read header of each report
@@ -299,7 +309,7 @@ schema_reports = StructType() \
         #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
 
 #create a spark DF with all the samples
-df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(schema_reports).csv(temp_dir.name+ "/" + batch_name + "_FinalReport*.txt")
+df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(schema_reports).csv(temp_dir.name+ "/" + zip_name + "_FinalReport*.txt")
     #Note this DF is NOT in memory, but you can make queries to go through the whole data while using few RAM
     #read using tab, using first row as header and then go to specific folder and select all files with the batch name and being final reports
     #use the previously defined schema
@@ -330,11 +340,11 @@ df_samples_subset = df_samples_subset_raw.withColumn("input_file", input_file_na
 df_samples_subset.show()
 
 #load the maps
-snp_map = pd.read_csv("/home/dftortosa/singularity/australian_army_bishop/quality_control/data/genetic_data/example_data/SNP_Map.txt",
+snp_map = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
     delimiter="\t",
     header=0,
     low_memory=False)
-sample_map = pd.read_csv("/home/dftortosa/singularity/australian_army_bishop/quality_control/data/genetic_data/example_data/Sample_Map.txt",
+sample_map = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
     delimiter="\t",
     header=0,
     low_memory=False)
@@ -381,7 +391,7 @@ print("#####################\n#####################")
 #check that the sample ID is the same than that showed in the input file name
 import pyspark.sql.functions as F
 #define the two columns to be compared
-col_input_name_check = F.split(F.col("input_file"), "file://" + temp_dir.name + "/" + batch_name + "_").getItem(1)
+col_input_name_check = F.split(F.col("input_file"), "file://" + temp_dir.name + "/" + zip_name + "_").getItem(1)
     #prepare a column from splitting the input_file column and get the second item, which is FinalReportXX.txt, where XX is the index of the sample. This column was previously created.
 col_index_check = F.concat(F.lit("FinalReport"), F.col("Sample Index"), F.lit(".txt"))
     #prepare a column concatenating FinalReport and .txt as literal values to the sample index, so we have the same format than in the input file name
@@ -435,7 +445,7 @@ df_samples_subset \
 
 #do more checks
 #define function to do the checks. this will work on each final report as a pandas DF
-#pdf = pd.read_csv(temp_dir.name+ "/" + batch_name + "_FinalReport24.txt", delimiter="\t", header=0, low_memory=False)
+#pdf = pd.read_csv(temp_dir.name+ "/" + zip_name + "_FinalReport24.txt", delimiter="\t", header=0, low_memory=False)
 def calc_checks(pdf):
 
     #create a pandas DF with the column names of the checks
@@ -494,7 +504,9 @@ distinct_sample_ids = df_samples_subset \
     .distinct() \
     .collect()
 print("CHECK 10")
-print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
+#do the check only if we have all the samples, because you cannot compare two arrays with different size and the distinct sample id will be lower than the cases in sample map if we use a subset of samples
+if (batch_name=="ILGSA24-17303" and int(n_samples)==216) | (batch_name=="ILGSA24-17873" and int(n_samples)==1248):
+    print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
 
 #see unique alleles
 print("\n#####################\n#####################")
@@ -604,7 +616,6 @@ lgen_file.show()
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
 #prepare folders to save the lgen files
-os.system("rm -rf data/genetic_data/plink_inputs")
 os.system("rm -rf data/genetic_data/plink_inputs/" + batch_name + "; mkdir -p data/genetic_data/plink_inputs/" + batch_name)
 
 #you can save each final report separately
@@ -1153,23 +1164,6 @@ temp_dir.cleanup()
 
 #stop spark env
 spark.stop()
-
-
-
-#line 333 and 337!!!! snp map
-#snp_map = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
-#    delimiter="\t",
-#    header=0,
-#    low_memory=False)
-#sample_map = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
-#    delimiter="\t",
-#    header=0,
-#    low_memory=False)
-
-
-#check the script changes in the last commit
-
-#batch name does not work for reading the files into spakr of the second batch, try the zip name
 
 #search for duplicates snp positions. there is a link to convert gsa names to rsi!
     #https://www.biostars.org/post/search/?query=duplicated+snp+names+illumina
