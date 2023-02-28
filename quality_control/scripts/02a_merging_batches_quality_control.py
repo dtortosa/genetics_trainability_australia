@@ -22,6 +22,8 @@
 
 #CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
 
+#CHECK THE PDF REPORT FROM ILLUMINA!
+    #check folder called data in the second batch?
 
 
 ##IMPORTANT, wen merging different batches, check same strand

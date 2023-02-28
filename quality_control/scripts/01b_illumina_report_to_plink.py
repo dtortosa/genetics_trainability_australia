@@ -72,9 +72,10 @@
 import sys
 import argparse
 parser=argparse.ArgumentParser()
-parser.add_argument("--batch_name", help="Name of the batch used as input")
+parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input")
 parser.add_argument("--n_cores", type=int, default=5, help="Number of cores requested")
 parser.add_argument("--n_samples", type=int, default=None, help="Number of samples to be analyzed")
+    #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
 args=parser.parse_args()
@@ -84,12 +85,6 @@ args=parser.parse_args()
 batch_name = args.batch_name
 n_cores = args.n_cores
 n_samples = args.n_samples
-
-#for debugging
-#batch_name = "ILGSA24-17873"
-#batch_name = "ILGSA24-17303"
-#n_cores = 1
-#n_samples = 2
 
 #starting
 print("#################################################################################################################################\n#################################################################################################################################")
@@ -124,7 +119,7 @@ zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".z
 zipinfos = zipdata.infolist()
 
 #if we have selected only a subset of samples, then we have to make the subset of samples and then manually select the SNP and Sample maps
-if (batch_name=="ILGSA24-17303" and int(n_samples)<216) | (batch_name=="ILGSA24-17873" and int(n_samples)<1248):
+if (n_samples != None) and (batch_name=="ILGSA24-17303" and int(n_samples)<216) | (batch_name=="ILGSA24-17873" and int(n_samples)<1248):
     
     #select a subset of the samples
     zipinfos = zipinfos[0:n_samples+1]
@@ -504,8 +499,10 @@ distinct_sample_ids = df_samples_subset \
     .distinct() \
     .collect()
 print("CHECK 10")
-#do the check only if we have all the samples, because you cannot compare two arrays with different size and the distinct sample id will be lower than the cases in sample map if we use a subset of samples
-if (batch_name=="ILGSA24-17303" and int(n_samples)==216) | (batch_name=="ILGSA24-17873" and int(n_samples)==1248):
+#do the check only if we have all the samples (n_samples equals to None or the total number of samples), because you cannot compare two arrays with different size and the distinct sample id will be lower than the cases in sample map if we use a subset of samples
+if (n_samples == None):
+    print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
+elif (batch_name=="ILGSA24-17303" and int(n_samples)==216) | (batch_name=="ILGSA24-17873" and int(n_samples)==1248):
     print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
 
 #see unique alleles
@@ -1164,6 +1161,8 @@ temp_dir.cleanup()
 
 #stop spark env
 spark.stop()
+
+#the second batch fails because it produces too much splits, it should be 2 only but we see 4
 
 #search for duplicates snp positions. there is a link to convert gsa names to rsi!
     #https://www.biostars.org/post/search/?query=duplicated+snp+names+illumina
