@@ -1261,7 +1261,7 @@ os.system(
     gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
     gzip ./03_merged_data/" + batch_name + "_merged_data.fam; \
     gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bed; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim; \
     gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.fam")
 
 
