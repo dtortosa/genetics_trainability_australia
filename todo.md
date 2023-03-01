@@ -38,8 +38,9 @@
 
     - pheno_data
         - samples without phenotype
-            - Ask david about the sample included in first batch but without phenotype data
-            - also about the 42 samples the bottom with no phenotyipic daata
+            - Ask david about the sample included in first batch but not present in the csv file
+                - look its ID
+            - also about the 41 samples the bottom with no phenotyipic daata
             - I guess these samples should be removed from all analyses?
                 - remove after quality control?
         - ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?

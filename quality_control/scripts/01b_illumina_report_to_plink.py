@@ -48,8 +48,7 @@
     #In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps.
         #In the initial_stuff folder there is a zip called "ILGSA24-17303.zip" that I may have downloaded from the initial location where this data was stored in summer 2022. There are Plink files, but I am not sure this is the correct data and I cannot find the final_report files.
     #In 17873, we have the IDAT files with probs intensity from the microarrays used to genotype (first zips), the final reports+sample/snp maps (CAGRF20093767.zip) and a inputs for plink. But all of this only for 1248 individuals, not the whole cohort.
-    #the phenotype csv has 1464 samples, not having phenotype data for 41 of them.
-        #1248+216=1464
+    #the phenotype csv has 1463 samples, not having phenotype data for 41 of them. 1248+216=1464, so we also lack 1 sample in the csv file.
 
 #I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
     #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version  2.0.4). This includes a header with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. This is a BPM file.
@@ -76,7 +75,7 @@ import sys
 import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input")
-parser.add_argument("--n_cores", type=int, default=2, help="Number of cores requested")
+parser.add_argument("--n_cores", default=2, help="Number of cores/threads requested")
 parser.add_argument("--n_samples", type=int, default=3, help="Number of samples to be analyzed")
     #type=str to use the input as string
     #type=int converts to integer
@@ -121,27 +120,32 @@ import zipfile
 zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
 zipinfos = zipdata.infolist()
 
-#if we have selected only a subset of samples, then we have to make the subset of samples and then manually select the SNP and Sample maps
+#select only FinalReports
+zipinfos_subset = [zipinfo for zipinfo in zipinfos if zipinfo.filename.startswith(zip_name+"/"+zip_name+"_FinalReport")]
+
+#if we have selected only a subset of samples
 if (n_samples != None) and (batch_name=="ILGSA24-17303" and n_samples<216) | (batch_name=="ILGSA24-17873" and n_samples<1248):
-    
-    #select only FinalReports
-    zipinfos_subset = [zipinfo for zipinfo in zipinfos if zipinfo.filename.startswith(zip_name+"/"+zip_name+"_FinalReport")]
 
     #select a subset of the samples
     zipinfos_subset = zipinfos_subset[0:n_samples]
 
-    #add the paths for SNP and sample maps obtained from the original zipinfos
-    zipinfos_subset.append(zipinfos[np.where([zipinfo.filename == zip_name + "/SNP_Map.txt" for zipinfo in zipinfos])[0][0]])
-    zipinfos_subset.append(zipinfos[np.where([zipinfo.filename == zip_name + "/Sample_Map.txt" for zipinfo in zipinfos])[0][0]])
+#once we have the selected samples, add the paths for SNP and sample maps obtained from the original zipinfos
+zipinfos_subset.append(zipinfos[np.where([zipinfo.filename == zip_name + "/SNP_Map.txt" for zipinfo in zipinfos])[0][0]])
+zipinfos_subset.append(zipinfos[np.where([zipinfo.filename == zip_name + "/Sample_Map.txt" for zipinfo in zipinfos])[0][0]])
 
 #get the name of each zip file
 names_files = [zipinfo.filename for zipinfo in zipinfos_subset]
 
 #check
 print("\n#######################################\n#######################################")
-print("Do we have selected the correct number of files to be decompressed?: ")
+print("Do we have selected the correct number of files to be decompressed according to arg --n_sample?")
 print("#######################################\n#######################################")
-print(len(names_files) == n_samples + 2)
+if (n_samples==None) and (batch_name == "ILGSA24-17303"):
+    print(len(names_files) == 216 + 2)
+elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
+    print(len(names_files) == 1248 + 2)
+else:
+    print(len(names_files) == n_samples + 2)
 
 #iterate across files to decompress
 print("\n#######################################\n#######################################")
@@ -196,14 +200,14 @@ get_n_files = subprocess.Popen(
 n_files = int(get_n_files.read())
 #check
 print("\n#######################################\n#######################################")
-print("the number of files extracted is correct?: ")
+print("the number of files extracted is correct according to arg --n_sample?")
 print("#######################################\n#######################################")
-if batch_name == "ILGSA24-17303":
-    correct_number_files = 216 + 2
-elif batch_name == "ILGSA24-17873":
-    correct_number_files = 1248 + 2
-    #plus 2 because we also extracted sample and snp maps
-print(n_files == correct_number_files)
+if (n_samples==None) and (batch_name == "ILGSA24-17303"):
+    print(n_files == 216 + 2)
+elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
+    print(n_files == 1248 + 2)
+else:
+    print(n_files == n_samples + 2)
 
 #list files present in temp
 import glob
@@ -216,9 +220,14 @@ list_files = natsorted(list_files)
 
 #check
 print("\n#######################################\n#######################################")
-print("the number of listed files is correct?: ")
+print("the number of listed files is correct according to arg --n_sample?: ")
 print("#######################################\n#######################################")
-print(len(list_files) == correct_number_files)
+if (n_samples==None) and (batch_name == "ILGSA24-17303"):
+    print(len(list_files) == 216 + 2)
+elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
+    print(len(list_files) == 1248 + 2)
+else:
+    print(len(list_files) == n_samples + 2)
 
 #extract the names of the final reports only, which start with the zip name
 list_files_samples = [file for file in list_files if file.startswith(temp_dir.name + "/" + zip_name + "_FinalReport")]
@@ -237,26 +246,39 @@ print("#####################\n#####################")
 
 #the header of the final reports has been removed, so now the first row has the column names of the genotype data, but no illumina info about the report
 
+#set the number of threads per core
+if n_cores=="all":
+    n_threads="*" #this gets all logical cores available (see below)
+else:
+    n_threads=str(n_cores)
+
 #open a Spark session
 #sparkcontext, which is used by TDI, is going to be deprecated
 from pyspark.sql import SparkSession
 spark = SparkSession.builder \
     .appName("working with illumina reports") \
-    .master("local[" + str(n_cores) + "]") \
+    .master("local[" + n_threads + "]") \
     .config("spark.driver.memory", "6g") \
     .getOrCreate()
-    #master: local (not cluster) and selecting number cores instead of using all "*"
-        #this impacts the number of partitions in which the data is split
-        #https://sparkbyexamples.com/spark/what-does-setmaster-local-mean-in-spark/#:~:text=What%20does%20setMaster(local%5B*%5D)%20in%20Spark%3F,a%20SparkSession%20or%20SparkConf%20object.&text=Here%2C%20setMaster()%20denotes%20where,URL%20for%20a%20distributed%20cluster.
+    #master: 
+        #master indicates if you are in local machine or in a cluster. If cluster, you have to indicate the address. We are going to use the singularity container as a local cluster both here and in the HPC.
+        #local[*] indicates that all logical cores, i.e., threads will be used. If the cores have multithreading, you can have two threads per core, so 12 cores would mean 24 threads. 
+        #.master("local[1]") indicates the number of threads/logical cores manually, 1 in this case
+        #I am not sure about the number of threads per core in the HPC, so I am going to set this as *.
+        #Note that the number of threads impacts the number of partitions in which the data is split
+        #links
+            #https://stackoverflow.com/questions/32356143/what-does-setmaster-local-mean-in-spark
+            #https://sparkbyexamples.com/spark/what-does-setmaster-local-mean-in-spark/
+            #https://stackoverflow.com/questions/24622108/apache-spark-the-number-of-cores-vs-the-number-of-executors
     #.config() to change configuration
         #https://stackoverflow.com/questions/41886346/spark-2-1-0-session-config-settings-pyspark 
-    #increase the memory for executor, if not, we get refused connection error, probably because java is killed due to out of memory problems
+    #.config("spark.driver.memory", "6g") \
+        #increase the memory for driver, if not, we get refused connection error, probably because java is killed due to out of memory problems
+        #if you get more problems about JAVA stops, you can try to increase the memory for the per executor, where the operations are done.
         #https://stackoverflow.com/questions/49995044/bizarre-exception-from-pyspark-of-local-mode-in-docker-container
+        #https://stackoverflow.com/questions/26562033/how-to-set-apache-spark-executor-memory
     #in case "refused connection" error, you have to commenting the first two lines "/etc/hosts", the ones with 127.0.0.1 IP. Indeed sparks "prefers" not to use this IP
         #https://stackoverflow.com/questions/24881757/apache-spark-connection-refused-for-worker
-    #CHECK THIS
-        #select number of cores
-            #https://stackoverflow.com/questions/24622108/apache-spark-the-number-of-cores-vs-the-number-of-executors
 
 #we are going to work with data frames
     #https://spark.apache.org/docs/2.2.0/sql-programming-guide.html#spark-sql-dataframes-and-datasets-guide
@@ -282,6 +304,7 @@ print("#####################\n#####################")
 print(all([(np.array(report.columns) == np.array(list_df_reports[0].columns)).all() for report in list_df_reports]))
 
 #define the scheme, i.e., the type of the data
+#YOU NEED THE COLUMN NAMES IN THE SAME ORDER THAN IN THE FILES
 from pyspark.sql.types import StructType, IntegerType, StringType, DoubleType, BooleanType
 schema_reports = StructType() \
     .add("Sample Index",IntegerType(), nullable=True) \
@@ -319,7 +342,12 @@ schema_reports = StructType() \
         #https://spark.apache.org/docs/3.1.3/api/python/reference/api/pyspark.sql.types.StructType.html
 
 #create a spark DF with all the samples
-df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(schema_reports).csv(temp_dir.name+ "/" + zip_name + "_FinalReport*.txt")
+df_samples = spark \
+    .read \
+        .option("delimiter", "\t") \
+        .option("header", True) \
+        .schema(schema_reports) \
+        .csv(temp_dir.name+ "/" + zip_name + "_FinalReport*.txt")
     #Note this DF is NOT in memory, but you can make queries to go through the whole data while using few RAM
     #read using tab, using first row as header and then go to specific folder and select all files with the batch name and being final reports
     #use the previously defined schema
@@ -328,28 +356,41 @@ df_samples = spark.read.option("delimiter", "\t").option("header", True).schema(
 
 #check
 print("\n#####################\n#####################")
-print("check the column names of the reports DF is correct")
+print("check the column names of the reports DF are correct")
 print("#####################\n#####################")
 print(all(df_samples.schema.names == list_df_reports[0].columns))
+    #this is an important step because if you have a wrong order in the schema, the names of the columns are not going to follow the order in the data. For example, if Sample ID is not first in schema input, then the first column with the sample ids will have another name.
 
 #see schema and column names separately
-print(df_samples.printSchema())
-print(df_samples.schema.names)
+print("\n#####################\n#####################")
+print("see schema")
+print("#####################\n#####################")
+df_samples.printSchema()
+#print(df_samples.schema.names)
     #https://stackoverflow.com/questions/39746752/how-to-get-name-of-dataframe-column-in-pyspark
 
 #you can do operations on the columns
-df_samples.select(df_samples["Position"]+1).show()
+#df_samples.select(df_samples["Position"]+1).show()
 
 #select only columns of interest
+print("\n#####################\n#####################")
+print("select only columns of interest")
+print("#####################\n#####################")
 df_samples_subset_raw = df_samples.select(["Sample Index", "Sample ID", "SNP Index", "SNP Name", "Chr", "Position", "Allele1 - Forward", "Allele2 - Forward"])
 df_samples_subset_raw.show()
 
 #add a column with the input file name
+print("\n#####################\n#####################")
+print("add a column with the input file name")
+print("#####################\n#####################")
 from pyspark.sql.functions import input_file_name
 df_samples_subset = df_samples_subset_raw.withColumn("input_file", input_file_name())
 df_samples_subset.show()
 
 #load the maps
+print("\n#####################\n#####################")
+print("load SNP and Sample maps")
+print("#####################\n#####################")
 snp_map = pd.read_csv(temp_dir.name+ "/" + "SNP_Map.txt",
     delimiter="\t",
     header=0,
@@ -358,26 +399,41 @@ sample_map = pd.read_csv(temp_dir.name+ "/" + "Sample_Map.txt",
     delimiter="\t",
     header=0,
     low_memory=False)
+print(snp_map)
+print(sample_map)
 
 #you can also do SQL queries
 #SQL vs pandas in spark, not great differences
     #https://www.confessionsofadataguy.com/dataframes-vs-sparksql-which-one-should-you-choose/
 # Register the DataFrame as a SQL temporary view
-df_samples_subset.createOrReplaceTempView("df_samples_subset_sql")
-#do the query, asking for rows with chromosome 1
-spark \
-    .sql("SELECT * FROM df_samples_subset_sql WHERE Chr=1") \
-    .show()
+#df_samples_subset.createOrReplaceTempView("df_samples_subset_sql")
+    #do the query, asking for rows with chromosome 1
+#spark \
+#    .sql("SELECT * FROM df_samples_subset_sql WHERE Chr=1") \
+#    .show()
 
 #reorder using chromosome inverse
-df_samples_subset.orderBy("Chr", ascending=False).show()
+#df_samples_subset.orderBy("Chr", ascending=False).show()
     #to use in specific order
         #https://stackoverflow.com/questions/54071665/pyspark-read-multiple-csv-files-into-a-dataframe-in-order
 
-#calculate the number of reports, i.e., samples as the number of unique input_file names
-n_unique_samples = df_samples_subset.select("input_file").distinct().count()
+#calculate the number of reports, i.e., samples, as the number of unique input_file names
+n_unique_samples = df_samples_subset \
+    .select("input_file") \
+    .distinct() \
+    .count()
 
-#check
+#checks
+print("\n#####################\n#####################")
+print("Do we have the expected number of samples in spark as indicated with arg --n_sample?")
+print("#####################\n#####################")
+if (n_samples==None) and (batch_name == "ILGSA24-17303"):
+    print(n_unique_samples == 216)
+elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
+    print(n_unique_samples == 1248)
+else:
+    print(n_unique_samples == n_samples)
+    #If no sample number is selected, we should have all the samples in both batches
 print("\n#####################\n#####################")
 print("We have as many unique samples in illumina reports as samples in sample map?")
 print("#####################\n#####################")
@@ -389,9 +445,13 @@ n_genotypes = df_samples_subset.count()
 
 #check
 print("\n#####################\n#####################")
-print("We have as many genotypes as samples*snps in the maps")
+print("We have as many genotypes as snps*samples in the maps")
 print("#####################\n#####################")
 print(n_genotypes == snp_map.shape[0]*sample_map.shape[0])
+print("\n#####################\n#####################")
+print("We have as many genotypes as snps*samples according to arg --n_samples")
+print("#####################\n#####################")
+print(n_genotypes == snp_map.shape[0]*n_samples)
 
 #checks
 print("\n#####################\n#####################")
@@ -402,9 +462,10 @@ print("#####################\n#####################")
 import pyspark.sql.functions as F
 #define the two columns to be compared
 col_input_name_check = F.split(F.col("input_file"), "file://" + temp_dir.name + "/" + zip_name + "_").getItem(1)
-    #prepare a column from splitting the input_file column and get the second item, which is FinalReportXX.txt, where XX is the index of the sample. This column was previously created.
+    #prepare a column from splitting the input_file column using the whole name until FinalReport as delimiter. Therefore, the split will have two parts, being FinalReportXX.txt the second, i.e., "getItem(1)". The column "input_file" was previously created.
 col_index_check = F.concat(F.lit("FinalReport"), F.col("Sample Index"), F.lit(".txt"))
     #prepare a column concatenating FinalReport and .txt as literal values to the sample index, so we have the same format than in the input file name
+    #in this way, we can check whether the sample index of each row corresponds with the sample index the input file.
 df_samples_subset \
     .withColumn("check_1", col_index_check == col_input_name_check) \
     .select("check_1") \
@@ -420,8 +481,8 @@ n_distinct_samples = df_samples_subset \
     .count()
 print("CHECK 2:") 
 print(n_distinct_samples == sample_map.shape[0])
-print(n_distinct_samples == len(list_files_samples))
-    #list_files is a list with the file names of the final reports
+print(n_distinct_samples == n_samples)
+    #n_samples comes from --n_samples argument
 
 #check we do not have duplicated SNP names
 n_distinct_snp_names = df_samples_subset \
@@ -1077,7 +1138,12 @@ def plink_inputs_prep(lgen_full_path):
 
 #open a pool
 import multiprocessing as mp
-pool = mp.Pool(processes=n_cores)
+if n_cores=="all":
+    pool_processors = None
+        #This uses all cores available
+else:
+    pool_processors = int(n_cores)
+pool = mp.Pool(processes=pool_processors)
 
 #apply the function across the pool
 results_pararllelize = [pool.apply_async(plink_inputs_prep, args=(lgen_file,)) for lgen_file in lgen_full_paths]
