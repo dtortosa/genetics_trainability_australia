@@ -879,63 +879,62 @@ os.system(
         #p flag: A flag which enables the command to create parent directories as necessary. If the directories exist, no error is specified
 
 #define function to calculate the bed file for each lgen file
-#lgen_full_path = lgen_full_paths[1]
+#lgen_full_path = lgen_full_paths[0]
 def plink_inputs_prep(lgen_full_path):
 
+    #extract the ID of the sample from the path of the folder
     sample_id_file = lgen_full_path.split("/")[-1]
 
-    #extract the name of the lgen file and path
-    #lgen_file_name = lgen_full_path.split("/")[-1]
-    #lgen_file_name_no_ext = lgen_file_name.split(".csv.gz")[0]
-    #sample_number = lgen_file_name.split("-")[1]
-    #lgen_path = "/".join(lgen_full_path.split("/")[0:-1])
-
-    #create a folder to temporary save the plink inputs
-    #os.system(
-    #    "cd " + lgen_full_path + "; rm -rf inputs_sample_" + sample_number + "; \
-    #    mkdir -p inputs_sample_" + sample_number)
-
-    #decompress the different partitions of the lgen file but remove just in case before that
+    #decompress the different partitions of the lgen file but remove just in case before these files in case they are already decompressed
     os.system(
-        "cd " + lgen_full_path + "; \
+        "cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name +  "_lgen_files/" + sample_id_file + "; \
         rm *" + lgen_extension + ".csv; \
         gunzip -k *" + lgen_extension + ".csv.gz")
 
-
-
-    files_selected_sample = glob.glob(lgen_full_path + "/*.csv", recursive=False)
+    #get the path for the files decompressed
+    files_selected_sample = glob.glob("./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name +  "_lgen_files/" + sample_id_file + "/*.csv", recursive=False)
     files_selected_sample = natsorted(files_selected_sample)
-        #to have the same order of snps than in the snp map 
+        #to have the same order of snps than in the snp map when we concatenate all these files
+    
+    #load all the files as DFs into a list
     list_dfs = [
         pd.read_csv(
             path, 
             header=None,
-            sep='\t',
+            delimiter='\t',
             low_memory=False) #to avoid problems with mixed types
         for path in files_selected_sample]
-    len(list_dfs) == len(files_selected_sample)
+    
+    #check
+    print("\n#####################\n#####################")
+    print(f" We loaded all the partitions of {sample_id_file}?: {len(list_dfs) == len(files_selected_sample)}")
+    print("#####################\n#####################")
 
-    # Concatenate, because we have one row per SNP and sample, so we can just concateneate DFs.
+    # Concatenate, because we have one row per SNP 
     lgen_file_selected_sample = pd.concat(
         objs=list_dfs, #list DFs
         axis=0, #concatenate along rows
         ignore_index=True) #clear the existing index and reset it
     
-    # We should have as many rows as the total sum of rows across the list of DFs
-    print(f' {lgen_file_selected_sample.shape[0] == sum([element.shape[0] for element in list_dfs])}')
+    #check
+    print("\n#####################\n#####################")
+    print(f' Do we have as many rows as the total sum of rows across the list of DFs for {sample_id_file}? {lgen_file_selected_sample.shape[0] == sum([element.shape[0] for element in list_dfs])}')
+    print("#####################\n#####################")
 
-
+    #get the unique cases for the sample ID
     selected_sample_id = np.unique(lgen_file_selected_sample[1])
 
-    
+    #get the unique cases for the batch name
+    selected_sample_batch = np.unique(lgen_file_selected_sample[0])[0].split("_")[1]
 
-
-    #check whether 
+    #check whether
+        #the batch name within the file correspond with the correct batch name
         #the number of unique Sample IDs is equal to 1 AND
         #the ID in the file is the same than the ID in the name of the folder
         #the number of unique SNP names is not equal than the number of SNPs in the snp map OR
         #the SNP names are not exactly the same than in the snp map
     sample_checks = \
+        (selected_sample_batch == batch_name) and \
         (len(selected_sample_id) == 1) and \
         (selected_sample_id == sample_id_file.split("=")[1]) and \
         (len(np.unique(lgen_file_selected_sample[2])) == snp_map.shape[0]) and \
@@ -946,7 +945,7 @@ def plink_inputs_prep(lgen_full_path):
         raise ValueError("ERROR! FALSE! WE HAVE IMPORTANT ERRORS IN THE LGEN FILE OF SAMPLE")
 
     #save 
-    lgen_file_selected_sample.to_csv(lgen_full_path + "/" + sample_id_file + ".lgen", 
+    lgen_file_selected_sample.to_csv("./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "/" + sample_id_file + ".lgen", 
         sep='\t',
         header=False, 
         index=False)
@@ -965,7 +964,7 @@ def plink_inputs_prep(lgen_full_path):
         raise ValueError("ERROR! FALSE! WE DO NOT HAVE 1 SAMPLE IN THE FAM FILE")
 
     #save that as the fam file for this sample
-    select_fam.to_csv(lgen_full_path + "/" + sample_id_file + ".fam", 
+    select_fam.to_csv("./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "/" + sample_id_file + ".fam", 
         sep='\t',
         header=False, 
         index=False)
@@ -989,8 +988,8 @@ def plink_inputs_prep(lgen_full_path):
     os.system(
         "cd ./data/genetic_data/; \
         plink \
-            --lfile ./plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + " \
-            --out ./plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "/" + batch_name + "_sample_" + sample_number + " \
+            --lfile ./plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "/" + sample_id_file + " \
+            --out ./plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "/" + batch_name + "_" + sample_id_file + " \
             --recode")
         #go to the folder with plink inputs
         #--lfile for loading the lgen file, which should be accompanied by a .fam and .map files having the same name except the extension.
@@ -1015,10 +1014,10 @@ def plink_inputs_prep(lgen_full_path):
 
     #convert the ped file to bed
     os.system(
-        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; \
+        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
         plink \
-            --file ./" + batch_name + "_sample_" + sample_number + " \
-            --out ./" + batch_name + "_sample_" + sample_number + " \
+            --file ./" + batch_name + "_" + sample_id_file + " \
+            --out ./" + batch_name + "_" + sample_id_file + " \
             --make-bed")
         #--file let you load ped files
             #https://www.cog-genomics.org/plink/1.9/formats#ped
@@ -1034,23 +1033,25 @@ def plink_inputs_prep(lgen_full_path):
 
     #remove the files we are not interested in
     os.system(
-        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; \
-        rm ./" + batch_name + "_sample_" + sample_number + ".ped; \
-        rm ./" + batch_name + "_sample_" + sample_number + ".map")
+        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
+        rm ./" + batch_name + "_" + sample_id_file + ".ped; \
+        rm ./" + batch_name + "_" + sample_id_file + ".map")
         #the hh file says there is a genotype that is diplodi but should be haplo, like Y in male
         #it is created when doing other operations like calculate the frequency
 
     #remove hh files only if exists
     os.system(
-        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/sample_" + sample_number + "; " \
-        "FILE=./" + batch_name + "_sample_" + sample_number + ".hh; \
+        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; " \
+        "FILE=./" + batch_name + "_" + sample_id_file + ".hh; \
         if test -f $FILE; then \
-            rm ./" + batch_name + "_sample_" + sample_number + ".hh; \
+            rm ./" + batch_name + "_" + sample_id_file + ".hh; \
         fi")
         #https://linuxize.com/post/bash-check-if-file-exists/
 
-    #remove also the folder with the inputs for the sample
-    os.system("rm -rf data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/inputs_sample_" + sample_number)
+    #remove the decompressed files of each data partition of the lgen file for the selected sample
+    os.system(
+        "cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "; \
+        rm *" + lgen_extension + ".csv")
 
 #open a pool
 import multiprocessing as mp
@@ -1083,7 +1084,8 @@ print("#####################\n#####################")
 #create a folder to save the binary files of all samples and then merge
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
-    rm -rf ./02_data_to_merge; mkdir -p ./02_data_to_merge")
+    rm -rf ./02_data_to_merge; \
+    mkdir -p ./02_data_to_merge")
 
 #copy the bed/bim/fam files of all samples to the same folder
 os.system(
@@ -1256,10 +1258,6 @@ temp_dir.cleanup()
 
 #stop spark env
 spark.stop()
-
-
-#the second batch fails because it produces too much splits, it should be 2 only but we see 4
-    #SOLVED, but do checks about the samples separations
 
 #search for duplicates snp positions. there is a link to convert gsa names to rsi!
     #https://www.biostars.org/post/search/?query=duplicated+snp+names+illumina
