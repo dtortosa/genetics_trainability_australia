@@ -21,8 +21,9 @@
 
 
 #CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
+    #In particular, we are going to use the a paper about QC by Ritchie. There is a first version 2011 (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/) and a second version in 2022 (https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603).
 
-#CHECK THE PDF REPORT FROM ILLUMINA!
+#CHECK THE PDF REPORTs FROM ILLUMINA FOR EACH BATCH!
     #check folder called data in the second batch?
 
 

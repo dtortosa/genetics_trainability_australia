@@ -23,6 +23,7 @@
 ##################
 
 
+
 ######
 # wd #
 ######
@@ -35,6 +36,7 @@
 #!echo {message}
 #!pwd
     #https://jakevdp.github.io/PythonDataScienceHandbook/01.05-ipython-and-shell-commands.html
+
 
 
 #####################################
@@ -51,16 +53,17 @@
 
 #I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
     #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version  2.0.4). This includes a header with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. This is a BPM file.
-        #From this file, we can obtain the a lgen file. It is just taking the first few columns of the FinalReport. Plink has an option to read the .lgen format and convert it to PED file (see below; [link](https://www.biostars.org/p/13302/))
+        #From this file, we can obtain the a lgen file. It is just taking the first few columns of the FinalReport. Plink has an option to read the .lgen format and convert it to PED or BED formats (see below; [link](https://www.biostars.org/p/13302/))
     #A SNP map file with the physical positions of the snps.
     #A sample map file with info for each individual, like the sex, ID..
 
-#It is usually recommended to prepare this data to create a ped file with Plink, which is a tool to process genetic data ([link](https://www.cog-genomics.org/plink/)), perform some filtering and QC analyses and then export as VCF ([link](https://www.biostars.org/p/210516/), [link](https://www.biostars.org/p/135156/), [link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and use packages like Hail in python.
+#It is usually recommended to prepare this data to create a ped file with Plink, which is a tool to process genetic data (https://www.cog-genomics.org/plink/), perform some filtering and QC analyses and then export as VCF (https://www.biostars.org/p/210516/), (https://www.biostars.org/p/135156/), (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and use packages like Hail in python.
     #https://hail.is/docs/0.2/tutorials/01-genome-wide-association-study.html
 
 #There is an interesting alternative, gtc2vcf ([link](https://github.com/freeseek/gtc2vcf), [link](https://software.broadinstitute.org/software/gtc2vcf/)), which can directly transform Ilumina reports into VCF files from command line. We are going to use Plink, though, because it is much more widely used and there are tutorials and best practice papers using it.
 
-#In particular, we are going to use the a paper about QC by Ritchie. There is a first version 2011 ([link](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and a second version in 2022 ([link](https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603)).
+#In particular, we are going to use the a paper about QC by Ritchie. There is a first version 2011 (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/) and a second version in 2022 (https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603).
+
 
 
 #######################################
@@ -93,9 +96,9 @@ print("#########################################################################
 
 
 
-#########################################
-# Unzip files of the batch in temp dict #
-#########################################
+###############################################
+#### Unzip files of the batch in temp dict ####
+###############################################
 
 #set the name of the zip file to be unzzipped for each batch
 if batch_name=="ILGSA24-17303":
@@ -119,19 +122,28 @@ zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".z
 zipinfos = zipdata.infolist()
 
 #if we have selected only a subset of samples, then we have to make the subset of samples and then manually select the SNP and Sample maps
-if (n_samples != None) and (batch_name=="ILGSA24-17303" and int(n_samples)<216) | (batch_name=="ILGSA24-17873" and int(n_samples)<1248):
+if (n_samples != None) and (batch_name=="ILGSA24-17303" and n_samples<216) | (batch_name=="ILGSA24-17873" and n_samples<1248):
     
-    #select a subset of the samples
-    zipinfos = zipinfos[0:n_samples+1]
+    #select only FinalReports
+    zipinfos_subset = [zipinfo for zipinfo in zipinfos if zipinfo.filename.startswith(zip_name+"/"+zip_name+"_FinalReport")]
 
-    #add the paths for SNP and sample maps
-    zipinfos.append(zipdata.infolist()[np.where([element.filename == zip_name + "/SNP_Map.txt" for element in zipdata.infolist()])[0][0]])
-    zipinfos.append(zipdata.infolist()[np.where([element.filename == zip_name + "/Sample_Map.txt" for element in zipdata.infolist()])[0][0]])
+    #select a subset of the samples
+    zipinfos_subset = zipinfos_subset[0:n_samples]
+
+    #add the paths for SNP and sample maps obtained from the original zipinfos
+    zipinfos_subset.append(zipinfos[np.where([zipinfo.filename == zip_name + "/SNP_Map.txt" for zipinfo in zipinfos])[0][0]])
+    zipinfos_subset.append(zipinfos[np.where([zipinfo.filename == zip_name + "/Sample_Map.txt" for zipinfo in zipinfos])[0][0]])
 
 #get the name of each zip file
-names_files = [zipinfo.filename for zipinfo in zipinfos]
+names_files = [zipinfo.filename for zipinfo in zipinfos_subset]
 
-#iterate across files and get only final reports
+#check
+print("\n#######################################\n#######################################")
+print("Do we have selected the correct number of files to be decompressed?: ")
+print("#######################################\n#######################################")
+print(len(names_files) == n_samples + 2)
+
+#iterate across files to decompress
 print("\n#######################################\n#######################################")
 print("Unzipping data: ")
 print("#######################################\n#######################################")
@@ -141,13 +153,13 @@ print("#######################################\n################################
     #count time
         #https://stackoverflow.com/questions/1557571/how-do-i-get-time-of-a-python-programs-execution
 import numpy as np
-#zipinfo=zipinfos[1]
-#zipinfo=zipinfos[np.where([element == zip_name + "/SNP_Map.txt" for element in names_files])[0][0]]
-#zipinfo=zipinfos[np.where([element == zip_name + "/Sample_Map.txt" for element in names_files])[0][0]]
+#zipinfo=zipinfos_subset[1]
+#zipinfo=zipinfos_subset[np.where([element == zip_name + "/SNP_Map.txt" for element in names_files])[0][0]]
+#zipinfo=zipinfos_subset[np.where([element == zip_name + "/Sample_Map.txt" for element in names_files])[0][0]]
 import os
-for zipinfo in zipinfos:
+for zipinfo in zipinfos_subset:
 
-    #fir the file name starts with the adequate zip (batch) name and FinalReport
+    #if the file name starts with the adequate zip (batch) name and FinalReport
     if (zipinfo.filename.startswith(zip_name + "/" + zip_name + "_FinalReport")) | (zipinfo.filename.startswith(zip_name + "/SNP_Map.txt")) | (zipinfo.filename.startswith(zip_name + "/Sample_Map.txt")):
 
         #rename by removing the name of the parent folder, so we only get the file not the parent folder
@@ -163,10 +175,12 @@ for zipinfo in zipinfos:
         if zipinfo.filename.startswith(zip_name + "_FinalReport"):
 
             #remove the first 10 lines of the file, which is the header
-            os.system("cd " + temp_dir.name + "; tail -n +11 " + zipinfo.filename + " > tmp.txt && mv tmp.txt " + zipinfo.filename)
+            os.system(
+                "cd " + temp_dir.name + "; \
+                tail -n +11 " + zipinfo.filename + " > tmp.txt && mv tmp.txt " + zipinfo.filename)
                 #if you use tail with "+number_line" you can get all lines starting from the selected number of line
                     #tail is faster than sed
-                #then save the result in a temporal file and overwrite the original file. The && will make sure that the file doesn't get overwritten when there is a problem.
+                #then save the result in a temporal file and overwrite the original file with this new file without the header. The && will make sure that the file doesn't get overwritten when there is a problem.
                     #https://stackoverflow.com/questions/339483/how-can-i-remove-the-first-line-of-a-text-file-using-bash-sed-script
                     #https://www.baeldung.com/linux/remove-first-line-text-file
 
@@ -207,13 +221,13 @@ print("#######################################\n################################
 print(len(list_files) == correct_number_files)
 
 #extract the names of the final reports only, which start with the zip name
-list_files_samples = [file for file in list_files if file.startswith(temp_dir.name + "/" + zip_name)]
+list_files_samples = [file for file in list_files if file.startswith(temp_dir.name + "/" + zip_name + "_FinalReport")]
 
 
 
-#############################################
-# read illumina reports and maps with spark #
-#############################################
+###################################################
+#### read illumina reports and maps with spark ####
+###################################################
 
 print("\n#####################\n#####################")
 print("read illumina reports and maps with spark")
@@ -221,7 +235,7 @@ print("#####################\n#####################")
 
 #spark gives us the possibility to analyze big datasets with much less ram and relatively fast. You can work with multiple final reports, being all connected, making possible to make queries on them, but not being all loaded in memory
 
-#the header of the final reports has been remove, so now the first row has the column names of the genotype data, but no illumina info about the report
+#the header of the final reports has been removed, so now the first row has the column names of the genotype data, but no illumina info about the report
 
 #open a Spark session
 #sparkcontext, which is used by TDI, is going to be deprecated
@@ -232,6 +246,7 @@ spark = SparkSession.builder \
     .config("spark.driver.memory", "6g") \
     .getOrCreate()
     #master: local (not cluster) and selecting number cores instead of using all "*"
+        #this impacts the number of partitions in which the data is split
         #https://sparkbyexamples.com/spark/what-does-setmaster-local-mean-in-spark/#:~:text=What%20does%20setMaster(local%5B*%5D)%20in%20Spark%3F,a%20SparkSession%20or%20SparkConf%20object.&text=Here%2C%20setMaster()%20denotes%20where,URL%20for%20a%20distributed%20cluster.
     #.config() to change configuration
         #https://stackoverflow.com/questions/41886346/spark-2-1-0-session-config-settings-pyspark 
@@ -502,7 +517,7 @@ print("CHECK 10")
 #do the check only if we have all the samples (n_samples equals to None or the total number of samples), because you cannot compare two arrays with different size and the distinct sample id will be lower than the cases in sample map if we use a subset of samples
 if (n_samples == None):
     print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
-elif (batch_name=="ILGSA24-17303" and int(n_samples)==216) | (batch_name=="ILGSA24-17873" and int(n_samples)==1248):
+elif (batch_name=="ILGSA24-17303" and n_samples==216) | (batch_name=="ILGSA24-17873" and n_samples==1248):
     print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
 
 #see unique alleles
@@ -1272,6 +1287,7 @@ os.system(
 
 #remove the temp dir
 temp_dir.cleanup()
+    #https://stackoverflow.com/questions/3223604/how-to-create-a-temporary-directory-and-get-its-path-file-name
 
 #stop spark env
 spark.stop()
