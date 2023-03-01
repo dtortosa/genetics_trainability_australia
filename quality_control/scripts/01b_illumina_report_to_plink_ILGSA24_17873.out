@@ -1,6 +1,7 @@
 Setting default log level to "WARN".
 To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/02/28 19:34:02 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/02/28 20:17:02 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/02/28 20:17:03 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
 #################################################################################################################################
 #################################################################################################################################
 ############################################# STARTING BATCH NUMBER: ILGSA24-17873 ##############################################
@@ -138,820 +139,57 @@ only showing top 20 rows
 +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+
 only showing top 20 rows
 
-23/02/28 19:34:09 WARN package: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
-[Stage 4:>                                                          (0 + 2) / 4][Stage 4:=============================>                             (2 + 2) / 4]                                                                                +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+--------------------+
+23/02/28 20:17:09 WARN package: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
+[Stage 4:>                                                          (0 + 2) / 4][Stage 4:==============>                                            (1 + 2) / 4][Stage 4:=============================>                             (2 + 2) / 4]                                                                                +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+--------------------+
 |Sample Index|Sample ID|SNP Index|            SNP Name|Chr| Position|Allele1 - Forward|Allele2 - Forward|          input_file|
 +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+--------------------+
-|        1000| 7999SBJN|        1|         1:103380393|  1|102914837|                G|                G|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        2|         1:109439680|  1|108897058|                A|                A|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        3|         1:110198788|  1|109656166|                T|                T|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        4|         1:110201112|  1|109658490|                C|                C|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        5|         1:110201667|  1|109659045|                C|                C|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        6|         1:110202904|  1|109660282|                T|                T|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        7|         1:110203240|  1|109660618|                G|                G|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        8|         1:110203911|  1|109661289|                C|                C|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        9|         1:110206675|  1|109664053|                A|                A|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       10|1:110228436_CNV_G...|  1|109685814|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       11|1:110228505_CNV_G...|  1|109685883|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       12|1:110228615_CNV_G...|  1|109685993|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       13|1:110228695_CNV_G...|  1|109686073|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       14|1:110229315_CNV_G...|  1|109686693|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       15|1:110229436_CNV_G...|  1|109686814|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       16|1:110229816_CNV_G...|  1|109687194|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       17|1:110230105_CNV_G...|  1|109687483|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       18|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       19|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       20|1:110230335_CNV_G...|  1|109687713|                -|                -|file:///tmp/tmpi3...|
+|        1000| 7999SBJN|        1|         1:103380393|  1|102914837|                G|                G|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        2|         1:109439680|  1|108897058|                A|                A|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        3|         1:110198788|  1|109656166|                T|                T|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        4|         1:110201112|  1|109658490|                C|                C|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        5|         1:110201667|  1|109659045|                C|                C|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        6|         1:110202904|  1|109660282|                T|                T|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        7|         1:110203240|  1|109660618|                G|                G|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        8|         1:110203911|  1|109661289|                C|                C|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        9|         1:110206675|  1|109664053|                A|                A|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       10|1:110228436_CNV_G...|  1|109685814|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       11|1:110228505_CNV_G...|  1|109685883|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       12|1:110228615_CNV_G...|  1|109685993|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       13|1:110228695_CNV_G...|  1|109686073|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       14|1:110229315_CNV_G...|  1|109686693|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       15|1:110229436_CNV_G...|  1|109686814|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       16|1:110229816_CNV_G...|  1|109687194|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       17|1:110230105_CNV_G...|  1|109687483|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       18|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       19|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       20|1:110230335_CNV_G...|  1|109687713|                -|                -|file:///tmp/tmplu...|
 +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+--------------------+
 only showing top 20 rows
 
 +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+--------------------+
 |Sample Index|Sample ID|SNP Index|            SNP Name|Chr| Position|Allele1 - Forward|Allele2 - Forward|          input_file|
 +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+--------------------+
-|        1000| 7999SBJN|        1|         1:103380393|  1|102914837|                G|                G|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        2|         1:109439680|  1|108897058|                A|                A|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        3|         1:110198788|  1|109656166|                T|                T|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        4|         1:110201112|  1|109658490|                C|                C|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        5|         1:110201667|  1|109659045|                C|                C|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        6|         1:110202904|  1|109660282|                T|                T|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        7|         1:110203240|  1|109660618|                G|                G|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        8|         1:110203911|  1|109661289|                C|                C|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|        9|         1:110206675|  1|109664053|                A|                A|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       10|1:110228436_CNV_G...|  1|109685814|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       11|1:110228505_CNV_G...|  1|109685883|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       12|1:110228615_CNV_G...|  1|109685993|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       13|1:110228695_CNV_G...|  1|109686073|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       14|1:110229315_CNV_G...|  1|109686693|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       15|1:110229436_CNV_G...|  1|109686814|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       16|1:110229816_CNV_G...|  1|109687194|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       17|1:110230105_CNV_G...|  1|109687483|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       18|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       19|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmpi3...|
-|        1000| 7999SBJN|       20|1:110230335_CNV_G...|  1|109687713|                -|                -|file:///tmp/tmpi3...|
+|        1000| 7999SBJN|        1|         1:103380393|  1|102914837|                G|                G|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        2|         1:109439680|  1|108897058|                A|                A|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        3|         1:110198788|  1|109656166|                T|                T|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        4|         1:110201112|  1|109658490|                C|                C|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        5|         1:110201667|  1|109659045|                C|                C|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        6|         1:110202904|  1|109660282|                T|                T|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        7|         1:110203240|  1|109660618|                G|                G|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        8|         1:110203911|  1|109661289|                C|                C|file:///tmp/tmplu...|
+|        1000| 7999SBJN|        9|         1:110206675|  1|109664053|                A|                A|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       10|1:110228436_CNV_G...|  1|109685814|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       11|1:110228505_CNV_G...|  1|109685883|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       12|1:110228615_CNV_G...|  1|109685993|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       13|1:110228695_CNV_G...|  1|109686073|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       14|1:110229315_CNV_G...|  1|109686693|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       15|1:110229436_CNV_G...|  1|109686814|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       16|1:110229816_CNV_G...|  1|109687194|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       17|1:110230105_CNV_G...|  1|109687483|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       18|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       19|1:110230206_CNV_G...|  1|109687584|                -|                -|file:///tmp/tmplu...|
+|        1000| 7999SBJN|       20|1:110230335_CNV_G...|  1|109687713|                -|                -|file:///tmp/tmplu...|
 +------------+---------+---------+--------------------+---+---------+-----------------+-----------------+--------------------+
 only showing top 20 rows
 
-[Stage 5:=============================>                             (2 + 2) / 4]                                                                                [Stage 14:>                                                         (0 + 2) / 4][Stage 14:=============================>                            (2 + 2) / 4]                                                                                [Stage 17:>                                                         (0 + 2) / 4][Stage 17:=============================>                            (2 + 2) / 4]                                                                                [Stage 23:>                                                         (0 + 2) / 4][Stage 23:=============================>                            (2 + 2) / 4]                                                                                [Stage 29:>                                                         (0 + 2) / 4][Stage 29:=============================>                            (2 + 2) / 4]                                                                                [Stage 35:>                                                         (0 + 2) / 4][Stage 35:==============>                                           (1 + 2) / 4][Stage 35:=============================>                            (2 + 2) / 4]                                                                                [Stage 41:>                                                         (0 + 2) / 4][Stage 41:=============================>                            (2 + 2) / 4][Stage 43:>                                                         (0 + 2) / 2]                                                                                [Stage 47:>                                                         (0 + 2) / 4][Stage 47:=============================>                            (2 + 2) / 4]                                                                                [Stage 50:>                                                         (0 + 2) / 4][Stage 50:=============================>                            (2 + 2) / 4]                                                                                [Stage 53:>                                                         (0 + 2) / 4][Stage 53:=============================>                            (2 + 2) / 4]                                                                                [Stage 58:>                                                         (0 + 2) / 4][Stage 58:=============================>                            (2 + 2) / 4]                                                                                +------------+---------+---------+----------+---+--------+-----------------+-----------------+--------------------+
-|Sample Index|Sample ID|SNP Index|  SNP Name|Chr|Position|Allele1 - Forward|Allele2 - Forward|          input_file|
-+------------+---------+---------+----------+---+--------+-----------------+-----------------+--------------------+
-|         100| 7591HEDO|     8186|200610-147|  Y|19600799|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8207|200610-193|  Y|19555629|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8187|200610-148|  Y|19617365|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8188|200610-149|  Y|19705968|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8189|200610-150|  Y|19589554|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8190|200610-151|  Y|19726979|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8191|200610-152|  Y|19568471|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8192|200610-153|  Y|19578564|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8193|200610-156|  Y|19706890|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8194|200610-158|  Y|15174126|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8195|200610-164|  Y|19734207|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8196|200610-165|  Y|19555341|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8197|200610-166|  Y|19704773|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8198|200610-167|  Y|19574353|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8199|200610-168|  Y| 3009437|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8200|200610-172|  Y|12915595|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8201|200610-173|  Y| 2882367|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8202|200610-175|  Y| 7715230|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8203|200610-176|  Y|19587995|                -|                -|file:///tmp/tmpi3...|
-|         100| 7591HEDO|     8205|200610-185|  Y|22220317|                -|                -|file:///tmp/tmpi3...|
-+------------+---------+---------+----------+---+--------+-----------------+-----------------+--------------------+
-only showing top 20 rows
-
-
-#####################
-#####################
-We have as many unique samples in illumina reports as samples in sample map?
-#####################
-#####################
-False
-False
-
-#####################
-#####################
-We have as many genotypes as samples*snps in the maps
-#####################
-#####################
-False
-
-#####################
-#####################
-Multiple checks within each sample
-#####################
-#####################
-+-------+
-|check_1|
-+-------+
-|   true|
-+-------+
-
-CHECK 2:
-False
-True
-CHECK 2b:
-True
-CHECK 2c:
-IMPORTANT: DO WE HAVE DUPLICATED POSITIONS
-The difference between the number of SNPs in the map and the distinct positions is 6785
-+--------+
-|check_2d|
-+--------+
-|    true|
-+--------+
-
-CHECK 3: True
-CHECK 4: True
-CHECK 5: True
-CHECK 6: True
-CHECK 7: True
-CHECK 8: True
-CHECK 9: True
-CHECK 10
-
-#####################
-#####################
-see unique alleles
-#####################
-#####################
-+-----------------+
-|Allele1 - Forward|
-+-----------------+
-|                T|
-|                D|
-|                C|
-|                -|
-|                A|
-|                G|
-|                I|
-+-----------------+
-
-+-----------------+
-|Allele2 - Forward|
-+-----------------+
-|                T|
-|                D|
-|                C|
-|                -|
-|                A|
-|                G|
-|                I|
-+-----------------+
-
-
-#####################
-#####################
-Preparing lgen file
-#####################
-#####################
-+---------+--------------------+-----------------+-----------------+
-|Sample ID|            SNP Name|Allele1 - Forward|Allele2 - Forward|
-+---------+--------------------+-----------------+-----------------+
-| 7999SBJN|         1:103380393|                G|                G|
-| 7999SBJN|         1:109439680|                A|                A|
-| 7999SBJN|         1:110198788|                T|                T|
-| 7999SBJN|         1:110201112|                C|                C|
-| 7999SBJN|         1:110201667|                C|                C|
-| 7999SBJN|         1:110202904|                T|                T|
-| 7999SBJN|         1:110203240|                G|                G|
-| 7999SBJN|         1:110203911|                C|                C|
-| 7999SBJN|         1:110206675|                A|                A|
-| 7999SBJN|1:110228436_CNV_G...|                -|                -|
-| 7999SBJN|1:110228505_CNV_G...|                -|                -|
-| 7999SBJN|1:110228615_CNV_G...|                -|                -|
-| 7999SBJN|1:110228695_CNV_G...|                -|                -|
-| 7999SBJN|1:110229315_CNV_G...|                -|                -|
-| 7999SBJN|1:110229436_CNV_G...|                -|                -|
-| 7999SBJN|1:110229816_CNV_G...|                -|                -|
-| 7999SBJN|1:110230105_CNV_G...|                -|                -|
-| 7999SBJN|1:110230206_CNV_G...|                -|                -|
-| 7999SBJN|1:110230206_CNV_G...|                -|                -|
-| 7999SBJN|1:110230335_CNV_G...|                -|                -|
-+---------+--------------------+-----------------+-----------------+
-only showing top 20 rows
-
-+---------+--------------------+-----------------------+-----------------------+
-|Sample ID|            SNP Name|Allele1 - Forward_final|Allele2 - Forward_final|
-+---------+--------------------+-----------------------+-----------------------+
-| 7999SBJN|         1:103380393|                      G|                      G|
-| 7999SBJN|         1:109439680|                      A|                      A|
-| 7999SBJN|         1:110198788|                      T|                      T|
-| 7999SBJN|         1:110201112|                      C|                      C|
-| 7999SBJN|         1:110201667|                      C|                      C|
-| 7999SBJN|         1:110202904|                      T|                      T|
-| 7999SBJN|         1:110203240|                      G|                      G|
-| 7999SBJN|         1:110203911|                      C|                      C|
-| 7999SBJN|         1:110206675|                      A|                      A|
-| 7999SBJN|1:110228436_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110228505_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110228615_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110228695_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110229315_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110229436_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110229816_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110230105_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110230206_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110230206_CNV_G...|                      0|                      0|
-| 7999SBJN|1:110230335_CNV_G...|                      0|                      0|
-+---------+--------------------+-----------------------+-----------------------+
-only showing top 20 rows
-
-
-#####################
-#####################
-Check that all SNPs do NOT have '-' or '--' for allele 1 and 2
-#####################
-#####################
-[Stage 62:>                                                         (0 + 2) / 4][Stage 62:=============================>                            (2 + 2) / 4][Stage 62:===========================================>              (3 + 1) / 4]                                                                                +--------------------+---------+--------------------+-----------------------+-----------------------+--------+
-|                 FID|sample_id|            SNP Name|Allele1 - Forward_final|Allele2 - Forward_final|  sample|
-+--------------------+---------+--------------------+-----------------------+-----------------------+--------+
-|combat_ILGSA24-17873| 7999SBJN|         1:103380393|                      G|                      G|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:109439680|                      A|                      A|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:110198788|                      T|                      T|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:110201112|                      C|                      C|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:110201667|                      C|                      C|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:110202904|                      T|                      T|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:110203240|                      G|                      G|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:110203911|                      C|                      C|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|         1:110206675|                      A|                      A|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110228436_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110228505_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110228615_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110228695_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110229315_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110229436_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110229816_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110230105_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110230206_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110230206_CNV_G...|                      0|                      0|7999SBJN|
-|combat_ILGSA24-17873| 7999SBJN|1:110230335_CNV_G...|                      0|                      0|7999SBJN|
-+--------------------+---------+--------------------+-----------------------+-----------------------+--------+
-only showing top 20 rows
-
-+--------------------+---------+--------------------+-----------------------+-----------------------+
-|                 FID|sample_id|            SNP Name|Allele1 - Forward_final|Allele2 - Forward_final|
-+--------------------+---------+--------------------+-----------------------+-----------------------+
-|combat_ILGSA24-17873| 7999SBJN|         1:103380393|                      G|                      G|
-|combat_ILGSA24-17873| 7999SBJN|         1:109439680|                      A|                      A|
-|combat_ILGSA24-17873| 7999SBJN|         1:110198788|                      T|                      T|
-|combat_ILGSA24-17873| 7999SBJN|         1:110201112|                      C|                      C|
-|combat_ILGSA24-17873| 7999SBJN|         1:110201667|                      C|                      C|
-|combat_ILGSA24-17873| 7999SBJN|         1:110202904|                      T|                      T|
-|combat_ILGSA24-17873| 7999SBJN|         1:110203240|                      G|                      G|
-|combat_ILGSA24-17873| 7999SBJN|         1:110203911|                      C|                      C|
-|combat_ILGSA24-17873| 7999SBJN|         1:110206675|                      A|                      A|
-|combat_ILGSA24-17873| 7999SBJN|1:110228436_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110228505_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110228615_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110228695_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110229315_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110229436_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110229816_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110230105_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110230206_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110230206_CNV_G...|                      0|                      0|
-|combat_ILGSA24-17873| 7999SBJN|1:110230335_CNV_G...|                      0|                      0|
-+--------------------+---------+--------------------+-----------------------+-----------------------+
-only showing top 20 rows
-
-
-#####################
-#####################
-Preparing fam file
-#####################
-#####################
-
-#####################
-#####################
-Check sex in sample map and phenotype data
-#####################
-#####################
-     Gender        Age  ...  Week 8 Pred VO2max  AGRF code
-0         M  25.000000  ...                47.7   8244TCOJ
-1         M  43.720548  ...                43.6   6976MCJS
-2         M  35.049315  ...                49.0   3484JSJJ
-3         F  23.561644  ...                43.6   1389HSNM
-4         M  26.164384  ...                54.0   7593DBAO
-...     ...        ...  ...                 ...        ...
-1459    NaN        NaN  ...                 NaN   2471AWMA
-1460    NaN        NaN  ...                 NaN   6897TSSS
-1461    NaN        NaN  ...                 NaN   6899DWOS
-1462    NaN        NaN  ...                 NaN   6296TONJ
-1463    NaN        NaN  ...                 NaN   7799BTDO
-
-[1464 rows x 9 columns]
-1193    11.1O
-Name: Week 8 beep test, dtype: object
-
-#####################
-#####################
-All samples with genetic data are included in pheno_data?
-#####################
-#####################
-False
-
-#####################
-#####################
-How many samples with genetic data are included in pheno_data?
-#####################
-#####################
-1242 out 1248
-
-#####################
-#####################
-The new sex variable is correctly coded?
-#####################
-#####################
-True
-
-#####################
-#####################
-See fam file:
-#####################
-#####################
-                       FID        ID IID_father IID_mother Gender  phenotype
-0     combat_ILGSA24-17873  7497JWMO          0          0      1         -9
-1     combat_ILGSA24-17873  7498YQOO          0          0      1         -9
-2     combat_ILGSA24-17873  7400RRAO          0          0      1         -9
-3     combat_ILGSA24-17873  7494MTNO          0          0      1         -9
-4     combat_ILGSA24-17873  7489BMJO          0          0      1         -9
-...                    ...       ...        ...        ...    ...        ...
-1243  combat_ILGSA24-17873  9596KGSM          0          0      1         -9
-1244  combat_ILGSA24-17873  9196GCNM          0          0      1         -9
-1245  combat_ILGSA24-17873  9199ACMM          0          0      1         -9
-1246  combat_ILGSA24-17873  0197SNMM          0          0      2         -9
-1247  combat_ILGSA24-17873  6701ESJS          0          0      2         -9
-
-[1248 rows x 6 columns]
-
-#####################
-#####################
-Preparing map file
-#####################
-#####################
-[Stage 64:>                                                         (0 + 2) / 4][Stage 64:=============================>                            (2 + 2) / 4]                                                                                [Stage 67:>                                                         (0 + 2) / 4][Stage 67:=============================>                            (2 + 2) / 4]                                                                                         Index           Name Chromosome  ...  ILMN Strand  Customer Strand NormID
-0            1    1:103380393          1  ...          BOT              TOP     28
-1            2    1:109439680          1  ...          TOP              TOP      1
-2            3    1:110198788          1  ...          BOT              BOT      4
-3            4    1:110201112          1  ...          BOT              TOP    101
-4            5    1:110201667          1  ...          BOT              BOT      1
-...        ...            ...        ...  ...          ...              ...    ...
-654022  654023  Y:8804321-A-C          Y  ...          BOT              TOP      3
-654023  654024  Y:8852748-A-C          Y  ...          BOT              TOP      3
-654024  654025  Y:8894070-A-T          Y  ...          TOP              BOT    203
-654025  654026  Y:9145267-T-C          Y  ...          BOT              BOT      3
-654026  654027  Y:9785736-A-G          Y  ...          TOP              TOP      3
-
-[654027 rows x 9 columns]
-       Chromosome           Name  centimorgans   Position
-0               1    1:103380393             0  102914837
-1               1    1:109439680             0  108897058
-2               1    1:110198788             0  109656166
-3               1    1:110201112             0  109658490
-4               1    1:110201667             0  109659045
-...           ...            ...           ...        ...
-654022          Y  Y:8804321-A-C             0    8936280
-654023          Y  Y:8852748-A-C             0    8984707
-654024          Y  Y:8894070-A-T             0    9026029
-654025          Y  Y:9145267-T-C             0    9307658
-654026          Y  Y:9785736-A-G             0    9948127
-
-[654027 rows x 4 columns]
-
-#####################
-#####################
-checks with lgen, map and fam files
-#####################
-#####################
-SNPs are the same in lgen and map files?
-samples are the same in lgen and fam files?
-
-#####################
-#####################
-create plink binaries per sample
-#####################
-#####################
-
-#####################
-#####################
-We have the correct number of lgen folders? i.e., one per sample?
-#####################
-#####################
-False
-
-#####################
-#####################
-lgen files have the correct extension?
-#####################
-#####################
-TRUE
-rm: rm: cannot remove '*d59f389a-91fe-4d55-9589-636b8e7a1dc5.c000.csv'cannot remove '*d59f389a-91fe-4d55-9589-636b8e7a1dc5.c000.csv': No such file or directory: No such file or directory
-
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO.log.
-Options in effect:
-  --lfile ./plink_inputs/ILGSA24-17873/ILGSA24-17873_lgen_files/sample=7497JWMO/sample=7497JWMO
-  --out ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO
-  --recode
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Processing .lgen file... 0%PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO.log.
-Options in effect:
-  --lfile ./plink_inputs/ILGSA24-17873/ILGSA24-17873_lgen_files/sample=7499NSMO/sample=7499NSMO
-  --out ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO
-  --recode
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Processing .lgen file... 0%1%2%1%2%3%3%4%4%5%5%6%6%7%8%7%9%8%10%9%11%10%12%11%13%12%14%13%15%14%16%15%17%16%18%17%18%19%18%20%18%19%21%22%20%21%23%22%24%23%25%24%26%25%27%26%28%27%29%28%30%29%31%30%32%31%33%32%34%33%35%34%36%35%37%36%38%37%39%38%40%39%41%40%42%41%43%42%44%43%45%44%46%45%47%46%48%49%47%50%48%51%49%52%50%51%53%52%54%53%55%54%56%55%57%56%58%57%59%58%60%59%61%60%62%63%61%64%62%65%63%66%64%67%65%68%66%69%67%69%70%68%71%69%72%69%70%73%71%74%72%75%73%76%74%77%75%78%76%79%77%80%78%81%79%82%80%83%81%84%82%85%83%86%84%87%85%88%86%89%87%90%88%91%89%92%90%93%91%94%92%95%93%96%94%97%95%98%96%99%97%100%98%99%100%done.
---lfile:
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO-temporary.bed
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO-temporary.bim
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO-temporary.fam
-written.
-654027 variants loaded from .bim file.
-1 person (1 male, 0 females) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%done.
---lfile:
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO-temporary.bed
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO-temporary.bim
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO-temporary.fam
-written.
-654027 variants loaded from .bim file.
-1 person (1 male, 0 females) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%15%1%16%2%17%3%18%4%19%5%20%6%21%7%22%23%8%24%9%25%10%26%11%27%12%28%13%29%14%30%15%31%16%32%17%33%18%34%19%35%36%20%37%21%38%22%39%23%40%24%41%25%42%26%43%27%44%45%28%46%29%47%30%48%31%49%32%50%33%51%34%52%53%35%54%36%55%37%56%38%57%39%58%40%59%41%60%42%61%62%43%63%44%64%45%65%46%66%47%67%48%68%49%69%50%70%51%71%52%72%73%53%74%54%75%55%76%56%77%78%57%79%58%80%59%81%60%82%61%83%84%62%85%63%86%64%87%65%88%66%89%67%90%68%91%92%69%93%70%94%71%95%72%73%96%74%97%75%98%76%77%99% done.
-Warning: 3 het. haploid genotypes present (see
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO.hh
-); many commands treat these as missing.
-78%79%80%Total genotyping rate is 0.993344.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
---recode ped to
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO.ped
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7499NSMO/ILGSA24-17873_sample=7499NSMO.map
-... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
-Warning: 1 het. haploid genotype present (see
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO.hh
-); many commands treat these as missing.
-Total genotyping rate is 0.993402.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
---recode ped to
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO.ped
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7497JWMO/ILGSA24-17873_sample=7497JWMO.map
-... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-done.
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./ILGSA24-17873_sample=7499NSMO.log.
-Options in effect:
-  --file ./ILGSA24-17873_sample=7499NSMO
-  --make-bed
-  --out ./ILGSA24-17873_sample=7499NSMO
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Scanning .ped file... 0%100%PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./ILGSA24-17873_sample=7497JWMO.log.
-Options in effect:
-  --file ./ILGSA24-17873_sample=7497JWMO
-  --make-bed
-  --out ./ILGSA24-17873_sample=7497JWMO
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Scanning .ped file... 0%100%.ped scan complete (for binary autoconversion).
-Performing single-pass .bed write (654027 variants, 1 person).
-0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%.ped scan complete (for binary autoconversion).
-Performing single-pass .bed write (654027 variants, 1 person).
-0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%--file: ./ILGSA24-17873_sample=7499NSMO-temporary.bed +
-./ILGSA24-17873_sample=7499NSMO-temporary.bim +
-./ILGSA24-17873_sample=7499NSMO-temporary.fam written.
-654027 variants loaded from .bim file.
-1 person (1 male, 0 females) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%--file: ./ILGSA24-17873_sample=7497JWMO-temporary.bed +
-./ILGSA24-17873_sample=7497JWMO-temporary.bim +
-./ILGSA24-17873_sample=7497JWMO-temporary.fam written.
-654027 variants loaded from .bim file.
-1 person (1 male, 0 females) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%35%1%36%2%37%3%38%4%39%5%40%6%41%7%42%8%43%9%44%10%45%11%46%12%47%13%48%14%49%15%50%16%51%17%52%18%53%19%54%20%55%21%56%22%57%23%58%24%59%25%60%26%61%27%62%28%63%29%64%30%65%31%66%32%67%33%68%34%69%35%70%36%71%37%72%38%73%39%74%40%75%41%76%42%77%43%78%44%79%45%80%46%81%47%82%48%83%49%84%50%85%51%86%52%87%53%88%54%89%55%90%56%91%57%92%58%93%59%94%60%95%61%62%96%63%97%64%65%98%66%99%67% done.
-Warning: 3 het. haploid genotypes present (see
-./ILGSA24-17873_sample=7499NSMO.hh ); many commands treat these as missing.
-68%69%Total genotyping rate is 0.993344.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
-70%--make-bed to ./ILGSA24-17873_sample=7499NSMO.bed +
-./ILGSA24-17873_sample=7499NSMO.bim + ./ILGSA24-17873_sample=7499NSMO.fam ...
-0%1%2%71%3%72%4%73%5%74%6%7%75%8%76%9%77%10%78%11%79%12%13%80%14%81%15%82%16%83%17%84%18%19%85%20%86%21%87%22%88%23%89%24%25%90%26%91%27%92%28%93%29%30%94%31%95%32%33%96%34%97%35%36%98%37%38%99%39% done.
-Warning: 1 het. haploid genotype present (see
-./ILGSA24-17873_sample=7497JWMO.hh ); many commands treat these as missing.
-40%41%Total genotyping rate is 0.993402.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
-42%--make-bed to ./ILGSA24-17873_sample=7497JWMO.bed +
-./ILGSA24-17873_sample=7497JWMO.bim + ./ILGSA24-17873_sample=7497JWMO.fam ...
-0%1%43%2%44%3%45%4%46%5%47%6%48%7%49%8%50%9%51%10%52%11%53%12%54%13%55%14%56%15%57%16%58%17%59%18%60%19%61%20%62%21%63%22%64%23%65%24%66%25%67%26%68%27%69%28%70%29%71%30%72%31%73%32%74%33%75%34%76%35%77%36%78%37%79%38%80%39%81%40%82%41%83%42%84%43%85%44%86%45%87%46%88%47%89%48%90%49%91%50%92%51%93%52%94%53%95%54%96%55%97%56%98%57%99%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-done.
-rm: cannot remove '*d59f389a-91fe-4d55-9589-636b8e7a1dc5.c000.csv': No such file or directory
-rm: cannot remove '*d59f389a-91fe-4d55-9589-636b8e7a1dc5.c000.csv': No such file or directory
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7591HEDO/ILGSA24-17873_sample=7591HEDO.log.
-Options in effect:
-  --lfile ./plink_inputs/ILGSA24-17873/ILGSA24-17873_lgen_files/sample=7591HEDO/sample=7591HEDO
-  --out ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7591HEDO/ILGSA24-17873_sample=7591HEDO
-  --recode
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Processing .lgen file... 0%1%2%3%4%5%6%7%8%9%PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN.log.
-Options in effect:
-  --lfile ./plink_inputs/ILGSA24-17873/ILGSA24-17873_lgen_files/sample=7999SBJN/sample=7999SBJN
-  --out ./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN
-  --recode
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Processing .lgen file... 0%1%10%2%11%3%12%4%13%5%14%6%15%7%16%8%17%9%18%10%18%19%11%20%12%21%13%22%14%23%15%24%16%25%17%26%18%27%18%19%28%20%29%21%30%22%31%23%32%24%33%25%34%26%35%27%36%28%37%29%38%30%39%31%40%32%41%33%42%34%43%35%44%36%45%37%46%38%47%39%48%40%49%41%42%50%51%43%44%52%45%53%46%54%47%55%48%56%49%57%50%58%51%59%52%60%53%61%54%62%55%63%56%64%57%65%58%66%59%67%60%68%61%69%62%69%70%63%71%64%72%65%73%66%74%67%68%75%69%76%69%70%77%71%78%72%79%73%80%74%81%75%82%76%83%77%84%78%85%79%86%80%87%81%88%82%89%83%90%84%91%85%92%86%93%87%94%88%95%89%96%90%97%91%98%92%99%93%100%94%95%96%97%98%99%100%done.
---lfile:
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7591HEDO/ILGSA24-17873_sample=7591HEDO-temporary.bed
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7591HEDO/ILGSA24-17873_sample=7591HEDO-temporary.bim
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7591HEDO/ILGSA24-17873_sample=7591HEDO-temporary.fam
-written.
-654027 variants loaded from .bim file.
-1 person (0 males, 1 female) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%done.
---lfile:
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN-temporary.bed
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN-temporary.bim
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN-temporary.fam
-written.
-654027 variants loaded from .bim file.
-1 person (1 male, 0 females) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%49%1%50%2%51%3%52%4%53%5%54%6%55%7%8%56%9%57%10%58%11%59%12%60%13%61%14%62%15%63%16%17%64%18%65%19%66%20%67%21%68%22%69%23%70%24%71%25%72%26%27%73%28%74%29%75%30%76%31%77%32%78%33%79%34%80%35%81%36%37%82%38%83%39%84%40%85%41%86%42%87%43%44%88%45%89%46%90%47%91%48%92%49%93%50%94%51%95%52%53%96%54%55%97%56%98%57%58%99%59% done.
-Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands
-treat these as missing.
-60%61%Total genotyping rate is 0.992994.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
---recode ped to
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7591HEDO/ILGSA24-17873_sample=7591HEDO.ped
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7591HEDO/ILGSA24-17873_sample=7591HEDO.map
-... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%62%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
-Warning: 2 het. haploid genotypes present (see
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN.hh
-); many commands treat these as missing.
-Total genotyping rate is 0.993435.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
---recode ped to
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN.ped
-+
-./plink_bed_files/ILGSA24-17873/01_bed_per_sample/sample=7999SBJN/ILGSA24-17873_sample=7999SBJN.map
-... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-done.
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./ILGSA24-17873_sample=7591HEDO.log.
-Options in effect:
-  --file ./ILGSA24-17873_sample=7591HEDO
-  --make-bed
-  --out ./ILGSA24-17873_sample=7591HEDO
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Scanning .ped file... 0%100%PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./ILGSA24-17873_sample=7999SBJN.log.
-Options in effect:
-  --file ./ILGSA24-17873_sample=7999SBJN
-  --make-bed
-  --out ./ILGSA24-17873_sample=7999SBJN
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Scanning .ped file... 0%100%.ped scan complete (for binary autoconversion).
-Performing single-pass .bed write (654027 variants, 1 person).
-0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%.ped scan complete (for binary autoconversion).
-Performing single-pass .bed write (654027 variants, 1 person).
-0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%--file: ./ILGSA24-17873_sample=7591HEDO-temporary.bed +
-./ILGSA24-17873_sample=7591HEDO-temporary.bim +
-./ILGSA24-17873_sample=7591HEDO-temporary.fam written.
-654027 variants loaded from .bim file.
-1 person (0 males, 1 female) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%--file: ./ILGSA24-17873_sample=7999SBJN-temporary.bed +
-./ILGSA24-17873_sample=7999SBJN-temporary.bim +
-./ILGSA24-17873_sample=7999SBJN-temporary.fam written.
-654027 variants loaded from .bim file.
-1 person (1 male, 0 females) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 1 founder and 0 nonfounders present.
-Calculating allele frequencies... 0%40%1%41%2%42%3%43%4%44%5%45%6%46%7%47%8%48%9%49%10%50%11%51%12%52%13%53%14%54%15%55%16%56%17%57%18%58%19%59%20%60%21%61%22%62%23%63%24%64%25%65%26%66%27%67%28%68%29%69%30%70%31%71%32%72%33%73%34%74%35%75%36%76%37%77%38%78%39%79%40%80%81%41%82%42%83%43%84%44%85%45%86%46%87%47%88%48%89%49%90%50%91%51%92%52%93%53%94%54%95%55%56%96%57%97%58%59%98%60%99%61% done.
-Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands
-treat these as missing.
-62%63%Total genotyping rate is 0.992994.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
-64%--make-bed to ./ILGSA24-17873_sample=7591HEDO.bed +
-./ILGSA24-17873_sample=7591HEDO.bim + ./ILGSA24-17873_sample=7591HEDO.fam ...
-0%1%2%65%3%66%4%67%5%68%6%69%7%8%70%9%71%10%72%11%73%12%13%74%14%75%15%76%16%77%17%78%18%19%79%20%80%21%81%22%82%23%24%83%25%84%26%85%27%86%28%87%29%30%88%31%89%32%90%33%91%34%92%35%36%93%37%94%38%95%39%40%96%41%42%97%43%44%98%45%99%46% done.
-Warning: 2 het. haploid genotypes present (see
-./ILGSA24-17873_sample=7999SBJN.hh ); many commands treat these as missing.
-47%48%49%Total genotyping rate is 0.993435.
-654027 variants and 1 person pass filters and QC.
-Note: No phenotypes present.
-50%--make-bed to ./ILGSA24-17873_sample=7999SBJN.bed +
-./ILGSA24-17873_sample=7999SBJN.bim + ./ILGSA24-17873_sample=7999SBJN.fam ...
-0%1%51%2%52%3%53%4%54%5%55%6%56%7%57%8%58%9%10%59%60%11%12%61%13%62%63%14%15%64%16%65%17%66%18%67%19%68%69%20%70%21%71%22%72%23%73%24%74%25%75%26%76%27%77%28%78%29%79%30%80%31%81%32%82%33%83%34%84%35%85%36%86%37%87%38%88%39%89%40%90%41%91%42%92%43%93%44%94%45%95%46%96%47%97%48%98%49%99%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-done.
-
-#####################
-#####################
- We loaded all the partitions of sample=7499NSMO?: True
-#####################
-#####################
-
-#####################
-#####################
- Do we have as many rows as the total sum of rows across the list of DFs for sample=7499NSMO? True
-#####################
-#####################
-['WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPLE 7499NSMO']
-
-#####################
-#####################
- We loaded all the partitions of sample=7591HEDO?: True
-#####################
-#####################
-
-#####################
-#####################
- Do we have as many rows as the total sum of rows across the list of DFs for sample=7591HEDO? True
-#####################
-#####################
-['WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPLE 7591HEDO']
-
-#####################
-#####################
- We loaded all the partitions of sample=7497JWMO?: True
-#####################
-#####################
-
-#####################
-#####################
- Do we have as many rows as the total sum of rows across the list of DFs for sample=7497JWMO? True
-#####################
-#####################
-['WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPLE 7497JWMO']
-
-#####################
-#####################
- We loaded all the partitions of sample=7999SBJN?: True
-#####################
-#####################
-
-#####################
-#####################
- Do we have as many rows as the total sum of rows across the list of DFs for sample=7999SBJN? True
-#####################
-#####################
-['WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPLE 7999SBJN']
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ../03_merged_data/ILGSA24-17873_merged_data.log.
-Options in effect:
-  --merge-list ./list_to_merge.txt
-  --out ../03_merged_data/ILGSA24-17873_merged_data
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-Warning: Variants 'rs387907306.1' and 'rs387907306' have the same position.
-Warning: Variants 'rs113445782' and 'GSA-rs113445782' have the same position.
-Warning: Variants 'rs36083022' and 'GSA-rs36083022' have the same position.
-5435 more same-position warnings: see log file.
-Performing single-pass merge (4 people, 654027 variants).
-Pass 1: fileset #1 complete.Pass 1: fileset #2 complete.Pass 1: fileset #3 complete.                                              Merged fileset written to ../03_merged_data/ILGSA24-17873_merged_data.bed +
-../03_merged_data/ILGSA24-17873_merged_data.bim +
-../03_merged_data/ILGSA24-17873_merged_data.fam .
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./04_inspect_snp_dup/00_list_dup/ILGSA24-17873_duplicates.log.
-Options in effect:
-  --bfile ./03_merged_data/ILGSA24-17873_merged_data
-  --list-duplicate-vars suppress-first ids-only
-  --out ./04_inspect_snp_dup/00_list_dup/ILGSA24-17873_duplicates
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-654027 variants loaded from .bim file.
-4 people (3 males, 1 female) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 4 founders and 0 nonfounders present.
-Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
-Warning: 6 het. haploid genotypes present (see
-./04_inspect_snp_dup/00_list_dup/ILGSA24-17873_duplicates.hh ); many commands
-treat these as missing.
-Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands
-treat these as missing.
-Total genotyping rate is 0.993303.
-654027 variants and 4 people pass filters and QC.
-Note: No phenotypes present.
---list-duplicate-vars report written to
-./04_inspect_snp_dup/00_list_dup/ILGSA24-17873_duplicates.dupvar .
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.log.
-Options in effect:
-  --bfile ./03_merged_data/ILGSA24-17873_merged_data
-  --exclude ./04_inspect_snp_dup/00_list_dup/ILGSA24-17873_duplicates.dupvar
-  --make-bed
-  --out ./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-654027 variants loaded from .bim file.
-4 people (3 males, 1 female) loaded from .fam.
---exclude: 649381 variants remaining.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 4 founders and 0 nonfounders present.
-Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
-Warning: 6 het. haploid genotypes present (see
-./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.hh );
-many commands treat these as missing.
-Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands
-treat these as missing.
-Total genotyping rate is 0.995431.
-649381 variants and 4 people pass filters and QC.
-Note: No phenotypes present.
---make-bed to
-./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.bed +
-./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.bim +
-./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.fam ...
-0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
-(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./ILGSA24-17873_duplicates.log.
-Options in effect:
-  --bfile ./ILGSA24-17873_merged_data_no_snp_dup
-  --list-duplicate-vars suppress-first ids-only
-  --out ./ILGSA24-17873_duplicates
-
-64162 MB RAM detected; reserving 32081 MB for main workspace.
-649381 variants loaded from .bim file.
-4 people (3 males, 1 female) loaded from .fam.
-Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 4 founders and 0 nonfounders present.
-Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
-Warning: 6 het. haploid genotypes present (see ./ILGSA24-17873_duplicates.hh );
-many commands treat these as missing.
-Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands
-treat these as missing.
-Total genotyping rate is 0.995431.
-649381 variants and 4 people pass filters and QC.
-Note: No phenotypes present.
---list-duplicate-vars report written to ./ILGSA24-17873_duplicates.dupvar .
-TRUE
-
-#####################
-#####################
-merge binaries of all samples
-#####################
-#####################
-
-#####################
-#####################
-look for duplicates
-#####################
-#####################
-
-#####################
-#####################
-the number of duplicates according with plink matches my previous estimation with spark?
-#####################
-#####################
-False
-
-#####################
-#####################
-Do we have zero duplicated positions after filtering? THIS CHECK CAN BE PRINTED BEFORE THIS LINE
-#####################
-#####################
+[Stage 5:>                                                          (0 + 2) / 4][Stage 5:=============================>                             (2 + 2) / 4]                                                                                [Stage 11:=============================>                            (2 + 2) / 4]                                                                                [Stage 14:>                                                         (0 + 2) / 4][Stage 14:=============================>                            (2 + 2) / 4]                                                                                [Stage 17:>                                                         (0 + 2) / 4]

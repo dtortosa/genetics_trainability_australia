@@ -73,8 +73,8 @@ import sys
 import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input")
-parser.add_argument("--n_cores", type=int, default=5, help="Number of cores requested")
-parser.add_argument("--n_samples", type=int, default=2, help="Number of samples to be analyzed")
+parser.add_argument("--n_cores", type=int, default=2, help="Number of cores requested")
+parser.add_argument("--n_samples", type=int, default=3, help="Number of samples to be analyzed")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -1012,6 +1012,13 @@ def plink_inputs_prep(lgen_full_path):
             #Base-pair coordinate
         #All lines must have the same number of columns (so either no lines contain the morgans/centimorgans column, or all of them do)
 
+    #compress the lgen and map file
+    os.system(
+        "cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "; \
+        gzip " + sample_id_file + ".lgen; \
+        gzip " + sample_id_file + ".map; \
+        gzip " + sample_id_file + ".fam")
+
     #convert the ped file to bed
     os.system(
         "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
@@ -1246,6 +1253,16 @@ os.system(
     fi")
     #count the number of files with the "hh" extension
     #if that number is greater than 0, then remove all the hh files
+
+#compress the bed/bim/fam files
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.bed; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.fam; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bed; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.fam")
 
 
 
