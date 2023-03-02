@@ -123,6 +123,15 @@ zipinfos = zipdata.infolist()
 #select only FinalReports
 zipinfos_subset = [zipinfo for zipinfo in zipinfos if zipinfo.filename.startswith(zip_name+"/"+zip_name+"_FinalReport")]
 
+#reorder the zipinfos by natural order, 1, 2, ...10, 11...
+names_to_sort = [zipinfo.filename for zipinfo in zipinfos_subset]
+    #get the names of each file inside zipinfos_subset
+from natsort import index_natsorted, order_by_index
+index_order = index_natsorted(names_to_sort)
+    #get the indexes under natural order as done by natsorted
+zipinfos_subset = order_by_index(zipinfos_subset, index_order)
+    #use these indexes to order the list of zipinfos
+
 #if we have selected only a subset of samples
 if (n_samples != None) and (batch_name=="ILGSA24-17303" and n_samples<216) | (batch_name=="ILGSA24-17873" and n_samples<1248):
 
@@ -347,7 +356,9 @@ df_samples = spark \
         .option("delimiter", "\t") \
         .option("header", True) \
         .schema(schema_reports) \
-        .csv(temp_dir.name+ "/" + zip_name + "_FinalReport*.txt")
+        .csv(temp_dir.name + "/" + zip_name + "_FinalReport*.txt")
+    #you can also use a previous list with paths to read
+        #list_files_samples
     #Note this DF is NOT in memory, but you can make queries to go through the whole data while using few RAM
     #read using tab, using first row as header and then go to specific folder and select all files with the batch name and being final reports
     #use the previously defined schema
@@ -516,7 +527,7 @@ df_samples_subset \
 
 #do more checks
 #define function to do the checks. this will work on each final report as a pandas DF
-#pdf = pd.read_csv(temp_dir.name+ "/" + zip_name + "_FinalReport24.txt", delimiter="\t", header=0, low_memory=False)
+#pdf = pd.read_csv(temp_dir.name+ "/" + zip_name + "_FinalReport1.txt", delimiter="\t", header=0, low_memory=False)
 def calc_checks(pdf):
 
     #create a pandas DF with the column names of the checks
@@ -569,17 +580,38 @@ checks_raw = df_samples_subset \
 for index, check in enumerate(checks_raw[0]):
     print("CHECK " + str(index+3) + ": " + str(check == n_genotypes))
 
+
+####POR AQUIIIIII
+
 #check that the distinct sample IDs are the same than the IDs in the sample map
 distinct_sample_ids = df_samples_subset \
-    .select(df_samples_subset["Sample ID"]) \
+    .select(F.col("Sample Index"), F.col("Sample ID")) \
     .distinct() \
     .collect()
+    #get the distinct cases of sample ID and Index, which are the same because each sample ID is associated to a sample index
+sample_index_check = [row["Sample Index"] for row in distinct_sample_ids]
+    #get each sample index
+from natsort import index_natsorted, order_by_index
+index_order = index_natsorted(sample_index_check)
+    #get the indexes under natural order as done by natsorted
+distinct_sample_ids = order_by_index(distinct_sample_ids, index_order)
+    #use these indexes to order the list of zipinfos
+
+ordered_sample_ids = [row["Sample ID"] for row in distinct_sample_ids]
+
+#reorder the IDs using natural order to follow the order in the sample map
+distinct_sample_ids =natsorted(distinct_sample_ids)
+    #I have found difficulties to load data in spark by Sample ID order. I can use orderBy by Sample ID and SNP Index, but this increases the computation time a bit for a few samples, so not sure if with hundreds of samples will be much worse.
+
+#apply order by in the df slow processing because it is run each time the DF is called..
+
+
 print("CHECK 10")
 #do the check only if we have all the samples (n_samples equals to None or the total number of samples), because you cannot compare two arrays with different size and the distinct sample id will be lower than the cases in sample map if we use a subset of samples
 if (n_samples == None):
-    print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
+    print(np.equal(ordered_sample_ids, sample_map["ID"].values[0:n_samples]))
 elif (batch_name=="ILGSA24-17303" and n_samples==216) | (batch_name=="ILGSA24-17873" and n_samples==1248):
-    print(np.equal(np.ndarray.flatten(np.array(distinct_sample_ids)), sample_map["ID"].values))
+    print(np.equal(ordered_sample_ids, sample_map["ID"].values[0:n_samples]))
 
 #see unique alleles
 print("\n#####################\n#####################")
