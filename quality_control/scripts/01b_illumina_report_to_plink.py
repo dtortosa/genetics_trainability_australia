@@ -74,9 +74,9 @@
 import sys
 import argparse
 parser=argparse.ArgumentParser()
-parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input")
-parser.add_argument("--n_cores", default=2, help="Number of cores/threads requested")
-parser.add_argument("--n_samples", type=int, default=3, help="Number of samples to be analyzed")
+parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input. Always string.")
+parser.add_argument("--n_cores", type=int, default=2, help="Number of cores/threads requested. Integer or None for all cores/threads available")
+parser.add_argument("--n_samples", type=int, default=4, help="Number of samples to be analyzed. Integer or None for all samples")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -256,7 +256,7 @@ print("#####################\n#####################")
 #the header of the final reports has been removed, so now the first row has the column names of the genotype data, but no illumina info about the report
 
 #set the number of threads per core
-if n_cores=="all":
+if n_cores==None:
     n_threads="*" #this gets all logical cores available (see below)
 else:
     n_threads=str(n_cores)
@@ -462,7 +462,10 @@ print(n_genotypes == snp_map.shape[0]*sample_map.shape[0])
 print("\n#####################\n#####################")
 print("We have as many genotypes as snps*samples according to arg --n_samples")
 print("#####################\n#####################")
-print(n_genotypes == snp_map.shape[0]*n_samples)
+if (n_samples == None) or (n_samples==216 and batch_name=="ILGSA24-17303") or (n_samples==1248 and batch_name=="ILGSA24-17873"):
+    print(n_genotypes == snp_map.shape[0]*sample_map.shape[0])
+else:
+    print(n_genotypes == snp_map.shape[0]*n_samples)    
 
 #checks
 print("\n#####################\n#####################")
@@ -511,8 +514,8 @@ n_distinct_snp_positions = df_samples_subset \
 print("CHECK 2c:")
 diff_n_snps_distinct_position = snp_map.shape[0] - n_distinct_snp_positions
 if diff_n_snps_distinct_position != 0:
-    print("IMPORTANT: DO WE HAVE DUPLICATED POSITIONS")
-    print(f"The difference between the number of SNPs in the map and the distinct positions is {diff_n_snps_distinct_position}")
+    print("IMPORTANT: WE DO HAVE DUPLICATED POSITIONS")
+    print(f"The difference between the number of SNPs in the map and the distinct SNP positions is {diff_n_snps_distinct_position}")
 
 #check that each sample has the same number of rows, i.e., SNPs
 df_samples_subset \
@@ -538,10 +541,10 @@ def calc_checks(pdf):
         #get the index of the sample
     df["check_3"] = len(pdf["SNP Index"].unique()) == snp_map.shape[0]
         #the number of unique SNP indexes is exactly the number of SNPs in the map?
-    df["check_4"] = all(pdf["SNP Index"].values == snp_map["Index"].values)
-    df["check_5"] = all(pdf["SNP Name"].values == snp_map["Name"].values)
-    df["check_6"] = all(pdf["Chr"].values == snp_map["Chromosome"].values)
-    df["check_7"] = all(pdf["Position"].values == snp_map["Position"].values)
+    df["check_4"] = pdf["SNP Index"].values == snp_map["Index"].values
+    df["check_5"] = pdf["SNP Name"].values == snp_map["Name"].values
+    df["check_6"] = pdf["Chr"].values == snp_map["Chromosome"].values
+    df["check_7"] = pdf["Position"].values == snp_map["Position"].values
         #each row (i.e., genotype) has exactly the same data regarding SNP, position... than int eh snp map?
     df["check_8"] = np.isin(pdf["Sample ID"].values[0], sample_map["ID"].values)
     df["check_9"] = np.isin(pdf["Sample Index"].values[0], sample_map["Index"].values)
@@ -580,38 +583,28 @@ checks_raw = df_samples_subset \
 for index, check in enumerate(checks_raw[0]):
     print("CHECK " + str(index+3) + ": " + str(check == n_genotypes))
 
-
-####POR AQUIIIIII
-
 #check that the distinct sample IDs are the same than the IDs in the sample map
 distinct_sample_ids = df_samples_subset \
     .select(F.col("Sample Index"), F.col("Sample ID")) \
     .distinct() \
     .collect()
-    #get the distinct cases of sample ID and Index, which are the same because each sample ID is associated to a sample index
+    #get the distinct cases of sample ID and Index, which are the same because each sample ID is associated with a sample index
 sample_index_check = [row["Sample Index"] for row in distinct_sample_ids]
     #get each sample index
 from natsort import index_natsorted, order_by_index
 index_order = index_natsorted(sample_index_check)
     #get the indexes under natural order as done by natsorted
-distinct_sample_ids = order_by_index(distinct_sample_ids, index_order)
-    #use these indexes to order the list of zipinfos
-
-ordered_sample_ids = [row["Sample ID"] for row in distinct_sample_ids]
-
-#reorder the IDs using natural order to follow the order in the sample map
-distinct_sample_ids =natsorted(distinct_sample_ids)
-    #I have found difficulties to load data in spark by Sample ID order. I can use orderBy by Sample ID and SNP Index, but this increases the computation time a bit for a few samples, so not sure if with hundreds of samples will be much worse.
-
-#apply order by in the df slow processing because it is run each time the DF is called..
-
-
+distinct_sample_ids_ordered = order_by_index(distinct_sample_ids, index_order)
+    #use these indexes to order the list of with the sample IDs, so we get first Sample ID of Sample 1, then sample 2...
+    #I have found difficulties to load data in spark by Sample ID order. I can use orderBy by Sample ID and SNP Index, but this increases the computation time a bit for a few samples, so not sure if with hundreds of samples will be much worse. It seems that groupBy is called every time we do an operation with the new DF. So I am just ordering for this check.
+ordered_sample_ids = [row["Sample ID"] for row in distinct_sample_ids_ordered]
+    #extract the Sample IDs once we have the rows ordered
 print("CHECK 10")
-#do the check only if we have all the samples (n_samples equals to None or the total number of samples), because you cannot compare two arrays with different size and the distinct sample id will be lower than the cases in sample map if we use a subset of samples
-if (n_samples == None):
-    print(np.equal(ordered_sample_ids, sample_map["ID"].values[0:n_samples]))
-elif (batch_name=="ILGSA24-17303" and n_samples==216) | (batch_name=="ILGSA24-17873" and n_samples==1248):
-    print(np.equal(ordered_sample_ids, sample_map["ID"].values[0:n_samples]))
+#if n_samples is None, we can just compare with the whole list of samples in the sample map. If n_sample is a number, then we need to compare with the corresponding number of selected samples
+if (n_samples == None) or (n_samples==216 and batch_name=="ILGSA24-17303") or (n_samples==1248 and batch_name=="ILGSA24-17873"):
+    print(all(np.equal(ordered_sample_ids, sample_map["ID"].values)))
+else:
+    print(all(np.equal(ordered_sample_ids, sample_map["ID"].values[0:n_samples])))
 
 #see unique alleles
 print("\n#####################\n#####################")
@@ -627,12 +620,15 @@ df_samples_subset \
     .show()
 
 
-######################
-# Plink Installation #
-######################
+############################
+#### Plink Installation ####
+############################
 
 #I have downloaded Plink ([link](https://www.cog-genomics.org/plink/)) and copied the executable ("plink") to `bin`, so we can use Plink from any place just typing `plink`. We are using Plink version 1.9 (see singularity recipe for the version used).
-#os.system("plink --version")
+print("\n#####################\n#####################")
+print("see plink version")
+print("#####################\n#####################")
+print(os.system("plink --version"))
 
 #Note that there is Plink 1.9 ([link](https://www.cog-genomics.org/plink/1.9/)) and Plink 2.0 ([link](https://www.cog-genomics.org/plink/2.0/)), these are not connected but different programs. 
     #This [threat](https://www.biostars.org/p/299855/#:~:text=The%20main%20difference%20is%20that,for%20a%20while%20to%20come.) of biostars explains the differences:
@@ -678,13 +674,11 @@ lgen_file.show()
 lgen_file = lgen_file \
     .withColumn("Allele1 - Forward_final", \
         F.when( \
-            (lgen_file["Allele1 - Forward"] == "-") | (lgen_file["Allele1 - Forward"] == "--"), \
-            "0") \
+            (lgen_file["Allele1 - Forward"] == "-") | (lgen_file["Allele1 - Forward"] == "--"), "0") \
             .otherwise(lgen_file["Allele1 - Forward"])) \
     .withColumn("Allele2 - Forward_final", \
         F.when( \
-            (lgen_file["Allele2 - Forward"] == "-") | (lgen_file["Allele2 - Forward"] == "--"), \
-            "0") \
+            (lgen_file["Allele2 - Forward"] == "-") | (lgen_file["Allele2 - Forward"] == "--"), "0") \
             .otherwise(lgen_file["Allele2 - Forward"])) \
     .drop("Allele1 - Forward") \
     .drop("Allele2 - Forward")
@@ -705,6 +699,7 @@ print("#####################\n#####################")
 #Add additional columns that are required for lgen files
 lgen_file = lgen_file \
     .withColumn("FID", F.lit("combat_" + batch_name))
+    #add a column using combat+batch name as literal value
 
 # Reorder the columns
 lgen_file = lgen_file \
@@ -722,11 +717,14 @@ lgen_file = lgen_file \
     #https://stackoverflow.com/questions/44575911/spark-how-to-prevent-dataframewriter-from-dropping-the-partitioning-columns-on
 
 #look
+print("\n#####################\n#####################")
+print("see lgen file before writing. Note that the second 'sample' column will be removed after using it to save with partitionBy ")
+print("#####################\n#####################")
 lgen_file.show()
 
 #save the data
 
-#we can data in binary plink format split across many files, this can be then merged, so we can just save the results of spark in different csv file
+#we can save data in binary plink format split across many files, this can be then merged, so we can just save the results of spark in different csv file
     #book plink, tutorial chirstofer
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
@@ -748,8 +746,8 @@ lgen_file \
 #NOTE about cores and partitions
     #Note that the number of files generated depends on the size of each file and the number of cores. So if you have 5 cores, i.e., local[5], at least you will get 5 partions of the data.
     #you can check the number of partitions with "lgen_file.rdd.getNumPartitions()".
-    #I have been doing analyses with the partitions that my local/clusterlet me, i.e., 5 in my laptop and tens in the HPC.
-    #Then, when writing, I specify that I want the data of each sample separated in different folders with "partitionBy". I do not care if several files are saved in the same individual if all belong to the same Sample ID, later i will merge the data
+    #I have been doing analyses with the partitions that my local/cluster let me, i.e., 5 in my laptop and tens in the HPC.
+    #Then, when writing, I specify that I want the data of each sample separated in different folders with "partitionBy". I do not care if several files are saved in the same individual folder if all belong to the same Sample ID, later i will merge the data
         #https://sparkbyexamples.com/pyspark/pyspark-partitionby-example/
         #https://stackoverflow.com/questions/48143159/spark-write-to-disk-with-n-files-less-than-n-partitions
 
@@ -765,10 +763,14 @@ lgen_file \
     #https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/#dataframe-%20coalesce
 
 #remove the duplicated sample column
+print("\n#####################\n#####################")
+print("see lgen file after removing the duplicated sample column")
+print("#####################\n#####################")
 lgen_file = lgen_file \
     .drop("sample")
 lgen_file.show()
 
+###POR AQUIII
 
 ############
 # fam file #
@@ -1170,7 +1172,7 @@ def plink_inputs_prep(lgen_full_path):
 
 #open a pool
 import multiprocessing as mp
-if n_cores=="all":
+if n_cores==None:
     pool_processors = None
         #This uses all cores available
 else:
