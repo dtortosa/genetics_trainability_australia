@@ -770,7 +770,7 @@ lgen_file = lgen_file \
     .drop("sample")
 lgen_file.show()
 
-###POR AQUIII
+
 
 ############
 # fam file #
@@ -807,31 +807,37 @@ print(pheno_data)
 #here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
 
 #beep test 8 has an error, "o" letter instead "0" number in one sample
-print(pheno_data.loc[pheno_data["Week 8 beep test"] == "11.1O", "Week 8 beep test"])
+print("\n#####################\n#####################")
+print("Week 8 beep test for a sample is 11.1O, i.e., letter O instead number 0")
+print("#####################\n#####################")
+index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
+index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
+print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
+print(pheno_data.iloc[index_problematic_sample,:])
 
 #change 11.1O for 11.10
-pheno_data.loc[pheno_data["Week 8 beep test"] == "11.1O", "Week 8 beep test"] = 11.10
+print("\n#####################\n#####################")
+print("error solved")
+print("#####################\n#####################")
+pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
+print(pheno_data.iloc[index_problematic_sample,:])
 
 #check
 print("\n#####################\n#####################")
 print("All samples with genetic data are included in pheno_data?")
 print("#####################\n#####################")
-print(sum(sample_map["ID"].isin(pheno_data["AGRF code"])) == sample_map.shape[0])
-
-print("\n#####################\n#####################")
-print("How many samples with genetic data are included in pheno_data?")
-print("#####################\n#####################")
-print(f'{sum(sample_map["ID"].isin(pheno_data["AGRF code"]))} out {sample_map.shape[0]}')
+map_samples_in_pheno = sum(sample_map["ID"].isin(pheno_data["AGRF code"]))
+    #count the number of sample IDs from the map that are in the phenotype data
+if map_samples_in_pheno != sample_map.shape[0]:
+    print("IMPORTANT, WE HAVE SAMPLES WITH GENETIC DATA NOT INCLUDED IN PHENOTYPE DATA")
+    print(f'We have {sample_map.shape[0] - map_samples_in_pheno} samples out {sample_map.shape[0]} with genetic data but not included in phenotype data')
+    #samples with genetic but no phenotipic data and viceversa will be removed when perform association analyses.
+    #I think it can be useful to have these individual without pheno data even if they are not included in the analyses because it can help us to define better the existence of substructure. It is like we analyze only samples with adiposity in HELENA, but we use the PCAs considering all individuals genotyped.
 
 #get sample IDs and gender from sample map, then modify using pheno_data
 fam_file = sample_map.loc[:, ["ID", "Gender"]]
 
-#remove those samples without phenotyipic data
-#IMPORTANT HERE, we lose samples with genetic data because they do not have pheno data and hence, no sex data from the study can be obtained, only illumina
-#fam_file_raw = fam_file_raw.loc[fam_file_raw["ID"].isin(pheno_data["AGRF code"]), :]
-    #IN CASE YOU NEED TO REMOVE
-
-# Codify the sex variable following plink notation and considering the sex in pheno_data
+#codify the sex variable following plink notation and considering the sex in pheno_data
 fam_file.loc[
     (fam_file["ID"].isin(pheno_data.loc[pheno_data["Gender"].isna(), "AGRF code"])) | 
     (~fam_file["ID"].isin(pheno_data["AGRF code"])), 
@@ -854,6 +860,13 @@ print("The new sex variable is correctly coded?")
 print("#####################\n#####################")
 print((len(fam_file["Gender"].unique()) == 3) & (np.isin(fam_file["Gender"].unique(), test_elements=["1", "2", "0"])).all())
     #only three possible sexes, being 1, 2 and 0.
+print(all(fam_file.loc[fam_file["Gender"] == "1", "ID"].isin(pheno_data.loc[pheno_data["Gender"] == "M", "AGRF code"])))
+print(all(fam_file.loc[fam_file["Gender"] == "2", "ID"].isin(pheno_data.loc[pheno_data["Gender"] == "F", "AGRF code"])))
+print(all(~fam_file.loc[fam_file["Gender"] == "0", "ID"].isin(pheno_data.loc[pheno_data["Gender"].isin(["F", "M"]), "AGRF code"])))
+    #In the new variable,
+        #1 includes only IDs that are "M" in pheno data
+        #2 includes only IDs that are "F" in pheno data
+        #0 NOT includes IDs that are "M" or "F" in pheno data
 
 # Add the family variables and the phenotype (not added for now)
 fam_file["FID"] = "combat_" + batch_name #ID for the whole study
@@ -875,6 +888,7 @@ fam_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_nam
     header=None,
     compression='gzip',
     index=False)
+
 
 
 ############
@@ -913,6 +927,7 @@ map_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_nam
     index=False)
 
 
+
 #################################
 # check with lgen and map files #
 #################################
@@ -933,6 +948,8 @@ unique_sample_ids = lgen_file \
     .collect()
 np.array_equal(np.array(unique_sample_ids), fam_file["ID"].values)
 
+
+#POR AQUIIII
 
 
 ##########################################

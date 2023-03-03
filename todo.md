@@ -42,7 +42,7 @@
                 - look its ID
             - also about the 41 samples the bottom with no phenotyipic daata
             - I guess these samples should be removed from all analyses?
-                - remove after quality control?
+                - remove after quality control? maybe it can be useul for PCAs and pop structure, see tutorials
         - ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
         - in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
             - body mass week 1 and 8
