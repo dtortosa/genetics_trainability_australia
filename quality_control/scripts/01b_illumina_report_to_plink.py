@@ -495,8 +495,12 @@ n_distinct_samples = df_samples_subset \
     .count()
 print("CHECK 2:") 
 print(n_distinct_samples == sample_map.shape[0])
-print(n_distinct_samples == n_samples)
-    #n_samples comes from --n_samples argument
+if (n_samples==None) and (batch_name == "ILGSA24-17303"):
+    print(n_distinct_samples == 216)
+elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
+    print(n_distinct_samples == 1248)
+else:
+    print(n_distinct_samples == n_samples)
 
 #check we do not have duplicated SNP names
 n_distinct_snp_names = df_samples_subset \
@@ -506,16 +510,29 @@ n_distinct_snp_names = df_samples_subset \
 print("CHECK 2b:") 
 print(n_distinct_snp_names == snp_map.shape[0])
 
-#check we do not have duplicated SNP positions
+#check we do not have duplicated SNP positions within each chromosome
+from pyspark.sql.functions import countDistinct
 n_distinct_snp_positions = df_samples_subset \
-    .select(df_samples_subset["Position"]) \
-    .distinct() \
-    .count()
+    .groupBy("Chr") \
+    .agg( \
+        countDistinct("Position")) \
+    .select(F.sum("count(Position)")) \
+    .collect()
+    #group by chromosome, then count the unique cases in each chromosome and sum all the distinct cases across chromosomes to get the total number of distinct SNPs by position
+        #https://sparkbyexamples.com/pyspark/pyspark-groupby-count-distinct/
+        #https://sparkbyexamples.com/pyspark/pyspark-count-distinct-from-dataframe/
+        #https://stackoverflow.com/questions/48568214/how-to-sum-the-values-of-a-column-in-pyspark-dataframe
+#calculate again the number of unique positions within each chromosome using pandas this time in the SNP map
+unique_pos_snp_map = sum([len(snp_map.loc[snp_map["Chromosome"]==chromo, "Position"].unique()) for chromo in np.unique(snp_map["Chromosome"])])
+    #for each chromosome, get all the positions of that chromosome in the snp map, select the distinct cases and calculate the number of these distinct cases
 print("CHECK 2c:")
-diff_n_snps_distinct_position = snp_map.shape[0] - n_distinct_snp_positions
+diff_n_snps_distinct_position = snp_map.shape[0] - np.array(n_distinct_snp_positions)[0][0]
 if diff_n_snps_distinct_position != 0:
-    print("IMPORTANT: WE DO HAVE DUPLICATED POSITIONS")
-    print(f"The difference between the number of SNPs in the map and the distinct SNP positions is {diff_n_snps_distinct_position}")
+    print("IMPORTANT: WE DO HAVE DUPLICATED SNPS CONSIDERING POSITION WITHIN CHROMOSOMES")
+    print(f"The difference between the total number of SNPs in the map and the distinct SNP positions is {diff_n_snps_distinct_position}")
+    print("The number of distinct positions per chromosome is the same in spark and in pandas?")
+    print(unique_pos_snp_map == np.array(n_distinct_snp_positions)[0][0])
+    print("SEE BELOW for filtering of duplicated snps considering POSITION and ALLELES with plink")
 
 #check that each sample has the same number of rows, i.e., SNPs
 df_samples_subset \
@@ -620,6 +637,7 @@ df_samples_subset \
     .show()
 
 
+
 ############################
 #### Plink Installation ####
 ############################
@@ -636,6 +654,7 @@ print(os.system("plink --version"))
         # So, **you should stick to 1.9 as long as it's good enough for the jobs you need to perform. But once you need to do something outside 1.9's scope, you're likely to find that 2.0 already has the additional feature you need** (or it'll be added quickly after you ask for it)"
 
 #see the dev version of this script for details about the final report like allele strands, plink usage, etc....
+
 
 
 ####################################################
@@ -928,30 +947,6 @@ map_file.to_csv("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_nam
 
 
 
-#################################
-# check with lgen and map files #
-#################################
-
-print("\n#####################\n#####################")
-print("checks with lgen, map and fam files")
-print("#####################\n#####################")
-print("SNPs are the same in lgen and map files?")
-unique_snp_names = lgen_file \
-    .select("SNP Name") \
-    .distinct() \
-    .collect()
-np.array_equal(np.array(unique_snp_names), map_file["Name"].values)
-print("samples are the same in lgen and fam files?")
-unique_sample_ids = lgen_file \
-    .select("sample_id") \
-    .distinct() \
-    .collect()
-np.array_equal(np.array(unique_sample_ids), fam_file["ID"].values)
-
-
-#POR AQUIIII
-
-
 ##########################################
 #### create plink binaries per sample ####
 ##########################################
@@ -965,9 +960,15 @@ import glob
 lgen_full_paths = glob.glob("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/sample=*", recursive=False)
 #check
 print("\n#####################\n#####################")
-print("We have the correct number of lgen folders? i.e., one per sample?")
+print("We have the correct number of lgen folders according to fam_file and --n_samples?")
 print("#####################\n#####################")
 print(len(lgen_full_paths) == fam_file.shape[0])
+if (n_samples==None) and (batch_name == "ILGSA24-17303"):
+    print(len(lgen_full_paths) == 216)
+elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
+    print(len(lgen_full_paths) == 1248)
+else:
+    print(len(lgen_full_paths) == n_samples)
 
 #get the extensions of the files in these folders
 list_files = glob.glob("data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/**/*.csv.gz", recursive=True)
@@ -981,12 +982,12 @@ list_extensions = ["-".join(path.split("-")[2:]) for path in list_files]
 print("\n#####################\n#####################")
 print("lgen files have the correct extension?")
 print("#####################\n#####################")
-if all([file == list_extensions[0] for file in list_extensions]):
+if all([extension == list_extensions[0] for extension in list_extensions]):
 
     #perfect
     print("TRUE")
 
-    #extract the extension with file type
+    #extract the extension without file type
     lgen_extension = list_extensions[0]
     lgen_extension = lgen_extension.split(".csv.gz")[0]
 else:
@@ -1019,7 +1020,7 @@ def plink_inputs_prep(lgen_full_path):
         gunzip -k *" + lgen_extension + ".csv.gz")
 
     #get the path for the files decompressed
-    files_selected_sample = glob.glob("./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name +  "_lgen_files/" + sample_id_file + "/*.csv", recursive=False)
+    files_selected_sample = glob.glob("./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name +  "_lgen_files/" + sample_id_file + "/*" + lgen_extension + ".csv", recursive=False)
     files_selected_sample = natsorted(files_selected_sample)
         #to have the same order of snps than in the snp map when we concatenate all these files
     
@@ -1098,6 +1099,7 @@ def plink_inputs_prep(lgen_full_path):
 
     #remove the lgen file
     del(lgen_file_selected_sample)
+    del(list_dfs)
 
     #copy the whole map file, in this case, we have the same snps, i.e., the same map in all samples. Indeed, illumina gives one map for the whole batch. Save the file in the folder of the sample
     os.system(
@@ -1188,12 +1190,12 @@ def plink_inputs_prep(lgen_full_path):
         rm *" + lgen_extension + ".csv")
 
 #open a pool
-import multiprocessing as mp
 if n_cores==None:
     pool_processors = None
         #This uses all cores available
 else:
     pool_processors = int(n_cores)
+import multiprocessing as mp
 pool = mp.Pool(processes=pool_processors)
 
 #apply the function across the pool
@@ -1241,6 +1243,18 @@ os.system(
             #copy the file to the folder for merging
         #https://stackoverflow.com/questions/15617016/copy-all-files-with-a-certain-extension-from-all-subdirectories
         #https://unix.stackexchange.com/questions/189210/find-command-multiple-conditions
+
+#check
+print("\n#####################\n#####################")
+print("we are going to merge the correct number of plink files")
+print("#####################\n#####################")
+if (n_samples==None) and (batch_name == "ILGSA24-17303"):
+    print(len(glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/" + batch_name + "*", recursive=False)) == 216*3)
+elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
+    print(len(glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/" + batch_name + "*", recursive=False)) == 1248*3)
+else:
+    print(len(glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/" + batch_name + "*", recursive=False)) == n_samples*3)
+    #the total number of files in the folder for merging should be 3 times the number of samples
 
 #get all bed files paths and names
 bed_full_paths = glob.glob("data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/" + batch_name + "*.bed", recursive=False)
@@ -1315,86 +1329,45 @@ duplicate_cases = pd.read_csv(
     header=None,
     low_memory=False)
 
+#the file generated has in each row ALL snps that have the same position and alleles, except the first one, thus, the number of rows it is not the total number of duplicates, we need also to know the number of snps in each row.
+n_duplicates_plink = sum([len(row.split(" ")) if " " in row else 1 for row in duplicate_cases[0]])
+    #select each row in the first and only column of duplicate cases (only one columne due to "ids-only" flag in plink)
+    #split the row by space and count the number of pieces, i.e., snps, if there are spaces in the row
+    #if not, just count 1
+    #then sum
+    #https://stackoverflow.com/questions/4406389/if-else-in-a-list-comprehension
+
+#see number of plink duplicates
+print("\n#####################\n#####################")
+print("see number of plink duplicates")
+print("#####################\n#####################")
+print(n_duplicates_plink)
+print(f"This is a {(n_duplicates_plink/snp_map.shape[0])*100} percent respect to the total number of SNPs")
+
 #check
 print("\n#####################\n#####################")
-print("the number of duplicates according with plink matches my previous estimation with spark?")
+print("the number of duplicates based only on POSITION should be equal or higher than the duplicates based on POSITION AND ALLELES, i.e., plink duplicates. Duplicates in the latter have the same position and alleles, thus they should be included in the former list. Of course, the former list could have more snps that share position but not alleles, thus fulfilling criteria of the former but not the latter list")
 print("#####################\n#####################")
-print(duplicate_cases.shape[0] == diff_n_snps_distinct_position)
+print(diff_n_snps_distinct_position >= n_duplicates_plink)
+    #There is no correspondence between the duplicated snps calculated with numpy and those of plink because plink uses both position and alleles. So it only removes snps with the same position AND the same alleles, irrespectively of the strand. For example, two snps with the same position and having A/T and T/A for reference and derived, will be considered duplicated by plink, while two snps with the same position but different alleles not. This explains why plink detects less duplicates than our approach with numpy/spark. It also explains why, if I select distinct snps according to the concatenation of position and allele colums (e.g., 3243241_A/T), I get less duplicates than with plink, because plink considers AT and TA, not only AT. In summary, I cannot replicate the filtering done by plink and it is ok to have different number of duplicates.
+        #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
+    #Also note that we do not have duplicated SNP names, so we do not have to apply filters for that, which would have to be applied using plink2.
+        #https://www.biostars.org/p/360918/
 
 
 ##remove these duplicates
-#duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem.
+#duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem. But we will do this latter, after merging the batches, when we apply multiple QC filters. I guess it is cleaner to change nothing on the data, see any batch effect, modify and then do filters. I guess that having as many markers as possible could help to detect batch effect.s
 
-#if there are more than 2% of duplicates, stop
-if (duplicate_cases.shape[0]/n_genotypes)*100 > 2:
-    raise ValueError("ERROR! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
-
-#open a folder to save filtered dataset
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    rm -rf ./04_inspect_snp_dup/01_remove_dup/; \
-    mkdir -p ./04_inspect_snp_dup/01_remove_dup/")
-
-#filter these snps
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    plink \
-        --bfile ./03_merged_data/" + batch_name + "_merged_data \
-        -exclude ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar \
-        --out  ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
-        --make-bed")
-        #-exclude a list with the SNP names as input to remove snps
-
-#check again for duplicates
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
-    plink \
-        --bfile ./" + batch_name + "_merged_data_no_snp_dup \
-        --list-duplicate-vars suppress-first ids-only\
-        --out  ./" + batch_name + "_duplicates")
-
-#count number of duplicates
 print("\n#####################\n#####################")
-print("Do we have zero duplicated positions after filtering? THIS CHECK CAN BE PRINTED BEFORE THIS LINE")
+print("duplicates we will be removed in the next steps of the pipeline")
 print("#####################\n#####################")
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/ \
-    n_lines=wc -l " + batch_name + "_duplicates.dupvar; \
-    FILE=" + batch_name + "_duplicates.dupvar; \
-    if [ -f $FILE ] && [ $n_lines==0 ]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-    #count the number of lines in the duplicates list
-    #save the name of that file
-    #if the file exists and the number of lines is zero, perfect because there no snp duplicated by position
-    #else False
-
-#remove the files we are not interested in
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
-    rm " + batch_name + "_duplicates.dupvar")
-
-#remove hh files only if they are present
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup; " \
-    "n_hh_files=$(ls *.hh | wc -l); \
-    if [ $n_hh_files -gt 0 ]; then \
-        rm ./" + batch_name + "*.hh; \
-    fi")
-    #count the number of files with the "hh" extension
-    #if that number is greater than 0, then remove all the hh files
 
 #compress the bed/bim/fam files
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     gzip ./03_merged_data/" + batch_name + "_merged_data.bed; \
     gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
-    gzip ./03_merged_data/" + batch_name + "_merged_data.fam; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bed; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.fam")
+    gzip ./03_merged_data/" + batch_name + "_merged_data.fam")
 
 
 
@@ -1408,10 +1381,3 @@ temp_dir.cleanup()
 
 #stop spark env
 spark.stop()
-
-#search for duplicates snp positions. there is a link to convert gsa names to rsi!
-    #https://www.biostars.org/post/search/?query=duplicated+snp+names+illumina
-    #https://www.biostars.org/p/277737/
-
-
-#CHECK THE DIFFERENT FORMATS GENErated in ped/bim...

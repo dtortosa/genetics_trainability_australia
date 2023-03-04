@@ -16,7 +16,96 @@
 ######## MERGE BATCHES AND ASSESS BATCH EFFECTS ########
 ########################################################
 
-#This script will merge the plink binary files of both batches and then check if there is any batch effect
+#QC BEFORE OR AFTER MERGINIG?
+    #Identifying and mitigating batch effects in whole genome sequencing data
+
+#This script will merge the plink binary files of both batches and then check if there is any batch effect and then perform QCC
+
+
+
+#FOR QUALITY CONTROL, YOU COULD USE MIGHIGGAN SERVER, WHICH ALREADY APPLIES MULTIPLE FILTERS like duplicates AND THEN ADD A FEW WITH PLINK, AUGUSTO DID THAT
+    #https://www.mdpi.com/2073-4425/14/2/248
+    #https://imputationserver.readthedocs.io/en/latest/pipeline/
+
+
+
+
+
+##remove these duplicates
+#duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem.
+
+#if there are more than 2% of duplicates, stop
+if (n_duplicates_plink/n_genotypes)*100 > 2:
+    raise ValueError("ERROR! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
+
+#open a folder to save filtered dataset
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    rm -rf ./04_inspect_snp_dup/01_remove_dup/; \
+    mkdir -p ./04_inspect_snp_dup/01_remove_dup/")
+
+#filter these snps
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    plink \
+        --bfile ./03_merged_data/" + batch_name + "_merged_data \
+        -exclude ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar \
+        --out  ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
+        --make-bed")
+        #-exclude a list with the SNP names as input to remove snps
+
+#check again for duplicates
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
+    plink \
+        --bfile ./" + batch_name + "_merged_data_no_snp_dup \
+        --list-duplicate-vars suppress-first ids-only\
+        --out  ./" + batch_name + "_duplicates")
+
+#count number of duplicates
+print("\n#####################\n#####################")
+print("Do we have zero duplicated positions after filtering? THIS CHECK CAN BE PRINTED BEFORE THIS LINE")
+print("#####################\n#####################")
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/ \
+    n_lines=wc -l " + batch_name + "_duplicates.dupvar; \
+    FILE=" + batch_name + "_duplicates.dupvar; \
+    if [ -f $FILE ] && [ $n_lines==0 ]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+    #count the number of lines in the duplicates list
+    #save the name of that file
+    #if the file exists and the number of lines is zero, perfect because there no snp duplicated by position
+    #else False
+
+#remove the files we are not interested in
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
+    rm " + batch_name + "_duplicates.dupvar")
+
+#remove hh files only if they are present
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup; " \
+    "n_hh_files=$(ls *.hh | wc -l); \
+    if [ $n_hh_files -gt 0 ]; then \
+        rm ./" + batch_name + "*.hh; \
+    fi")
+    #count the number of files with the "hh" extension
+    #if that number is greater than 0, then remove all the hh files
+
+#compress the bed/bim/fam files
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.bed; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.fam; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bed; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.fam")
+
+
 
 
 

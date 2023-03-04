@@ -35,6 +35,7 @@
         - 1  combat  7684BSAO  rs5955017
     - check genotype calls that are I or D
         - how plink deals with this?
+    - quitar mitocontrodial and other strange chromosomes?
 
     - pheno_data
         - samples without phenotype
@@ -68,9 +69,12 @@
     - https://genomicsbootcamp.github.io/book/
 - Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
     - paper augusto, shap values.
+- Identifying and mitigating batch effects in whole genome sequencing data
 - Quality Control Procedures for Genome-Wide Association Studies
     - there is a version of 2011 and new one in 2022 with github repo
     - https://github.com/RitchieLab/GWAS-QC#basic-overview
+- Integrative polygenic risk score improves the prediction accuracy of complex traits and diseases 
+- Interpreting population and family-based genome-wide association studies in the presence of confounding
 - A tutorial on conducting genome‐wide association studies: Quality control and statistical analysis
 - Genetic prediction of complex traits with polygenic scores: a statistical review
 - Addressing the challenges of polygenic scores in human genetic research

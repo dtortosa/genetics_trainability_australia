@@ -14,10 +14,10 @@ cd ..
 	#we are running this from script, so we have to go to the parent directory
 
 #run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
-./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17303" --n_cores="all" --n_samples=4 > ./scripts/01b_illumina_report_to_plink_ILGSA24_17303.out 2>&1 &
-	#--n_samples=216 is the max, defult is 2
+./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17303" --n_cores=2 --n_samples=4 > ./scripts/01b_illumina_report_to_plink_ILGSA24_17303.out 2>&1 &
+	#--n_samples=216 is the max
 sleep 1s
 	#we need delay the next process in order to leave time just in case
 	#https://stackoverflow.com/questions/49944364/how-to-run-two-commands-but-with-a-delay-on-the-second-command-without-stopping
-./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17873" --n_cores="all" --n_samples=4 > ./scripts/01b_illumina_report_to_plink_ILGSA24_17873.out 2>&1 &
-	#--n_samples=1248 is the max, defult is 2
+./scripts/01b_illumina_report_to_plink.py --batch_name="ILGSA24-17873" --n_cores=2 --n_samples=4 > ./scripts/01b_illumina_report_to_plink_ILGSA24_17873.out 2>&1 &
+	#--n_samples=1248 is the max
