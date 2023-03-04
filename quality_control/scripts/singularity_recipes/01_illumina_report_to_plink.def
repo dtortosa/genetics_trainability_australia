@@ -194,11 +194,11 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 #The contents of the %runscript section are written to a file within the container that is executed when the container image is run (either via the singularity run command or by executing the container directly as a command). When the container is invoked, arguments following the container name are passed to the runscript. This means that you can (and should) process arguments within your runscript.
 
 %runscript
-
-	#run scripts. NOT USE "&", each script have to be run after the previous one have been run
-	/./opt/scripts/01b_illumina_report_to_plink.py > 01b_illumina_report_to_plink.out 2>&1
-		#to get output and errors in the same file
-		#see bash script for details
+	
+	#run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
+	/opt/scripts/./01b_illumina_report_to_plink.py --batch_name="ILGSA24-17303" --n_cores=25 --n_samples=None > ./01b_illumina_report_to_plink_ILGSA24_17303.out 2>&1 &
+	sleep 1s
+	/opt/scripts/./01b_illumina_report_to_plink.py --batch_name="ILGSA24-17873" --n_cores=25 --n_samples=None > ./01b_illumina_report_to_plink_ILGSA24_17873.out 2>&1 &
 
 
 
