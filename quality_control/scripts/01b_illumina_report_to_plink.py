@@ -76,7 +76,7 @@ import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input. Always string.")
 parser.add_argument("--n_cores", default=2, help="Number of cores/threads requested. Integer or None for all cores/threads available")
-parser.add_argument("--n_samples", default=4, help="Number of samples to be analyzed. Integer or None for all samples")
+parser.add_argument("--n_samples", default=None, help="Number of samples to be analyzed. Integer or None for all samples")
     #type=str to use the input as string, perfect for batch_name
     #type=int converts to integer, but n_cores and n_samples can be int and None, so better to avoid type=int. If None, the script will avoid using these arguments as integers.
     #default is the default value when the argument is not passed
@@ -133,10 +133,11 @@ zipinfos_subset = order_by_index(zipinfos_subset, index_order)
     #use these indexes to order the list of zipinfos
 
 #if we have selected only a subset of samples
-if (n_samples != None) and (batch_name=="ILGSA24-17303" and n_samples<216) | (batch_name=="ILGSA24-17873" and n_samples<1248):
+if (n_samples != None):
+    if (batch_name=="ILGSA24-17303" and n_samples<216) | (batch_name=="ILGSA24-17873" and n_samples<1248): #separate conditions because if n_samples is None, then you cannot do n_samples<216 as None is not an integer
 
-    #select a subset of the samples
-    zipinfos_subset = zipinfos_subset[0:n_samples]
+        #select a subset of the samples
+        zipinfos_subset = zipinfos_subset[0:n_samples]
 
 #once we have the selected samples, add the paths for SNP and sample maps obtained from the original zipinfos
 zipinfos_subset.append(zipinfos[np.where([zipinfo.filename == zip_name + "/SNP_Map.txt" for zipinfo in zipinfos])[0][0]])
