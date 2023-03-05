@@ -75,10 +75,10 @@ import sys
 import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input. Always string.")
-parser.add_argument("--n_cores", type=int, default=2, help="Number of cores/threads requested. Integer or None for all cores/threads available")
-parser.add_argument("--n_samples", type=int, default=4, help="Number of samples to be analyzed. Integer or None for all samples")
-    #type=str to use the input as string
-    #type=int converts to integer
+parser.add_argument("--n_cores", default=2, help="Number of cores/threads requested. Integer or None for all cores/threads available")
+parser.add_argument("--n_samples", default=4, help="Number of samples to be analyzed. Integer or None for all samples")
+    #type=str to use the input as string, perfect for batch_name
+    #type=int converts to integer, but n_cores and n_samples can be int and None, so better to avoid type=int. If None, the script will avoid using these arguments as integers.
     #default is the default value when the argument is not passed
 args=parser.parse_args()
     #https://docs.python.org/3/library/argparse.html
