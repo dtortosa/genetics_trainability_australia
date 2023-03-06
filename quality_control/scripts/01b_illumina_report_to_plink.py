@@ -75,8 +75,8 @@ import sys
 import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input. Always string.")
-parser.add_argument("--n_cores", type=int, default=2, help="Number of cores/threads requested. Integer always, None does not work!")
-parser.add_argument("--n_samples", type=int, default=4, help="Number of samples to be analyzed. Integer always, None does not work!")
+parser.add_argument("--n_cores", type=int, default=4, help="Number of cores/threads requested. Integer always, None does not work!")
+parser.add_argument("--n_samples", type=int, default=10, help="Number of samples to be analyzed. Integer always, None does not work!")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -554,18 +554,22 @@ df_samples_subset \
 #pdf = pd.read_csv(temp_dir.name+ "/" + zip_name + "_FinalReport1.txt", delimiter="\t", header=0, low_memory=False)
 def calc_checks(pdf):
 
+    #reorder rows based on SNP name in both pdf and the snp map to avoid errors
+    pdf = pdf.sort_values(by="SNP Name")
+    snp_map_ordered = snp_map.sort_values(by="Name")
+
     #create a pandas DF with the column names of the checks
     df = pd.DataFrame(columns=["index", "check_3", "check_4", "check_5", "check_6", "check_7", "check_8", "check_9"])
 
     #fill the different columns
     df["index"] = pdf["Sample Index"]
         #get the index of the sample
-    df["check_3"] = len(pdf["SNP Index"].unique()) == snp_map.shape[0]
+    df["check_3"] = len(pdf["SNP Index"].unique()) == snp_map_ordered.shape[0]
         #the number of unique SNP indexes is exactly the number of SNPs in the map?
-    df["check_4"] = pdf["SNP Index"].values == snp_map["Index"].values
-    df["check_5"] = pdf["SNP Name"].values == snp_map["Name"].values
-    df["check_6"] = pdf["Chr"].values == snp_map["Chromosome"].values
-    df["check_7"] = pdf["Position"].values == snp_map["Position"].values
+    df["check_4"] = pdf["SNP Index"].values == snp_map_ordered["Index"].values
+    df["check_5"] = pdf["SNP Name"].values == snp_map_ordered["Name"].values
+    df["check_6"] = pdf["Chr"].values == snp_map_ordered["Chromosome"].values
+    df["check_7"] = pdf["Position"].values == snp_map_ordered["Position"].values
         #each row (i.e., genotype) has exactly the same data regarding SNP, position... than int eh snp map?
     df["check_8"] = np.isin(pdf["Sample ID"].values[0], sample_map["ID"].values)
     df["check_9"] = np.isin(pdf["Sample Index"].values[0], sample_map["Index"].values)
