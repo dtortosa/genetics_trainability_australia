@@ -271,7 +271,7 @@ from pyspark.sql import SparkSession
 spark = SparkSession.builder \
     .appName("working with illumina reports") \
     .master("local[" + n_threads + "]") \
-    .config("spark.driver.memory", "6g") \
+    .config("spark.driver.memory", "10g") \
     .getOrCreate()
     #master: 
         #master indicates if you are in local machine or in a cluster. If cluster, you have to indicate the address. We are going to use the singularity container as a local cluster both here and in the HPC.
