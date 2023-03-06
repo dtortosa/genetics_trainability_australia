@@ -29,7 +29,7 @@
 ### set the constraint for high memory nodes in case you use a lot of memory per node
 ###SBATCH --constraint=hi_mem
 ### REQUIRED. Specify the time required for this job, hhh:mm:ss
-#SBATCH --time=240:00:00
+#SBATCH --time=16:00:00
  
  
 # --------------------------------------------------------------
