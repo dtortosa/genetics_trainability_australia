@@ -479,7 +479,7 @@ print("#####################\n#####################")
 #check that the sample ID is the same than that showed in the input file name
 import pyspark.sql.functions as F
 #define the two columns to be compared
-col_input_name_check = F.split(F.col("input_file"), "file://" + temp_dir.name + "/" + zip_name + "_").getItem(1)
+col_input_name_check = F.split(F.col("input_file"), "file:" + temp_dir.name + "/" + zip_name + "_").getItem(1)
     #prepare a column from splitting the input_file column using the whole name until FinalReport as delimiter. Therefore, the split will have two parts, being FinalReportXX.txt the second, i.e., "getItem(1)". The column "input_file" was previously created.
 col_index_check = F.concat(F.lit("FinalReport"), F.col("Sample Index"), F.lit(".txt"))
     #prepare a column concatenating FinalReport and .txt as literal values to the sample index, so we have the same format than in the input file name

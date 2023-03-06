@@ -196,9 +196,9 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 %runscript
 	
 	#run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
-	/opt/scripts/./01b_illumina_report_to_plink.py --batch_name="ILGSA24-17303" --n_cores=25 --n_samples=216 > ./01b_illumina_report_to_plink_ILGSA24_17303.out 2>&1 &
-	sleep 1s
-	/opt/scripts/./01b_illumina_report_to_plink.py --batch_name="ILGSA24-17873" --n_cores=25 --n_samples=1248 > ./01b_illumina_report_to_plink_ILGSA24_17873.out 2>&1
+	#run first the smallest batch with all cores and then the second batch. If we do it in parallel both batches with half of the cores, then the smallest one will be finished early and its cores will not be used by the other batch.
+	/opt/scripts/./01b_illumina_report_to_plink.py --batch_name="ILGSA24-17303" --n_cores=50 --n_samples=216 > ./01b_illumina_report_to_plink_ILGSA24_17303.out 2>&1
+	/opt/scripts/./01b_illumina_report_to_plink.py --batch_name="ILGSA24-17873" --n_cores=50 --n_samples=1248 > ./01b_illumina_report_to_plink_ILGSA24_17873.out 2>&1
 
 
 
