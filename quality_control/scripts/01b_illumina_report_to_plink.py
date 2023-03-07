@@ -1389,3 +1389,8 @@ temp_dir.cleanup()
 
 #stop spark env
 spark.stop()
+
+
+#error in the number of bed files and ped files generated in the second batch. There are many repeated samples, like sample=1100JHJM_1 and sample=1100JHJM_2. unzip all samples of the second batch in the HPC interactively, and check distinct samples, etc..
+
+#change name of the slrum file?
