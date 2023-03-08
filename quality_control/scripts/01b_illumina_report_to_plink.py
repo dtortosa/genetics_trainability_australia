@@ -1391,6 +1391,20 @@ temp_dir.cleanup()
 spark.stop()
 
 
-#error in the number of bed files and ped files generated in the second batch. There are many repeated samples, like sample=1100JHJM_1 and sample=1100JHJM_2. unzip all samples of the second batch in the HPC interactively, and check distinct samples, etc..
+#error in the number of bed files and ped files generated in the second batch. There are three samples (7800AGSO , 1100JHJM  and 1200JPJM ) that have two different final reports, with the extension _1 and _2. 1200JPJM and 1100JHJM are indeed duplicated in pheno data! but not 7800AGSO.
+    #index Name ID
+    # 30   NaN  7800AGSO_1 
+    # 59   NaN  7800AGSO_2 
+    #409   NaN  1100JHJM_1 
+    #413   NaN  1100JHJM_2 
+    #576   NaN  1200JPJM_1 
+    #585   NaN  1200JPJM_2
+    #sample_map.loc[sample_map["ID"].isin(["1100JHJM_1", "1100JHJM_2", "7800AGSO_1", "7800AGSO_2", "1200JPJM_1", "1200JPJM_2"]), :]
+    #pheno_data.loc[pheno_data["AGRF code"].isin(["1100JHJM", "7800AGSO", "1200JPJM"]), :]
+
+    #look into the final reports of these, specially 7800AGSO
+        #you can them directly looking at the FinalReportX where X is the index.
 
 #change name of the slrum file?
+
+#make the container run using the script outside of the container, so you do not have to build it again and again every time you modify the script
