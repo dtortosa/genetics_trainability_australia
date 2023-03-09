@@ -1404,6 +1404,8 @@ spark.stop()
 
     #look into the final reports of these, specially 7800AGSO
         #you can them directly looking at the FinalReportX where X is the index.
+        #[30, 59, 409, 413, 576, 585] but subtracting 1
+        #zipinfos_subset=[zipinfos_subset[i] for i in [29, 58, 408, 412, 575, 584]]
 
 #change name of the slrum file?
 
