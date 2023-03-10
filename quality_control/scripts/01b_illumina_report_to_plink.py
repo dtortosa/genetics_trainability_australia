@@ -1391,7 +1391,7 @@ temp_dir.cleanup()
 spark.stop()
 
 
-#error in the number of bed files and ped files generated in the second batch. There are three samples (7800AGSO , 1100JHJM  and 1200JPJM ) that have two different final reports, with the extension _1 and _2. 1200JPJM and 1100JHJM are indeed duplicated in pheno data! but not 7800AGSO.
+#error in the number of bed files and ped files generated in the second batch. There are three samples (7800AGSO , 1100JHJM  and 1200JPJM ) that have two different final reports, with the extension _1 and _2.
     #index Name ID
     # 30   NaN  7800AGSO_1 
     # 59   NaN  7800AGSO_2 
@@ -1401,6 +1401,42 @@ spark.stop()
     #585   NaN  1200JPJM_2
     #sample_map.loc[sample_map["ID"].isin(["1100JHJM_1", "1100JHJM_2", "7800AGSO_1", "7800AGSO_2", "1200JPJM_1", "1200JPJM_2"]), :]
     #pheno_data.loc[pheno_data["AGRF code"].isin(["1100JHJM", "7800AGSO", "1200JPJM"]), :]
+    
+    #1200JPJM and 1100JHJM are indeed duplicated in pheno data! For these two cases seems to exist an error, a duplication in the Id of the original database, so in each case, there are two individuals with the same AGRF code but different age, metrics... so it seems an error. Indeed, they have different genotypes in some snps, indicating that they are actually two different individuals. I think we cannot know if 1200JPJM_1 is referring to the first individual with 1200JPJM in the pheno_data or the other way around, so I would remove these two samples.
+        #pheno_data.loc[pheno_data["AGRF code"].duplicated(keep=False), :]
+        #df_samples_subset.filter(F.col("Sample ID") == "1100JHJM_1").show()
+        #df_samples_subset.filter(F.col("Sample ID") == "1100JHJM_2").show()
+        #df_samples_subset.filter(F.col("Sample ID") == "1200JPJM_1").show()
+        #df_samples_subset.filter(F.col("Sample ID") == "1200JPJM_2").show()
+
+    #in the case of 7800AGSO, there is no duplication of AGRF code.
+        #df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_1").show()
+        #df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").show()
+
+
+    allele_1_7800AGSO_1 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_1").select("Allele1 - Forward").collect()
+    allele_2_7800AGSO_1 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_1").select("Allele2 - Forward").collect()
+
+    allele_1_7800AGSO_2 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").select("Allele1 - Forward").collect()
+    allele_2_7800AGSO_2 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").select("Allele2 - Forward").collect()
+
+    #as we are fitering selection all rows of a sample, we should have the same number of rows and order than in the snp map, so we can use to extract index
+
+    snp_index_differ_allele_1 = [index+1 for index in range(0, snp_map.shape[0], 1) if allele_1_7800AGSO_1[index] != allele_1_7800AGSO_2[index]]
+
+
+    df_samples_subset \
+        .filter( \
+            (F.col("Sample ID") == "7800AGSO_1") & \
+            (F.col("SNP Index").isin(snp_index_differ_allele_1[0:10])) | \
+            (F.col("Sample ID") == "7800AGSO_2") & \
+            (F.col("SNP Index").isin(snp_index_differ_allele_1[0:10]))) \
+        .show()
+
+    #see different genotypes
+
+
+
 
     #look into the final reports of these, specially 7800AGSO
         #you can them directly looking at the FinalReportX where X is the index.
