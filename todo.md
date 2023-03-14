@@ -34,13 +34,21 @@
         - 0  combat  7691CPSO  rs5917469
         - 1  combat  7684BSAO  rs5955017
     - check genotype calls that are I or D
+        - these are indels?
+            - 1:207754848-GATAA-G
+                - rs5780395 is its name and it is an indel
+                - https://www.ncbi.nlm.nih.gov/snp/?term=rs5780395
+                - https://useast.ensembl.org/Homo_sapiens/Variation/Explore?db=core;r=1:207581500-207581510;source=dbSNP;v=rs5780395;vdb=variation;vf=3120483
         - how plink deals with this?
+            - plink has flag  --snps-only to keep snps
+                - https://www.biostars.org/p/378475/
     - quitar mitocontrodial and other strange chromosomes?
 
     - pheno_data
         - samples without phenotype
             - Ask david about the sample included in first batch but not present in the csv file
-                - look its ID
+                - we can see that we have the 1200JPJM_1/2 and 1100JHJM_1/2 that are actually in pheno data but with the same ID, and then we have 7800AGSO_1/2 that is not duplicated in pheno data. I think this is the missing sample in pheno data.
+                - The total number of samples in the phenotype data is 1463 (have 43 of the code no data, empty rows). In contrast, we have in the two batches 1248+216=1464 samples. Therefore, there is a missing sample in the phenotype data that could be 7800AGSO_2, because that code is not duplicated in the pheno_data.
             - also about the 41 samples the bottom with no phenotyipic daata
             - I guess these samples should be removed from all analyses?
                 - remove after quality control? maybe it can be useul for PCAs and pop structure, see tutorials

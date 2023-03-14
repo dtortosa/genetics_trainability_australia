@@ -29,7 +29,10 @@
 
 
 
-
+#check if indels!
+    #1:207754848-GATAA-G
+    #plink has flag  --snps-only to keep snps
+        #https://www.biostars.org/p/378475/
 
 ##remove these duplicates
 #duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem.

@@ -169,6 +169,8 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 %environment
     export LC_ALL=C #The $LC_ALL variable is useful for many programs (often written in Perl) that complain when no locale is set.
 
+    export SHELL=/bin/bash #set bash as default shell to avoid using sh
+
 	#set the path of spark as environmental variable in our bash profile, so it is always present
     export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3
     	#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable

@@ -1401,7 +1401,12 @@ spark.stop()
     #585   NaN  1200JPJM_2
     #sample_map.loc[sample_map["ID"].isin(["1100JHJM_1", "1100JHJM_2", "7800AGSO_1", "7800AGSO_2", "1200JPJM_1", "1200JPJM_2"]), :]
     #pheno_data.loc[pheno_data["AGRF code"].isin(["1100JHJM", "7800AGSO", "1200JPJM"]), :]
-    
+
+    #to see the final reports of these samples
+        #you can them directly looking at the FinalReportX where X is the index.
+        #[30, 59, 409, 413, 576, 585] but subtracting 1
+        #zipinfos_subset=[zipinfos_subset[i] for i in [29, 58, 408, 412, 575, 584]]
+
     #1200JPJM and 1100JHJM are indeed duplicated in pheno data! For these two cases seems to exist an error, a duplication in the Id of the original database, so in each case, there are two individuals with the same AGRF code but different age, metrics... so it seems an error. Indeed, they have different genotypes in some snps, indicating that they are actually two different individuals. I think we cannot know if 1200JPJM_1 is referring to the first individual with 1200JPJM in the pheno_data or the other way around, so I would remove these two samples.
         #pheno_data.loc[pheno_data["AGRF code"].duplicated(keep=False), :]
         #df_samples_subset.filter(F.col("Sample ID") == "1100JHJM_1").show()
@@ -1414,34 +1419,51 @@ spark.stop()
         #df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").show()
 
 
+    ##explore more 7800AGSO
+    #select the allele 1 and 2 of both 7800AGSO_1 and 7800AGSO_2
     allele_1_7800AGSO_1 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_1").select("Allele1 - Forward").collect()
     allele_2_7800AGSO_1 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_1").select("Allele2 - Forward").collect()
-
     allele_1_7800AGSO_2 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").select("Allele1 - Forward").collect()
     allele_2_7800AGSO_2 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").select("Allele2 - Forward").collect()
 
     #as we are fitering selection all rows of a sample, we should have the same number of rows and order than in the snp map, so we can use to extract index
-
     snp_index_differ_allele_1 = [index+1 for index in range(0, snp_map.shape[0], 1) if allele_1_7800AGSO_1[index] != allele_1_7800AGSO_2[index]]
+    snp_index_differ_allele_2 = [index+1 for index in range(0, snp_map.shape[0], 1) if allele_2_7800AGSO_1[index] != allele_2_7800AGSO_2[index]]
+        #for each SNP, if the allele 1/2 is not the same between the two samples, get the index of the SNP
 
-
+    #show the first ten of these snps for each sample
     df_samples_subset \
         .filter( \
             (F.col("Sample ID") == "7800AGSO_1") & \
-            (F.col("SNP Index").isin(snp_index_differ_allele_1[0:10])) | \
+            (F.col("SNP Index").isin(snp_index_differ_allele_1[0:10]))) \
+            .show()
+    df_samples_subset \
+        .filter( \
             (F.col("Sample ID") == "7800AGSO_2") & \
             (F.col("SNP Index").isin(snp_index_differ_allele_1[0:10]))) \
         .show()
+    df_samples_subset \
+        .filter( \
+            (F.col("Sample ID") == "7800AGSO_1") & \
+            (F.col("SNP Index").isin(snp_index_differ_allele_2[0:10]))) \
+            .show()
+    df_samples_subset \
+        .filter( \
+            (F.col("Sample ID") == "7800AGSO_2") & \
+            (F.col("SNP Index").isin(snp_index_differ_allele_2[0:10]))) \
+        .show()
+    
+    #we can clearly see that the genotypes for these snps are different between 7800AGSO_1 and 7800AGSO_2. There is no duplication of this AGRF code, but still we have it two times in the final reports with different genotypes.
 
-    #see different genotypes
+    #from the samples IDs that are NOT in pheno data
+    sample_map.loc[~sample_map["ID"].isin(pheno_data["AGRF code"]),:]
+    #we can see that we have the 1200JPJM_1/2 and 1100JHJM_1/2 that are actually in pheno data but with the same ID, and then we have 7800AGSO_1/2 that is not duplicated in pheno data. I think this is the missing sample in pheno data.
+
+    #The total number of samples in the phenotype data is 1463 (have 43 of the code no data, empty rows). In contrast, we have in the two batches 1248+216=1464 samples. Therefore, there is a missing sample in the phenotype data that could be 7800AGSO_2, because that code is not duplicated in the pheno_data.
 
 
+#THINK if you can do anything more about this, put the code above and then  decide what to do with these samples 
 
-
-    #look into the final reports of these, specially 7800AGSO
-        #you can them directly looking at the FinalReportX where X is the index.
-        #[30, 59, 409, 413, 576, 585] but subtracting 1
-        #zipinfos_subset=[zipinfos_subset[i] for i in [29, 58, 408, 412, 575, 584]]
 
 #change name of the slrum file?
 
