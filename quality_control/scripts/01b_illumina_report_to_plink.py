@@ -1273,7 +1273,7 @@ if n_samples==1248 and batch_name=="ILGSA24-17873":
     print("ERROR/FALSE in the number of bed files generated in the second batch")
     print("#####################\n#####################")
 
-    #the number of bim, bed and fam files across the whole batch is 1242, i.e., 1242*3, when it should be 1248 as we have 1248 final reports Therefore, we are lacking data from 6 final reports. The problem comes from 6 final reports that seems to be duplicated.
+    #the number of bim, bed and fam files across the whole batch is 1242, i.e., 1242*3, when it should be 1248 as we have 1248 final reports. Therefore, we are lacking data from 6 final reports. The problem comes from 6 final reports that seems to be duplicated.
     print("Number of bed, bim and fam files generated")
     print(os.system("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*bed | wc -l"))
     print(os.system("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*bim | wc -l"))
@@ -1308,8 +1308,8 @@ if n_samples==1248 and batch_name=="ILGSA24-17873":
     print("see genotypes of the sample with with two final reports but that is not duplicated in pheno data")
     df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_1").show()
     df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").show()
-    
-    #POR AQUIII
+        #I cannot see differences in the 20 first snps, but we have to check the whole list of snps
+
 
     ##explore more 7800AGSO
     print("explore more the sample that is not duplicated in pheno data")
@@ -1319,10 +1319,12 @@ if n_samples==1248 and batch_name=="ILGSA24-17873":
     allele_1_7800AGSO_2 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").select("Allele1 - Forward").collect()
     allele_2_7800AGSO_2 = df_samples_subset.filter(F.col("Sample ID") == "7800AGSO_2").select("Allele2 - Forward").collect()
     
-    #as we are fitering selection all rows of a sample, we should have the same number of rows and order than in the snp map, so we can use to extract index
+    #get the indexes of those SNPs for which 7800AGSO_1 and 7800AGSO_2 differ
+    #as we are filtering on all rows of a sample, then we should have the same number of rows (SNPs) and order than in the snp map, so we can use this map to extract index
     snp_index_differ_allele_1 = [index+1 for index in range(0, snp_map.shape[0], 1) if allele_1_7800AGSO_1[index] != allele_1_7800AGSO_2[index]]
     snp_index_differ_allele_2 = [index+1 for index in range(0, snp_map.shape[0], 1) if allele_2_7800AGSO_1[index] != allele_2_7800AGSO_2[index]]
-        #for each SNP, if the allele 1/2 is not the same between the two samples, get the index of the SNP
+        #for each SNP, if the allele 1 or 2 is not the same between the two samples, get the index of the SNP
+        #we have to sum 1 because we are going to select these SNPs using SNP Index column, which starts in 1 not in 0, in contrast with python indexing.
     
     #show the first ten of these snps for each sample
     df_samples_subset \
@@ -1345,14 +1347,13 @@ if n_samples==1248 and batch_name=="ILGSA24-17873":
             (F.col("Sample ID") == "7800AGSO_2") & \
             (F.col("SNP Index").isin(snp_index_differ_allele_2[0:10]))) \
         .show()
-    
-    #we can clearly see that the genotypes for these snps are different between 7800AGSO_1 and 7800AGSO_2. There is no duplication of this AGRF code, but still we have it two times in the final reports with different genotypes.
+        #we can clearly see that the genotypes for these snps are different between 7800AGSO_1 and 7800AGSO_2. There is no duplication of this AGRF code, but still we have it two times in the final reports with different genotypes.
     
     #from the samples IDs that are NOT in pheno data
     sample_map.loc[~sample_map["ID"].isin(pheno_data["AGRF code"]),:]
-    #we can see that we have the 1200JPJM_1/2 and 1100JHJM_1/2 that are actually in pheno data but with the same ID, and then we have 7800AGSO_1/2 that is not duplicated in pheno data. I think this is the missing sample in pheno data.
+        #we can see that we have the 1200JPJM_1/2 and 1100JHJM_1/2 that are actually in pheno data but with the same ID, and then we have 7800AGSO_1/2 that is not duplicated in pheno data. I think this is the missing sample in pheno data.
     
-    #The total number of samples in the phenotype data is 1463 (have 43 of the code no data, empty rows). In contrast, we have in the two batches 1248+216=1464 samples. Therefore, there is a missing sample in the phenotype data that could be 7800AGSO_2, because that code is not duplicated in the pheno_data.
+    #The total number of samples in the phenotype data is 1463. In contrast, we have in the two batches 1248+216=1464 samples. Therefore, there is a missing sample in the phenotype data that could be 7800AGSO_2, because that code is not duplicated in the pheno_data.
 
 
 #get all bed files paths and names

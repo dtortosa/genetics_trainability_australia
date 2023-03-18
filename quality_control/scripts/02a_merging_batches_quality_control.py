@@ -16,6 +16,8 @@
 ######## MERGE BATCHES AND ASSESS BATCH EFFECTS ########
 ########################################################
 
+#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
+
 #QC BEFORE OR AFTER MERGINIG?
     #Identifying and mitigating batch effects in whole genome sequencing data
 
@@ -24,15 +26,42 @@
 
 
 #FOR QUALITY CONTROL, YOU COULD USE MIGHIGGAN SERVER, WHICH ALREADY APPLIES MULTIPLE FILTERS like duplicates AND THEN ADD A FEW WITH PLINK, AUGUSTO DID THAT
+#this michigan sever can be used also for imputing
     #https://www.mdpi.com/2073-4425/14/2/248
     #https://imputationserver.readthedocs.io/en/latest/pipeline/
-
 
 
 #check if indels!
     #1:207754848-GATAA-G
     #plink has flag  --snps-only to keep snps
         #https://www.biostars.org/p/378475/
+
+
+
+
+#CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
+    #In particular, we are going to use the a paper about QC by Ritchie. There is a first version 2011 (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/) and a second version in 2022 (https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603).
+
+#CHECK THE PDF REPORTs FROM ILLUMINA FOR EACH BATCH!
+    #check folder called data in the second batch?
+
+
+##IMPORTANT, wen merging different batches, check same strand
+    #https://www.biostars.org/p/310290/
+
+
+#check there is not overlap in individuals between cbatches, no indivuals is both batches
+
+#filter by chromosome
+    #check strange chromosome numbers (non-autosomal)
+    #also check that no genetic position is added
+
+
+##check snp maps after merging
+
+
+
+
 
 ##remove these duplicates
 #duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem.
@@ -112,26 +141,6 @@ os.system(
 
 
 
-#CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
-    #In particular, we are going to use the a paper about QC by Ritchie. There is a first version 2011 (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/) and a second version in 2022 (https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603).
-
-#CHECK THE PDF REPORTs FROM ILLUMINA FOR EACH BATCH!
-    #check folder called data in the second batch?
-
-
-##IMPORTANT, wen merging different batches, check same strand
-    #https://www.biostars.org/p/310290/
-
-
-#check there is not overlap in individuals between cbatches, no indivuals is both batches
-
-#filter by chromosome
-    #check strange chromosome numbers (non-autosomal)
-    #also check that no genetic position is added
-
-
-##check snp maps after merging
-
 ##nosex
     #List of samples with ambiguous sex codes
     #https://www.cog-genomics.org/plink/1.9/output
@@ -209,3 +218,110 @@ for row_index, hh_case in hh_plink.iterrows():
         (~lgen_case[["Allele1 - Forward", "Allele2 - Forward"]].isna().values).all())
 
 '''
+
+
+
+#####################
+###### SEX CASES #####
+
+##THIS IS IMPORTANT, CHECK THIS
+
+#create temporary folder to save
+import tempfile
+temp_dir = tempfile.TemporaryDirectory()
+#print(temp_dir.name)
+
+
+#read only the zip and get list of files in it
+import numpy as np
+import pandas as pd
+import zipfile
+
+list_sample_maps = []
+#batch="ILGSA24-17873"
+for batch in ["ILGSA24-17303", "ILGSA24-17873"]:
+
+    if batch == "ILGSA24-17303":
+        zip_name = "ILGSA24-17303"
+    else:
+        zip_name = "CAGRF20093767"
+
+    zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
+    zipinfos = zipdata.infolist()
+    zipinfos_subset = zipinfos[np.where([zipinfo.filename == zip_name + "/Sample_Map.txt" for zipinfo in zipinfos])[0][0]]
+    #extract the file in the temp dict
+    zipdata.extract(zipinfos_subset, temp_dir.name)
+    #
+
+    selected_sample_map = pd.read_csv(temp_dir.name+ "/" + zip_name + "/Sample_Map.txt",
+            delimiter="\t",
+            header=0,
+            low_memory=False)
+
+    selected_sample_map["batch"] = batch
+
+    list_sample_maps.append(selected_sample_map)
+
+[all(sample_map.columns == list_sample_maps[0].columns) for sample_map in list_sample_maps]
+
+sample_map_illumina = pd.concat(list_sample_maps)
+
+
+sample_map_illumina.shape[0] == 1248+216
+
+#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
+pheno_data = pd.read_excel(
+    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+print(pheno_data)
+
+
+pheno_data.loc[pheno_data["Gender"] == "M", "Gender"] = "Male"
+pheno_data.loc[pheno_data["Gender"] == "F", "Gender"] = "Female"
+
+
+merge_sample_pheno = sample_map_illumina[["batch", "ID", "Gender"]].merge(
+    pheno_data[["AGRF code", "Gender"]],
+    left_on="ID", #use the column with IDs in sample_map
+    right_on="AGRF code", #use the column with IDs in pheno_data
+    suffixes=["_illumina", "_pheno_excel"], #set the suffix for repeated columns
+    how="outer")
+
+#cases with NA for IDs
+print(merge_sample_pheno.loc[merge_sample_pheno["ID"].isna(), :])
+print(merge_sample_pheno.loc[merge_sample_pheno["AGRF code"].isna(), :])
+
+#2397LDJA is in ILGSA24-17303 but not in the pheno data, while 2399LDJA is in the pheno data but not in any illumina report.
+
+subset_mismatch = merge_sample_pheno.loc[
+    (merge_sample_pheno["Gender_illumina"] != merge_sample_pheno["Gender_pheno_excel"]) &
+    (~merge_sample_pheno["ID"].isna()) & 
+    (~merge_sample_pheno["AGRF code"].isna()) & 
+    (~merge_sample_pheno["Gender_pheno_excel"].isna()), :]
+
+subset_mismatch.loc[subset_mismatch["Gender_illumina"] == "Unknown", :].shape
+subset_mismatch.loc[subset_mismatch["Gender_illumina"] != "Unknown", :].shape
+
+subset_mismatch.loc[subset_mismatch["Gender_illumina"] != "Unknown", :]
+
+subset_mismatch.to_csv("sample_sex_mimatch.txt",
+    sep="\t",
+    header=True,
+    index=False)
+
+##CHECK ALL OF THIS
+
+#sex-check plink
+#https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+
+#PIENSA CASOS IN .HH FILES OF BOTH BATHCES
+    #son casos que parecen tener Xx?
+    #SI HICIERAN FALTA TENDRIAS QUE CORRER AMBOS BATCHS SIN ELEMINAR HH, Y EVITANDO CORTAR EL SEGUNDO CON EL ERROR
+
+#to remove the dir
+temp_dir.cleanup()
+    #https://stackoverflow.com/questions/3223604/how-to-create-a-temporary-directory-and-get-its-path-file-name
+
+
+#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD

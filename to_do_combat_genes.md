@@ -1,6 +1,22 @@
 1. urgent stuff
 
-- prepare one single container that includes a python script we can call from a bash script and give it arguments (like for optuna). In the same bash script run the script with first batch, add & so without finishing run again the script with the second batch.
+
+PREGUNTA ESTO A DAVID NEXT TIME
+
+- pheno_data
+    - samples without pheno data
+        - also about the 41 samples the bottom with no phenotyipic daata
+        - I guess these samples should be removed from all analyses?
+            - remove after quality control? maybe it can be useul for PCAs and pop structure, see tutorials
+    - ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
+    - in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
+        - body mass week 1 and 8
+        - VO2 max week 1
+    - sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
+    - I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
+    - some rows are coloured, there is something special about these samples it could be relevant for the analysis?
+    - there is data about ancestry? I am, black, whites... I will do analyses to detect genetic outliers but it would be good if we have this data.
+
 
 - Things to check when QC:
     - batch data
@@ -44,27 +60,12 @@
                 - https://www.biostars.org/p/378475/
     - quitar mitocontrodial and other strange chromosomes?
 
-    - pheno_data
-        - samples without phenotype
-            - Ask david about the sample included in first batch but not present in the csv file
-                - we can see that we have the 1200JPJM_1/2 and 1100JHJM_1/2 that are actually in pheno data but with the same ID, and then we have 7800AGSO_1/2 that is not duplicated in pheno data. I think this is the missing sample in pheno data.
-                - The total number of samples in the phenotype data is 1463 (have 43 of the code no data, empty rows). In contrast, we have in the two batches 1248+216=1464 samples. Therefore, there is a missing sample in the phenotype data that could be 7800AGSO_2, because that code is not duplicated in the pheno_data.
-            - also about the 41 samples the bottom with no phenotyipic daata
-            - I guess these samples should be removed from all analyses?
-                - remove after quality control? maybe it can be useul for PCAs and pop structure, see tutorials
-        - ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
-        - in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
-            - body mass week 1 and 8
-            - VO2 max week 1
-        - sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
-        - I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
-        - some rows are coloured, there is something special about these samples it could be relevant for the analysis?
-        - there is data about ancestry? I am, black, whites... I will do analyses to detect genetic outliers but it would be good if we have this data.
 
     - IMPUTATION?
         - using high cove 1000 KGP1?
             - One of the major applications of the phase 3 1kGP call set has been its widespread use as a reference panel for variant imputation in sparse, array-based genotyping data with a goal of improving the statistical power of downstream genome-wide association studies (GWAS) and facilitating fine-mapping of causal variants. As part of this publication, we release an improved reference imputation panel based on the high-coverage WGS consisting of SNV, INDEL, and SV calls across the 3,202 1kGP samples, including full trios.
             - https://www.cell.com/cell/fulltext/S0092-8674(22)00991-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0092867422009916%3Fshowall%3Dtrue
+
 
 
 2. Tutorials
@@ -90,4 +91,4 @@
 - functional tools
     - Regulatory dissection of the severe COVID-19 risk locus introgressed by Neanderthals
 - PRSet: Pathway-based polygenic risk score analyses and software
-
+- Testing for differences in polygenic scores in the presence of confounding
