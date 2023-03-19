@@ -18,6 +18,9 @@
 
 #DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
 
+#YOU HAVE TO REMOVE REPEATED SAMPLES with _1 and _2 when loading bed file using --remove-fam flag
+    #https://www.cog-genomics.org/plink/1.9/filter
+
 #QC BEFORE OR AFTER MERGINIG?
     #Identifying and mitigating batch effects in whole genome sequencing data
 
@@ -312,8 +315,9 @@ subset_mismatch.to_csv("sample_sex_mimatch.txt",
 
 ##CHECK ALL OF THIS
 
-#sex-check plink
+#sex-check plink, compare reported sex with genetics
 #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+#https://www.biostars.org/p/218520/
 
 #PIENSA CASOS IN .HH FILES OF BOTH BATHCES
     #son casos que parecen tener Xx?

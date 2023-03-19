@@ -24,6 +24,76 @@
 
 
 
+########################################
+# define function to run bash commands #
+########################################
+
+#create a wrapper for subprocess.run in order to define a set of arguments and avoid typing them each time. We will ensure that we are using bash always and not sh.
+from subprocess import run, PIPE
+#command="ls"; return_value=False
+def run_bash(command, return_value=False):
+
+    #run the command
+    complete_process = run(
+        command, 
+        shell=True,
+        executable="/bin/bash", 
+        stdout=PIPE,
+        stderr=PIPE, 
+        text=True)
+    #we have to use popen in order to ensure we use bash, os.system does not allow that
+        #shell=True to execute the command through the shell. This means that the command is passed as a string, and shell-specific features, such as wildcard expansion and variable substitution, can be used.
+            #THIS IS DANGEROUS IF UNTRUSTED DATA
+        #executable="/bin/bash" to ensure the use of bash instead of sh
+        #stdout=PIPE to capture the output into an python object. You can also capture the error doing stderr=PIPE. stdout and stderr are the standard output and error
+            #you could also use capture_output=True to capture both stdout and stderr
+        #text=True will return the stdout and stderr as string, otherwise as bytes
+            #https://www.datacamp.com/tutorial/python-subprocess
+            #https://docs.python.org/3/library/subprocess.html#subprocess.run
+
+    #this generated a CompletedProcess instance where you can get
+        #args: The command and arguments that were run.
+        #returncode: The return code of the subprocess.
+        #stdout: The standard output of the subprocess, as a bytes object.
+        #stderr: The standard error of the subprocess, as a bytes object.
+
+    #if stderr is empty
+    if complete_process.stderr == "":
+
+        #print or return
+        if return_value==False:
+
+            #print the standard output without "\n" and other characters
+            print(complete_process.stdout)
+        elif return_value==True:
+
+            #return the standard output
+            return complete_process.stdout
+        else:
+            raise ValueError("ERROR! FALSE! INCORRECT value for 'return_value'")
+    elif ("Warning" in complete_process.stderr) | ("warning" in complete_process.stderr):
+
+        #print the standard output without "\n" and other characters
+        print(complete_process.stdout)
+
+        #print the standard error without stopping
+        print("WARNING! FALSE!: " + complete_process.stderr)
+    else:
+        #print the standard error and stop
+        raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
+
+#test it
+print("\n#######################################\n#######################################")
+print("see working directory")
+print("#######################################\n#######################################")
+run_bash("pwd")
+print("\n#######################################\n#######################################")
+print("list files/folders there")
+print("#######################################\n#######################################")
+run_bash("ls")
+
+
+
 ######
 # wd #
 ######
@@ -173,7 +243,6 @@ import numpy as np
 #zipinfo=zipinfos_subset[1]
 #zipinfo=zipinfos_subset[np.where([element == zip_name + "/SNP_Map.txt" for element in names_files])[0][0]]
 #zipinfo=zipinfos_subset[np.where([element == zip_name + "/Sample_Map.txt" for element in names_files])[0][0]]
-import os
 for zipinfo in zipinfos_subset:
 
     #if the file name starts with the adequate zip (batch) name and FinalReport
@@ -192,7 +261,7 @@ for zipinfo in zipinfos_subset:
         if zipinfo.filename.startswith(zip_name + "_FinalReport"):
 
             #remove the first 10 lines of the file, which is the header
-            os.system(
+            run_bash(
                 "cd " + temp_dir.name + "; \
                 tail -n +11 " + zipinfo.filename + " > tmp.txt && mv tmp.txt " + zipinfo.filename)
                 #if you use tail with "+number_line" you can get all lines starting from the selected number of line
@@ -201,16 +270,9 @@ for zipinfo in zipinfos_subset:
                     #https://stackoverflow.com/questions/339483/how-can-i-remove-the-first-line-of-a-text-file-using-bash-sed-script
                     #https://www.baeldung.com/linux/remove-first-line-text-file
 
-#get the number of files extract
-import subprocess
-#run the command to count
-get_n_files = subprocess.Popen(
-    args="ls " + temp_dir.name + " | wc -l", 
-    shell=True, #If true, the command will be executed through the shell.
-    stdout=subprocess.PIPE).stdout
-    #https://unix.stackexchange.com/questions/418616/python-how-to-print-value-that-comes-from-os-system
-#read and transform to int
-n_files = int(get_n_files.read())
+#count number of files and get the value to do check
+n_files = int(run_bash("ls " + temp_dir.name + " | wc -l", return_value=True))
+
 #check
 print("\n#######################################\n#######################################")
 print("the number of files extracted is correct according to arg --n_sample?")
@@ -654,7 +716,7 @@ df_samples_subset \
 print("\n#####################\n#####################")
 print("see plink version")
 print("#####################\n#####################")
-print(os.system("plink --version"))
+run_bash("plink --version")
 
 #Note that there is Plink 1.9 ([link](https://www.cog-genomics.org/plink/1.9/)) and Plink 2.0 ([link](https://www.cog-genomics.org/plink/2.0/)), these are not connected but different programs. 
     #This [threat](https://www.biostars.org/p/299855/#:~:text=The%20main%20difference%20is%20that,for%20a%20while%20to%20come.) of biostars explains the differences:
@@ -756,7 +818,7 @@ lgen_file.show()
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
 
 #prepare folders to save the lgen files
-os.system("rm -rf data/genetic_data/plink_inputs/" + batch_name + "; mkdir -p data/genetic_data/plink_inputs/" + batch_name)
+run_bash("rm -rf data/genetic_data/plink_inputs/" + batch_name + "; mkdir -p data/genetic_data/plink_inputs/" + batch_name)
 
 #you can save each final report separately by ID
 lgen_file \
@@ -1007,8 +1069,7 @@ lgen_full_paths = natsorted(lgen_full_paths)
     #https://github.com/SethMMorton/natsort#installation
 
 #create a folder to save the bed files for the selected batch
-import os
-os.system(
+run_bash(
     "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "; \
     mkdir -p data/genetic_data/plink_bed_files/" + batch_name)
     #mkdir
@@ -1022,10 +1083,11 @@ def plink_inputs_prep(lgen_full_path):
     sample_id_file = lgen_full_path.split("/")[-1]
 
     #decompress the different partitions of the lgen file but remove just in case before these files in case they are already decompressed
-    os.system(
-        "cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name +  "_lgen_files/" + sample_id_file + "; \
-        rm *" + lgen_extension + ".csv; \
-        gunzip -k *" + lgen_extension + ".csv.gz")
+    run_bash(" \
+        cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name +  "_lgen_files/" + sample_id_file + "; \
+        gunzip -kf *" + lgen_extension + ".csv.gz")
+        #-k: keep original compressed file
+        #-f: force compression or decompression even if the file has multiple links or the corresponding file already exists
 
     #get the path for the files decompressed
     files_selected_sample = glob.glob("./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name +  "_lgen_files/" + sample_id_file + "/*" + lgen_extension + ".csv", recursive=False)
@@ -1110,20 +1172,23 @@ def plink_inputs_prep(lgen_full_path):
     del(list_dfs)
 
     #copy the whole map file, in this case, we have the same snps, i.e., the same map in all samples. Indeed, illumina gives one map for the whole batch. Save the file in the folder of the sample
-    os.system(
-        "cd data/genetic_data/plink_inputs/" + batch_name + "; \
+    run_bash(" \
+        cd data/genetic_data/plink_inputs/" + batch_name + "; \
         gunzip -c " + batch_name + ".map.gz > " + batch_name + "_lgen_files/" + sample_id_file + "/" + sample_id_file + ".map")
         #c flag: writes the output stream to stdout and then you can use > to redirect to another folder. This will leave the compressed file untouched.
             #https://superuser.com/questions/45650/how-do-you-gunzip-a-file-and-keep-the-gz-file
 
     #create a folder to save the bed file of the sample
-    os.system(
-        "rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
+    run_bash(" \
+        rm -rf data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
         mkdir -p data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file)
 
     #create ped files file using the lgen files
-    os.system(
-        "cd ./data/genetic_data/; \
+    print("\n#####################\n#####################")
+    print("create ped files")
+    print("#####################\n#####################")
+    run_bash(" \
+        cd ./data/genetic_data/; \
         plink \
             --lfile ./plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "/" + sample_id_file + " \
             --out ./plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "/" + batch_name + "_" + sample_id_file + " \
@@ -1150,15 +1215,19 @@ def plink_inputs_prep(lgen_full_path):
         #All lines must have the same number of columns (so either no lines contain the morgans/centimorgans column, or all of them do)
 
     #compress the lgen and map file
-    os.system(
-        "cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "; \
-        gzip " + sample_id_file + ".lgen; \
-        gzip " + sample_id_file + ".map; \
-        gzip " + sample_id_file + ".fam")
+    run_bash(" \
+        cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "; \
+        gzip -f " + sample_id_file + ".lgen; \
+        gzip -f " + sample_id_file + ".map; \
+        gzip -f " + sample_id_file + ".fam")
+        #-f: force compression even a compressed file with the same name already exists
 
     #convert the ped file to bed
-    os.system(
-        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
+    print("\n#####################\n#####################")
+    print("convert ped to bed")
+    print("#####################\n#####################")
+    run_bash(" \
+        cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
         plink \
             --file ./" + batch_name + "_" + sample_id_file + " \
             --out ./" + batch_name + "_" + sample_id_file + " \
@@ -1176,25 +1245,16 @@ def plink_inputs_prep(lgen_full_path):
             #https://coolconversion.com/math/binary-octal-hexa-decimal/Convert_binary_number_11011100_in_decimal_
 
     #remove the files we are not interested in
-    os.system(
-        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
+    run_bash(" \
+        cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; \
         rm ./" + batch_name + "_" + sample_id_file + ".ped; \
         rm ./" + batch_name + "_" + sample_id_file + ".map")
         #the hh file says there is a genotype that is diplodi but should be haplo, like Y in male
         #it is created when doing other operations like calculate the frequency
 
-    #remove hh files only if exists
-    os.system(
-        "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/01_bed_per_sample/" + sample_id_file + "; " \
-        "FILE=./" + batch_name + "_" + sample_id_file + ".hh; \
-        if test -f $FILE; then \
-            rm ./" + batch_name + "_" + sample_id_file + ".hh; \
-        fi")
-        #https://linuxize.com/post/bash-check-if-file-exists/
-
     #remove the decompressed files of each data partition of the lgen file for the selected sample
-    os.system(
-        "cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "; \
+    run_bash(" \
+        cd ./data/genetic_data/plink_inputs/" + batch_name + "/" + batch_name + "_lgen_files/" + sample_id_file + "; \
         rm *" + lgen_extension + ".csv")
 
 #open a pool
@@ -1231,14 +1291,14 @@ print("merge binaries of all samples")
 print("#####################\n#####################")
 
 #create a folder to save the binary files of all samples and then merge
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
     rm -rf ./02_data_to_merge; \
     mkdir -p ./02_data_to_merge")
 
 #copy the bed/bim/fam files of all samples to the same folder
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
     find ./01_bed_per_sample/  | \
         egrep '" + batch_name + ".*(bed|bim|fam)' | \
         while read file_path; \
@@ -1368,14 +1428,17 @@ with open(r"./data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_me
         #https://pynative.com/python-write-list-to-file/
 
 #create folder to save merged data
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "; \
     rm -rf 03_merged_data; \
     mkdir -p 03_merged_data")
 
 #merge with plink
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/; \
+print("\n#####################\n#####################")
+print("merge with plink")
+print("#####################\n#####################")
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/; \
     plink \
         --merge-list ./list_to_merge.txt \
         --out ../03_merged_data/" + batch_name + "_merged_data")
@@ -1394,7 +1457,7 @@ print("look for duplicates")
 print("#####################\n#####################")
 
 #create general folder to do operations related to duplicates
-os.system(
+run_bash(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     rm -rf ./04_inspect_snp_dup; \
     mkdir -p ./04_inspect_snp_dup")
@@ -1404,14 +1467,14 @@ os.system(
     #https://www.biostars.org/p/281276/
 
 #create a folder to list duplicates
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/; \
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/; \
     rm -rf ./00_list_dup; \
     mkdir -p ./00_list_dup")
 
 #list duplicates
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     plink \
         --bfile ./03_merged_data/" + batch_name + "_merged_data \
         --list-duplicate-vars suppress-first ids-only\
@@ -1455,7 +1518,7 @@ print(diff_n_snps_distinct_position >= n_duplicates_plink)
         #https://www.biostars.org/p/360918/
 
 
-##remove these duplicates
+##duplicates we will be removed in the next steps of the pipeline
 #duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem. But we will do this latter, after merging the batches, when we apply multiple QC filters. I guess it is cleaner to change nothing on the data, see any batch effect, modify and then do filters. I guess that having as many markers as possible could help to detect batch effect.s
 
 print("\n#####################\n#####################")
@@ -1463,7 +1526,7 @@ print("duplicates we will be removed in the next steps of the pipeline")
 print("#####################\n#####################")
 
 #compress the bed/bim/fam files
-os.system(
+run_bash(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     gzip ./03_merged_data/" + batch_name + "_merged_data.bed; \
     gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
@@ -1482,13 +1545,4 @@ temp_dir.cleanup()
 #stop spark env
 spark.stop()
 
-
-
-
-#termina de revisar la revision del error
-
-#use subprocess.run instead os.system
-
-#change name of the slrum file?
-
-#make the container run using the script outside of the container, so you do not have to build it again and again every time you modify the script
+#check the whole script and run it
