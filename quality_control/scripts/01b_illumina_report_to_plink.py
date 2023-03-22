@@ -35,11 +35,11 @@ def run_bash(command, return_value=False):
 
     #run the command
     complete_process = run(
-        command, 
+        command,
         shell=True,
-        executable="/bin/bash", 
+        executable="/bin/bash",
         stdout=PIPE,
-        stderr=PIPE, 
+        stderr=PIPE,
         text=True)
     #we have to use popen in order to ensure we use bash, os.system does not allow that
         #shell=True to execute the command through the shell. This means that the command is passed as a string, and shell-specific features, such as wildcard expansion and variable substitution, can be used.
@@ -58,19 +58,14 @@ def run_bash(command, return_value=False):
         #stderr: The standard error of the subprocess, as a bytes object.
 
     #if stderr is empty
-    if complete_process.stderr == "":
+    if complete_process.stderr=="":
 
-        #print or return
-        if return_value==False:
+        #print the standard output without "\n" and other characters
+        print(complete_process.stdout)
 
-            #print the standard output without "\n" and other characters
-            print(complete_process.stdout)
-        elif return_value==True:
-
-            #return the standard output
+        #return also the value if required
+        if return_value==True:
             return complete_process.stdout
-        else:
-            raise ValueError("ERROR! FALSE! INCORRECT value for 'return_value'")
     elif ("Warning" in complete_process.stderr) | ("warning" in complete_process.stderr):
 
         #print the standard output without "\n" and other characters
@@ -78,6 +73,10 @@ def run_bash(command, return_value=False):
 
         #print the standard error without stopping
         print("WARNING! FALSE!: " + complete_process.stderr)
+
+        #return also the value if required
+        if return_value==True:
+            return complete_process.stdout
     else:
         #print the standard error and stop
         raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
@@ -261,8 +260,8 @@ for zipinfo in zipinfos_subset:
         if zipinfo.filename.startswith(zip_name + "_FinalReport"):
 
             #remove the first 10 lines of the file, which is the header
-            run_bash(
-                "cd " + temp_dir.name + "; \
+            run_bash(" \
+                cd " + temp_dir.name + "; \
                 tail -n +11 " + zipinfo.filename + " > tmp.txt && mv tmp.txt " + zipinfo.filename)
                 #if you use tail with "+number_line" you can get all lines starting from the selected number of line
                     #tail is faster than sed
@@ -283,6 +282,8 @@ elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
     print(n_files == 1248 + 2)
 else:
     print(n_files == n_samples + 2)
+
+###POR AQUI, checking with git diff
 
 #list files present in temp
 import glob
