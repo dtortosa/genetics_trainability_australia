@@ -16,6 +16,88 @@
 ######## MERGE BATCHES AND ASSESS BATCH EFFECTS ########
 ########################################################
 
+
+
+##################
+#### Starting ####
+##################
+
+
+
+########################################
+# define function to run bash commands #
+########################################
+
+#create a wrapper for subprocess.run in order to define a set of arguments and avoid typing them each time. We will ensure that we are using bash always and not sh.
+from subprocess import run, PIPE
+#command="ls"; return_value=False
+def run_bash(command, return_value=False):
+
+    #run the command
+    complete_process = run(
+        command,
+        shell=True,
+        executable="/bin/bash",
+        stdout=PIPE,
+        stderr=PIPE,
+        text=True)
+    #we have to use popen in order to ensure we use bash, os.system does not allow that
+        #shell=True to execute the command through the shell. This means that the command is passed as a string, and shell-specific features, such as wildcard expansion and variable substitution, can be used.
+            #THIS IS DANGEROUS IF UNTRUSTED DATA
+        #executable="/bin/bash" to ensure the use of bash instead of sh
+        #stdout=PIPE to capture the output into an python object. You can also capture the error doing stderr=PIPE. stdout and stderr are the standard output and error
+            #you could also use capture_output=True to capture both stdout and stderr
+        #text=True will return the stdout and stderr as string, otherwise as bytes
+            #https://www.datacamp.com/tutorial/python-subprocess
+            #https://docs.python.org/3/library/subprocess.html#subprocess.run
+
+    #this generated a CompletedProcess instance where you can get
+        #args: The command and arguments that were run.
+        #returncode: The return code of the subprocess.
+        #stdout: The standard output of the subprocess, as a bytes object.
+        #stderr: The standard error of the subprocess, as a bytes object.
+
+    #if stderr is empty
+    if complete_process.stderr=="":
+
+        #print the standard output without "\n" and other characters
+        print(complete_process.stdout)
+
+        #return also the value if required
+        if return_value==True:
+            return complete_process.stdout
+    elif ("Warning" in complete_process.stderr) | ("warning" in complete_process.stderr):
+
+        #print the standard output without "\n" and other characters
+        print(complete_process.stdout)
+
+        #print the standard error without stopping
+        print("WARNING! FALSE!: " + complete_process.stderr)
+
+        #return also the value if required
+        if return_value==True:
+            return complete_process.stdout
+    else:
+        #print the standard error and stop
+        raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
+
+#test it
+print("\n#######################################\n#######################################")
+print("see working directory")
+print("#######################################\n#######################################")
+run_bash("pwd")
+print("\n#######################################\n#######################################")
+print("list files/folders there")
+print("#######################################\n#######################################")
+run_bash("ls")
+
+
+#remove duplicate
+
+run_bash() #go to folder with merged files per batch
+
+
+
 #DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
 
 #YOU HAVE TO REMOVE REPEATED SAMPLES with _1 and _2 when loading bed file using --remove-fam flag
