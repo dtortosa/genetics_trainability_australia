@@ -283,8 +283,6 @@ elif (n_samples==None) and (batch_name == "ILGSA24-17873"):
 else:
     print(n_files == n_samples + 2)
 
-###POR AQUI, checking with git diff
-
 #list files present in temp
 import glob
 list_files = glob.glob(temp_dir.name + "/*")
@@ -1336,9 +1334,9 @@ if n_samples==1248 and batch_name=="ILGSA24-17873":
 
     #the number of bim, bed and fam files across the whole batch is 1242, i.e., 1242*3, when it should be 1248 as we have 1248 final reports. Therefore, we are lacking data from 6 final reports. The problem comes from 6 final reports that seems to be duplicated.
     print("Number of bed, bim and fam files generated")
-    print(os.system("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*bed | wc -l"))
-    print(os.system("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*bim | wc -l"))
-    print(os.system("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*fam | wc -l"))
+    run_bash("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*bed | wc -l")
+    run_bash("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*bim | wc -l")
+    run_bash("ls data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/*fam | wc -l")
     
     #There are three samples (7800AGSO , 1100JHJM  and 1200JPJM) that have two different final reports, with the extension _1 and _2.
     print("see sample map and pheno data for problematic samples")
