@@ -38,6 +38,6 @@
 ### Load required modules/libraries if needed. Recommendation from Puma is use "module --ignore-cache load "singularity"" instead of "module load singularity". It is also possible your cache file is out-of-date.
 module load singularity
 ### change to your script’s directory
-cd /xdisk/denard/dftortosa/march_2023/
+cd /xdisk/denard/dftortosa/march_2023/quality_control/
 ### Run your work
 singularity run 01_illumina_report_to_plink.sif
