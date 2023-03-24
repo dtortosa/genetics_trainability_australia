@@ -1544,4 +1544,6 @@ temp_dir.cleanup()
 #stop spark env
 spark.stop()
 
-#check the whole script and run it
+#check why the 6 problematic samples are not used for bed files
+    #the first check they are not in the output is "WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPle"
+#change the run_bash function for this and the bcftools script, so warnings have only warning but no FALSE, so you can differentiate

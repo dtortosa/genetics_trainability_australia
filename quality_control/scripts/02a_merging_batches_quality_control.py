@@ -92,13 +92,39 @@ print("#######################################\n################################
 run_bash("ls")
 
 
+run_bash("./data/genetic_data/plink_bed_files/")
+
 #remove duplicate
 
-run_bash() #go to folder with merged files per batch
+batch_name = "ILGSA24-17303"
+
+import pandas as pd
+fam_file = pd.read_csv(
+    "./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/" + batch_name + "_merged_data.fam.gz", 
+    sep="\t", 
+    header=None,
+    low_memory=False)
+
+
+#this is only example, you have to do it with the second batch, not with the first!!!
+
+list_samples_remove = fam_file.loc[fam_file.iloc[:,1] == "0200ASJM", [0,1]]
+
+    #accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column,
+
+list_samples_remove.to_csv(".tsv",
+    sep="\t",
+    header=None,
+    compression='gzip',
+    index=False)
 
 
 
-#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/; \
+    plink \
+        --file ./" + batch_name + "_merged_data \
+        --remove ")
 
 #YOU HAVE TO REMOVE REPEATED SAMPLES with _1 and _2 when loading bed file using --remove-fam flag
     #https://www.cog-genomics.org/plink/1.9/filter
@@ -411,3 +437,9 @@ temp_dir.cleanup()
 
 
 #DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
+
+
+
+########################################################################
+#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
+########################################################################
