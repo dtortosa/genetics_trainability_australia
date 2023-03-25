@@ -72,14 +72,14 @@ def run_bash(command, return_value=False):
         print(complete_process.stdout)
 
         #print the standard error without stopping
-        print("WARNING! FALSE!: " + complete_process.stderr)
+        print("WARNING: " + complete_process.stderr)
 
         #return also the value if required
         if return_value==True:
             return complete_process.stdout
     else:
         #print the standard error and stop
-        raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
 
 #test it
 print("\n#######################################\n#######################################")
