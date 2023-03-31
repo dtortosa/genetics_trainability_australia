@@ -66,6 +66,7 @@ PREGUNTA ESTO A DAVID NEXT TIME
             - One of the major applications of the phase 3 1kGP call set has been its widespread use as a reference panel for variant imputation in sparse, array-based genotyping data with a goal of improving the statistical power of downstream genome-wide association studies (GWAS) and facilitating fine-mapping of causal variants. As part of this publication, we release an improved reference imputation panel based on the high-coverage WGS consisting of SNV, INDEL, and SV calls across the 3,202 1kGP samples, including full trios.
             - https://www.cell.com/cell/fulltext/S0092-8674(22)00991-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0092867422009916%3Fshowall%3Dtrue
 
+- Machine learning bishop, tneemls miestra sufociente para training eval? Si no cogemos snps previamentr asociados y con eso hacemos el polygenic score en caso de que no tengamos muestra para hacer nuestra propia seleccion y luego testarla.
 
 
 2. Tutorials
@@ -92,3 +93,5 @@ PREGUNTA ESTO A DAVID NEXT TIME
     - Regulatory dissection of the severe COVID-19 risk locus introgressed by Neanderthals
 - PRSet: Pathway-based polygenic risk score analyses and software
 - Testing for differences in polygenic scores in the presence of confounding
+- Reply to: Genome-wide association studies of polygenic risk score-derived phenotypes may lead to inflated false positive rates
+- Integrative polygenic risk score improves the prediction accuracy of complex traits and diseases
