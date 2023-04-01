@@ -92,6 +92,11 @@ print("#######################################\n################################
 run_bash("ls")
 
 
+
+##check you have 1242 samples in the second batch because the 6 duplicated samples are not included
+
+
+
 run_bash("./data/genetic_data/plink_bed_files/")
 
 #remove duplicate

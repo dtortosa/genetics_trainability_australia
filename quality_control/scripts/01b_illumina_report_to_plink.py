@@ -1329,7 +1329,7 @@ if n_samples==1248 and batch_name=="ILGSA24-17873":
     #if we are working with the problematic batch and we have all the samples, then we can take a look to the problem
 
     print("\n#####################\n#####################")
-    print("ERROR/FALSE in the number of bed files generated in the second batch")
+    print("ERROR/FALSE in the number of bed files generated in the second batch. It is not 1248 but it is ok if it is 1242, because the 6 duplicated samples are left of due to their SNPs are the same than in SNP map but in a different order. It is ok because these samples are going out anyway")
     print("#####################\n#####################")
 
     #the number of bim, bed and fam files across the whole batch is 1242, i.e., 1242*3, when it should be 1248 as we have 1248 final reports. Therefore, we are lacking data from 6 final reports. The problem comes from 6 final reports that seems to be duplicated.
@@ -1546,4 +1546,6 @@ spark.stop()
 
 #check why the 6 problematic samples are not used for bed files
     #the first check they are not in the output is "WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPle"
-#change the run_bash function for this and the bcftools script, so warnings have only warning but no FALSE, so you can differentiate
+        #they fail in "all(lgen_file_selected_sample[2] == snp_map["Name"])"
+        #snps are in a different order for this samples!
+        #this is a problem for plink?
