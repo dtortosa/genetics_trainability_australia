@@ -116,7 +116,16 @@ run_bash("ls")
     #Within combat_genes.zip, we have two batches (ILGSA24-17303 and ILGSA24-17873), being the data separated in these two.
     #In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps.
         #In the initial_stuff folder there is a zip called "ILGSA24-17303.zip" that I may have downloaded from the initial location where this data was stored in summer 2022. There are Plink files, but I am not sure this is the correct data and I cannot find the final_report files.
-    #In 17873, we have the IDAT files with probs intensity from the microarrays used to genotype (first zips), the final reports+sample/snp maps (CAGRF20093767.zip) and a inputs for plink. But all of this only for 1248 individuals, not the whole cohort.
+    #In 17873
+        #we have the IDAT files with probs intensity from the microarrays used to genotype (first zips), the final reports+sample/snp maps (CAGRF20093767.zip) and a inputs for plink. But all of this only for 1248 individuals, not the whole cohort.
+        #we also have binary files like Heredity.bin, Duplicates.bin... I have seen other people got the same files from illumina. 
+            #If you see the linked biostars thread, there is someone with the illumina data within genome studio (software property of illumina). He has the same bin file I have, but the solution they gave him is that he needs to create the FinalReports and the Maps using genome studio in order to load the data in R and process it. We already have FinalReports and the maps, so I think we have everything we need to analyze the data.
+                #https://www.biostars.org/p/2240/
+        #note that the zip file of this batch gives error once we want to open it. It says it is corrupted.
+            #I do not think we have a problem here because I am able to access all the files using a module of python.
+            #I think I also downloaded this twice with the problem persisting, so it was not a problem of my download.
+            #Importantly, I have explored in detail the FinalReports and maps, and everything seems to be fine except for the 6 duplicated samples (see below). I did many checks within EACH final report using spark to ensure we have what we are supposed to have. For example, checking this that should be ok but I did anyways like checking that the number in the name of the FinalReport txt file matches the number of the sample within that file and things like that.
+            #So I think we are good here.
     #the phenotype csv has 1463 samples, not having phenotype data for 41 of them. 1248+216=1464, so we also lack 1 sample in the csv file.
 
 #I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):

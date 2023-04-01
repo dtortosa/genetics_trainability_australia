@@ -98,7 +98,7 @@ run_bash("ls")
         #maybe you could look at the fam file?
     #and in "list_to_merge.txt"
 
-
+#see the file 1252 (zipinfo=zipinfos[1252]) in zip of the second batch named Duplicates.bin
 
 run_bash("./data/genetic_data/plink_bed_files/")
 
