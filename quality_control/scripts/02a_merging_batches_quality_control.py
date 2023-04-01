@@ -94,6 +94,9 @@ run_bash("ls")
 
 
 ##check you have 1242 samples in the second batch because the 6 duplicated samples are not included
+    #in the plink file
+        #maybe you could look at the fam file?
+    #and in "list_to_merge.txt"
 
 
 
