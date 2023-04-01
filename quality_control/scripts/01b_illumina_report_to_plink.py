@@ -1543,9 +1543,3 @@ temp_dir.cleanup()
 
 #stop spark env
 spark.stop()
-
-#check why the 6 problematic samples are not used for bed files
-    #the first check they are not in the output is "WE PASS SAMPLE CHECKS FOR LGEN FILE OF SAMPle"
-        #they fail in "all(lgen_file_selected_sample[2] == snp_map["Name"])"
-        #snps are in a different order for this samples!
-        #this is a problem for plink?
