@@ -95,3 +95,5 @@ PREGUNTA ESTO A DAVID NEXT TIME
 - Testing for differences in polygenic scores in the presence of confounding
 - Reply to: Genome-wide association studies of polygenic risk score-derived phenotypes may lead to inflated false positive rates
 - Integrative polygenic risk score improves the prediction accuracy of complex traits and diseases
+- The PPARGC1A Gly482Ser polymorphism is associated with elite long-distance running performance
+    - 2023, Robert M. Erskine
