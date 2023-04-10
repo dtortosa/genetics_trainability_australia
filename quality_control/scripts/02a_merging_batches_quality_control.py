@@ -16,6 +16,8 @@
 ######## MERGE BATCHES AND ASSESS BATCH EFFECTS ########
 ########################################################
 
+#This script will merge the plink binary files of both batches and then check if there is any batch effect and then perform QCC
+
 
 
 ##################
@@ -93,54 +95,186 @@ run_bash("ls")
 
 
 
-##check you have 1242 samples in the second batch because the 6 duplicated samples are not included
-    #in the plink file
-        #maybe you could look at the fam file?
-    #and in "list_to_merge.txt"
+#############################
+###### merging batches ######
+#############################
 
-#see the file 1252 (zipinfo=zipinfos[1252]) in zip of the second batch named Duplicates.bin
+##############################################################
+# check we have the correct number of samples in each batch  #
+##############################################################
 
-run_bash("./data/genetic_data/plink_bed_files/")
+#
+print("\n#######################################\n#######################################")
+print("check we have 216 and 1242 samples for batch 1 and 2 (batch 2 losed 6 samples that were duplicated), respectively looking at the merged fam file and the list of samples to be merged")
+print("#######################################\n#######################################")
+run_bash(" \
+    n_samples_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data.fam.gz | \
+        wc -l); \
+    n_samples_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data.fam.gz | \
+        wc -l); \
+    if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #decompress the fam file of each merged file, i.e., for each batch, then count the number of lines and save the output
+        #if the number of lines (samples) in the first and the second batch is 216 and 1242, respectively, then OK
+            #remember that we lose 6 duplicated samples in the second batch.
+            #note that "==" is only for strings, you have to use "-eq" for numbers
+                #https://stackoverflow.com/questions/20449543/shell-equality-operators-eq
+run_bash(" \
+    n_samples_first_batch=$( \
+        awk 'END { print NR }' ./data/genetic_data/plink_bed_files/ILGSA24-17303/02_data_to_merge/list_to_merge.txt); \
+    n_samples_second_batch=$( \
+        awk 'END { print NR }' ./data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/list_to_merge.txt); \
+    if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #count the number of rows in the file with the list of samples to be merged in both batches. We use NR (number of records) of awk instead of wc -l because the file does not end with an empty line, so wc does not count the last one, and we get 1 row less
+            #https://stackoverflow.com/questions/32481877/what-are-nr-and-fnr-and-what-does-nr-fnr-imply
+            #https://stackoverflow.com/questions/12616039/wc-command-of-mac-showing-one-less-result
 
-#remove duplicate
-
-batch_name = "ILGSA24-17303"
-
-import pandas as pd
-fam_file = pd.read_csv(
-    "./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/" + batch_name + "_merged_data.fam.gz", 
-    sep="\t", 
-    header=None,
-    low_memory=False)
 
 
-#this is only example, you have to do it with the second batch, not with the first!!!
-
-list_samples_remove = fam_file.loc[fam_file.iloc[:,1] == "0200ASJM", [0,1]]
-
-    #accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column,
-
-list_samples_remove.to_csv(".tsv",
-    sep="\t",
-    header=None,
-    compression='gzip',
-    index=False)
-
+##################################
+# merge both batches using plink #
+##################################
 
 
 run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/; \
-    plink \
-        --file ./" + batch_name + "_merged_data \
-        --remove ")
+    cd ./data/genetic_data/plink_bed_files/; \
+    rm -rf merged_batches/data_to_merge; \
+    mkdir -p merged_batches/data_to_merge")
 
-#YOU HAVE TO REMOVE REPEATED SAMPLES with _1 and _2 when loading bed file using --remove-fam flag
-    #https://www.cog-genomics.org/plink/1.9/filter
+
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files; \
+    cp ./ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data* ./merged_batches/data_to_merge/; \
+    cp ./ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data* ./merged_batches/data_to_merge/")
+
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/; \
+    echo ILGSA24-17303_merged_data > list_files_to_merge.txt; \
+    echo ILGSA24-17873_merged_data >> list_files_to_merge.txt")
+        #use >> to append a new line with the path of the second batch file
+        #https://unix.stackexchange.com/questions/159513/what-are-the-shells-control-and-redirection-operators
+        #https://unix.stackexchange.com/questions/77277/how-to-append-multiple-lines-to-a-file
+
+run_bash("\
+    gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data*.gz")
+
+run_bash("\
+    gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data*.gz")
+
+
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
+    plink \
+        --merge-list ./list_files_to_merge.txt \
+        --out ../merged_batches")
+
+
+print("\n#######################################\n#######################################")
+print("check we have the exact sum of samples from both batches")
+print("#######################################\n#######################################")
+run_bash("\
+    n_samples_merged=$(\
+        cat ./data/genetic_data/plink_bed_files/merged_batches/merged_batches.fam | \
+        wc -l);\
+    n_samples_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.fam.gz | \
+        wc -l); \
+    n_samples_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.fam.gz | \
+        wc -l); \
+    if [[ $n_samples_merged -eq $n_samples_first_batch+$n_samples_second_batch ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+print("\n#######################################\n#######################################")
+print("check after merging we still have 654027 snps, and this is the number of variants than in each of the batches")
+print("#######################################\n#######################################")
+run_bash("\
+    n_snps_merged=$(\
+        cat ./data/genetic_data/plink_bed_files/merged_batches/merged_batches.bim | \
+        wc -l);\
+    n_snps_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bim.gz | \
+        wc -l); \
+    n_snps_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.bim.gz | \
+        wc -l); \
+    if [[ $n_snps_merged -eq 654027 && $n_snps_merged -eq $n_snps_first_batch && $n_snps_merged -eq $n_snps_second_batch ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+
+run_bash("\
+    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bed; \
+    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bim; \
+    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.fam;\
+    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.bed; \
+    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.bim; \
+    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.fam")
+
+#see the merging modes of plink
+    #https://www.cog-genomics.org/plink/1.9/data#merge_list
+
+
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink --pca --bfile merged_batches --out merged_batches_pca")
+
+    #https://www.cog-genomics.org/plink/1.9/strat#pca
+
+import pandas as pd
+ret_pca=pd.read_csv("./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca.eigenvec", sep=" ", header=None, low_memory=False)
+    #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
+
+colors = ret_pca.iloc[:,0]
+
+colors.loc[colors == "combat_ILGSA24-17303"] = "red"
+colors.loc[colors == "combat_ILGSA24-17873"] = "blue"
+    #warning here
+
+import matplotlib.pyplot as plt
+plt.scatter(ret_pca.iloc[:, 2], ret_pca.iloc[:, 3], c=colors, alpha=0.5)
+#plt.show()
+plt.savefig("pca_plot.png", bbox_inches="tight")
+    #there are some samples that are very far away, but both from batch 1 and 2. when you zoom in the bulk of the samples, samples of both batches are evenly distributed.
+
+plot($PC1,ret_pca$PC2)
+
+
+#maybe merge using different family IDs and then use plink to check batch effects?
+
+
+
+###THIIIS
+    #Genome-wide association studies
+        #https://www.nature.com/articles/s43586-021-00056-9
+        #lapalainen 2021
+        #they talk about using michinga server to impute as a standard proceedure
+    #Quality Control Procedures for Genome-Wide Association Studies
+        #Ritche 2011 (la versión 2022 no está disponible para mi)
+        #esta gente dice de hacer un case/control analysis con los batch to detect effects, just like in here (https://www.biostars.org/p/388300/). 
+        #they say that in the event of batch effect, you can use the same techinques used for population stratification.
+        #lee el paper antiguo pero mira el tutorial de github de la versión mas reciente
+            #https://github.com/RitchieLab/GWAS-QC
+
+
 
 #QC BEFORE OR AFTER MERGINIG?
     #Identifying and mitigating batch effects in whole genome sequencing data
-
-#This script will merge the plink binary files of both batches and then check if there is any batch effect and then perform QCC
+    #
 
 
 
