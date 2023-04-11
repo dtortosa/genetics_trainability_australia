@@ -262,6 +262,99 @@ run_bash(" \
     #If binary merging fails because at least one variant would have more than two alleles, a list of offending variant(s) will be written to plink.missnp
         #we do not have a plink.missnp file, so we should be good with this.
 
+#
+print("\n#######################################\n#######################################")
+print("check that the bim files (SNP maps) of both bathes and the merged file have the same SNPs, although the minor can be different")
+print("#######################################\n#######################################")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./merged_plink_files/merged_batches.bim > merged_columns.txt; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./data_to_merge/ILGSA24-17303_merged_data.bim > batch_1_columns.txt; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./data_to_merge/ILGSA24-17873_merged_data.bim > batch_2_columns.txt; \
+    bim_check_1=$(cmp --silent merged_columns.txt batch_1_columns.txt; echo $?); \
+    bim_check_2=$(cmp --silent merged_columns.txt batch_2_columns.txt; echo $?); \
+    bim_check_3=$(cmp --silent batch_1_columns.txt batch_2_columns.txt; echo $?); \
+    if [[ $bim_check_1 -eq 0 && $bim_check_2 -eq 0 && $bim_check_3 -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi; \
+    rm merged_columns.txt; rm batch_1_columns.txt; rm batch_2_columns.txt")
+        #select the first 4 columns of the three bim files using awk (-F is the delimiter, space in this case). Save the result as three different .txt files.
+            #the 4 first columns are the chromosome code, Variant identifier, Position in morgans or centimorgans (safe to use dummy value of '0'), Base-pair coordinate (1-based).
+            #these columns should be the same in both batches, the difference can be in the last two columns with the name of the minor and major alleles, because it would be possible that one allele is not present in any of the samples of a batch, but in the other batch it has both alleles (see below).
+        #compare the merged file with both batches and then the two batches between them using cmp for that.
+            #cmp takes two files and compare them until 1 byte is different
+            #we make it silent and get the final status
+            #remember that "$?" gives the return value of the last run command.
+                #For example, 
+                    #ls somefile
+                    #echo $?
+                    #If somefile exists (regardless whether it is a file or directory), you will get the return value thrown by the ls command, which should be 0 (default "success" return value). If it doesn't exist, you should get a number other then 0. The exact number depends on the program.
+                #https://stackoverflow.com/a/6834572/12772630
+            #the return value of cmp will be 0 if the two files are identical, if not, then we have differences between the files
+                #https://stackoverflow.com/a/53529649/12772630
+        #if the status of the three comparisons is zero, then perfect.
+        #finally remove the files generated for this check
+
+#note about the differences in minor/major alleles between batches
+    #the four first columns are identical between batches, but the minor/major alleles are different.
+    #the first difference between the two batches is a SNP in row 140. It has only C in first bath (monomorphic), but it has also T in the second. Accordingly the merged batch has both alleles, because this included first and second batch
+        #first batch
+            #0       GSA-10:47138541 0       0       0       C
+        #second batch
+            #0       GSA-10:47138541 0       0       T       C
+        #merged file
+            #0       GSA-10:47138541 0       0       T       C
+    #opposite case with a snp in row 165, which is the first line of difference between merged and the second batch. It is monomorphic in second batch, but it has two alleles in first batch, so when merging, you get two alleles, not 1.
+        #first batch
+            #0       GSA-rs145797772 0       0       A       C
+        #second batch
+            #0       GSA-rs145797772 0       0       0       C
+        #merged file
+            #0       GSA-rs145797772 0       0       A       C
+
+#
+print("\n#######################################\n#######################################")
+print("see if the first SNPs that have different minor/major allele between batches are indeed different in terms of frequency and alleles according to plink --freq")
+print("#######################################\n#######################################")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./data_to_merge/ILGSA24-17303_merged_data \
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./data_to_merge/ILGSA24-17873_merged_data \
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./merged_plink_files/merged_batches\
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+        #Calculate minor allele frequency of all SNPs in each batch using plink --freq
+            #By itself, --freq writes a minor allele frequency report to plink.frq. 
+                #https://www.cog-genomics.org/plink/1.9/basic_stats
+        #We use sed -n to show specific lines. -e lets you to select several lines. 
+            #note that line 140 in the bim file is 141 in this file because we have header in freq file, but no header is present in the bim file.
+            #https://unix.stackexchange.com/questions/288521/with-the-linux-cat-command-how-do-i-show-only-certain-lines-by-number
+        #the merged file has updated information about the minor/major alleles considering all samples, because of this, these two snps are biallelic in the merged file when in one of the batches is monomorphic, and the MAF changes when merging also, because now you have more samples.
+
+#remove freq files
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    rm plink.frq; \
+    rm plink.hh; \
+    rm plink.log; \
+    rm plink.nosex")
+
 #compress the merged files
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
@@ -329,7 +422,9 @@ run_bash("\
 #decompress merged data
 run_bash("\
     cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
-    gunzip --keep --force merged_batches*.gz")
+    gunzip \
+        --keep \
+        --force merged_batches*.gz")
 
 #
 print("\n#######################################\n#######################################")
@@ -353,7 +448,7 @@ run_bash("\
 #load the eigenvec file generated
 import pandas as pd
 first_pca=pd.read_csv(\
-    "./data/genetic_data/plink_bed_files/merged_batches/batch_pca/first_pca.eigenvec", \
+    "./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca/first_pca.eigenvec", \
     sep="\t", \
     header=0, \
     low_memory=False)
@@ -364,22 +459,72 @@ first_pca=pd.read_csv(\
             #The first two columns are the sample's FID/IID, and the rest are principal component weights in the same order as the .eigenval values (if the header line is present, these columns are titled 'PC1', 'PC2', ...).
         #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
 
+#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
+pheno_data = pd.read_excel(
+    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+print(pheno_data)
+
+#there are several phenotypes, see dev version for details about possible errors.
+#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
+
+#beep test 8 has an error, "o" letter instead "0" number in one sample
+print("\n#####################\n#####################")
+print("Week 8 beep test for a sample is 11.1O, i.e., letter O instead number 0")
+print("#####################\n#####################")
+import numpy as np
+index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
+index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
+print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
+print(pheno_data.iloc[index_problematic_sample,:])
+
+#change 11.1O for 11.10
+print("\n#####################\n#####################")
+print("error solved")
+print("#####################\n#####################")
+pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
+print(pheno_data.iloc[index_problematic_sample,:])
+
+#change the type of phenotype that is not float but it should be
+pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype("float64")
+
+#calculate differences
+pheno_data["body_mass_diff"] = pheno_data["Week 8 Body Mass"] - pheno_data["Week 1 Body Mass"]
+pheno_data["beep_test_diff"] = pheno_data["Week 8 beep test"] - pheno_data["Week 1 Beep test"]
+pheno_data["vo2max_diff"] = pheno_data["Week 8 Pred VO2max"] - pheno_data["Week 1 Pred VO2max"]
+
+#merge genetic and phenotypic data
+pca_pheno = pd.merge(
+    right=first_pca,
+    left=pheno_data,
+    how="right",
+    right_on="IID",
+    left_on="AGRF code")
+    #merge genetic data with phenotypes, selecting only those samples for which we have genetic data, now we are interested in cleaning genetic data
+        #https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
+
+#
+samples_lost_in_pheno = pca_pheno.loc[pca_pheno["AGRF code"].isna(), "IID"]
+print("All IDs in illumina data are in pheno data? " + str(samples_lost_in_pheno.shape[0] == 0))
+
 #make interactive plot of the two first PCAs, so you can zoom in
 import plotly.express as px
 fig = px.scatter(\
-    data_frame=first_pca, \
+    data_frame=pca_pheno, \
     x="PC1", \
     y="PC2", \
-    color="FID", 
-    hover_data=["IID", "PC3"])
+    color="FID",
+    hover_data=["IID", "body_mass_diff", "beep_test_diff", "vo2max_diff"])
         #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
         #https://plotly.com/python/line-and-scatter/
 #fig.show()
-fig.write_html("pca_plot.html")
+fig.write_html("./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca/pca_plot.html")
     #https://plotly.com/python/interactive-html-export/
 
 
 ##POR AQUI
+    #checkk pheno....
 #YOU CAN ADD PHENO DATA AND USE IT TO MODIFY SIZE OF THE POINTS AND SEE IF PHENO HAS PATTERN
     #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
 
@@ -391,11 +536,7 @@ fig.write_html("pca_plot.html")
         #https://www.cog-genomics.org/plink/1.9/strat
 
 
-
-##check that the map files for each batch are identical!!
-    #use bim files of each batch, whcih are in data_to_merge
-
-
+#2397LDJA is not present in pheno data!!!
 
 
 
