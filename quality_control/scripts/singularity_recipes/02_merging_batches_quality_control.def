@@ -1,0 +1,225 @@
+#############################
+########## HEADER ###########
+#############################
+#The header should be written at the top of the def file. It tells Singularity about the base operating system that it should use to build the container. It is composed of several keywords.
+
+Bootstrap: library #It determines the bootstrap agent that will be used to create the base operating system you want to use. For example, the library bootstrap agent will pull a container from the Container Library. 
+
+From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword becomes valid. You indicate the container you want from the library. This will be downloaded and build. 
+
+
+
+#############################
+########## SETUP ############
+#############################
+#During the build process, commands in the %setup section are first executed on the host system outside of the container after the base OS has been installed. You can reference the container file system with the $SINGULARITY_ROOTFS environment variable in the %setup section. Be careful with the %setup section! This scriptlet is executed outside of the container on the host system itself, and is executed with elevated privileges. Commands in %setup can alter and potentially damage the host.
+
+#If you need to move it to a place that doesn't exist when the container is fresh, you need to make the path in setup first.
+%setup
+	#And of course use mkdir -p because if you don't and build again, you will get an error that it exists. "p" flags is for "no error if existing, make parent directories as needed"
+	#The first time I got an error "cannot create directory ‘/opt/data’: Not a directory". It seems that there is a file called "data", and when you have a file called like the folder you are trying to create, you get error ("https://stackoverflow.com/questions/14496897/mkdir-p-fails-when-directory-exists"). Therefore I did "rm /opt/data" and everything works.
+	#Note that some files that were created in initial containers remained, like the "test" folder or "eso.txt". I have removed those too.
+ 	#mkdir -p /opt/data
+ 	mkdir -p /opt/scripts
+
+
+
+#############################
+########## FILES ############
+#############################
+#The %files section allows you to copy files into the container with greater safety than using the %setup section.
+
+#Each LINE is a <source> and <destination> pair. The <source> is either: A valid path on your host system or a valid path in a previous stage of the build, while the <destination> is always a path into the current container. If the <destination> path is omitted it will be assumed to be the same as <source>. 
+
+#Files in the %files section are always copied before the %post section is executed so that they are available during the build and configuration process.
+
+#You should check that you can copy two different files to the same folder.
+
+%files
+
+	#copy the binary of plink (2023_01_16) and save it in /bin so we can use the command "plink"
+	#https://www.cog-genomics.org/plink/
+	/home/dftortosa/singularity/australian_army_bishop/plink_versions/plink_linux_x86_64_20230116/plink /bin/plink
+
+	#copy script
+	/home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/02a_merging_batches_quality_control.py /opt/scripts/02a_merging_batches_quality_control.py
+
+    #From the original folder in the host, we copy a R script to a new folder in the container called scripts. NEVER PUT ANYTHING ELSE IN THE LINE WITH SOURCE AND DESTINATION, GIVES ERROR.
+    #https://groups.google.com/a/lbl.gov/forum/#!topic/singularity/4NFDsohnxgg
+
+
+
+#############################
+########## APP ##############
+#############################
+#In some circumstances, it may be redundant to build different containers for each app with nearly equivalent dependencies. Singularity supports installing apps within internal modules based on the concept of Standard Container Integration Format (SCI-F) All the apps are handled by Singularity at this point. More information on Apps here.
+
+#Not needed. 
+
+
+
+#############################
+########## POST #############
+#############################
+#This section is where you can download files from the internet with tools like git and wget, install new software and libraries, write configuration files, create new directories, etc. You can also create environment variables.
+
+%post
+
+	#we use the flag -y for the cases when apt-get asks for installing
+
+	#update the packages
+	apt -y update
+
+	#install a language package to solve errors with the selected language
+	apt -y install language-pack-en-base
+
+	#install nano, just in case we have to take a look after the image is created
+	apt -y install nano
+
+	#update repos to install python
+	apt -y install software-properties-common #APT automates the retrieval, configuration and installation of software packages. Type these two commands in your terminal and hit enter each time. https://medium.com/analytics-vidhya/installing-python-3-8-3-66701d3db134
+
+	#Create PPA (Personal Package Archive)
+	add-apt-repository -y ppa:deadsnakes/ppa #PPA (Personal Package Archive) are used to add a software to your Ubuntu. They cut down on time taken to install the software from the original source. PPA is an easy way to update a program via someone, in this case I am using deadsnakes PPA. Type the following command and hit enter.
+
+	#update again after you have updated the repository
+	apt -y update
+
+	#install faster compressor
+	apt -y install pigz
+
+	#install wget to download spark
+	apt -y install wget
+
+	#install java for pyspark
+	#https://stackoverflow.com/questions/38747713/running-spark-on-linux-java-home-not-set-error
+	apt -y install openjdk-8-jdk
+
+	#install apache spark, pyspark will connect to spark
+		#https://stackoverflow.com/questions/33887227/how-to-upgrade-spark-to-newer-version/33914992#33914992
+	#download apache spark in usr/local/bin
+	wget -P /usr/local/bin https://dlcdn.apache.org/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
+		#https://www.apache.org/dyn/closer.lua/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
+	#unzip
+	tar -zxf /usr/local/bin/spark-3.3.2-bin-hadoop3.tgz -C /usr/local/bin
+	#set the path of spark as environmental variable in our bash profile, so it is always present
+	#echo "#spark setup" >> ~/.bashrc
+	#echo "export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3" >> ~/.bashrc
+		#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
+		#we do this better in env, because singualirty uses its own bashrc file
+
+	#Install python
+	apt -y install python3.9
+
+	#also install curl, needed for install python packages
+	apt -y install curl
+
+	#install python packages
+	#first, install pip into python3 (pip can be also installed in the linux system, but we will use it inside python): "https://pip.pypa.io/en/stable/installing/"
+	curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+	apt -y install python3.9-distutils #this is needed because of an error: https://github.com/pypa/get-pip/issues/43
+	python3.9 get-pip.py
+
+	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
+	python3.9 -m pip install plotly
+	python3.9 -m pip install pyspark
+	python3.9 -m pip install PyArrow #for pandas group by functions in pyspark
+	python3.9 -m pip install openpyxl
+	python3.9 -m pip install natsort
+	#python3.9 -m pip install scikit-learn
+	#python3.9 -m pip install eli5
+	#python3.9 -m pip install tensorflow
+	#python3.9 -m pip install scikeras
+	#python3.9 -m pip install optuna
+	python3.9 -m pip install numpy
+	#python3.9 -m pip install scipy
+	python3.9 -m pip install matplotlib
+	python3.9 -m pip install pandas
+	python3.9 -m pip install ipython
+	#python3.9 -m pip install bpython #this intepreter gives me problems with the indents. iPython works better
+		#Check its webpage to have alternatives: 
+			#https://github.com/bpython/bpython
+			#https://github.com/prompt-toolkit/ptpython
+
+		#I got a warning: ERROR: After October 2020 you may experience errors when installing or updating packages. This is because pip will change the way that it resolves dependency conflicts. We recommend you use --use-feature=2020-resolver to test your packages with the new resolver before it becomes the default.
+
+	#we have to upgrade pandas to avoid errors in python3.8
+	#pip3.9 install --upgrade pandas
+	
+	#give rights to run the bash script
+	chmod +x opt/scripts/02a_merging_batches_quality_control.py
+	
+
+
+#############################
+########## TEST #############
+#############################
+#The %test section runs at the very end of the build process to validate the container using a method of your choice. You can also execute this scriptlet through the container itself, using the test command.
+
+#Not needed for now.
+
+
+
+####################################
+########## ENVIRONMENT #############
+####################################
+#The %environment section allows you to define environment variables that will be set at runtime (not during the building). Note that these variables are not made available at build time by their inclusion in the %environment section. This means that if you need the same variables during the build process, you should also define them in your %post section. Specifically:
+
+#You should use the same conventions that you would use in a .bashrc or .profile file. Consider this example from the def file above:
+
+%environment
+    export LC_ALL=C #The $LC_ALL variable is useful for many programs (often written in Perl) that complain when no locale is set.
+
+    export SHELL=/bin/bash #set bash as default shell to avoid using sh
+
+	#set the path of spark as environmental variable in our bash profile, so it is always present
+    export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3
+    	#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
+
+    #set the python version for pyspark
+    export PYSPARK_PYTHON=/usr/bin/python3.9
+	export PYSPARK_DRIVER_PYTHON=/usr/bin/python3.9
+
+
+
+####################################
+########## STARTSCRIPT #############
+####################################
+#Similar to the %runscript section, the contents of the %startscript section are written to a file within the container at build time. This file is executed when the instance start command is issued.
+
+#Not needed for now.
+
+
+
+##################################
+########## RUNSCRIPT #############
+##################################
+#The contents of the %runscript section are written to a file within the container that is executed when the container image is run (either via the singularity run command or by executing the container directly as a command). When the container is invoked, arguments following the container name are passed to the runscript. This means that you can (and should) process arguments within your runscript.
+
+%runscript
+	
+	#run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
+	#run first the smallest batch with all cores and then the second batch. If we do it in parallel both batches with half of the cores, then the smallest one will be finished early and its cores will not be used by the other batch.
+	/opt/scripts/./02a_merging_batches_quality_control.py > ./02a_merging_batches_quality_control.out 2>&1
+
+
+
+###############################
+########## LABELS #############
+###############################
+#The %labels section is used to add metadata to the file /.singularity.d/labels.json within your container. The general format is a name-value pair.
+
+#Command to build, enter interactively or run
+	#now apply the definition file final_test_def for creating a container
+		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_merging_batches_quality_control.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/02_merging_batches_quality_control.def
+			#In the definition file is indicate that we will take an Ubuntu 20.04 container from the Singularity library. We do not need anything else. We do not need a previous image in the host system! The definition file has the instructions to get the required container from the library.
+	#you can run this image interactively with shell. For that you have to be in a specific folder in order to have the scripts workingnter in the container
+		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
+		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_merging_batches_quality_control.sif
+	#to run the container. For that you have to be in a specific folder in order to have the scripts workingnter in the container
+		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
+		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_merging_batches_quality_control.sif
+
+%labels
+    Author dftortosa
+    Version v0.0.1

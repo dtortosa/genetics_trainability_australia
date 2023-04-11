@@ -183,17 +183,84 @@ run_bash("\
     gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data*.gz")
         #-keep to keep the original compressed file and --force to overwrite if the decompressed file exists
 
-#do the merging
+#do the merging using --merge-list
+print("\n#######################################\n#######################################")
+print("merge the two batches using two different approaches in plink")
+print("#######################################\n#######################################")
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
     plink \
         --merge-list ./list_files_to_merge.txt \
         --out ../merged_plink_files/merged_batches")
-        #the default merging mode is 
-            #(default) Ignore missing calls, otherwise set mismatches to missing.
+        #we can use --merge-list to merge batches listed in a .txt file.
             #https://www.cog-genomics.org/plink/1.9/data#merge_list
+        #you can first call a fileset (used as reference) doing "plink --bfile NAME_REFERENCE" and then add "--merge-list LIST_TO_MERGE" where LIST_TO_MERGE has the names of the filesets to be merged with the reference fileset.
+            #https://www.biostars.org/p/9467886/
+        #alternatively, this can be used without a reference, i.e., all files are included in LIST_TO_MERGE. In that case, the newly created fileset is then treated as the reference by most other PLINK operations.
+        #we are using the second option as we did for merging plink files of each sample within each batch.
+
+#do the merging using --bmerge
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
+    plink \
+        --bfile ILGSA24-17303_merged_data\
+        --bmerge ILGSA24-17873_merged_data \
+        --out ../merged_plink_files/merged_batches_2")
+        #we can also call first one of the batches with "--bfile" and use it as reference without using --merge-list, then add the second batch with --bmerge. We can directly use the prefix of the fileset, because the three files (bed, bim and fam) should be named the same way except for the extension.
+
+#
+print("\n#######################################\n#######################################")
+print("check that merging the two batches with --merge-list and --bmerge gives the same")
+print("#######################################\n#######################################")
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    bed_status=$(cmp --silent merged_batches.bed merged_batches_2.bed; echo $?); \
+    bim_status=$(cmp --silent merged_batches.bim merged_batches_2.bim; echo $?); \
+    fam_status=$(cmp --silent merged_batches.fam merged_batches_2.fam; echo $?); \
+    if [[ $bed_status -eq 0 && $bim_status -eq 0 && $fam_status -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #check that files (bed, bim, fam) obtained with --merged-list (merged_batches) and --bmerge (merged_batches_2) are the same.
+        #check byte by byte whether the two files are the same
+            #cmp takes two files and compare them until 1 byte is different
+            #we make it silent and get the final status
+            #remember that "$?" gives the return value of the last run command.
+                #For example, 
+                    #ls somefile
+                    #echo $?
+                    #If somefile exists (regardless whether it is a file or directory), you will get the return value thrown by the ls command, which should be 0 (default "success" return value). If it doesn't exist, you should get a number other then 0. The exact number depends on the program.
+                #https://stackoverflow.com/a/6834572/12772630
+            #the return value of cmp will be 0 if the two files are identical, if not, then we have differences between the files
+                #https://stackoverflow.com/a/53529649/12772630
+        #if the status of the three comparisons is zero, then perfect.
+
+#remove the second fileset created only for the check
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    rm merged_batches_2*; \
+    n_files=$(ls | wc -l); \
+    if [[ $n_files -eq 4 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+#more info about merging
+    #The new fileset plink.bed + .bim + .fam is automatically created in the process. (Corner case exception: if "--recode lgen" is part of the same run, the prefix is plink-merge instead.) Thus, it is no longer necessary to combine --merge with --make-bed if you aren't simultaneously applying some filters to the data.
+        #https://www.cog-genomics.org/plink/1.9/data#merge
+    #The order of sample IDs in the new fileset can now be controlled with --indiv-sort. 
+        #the default is 'natural'/'n'
+            #"Natural sort" of family and within-family IDs, similar to the logic used in macOS and Windows file selection dialogs; e.g. 'id2' < 'ID3' < 'id10'. This is the PLINK 1.9 default when merging datasets.
+            #this is what we want, because we have actually a pattern in the IDs, first numbers and then letters. According the manual, if the IDs mix letters and numbers randomly, then other modes are better, but this is not our case.
+                #Therefore, first samples of the first batch and then samples of the second batch, as the number ID of the second batch is larger. Within batch, we also want natural order by numberic and alphabetic.
+            #https://www.cog-genomics.org/plink/1.9/data#indiv_sort
+    #the default merging mode is (default) Ignore missing calls, otherwise set mismatches to missing.
         #I guess the default mode will set as missing those SNPs that are present in one batch but not in other.
         #In an example (https://www.biostars.org/p/496434/), this guy select shared SNPs between the two batches and then do the merge with --merge-list, but in our case we have the same number of SNPs in both batches (checked below), so we should not have problems with this.
+    #If binary merging fails because at least one variant would have more than two alleles, a list of offending variant(s) will be written to plink.missnp
+        #we do not have a plink.missnp file, so we should be good with this.
 
 #compress the merged files
 run_bash(" \
@@ -254,33 +321,82 @@ run_bash("\
     fi")
 
 
-#por aquii
-#run PCA
+
+###################################
+###### explore batch effects ######
+###################################
+
+#decompress merged data
 run_bash("\
     cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
-    plink --pca --bfile merged_batches --out merged_batches_pca")
+    gunzip --keep --force merged_batches*.gz")
 
-    #https://www.cog-genomics.org/plink/1.9/strat#pca
+#
+print("\n#######################################\n#######################################")
+print("run PCA to detect clusters of samples")
+print("#######################################\n#######################################")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --pca \
+            'tabs' \
+            'header' \
+        --bfile ./merged_plink_files/merged_batches \
+        --out ./merged_batches_pca/first_pca")
+        #dimensionality reduction
+            #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
+            #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
+            #By default, --pca extracts the top 20 principal components of the variance-standardized relationship matrix; you can change the number by passing a numeric parameter. Eigenvectors are written to plink.eigenvec, and top eigenvalues are written to plink.eigenval. 
+            #The 'header' modifier adds a header line to the .eigenvec file(s), and the 'tabs' modifier makes the .eigenvec file(s) tab- instead of space-delimited.
+            #https://www.cog-genomics.org/plink/1.9/strat#pca
 
+#load the eigenvec file generated
 import pandas as pd
-ret_pca=pd.read_csv("./data/genetic_data/plink_bed_files/merged_batches/batch_pca/merged_batches_pca.eigenvec", sep=" ", header=None, low_memory=False)
-    #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
+first_pca=pd.read_csv(\
+    "./data/genetic_data/plink_bed_files/merged_batches/batch_pca/first_pca.eigenvec", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+        #Produced by --pca. Accompanied by an .eigenval file, which contains one eigenvalue per line.
+        #The .eigenvec file 
+            #is, by default, a space-delimited text file with no header line and 2+V columns per sample, where V is the number of requested principal components. 
+            #The --pca 'header' modifier causes a header line to be written, and the 'tabs' modifier makes this file tab-delimited.
+            #The first two columns are the sample's FID/IID, and the rest are principal component weights in the same order as the .eigenval values (if the header line is present, these columns are titled 'PC1', 'PC2', ...).
+        #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
 
-colors = ret_pca.iloc[:,0]
+#make interactive plot of the two first PCAs, so you can zoom in
+import plotly.express as px
+fig = px.scatter(\
+    data_frame=first_pca, \
+    x="PC1", \
+    y="PC2", \
+    color="FID", 
+    hover_data=["IID", "PC3"])
+        #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
+        #https://plotly.com/python/line-and-scatter/
+#fig.show()
+fig.write_html("pca_plot.html")
+    #https://plotly.com/python/interactive-html-export/
 
-colors.loc[colors == "combat_ILGSA24-17303"] = "red"
-colors.loc[colors == "combat_ILGSA24-17873"] = "blue"
-    #warning here
 
-import matplotlib.pyplot as plt
-plt.scatter(ret_pca.iloc[:, 2], ret_pca.iloc[:, 3], c=colors, alpha=0.5)
-#plt.show()
-plt.savefig("pca_plot.png", bbox_inches="tight")
+##POR AQUI
+#YOU CAN ADD PHENO DATA AND USE IT TO MODIFY SIZE OF THE POINTS AND SEE IF PHENO HAS PATTERN
+    #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
+
     #there are some samples that are very far away, but both from batch 1 and 2. when you zoom in the bulk of the samples, samples of both batches are evenly distributed.
+
+
+
+    ##LOOK ALSO CLUSTERING AND OUTLIER DETECTION
+        #https://www.cog-genomics.org/plink/1.9/strat
+
 
 
 ##check that the map files for each batch are identical!!
     #use bim files of each batch, whcih are in data_to_merge
+
+
+
 
 
 
@@ -298,13 +414,13 @@ plt.savefig("pca_plot.png", bbox_inches="tight")
         #they say that in the event of batch effect, you can use the same techinques used for population stratification.
         #lee el paper antiguo pero mira el tutorial de github de la versión mas reciente
             #https://github.com/RitchieLab/GWAS-QC
-
-
-
-#QC BEFORE OR AFTER MERGINIG?
     #Identifying and mitigating batch effects in whole genome sequencing data
-    #
 
+
+
+#you can merge snps with the same position merging the fileset with itself and using --merge-equal-pos
+    #If two variants have the same position, PLINK 1.9's merge commands will always notify you. If you wish to try to merge them, use --merge-equal-pos. (This will fail if any of the same-position variant pairs do not have matching allele names.) Unplaced variants (chromosome code 0) are not considered by --merge-equal-pos.
+    #Note that you are permitted to merge a fileset with itself; doing so with --merge-equal-pos can be worthwhile when working with data containing redundant loci for quality control purposes.
 
 
 #FOR QUALITY CONTROL, YOU COULD USE MIGHIGGAN SERVER, WHICH ALREADY APPLIES MULTIPLE FILTERS like duplicates AND THEN ADD A FEW WITH PLINK, AUGUSTO DID THAT
@@ -340,6 +456,7 @@ plt.savefig("pca_plot.png", bbox_inches="tight")
 
 
 ##check snp maps after merging
+
 
 
 
