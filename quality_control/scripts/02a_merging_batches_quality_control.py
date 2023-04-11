@@ -99,9 +99,9 @@ run_bash("ls")
 ###### merging batches ######
 #############################
 
-##############################################################
-# check we have the correct number of samples in each batch  #
-##############################################################
+#############################################################
+# check we have the correct number of samples in each batch #
+#############################################################
 
 #
 print("\n#######################################\n#######################################")
@@ -144,46 +144,82 @@ run_bash(" \
 # merge both batches using plink #
 ##################################
 
-
+#create new folders to store files to merged and then save the merging and do PCA
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/; \
     rm -rf merged_batches/data_to_merge; \
     mkdir -p merged_batches/data_to_merge")
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/; \
+    rm -rf merged_batches/merged_plink_files; \
+    mkdir -p merged_batches/merged_plink_files")
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/; \
+    rm -rf merged_batches/merged_batches_pca; \
+    mkdir -p merged_batches/merged_batches_pca")
 
-
+#copy the plink files of both batches
 run_bash("\
     cd ./data/genetic_data/plink_bed_files; \
     cp ./ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data* ./merged_batches/data_to_merge/; \
     cp ./ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data* ./merged_batches/data_to_merge/")
 
+#create a .txt with the name of the plink inputs for each batch
 run_bash("\
     cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/; \
     echo ILGSA24-17303_merged_data > list_files_to_merge.txt; \
     echo ILGSA24-17873_merged_data >> list_files_to_merge.txt")
-        #use >> to append a new line with the path of the second batch file
-        #https://unix.stackexchange.com/questions/159513/what-are-the-shells-control-and-redirection-operators
-        #https://unix.stackexchange.com/questions/77277/how-to-append-multiple-lines-to-a-file
+        #for --merge-list
+            #If a line contains only one name, it is assumed to be the prefix for a binary fileset
+            #https://www.cog-genomics.org/plink/1.9/data#merge_list
+        #">" creates a new file where the output of the command it is saved
+        #">>" appends the output of the command to an existing file
+            #https://unix.stackexchange.com/questions/159513/what-are-the-shells-control-and-redirection-operators
+            #https://unix.stackexchange.com/questions/77277/how-to-append-multiple-lines-to-a-file
 
+#decompress the plink inputs
 run_bash("\
-    gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data*.gz")
-
-run_bash("\
+    gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data*.gz; \
     gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data*.gz")
+        #-keep to keep the original compressed file and --force to overwrite if the decompressed file exists
 
-
+#do the merging
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
     plink \
         --merge-list ./list_files_to_merge.txt \
-        --out ../merged_batches")
+        --out ../merged_plink_files/merged_batches")
+        #the default merging mode is 
+            #(default) Ignore missing calls, otherwise set mismatches to missing.
+            #https://www.cog-genomics.org/plink/1.9/data#merge_list
+        #I guess the default mode will set as missing those SNPs that are present in one batch but not in other.
+        #In an example (https://www.biostars.org/p/496434/), this guy select shared SNPs between the two batches and then do the merge with --merge-list, but in our case we have the same number of SNPs in both batches (checked below), so we should not have problems with this.
 
+#compress the merged files
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
+    gzip --force ./merged_batches.bed; \
+    gzip --force ./merged_batches.bim; \
+    gzip --force ./merged_batches.fam")
+        #--force: force overwrite of output file and compress links
 
+#remove the decompressed input files
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/;\
+    rm ./ILGSA24-17303_merged_data.bed; \
+    rm ./ILGSA24-17303_merged_data.bim; \
+    rm ./ILGSA24-17303_merged_data.fam;\
+    rm ./ILGSA24-17873_merged_data.bed; \
+    rm ./ILGSA24-17873_merged_data.bim; \
+    rm ./ILGSA24-17873_merged_data.fam")
+
+#
 print("\n#######################################\n#######################################")
 print("check we have the exact sum of samples from both batches")
 print("#######################################\n#######################################")
 run_bash("\
     n_samples_merged=$(\
-        cat ./data/genetic_data/plink_bed_files/merged_batches/merged_batches.fam | \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam.gz | \
         wc -l);\
     n_samples_first_batch=$( \
         gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.fam.gz | \
@@ -197,12 +233,13 @@ run_bash("\
         echo 'FALSE'; \
     fi")
 
+#
 print("\n#######################################\n#######################################")
 print("check after merging we still have 654027 snps, and this is the number of variants than in each of the batches")
 print("#######################################\n#######################################")
 run_bash("\
     n_snps_merged=$(\
-        cat ./data/genetic_data/plink_bed_files/merged_batches/merged_batches.bim | \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim.gz | \
         wc -l);\
     n_snps_first_batch=$( \
         gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bim.gz | \
@@ -217,26 +254,16 @@ run_bash("\
     fi")
 
 
+#por aquii
+#run PCA
 run_bash("\
-    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bed; \
-    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bim; \
-    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.fam;\
-    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.bed; \
-    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.bim; \
-    rm ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.fam")
-
-#see the merging modes of plink
-    #https://www.cog-genomics.org/plink/1.9/data#merge_list
-
-
-run_bash("\
-    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
     plink --pca --bfile merged_batches --out merged_batches_pca")
 
     #https://www.cog-genomics.org/plink/1.9/strat#pca
 
 import pandas as pd
-ret_pca=pd.read_csv("./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca.eigenvec", sep=" ", header=None, low_memory=False)
+ret_pca=pd.read_csv("./data/genetic_data/plink_bed_files/merged_batches/batch_pca/merged_batches_pca.eigenvec", sep=" ", header=None, low_memory=False)
     #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
 
 colors = ret_pca.iloc[:,0]
@@ -251,10 +278,12 @@ plt.scatter(ret_pca.iloc[:, 2], ret_pca.iloc[:, 3], c=colors, alpha=0.5)
 plt.savefig("pca_plot.png", bbox_inches="tight")
     #there are some samples that are very far away, but both from batch 1 and 2. when you zoom in the bulk of the samples, samples of both batches are evenly distributed.
 
-plot($PC1,ret_pca$PC2)
+
+##check that the map files for each batch are identical!!
+    #use bim files of each batch, whcih are in data_to_merge
 
 
-#maybe merge using different family IDs and then use plink to check batch effects?
+
 
 
 
