@@ -15,7 +15,7 @@ PREGUNTA ESTO A DAVID NEXT TIME
     - sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
     - I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
     - some rows are coloured, there is something special about these samples it could be relevant for the analysis?
-    - there is data about ancestry? I am, black, whites... I will do analyses to detect genetic outliers but it would be good if we have this data.
+    - there is data about ancestry? I am, african, european... I will do analyses to detect genetic outliers but it would be good if we have this data.
 
 
 - Things to check when QC:

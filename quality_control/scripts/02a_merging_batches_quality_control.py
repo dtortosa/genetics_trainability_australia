@@ -466,7 +466,7 @@ pheno_data = pd.read_excel(
     sheet_name="All DNA samples")
 print(pheno_data)
 
-#there are several phenotypes, see dev version for details about possible errors.
+#there are several phenotypes, see 01a_illumina_report_to_plink_DEV.py for details about possible errors.
 #here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
 
 #beep test 8 has an error, "o" letter instead "0" number in one sample
@@ -488,6 +488,7 @@ print(pheno_data.iloc[index_problematic_sample,:])
 
 #change the type of phenotype that is not float but it should be
 pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype("float64")
+    #this column had a row with 11.1O, i.e., letter "O" instead of number "0", so python did not consider this column as float.
 
 #calculate differences
 pheno_data["body_mass_diff"] = pheno_data["Week 8 Body Mass"] - pheno_data["Week 1 Body Mass"]
@@ -507,6 +508,8 @@ pca_pheno = pd.merge(
 #
 samples_lost_in_pheno = pca_pheno.loc[pca_pheno["AGRF code"].isna(), "IID"]
 print("All IDs in illumina data are in pheno data? " + str(samples_lost_in_pheno.shape[0] == 0))
+print("How many? " + str(samples_lost_in_pheno.shape[0]))
+print("It is ok to have False in this check, because we already knew that some samples had illumina report but where not included in pheno_data. The output script for the first batch shows that 1 sample has genetic data but it is not present in pheno_data (2397LDJA). In the second batch, the output script shows 6 samples with genetic but no pheno_data. In the PCA, we only have one 1 missing sample, so I guess the 6 missing samples of the second batch were those duplicated, i.e., those named as ID_1 and ID_2....")
 
 #make interactive plot of the two first PCAs, so you can zoom in
 import plotly.express as px
@@ -515,29 +518,30 @@ fig = px.scatter(\
     x="PC1", \
     y="PC2", \
     color="FID",
-    hover_data=["IID", "body_mass_diff", "beep_test_diff", "vo2max_diff"])
+    hover_data=[\
+        "IID", \
+        "body_mass_diff", \
+        "beep_test_diff", \
+        "vo2max_diff"])
         #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
         #https://plotly.com/python/line-and-scatter/
+        #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
 #fig.show()
 fig.write_html("./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca/pca_plot.html")
     #https://plotly.com/python/interactive-html-export/
 
 
 ##POR AQUI
-    #checkk pheno....
-#YOU CAN ADD PHENO DATA AND USE IT TO MODIFY SIZE OF THE POINTS AND SEE IF PHENO HAS PATTERN
-    #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
+    #check a bit more plotting script
+    
+    #think why you have a missing sample (2397LDJA), but when you check the number of samples between illumina and pheno_data, you only have 1 of difference. In the email to Bishop, you said that the missing sample could be the AGO... that was duplicated in illumina but not in pheno_data, so we should have 2 less samples, not 1. look the empty row between data and NAs... 
 
     #there are some samples that are very far away, but both from batch 1 and 2. when you zoom in the bulk of the samples, samples of both batches are evenly distributed.
 
-
+    #save pheno_data after the cleaning?
 
     ##LOOK ALSO CLUSTERING AND OUTLIER DETECTION
         #https://www.cog-genomics.org/plink/1.9/strat
-
-
-#2397LDJA is not present in pheno data!!!
-
 
 
 
