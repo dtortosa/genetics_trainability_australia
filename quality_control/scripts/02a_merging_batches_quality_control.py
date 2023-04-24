@@ -32,16 +32,16 @@
 
 #create a wrapper for subprocess.run in order to define a set of arguments and avoid typing them each time. We will ensure that we are using bash always and not sh.
 from subprocess import run, PIPE
-#command="ls"; return_value=False
+#command="ls"
 def run_bash(command, return_value=False):
 
     #run the command
     complete_process = run(
-        command,
+        command, 
         shell=True,
-        executable="/bin/bash",
+        executable="/bin/bash", 
         stdout=PIPE,
-        stderr=PIPE,
+        stderr=PIPE, 
         text=True)
     #we have to use popen in order to ensure we use bash, os.system does not allow that
         #shell=True to execute the command through the shell. This means that the command is passed as a string, and shell-specific features, such as wildcard expansion and variable substitution, can be used.
@@ -59,26 +59,30 @@ def run_bash(command, return_value=False):
         #stdout: The standard output of the subprocess, as a bytes object.
         #stderr: The standard error of the subprocess, as a bytes object.
 
-    #if stderr is empty
-    if complete_process.stderr=="":
+    #if the return code is 0, i.e., success 
+        #https://askubuntu.com/a/892605
+    if complete_process.returncode==0:
 
-        #print the standard output without "\n" and other characters
-        print(complete_process.stdout)
+        #if stderr is empty
+        if complete_process.stderr=="":
 
-        #return also the value if required
-        if return_value==True:
-            return complete_process.stdout
-    elif ("Warning" in complete_process.stderr) | ("warning" in complete_process.stderr):
+            #print the standard output without "\n" and other characters
+            print(complete_process.stdout)
 
-        #print the standard output without "\n" and other characters
-        print(complete_process.stdout)
+            #return also the value if required
+            if return_value==True:
+                return complete_process.stdout
+        else:
 
-        #print the standard error without stopping
-        print("WARNING: " + complete_process.stderr)
+            #print the standard output without "\n" and other characters
+            print(complete_process.stdout)
 
-        #return also the value if required
-        if return_value==True:
-            return complete_process.stdout
+            #print the standard error without stopping
+            print(complete_process.stderr)
+
+            #return also the value if required
+            if return_value==True:
+                return complete_process.stdout
     else:
         #print the standard error and stop
         raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
@@ -532,6 +536,64 @@ fig.write_html("./data/genetic_data/plink_bed_files/merged_batches/merged_batche
 
 
 ##POR AQUI
+
+    '''
+REQUEST DAVID, 7800AGSO and the list of sex mismatches
+
+Hi Diego,
+
+Thanks for being so thorough with this!
+
+I caught up with my post-doc today and I was able to clarify some of your queries (below in red).
+
+If it would help to have a quick chat on Zoom about this just let me know.
+
+Repeated IDs in illumina reports
+There are 6 illumina reports with almost the same ID, just differing in the suffix:
+1100JHJM_1
+1100JHJM_2
+1200JPJM_1
+1200JPJM_2
+7800AGSO_1
+7800AGSO_2
+I have checked that each pair of samples (e.g., 1100JHJM_1 and 1100JHJM_2) is not identical (i.e., different genotypes), which is the case. So they are indeed different samples, but they share almost the same ID.
+I have found out that both 1100JHJM and 1200JPJM appear two times in the AGRF code column of the excel with phenotypic data ("combact gene DNA GWAS 23062022.xlsx"). For example, row 157 shows a 21 years old male, while row 174 shows a 18.82 years old male. Both have the same ID (1200JPJM) but different values for the phenotypic variables.
+This explains why we have 4 illumina reports with these IDs changing the suffix.
+I do not think we can identify which phenotypic data belong to each of these final reports, so I would remove these 4 samples.
+This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200 JPJM, both male). I agree that we will need to remove these from our analysis.
+
+In the case of 7800AGSO, there is no duplication in the excel file, but there are still two illumina reports with this ID (_1 and _2). These two reports have different genotypes, so they seem to come from different samples, but I do not know where the second ID comes from. My guess is that some error occured during the genotyping, but I am not sure.
+This explains another thing I wanted to mention. The total number of ID samples in the excel file is 1463. However, the number of illumina reports I have is 216 (first batch) + 1248 (second batch), totalling 1464 samples. There is a missing sample that could be this repeated 7800AGSO report.
+I do not think we can be sure which one (7800AGSO_1 or 7800AGSO_2) represents sample 7800AGSO in the excel file. Therefore, I would remove this sample (7800AGSO) and the corresponding illumina reports (7800AGSO_1 and 7800AGSO_2).
+There is only one individual (male) with code 7800 from session 878, so there appears to have been a labelling error while preparing the DNA samples. Are you able to tell us which is the sample from the excel file that doesn’t appear to have a DNA sample? That might help us to work this out. If not, I agree that we will need to remove this sample also.
+
+Another missing sample
+I have an Illumina report for one sample (2397LDJA; ILGSA24-17303) that is not present in the excel file.
+In contrast, the sample ID 2399LDJA is present in the excel file but there is no illumina report for this ID. 
+Both IDs are the same except for the 4th digit.
+Maybe they are the same sample, but it would probably be a good idea to remove both IDs.
+Yes! I had exactly the same note, I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file.
+
+Non-matching sex
+I have detected some inconsistencies between the sex reported in the excel and the one reported by illumina and based on genetic data.
+There are 10 samples that are considered as sex=unknown by illumina, while they have defined sex in the excel file. My guess is this a problem from Illumina?
+I have also detected some samples that are defined as Male but have two copies for SNPs in the X chromosomes that should have only 1 copy (regions of the X chromosome that have no correspondence with the Y chromosome).
+There are also 9 samples for which the illumina reported sex is opposite to that shown in the phenotypic data.
+I still have to run more checks about this using specific bioinformatic tools, but still this is something to consider. My guess is that this is a problem from Illumina, but just to be sure, the "Gender" data in the excel file considers biological sex, right? Yes, this is biological sex (I’ll not to check if Defence allows recruits to self-identify).
+If I can get a list of the samples with non-matching sex, I can double check in the raw data and also check with the defence files.
+
+
+
+    '''
+
+
+    #illumina report is 1 based? look first script.
+
+    #same strand in both batches?
+        #we are using forward right?
+
+    #check if the fact you did not change dtype of week 8 test beep to float in script 1, could be a problem
+
     #check a bit more plotting script
     
     #think why you have a missing sample (2397LDJA), but when you check the number of samples between illumina and pheno_data, you only have 1 of difference. In the email to Bishop, you said that the missing sample could be the AGO... that was duplicated in illumina but not in pheno_data, so we should have 2 less samples, not 1. look the empty row between data and NAs... 
@@ -542,6 +604,7 @@ fig.write_html("./data/genetic_data/plink_bed_files/merged_batches/merged_batche
 
     ##LOOK ALSO CLUSTERING AND OUTLIER DETECTION
         #https://www.cog-genomics.org/plink/1.9/strat
+
 
 
 
@@ -876,3 +939,52 @@ temp_dir.cleanup()
 ########################################################################
 #DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
 ########################################################################
+
+#- Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
+#    - https://www.nature.com/articles/s43856-023-00269-x
+    #they select variants from a previos GWas and then train models in their cohorts
+        #they select between 8000 and 2000 snps and use them as inputs in the different models. 
+        #we have a big problem here because we cannot use a previous gwas to select snps, so we have 600K snps and onlt 1400 samples
+            #maybe gwas cardiorespiratory fitness
+        #this sounds like typical gwas would be better option, but we do not have validation cohort
+        #maybe do like zaragoza people? select genes/snps from literature (gwas potente de cardiorespitratory fitness) and use that to make the score that in turn would be tested by splitting in training and evaluation?
+            #right now this sounds like the best option.
+        #BEST OPTION
+            #select variants from literature (GWAS VO2 max?) and use them to create a genetic algorithm to predict response to train in terms of VO2 max.
+            #indeed, they do for the chinese analyses.
+                #they took seveeral GWAS across different ethinc groups, obtain 200 gwas hits, 
+                #analyze the assocition of these variants with Alzhemier in the two chinese cohort
+                #calculate meta-pvalue for the association controlling for PCA, obtainint 37 variants significant
+                #from this associatoons extract effect size to develop PRS with these 37 variants
+                #for lasso and DNN use the 37 variants
+            #maybe we can do a meta from differene erupean gwas? maybe the filter again in their cohort because the etnicity was different...
+            #do CV on 1000 samples and then test in 400.
+            #Yes, you are losing variants that are not known, but if you get a good performance in neven seen data, then you are good.
+            #remember paper of Jones, where they select genes bases on literature. Yes, it would be ideal to have another cohort like them, but we have a very controlled study... I think we have a very good study to test polygenic scores, even not having a second cohort.
+                #you should read about what is the situation of poly scores in fitness research. if there are not frequent, this could be a hit.
+            #then we could extract feature importance and see what variants are more important, do enrichment analyses in functions..
+            #even though think about the alternative of doing gwas, you propose new genes and then what? do no have more accuacy or anything, and no another cohort
+                #THINK
+        #EVEN MORE BETTER?
+            #selet gwas hitas from previous gwas
+            #do asssociaiton analysis in our cohort and select those hits with signal in our experiment
+            #predic VO2 max wihth PRS, lasso, DNN using CV and test set
+            #then repeat in publich gwas
+            #so we can use our great design to propose a genetic lgorithm and we test it in this and other cohorts?!!!
+    #they do typcal CV with the three cohorts, but also repeat with trainin in two and evaluation in the third
+        #we will probably have to do training and evalution.
+        #
+    #the approch is very interesting combiniing genetics and good deep learning for prediction
+    #the last author is H-index 90, 
+    #they used plink to detect duplicated samples between sets and remove them
+    #network architecture basd on genetics!!
+    #thye check model performance in subset of etnicity and sex
+        #I guess they combined different ethinicities thanks to add the PCA axes, can we do that? most would be european..
+        #maybe we can do it between age groups... factors influencif fitness
+    #DNN works better than PRS and lasso with a small number of predictors, just 37!!!
+    #INTERESTING
+        #they used an R function to do botstrap and calculate CI of AUC and p-value for the differences in AUC between DNNs, lasso and PRS!!!
+    #i undesrtand they got the scores from the DNN and use them to stratify indiviausl in low, high and meidum risk of AD, they also correlate these scores with multiple phenotipic variables to understand the mechiansms through which these snps are acting.
+
+#maybe these plots woth R2 and gene names of the variants and p-value could be useful?  
+    #Page 46 of "aau1043-halldorsson-sm-revision1.pdf"

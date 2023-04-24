@@ -70,7 +70,8 @@ PREGUNTA ESTO A DAVID NEXT TIME
 
 
 2. Tutorials
-
+- Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
+    - https://www.nature.com/articles/s43856-023-00269-x
 - cool tutorial merging data with 1KGP using plink!!
     - https://www.biostars.org/p/335605/
 - tutorial christopher chang
@@ -84,6 +85,8 @@ PREGUNTA ESTO A DAVID NEXT TIME
     - there is a version of 2011 and new one in 2022 with github repo
     - https://github.com/RitchieLab/GWAS-QC#basic-overview
 - Integrative polygenic risk score improves the prediction accuracy of complex traits and diseases 
+- PGSbuilder: An end-to-end platform for human genome association analysis and polygenic risk score predictions
+    - use the paper as s guide of good practice PRS?
 - Interpreting population and family-based genome-wide association studies in the presence of confounding
 - A tutorial on conducting genome‐wide association studies: Quality control and statistical analysis
 - Genetic prediction of complex traits with polygenic scores: a statistical review
@@ -97,3 +100,5 @@ PREGUNTA ESTO A DAVID NEXT TIME
 - Integrative polygenic risk score improves the prediction accuracy of complex traits and diseases
 - The PPARGC1A Gly482Ser polymorphism is associated with elite long-distance running performance
     - 2023, Robert M. Erskine
+- to annotate genes
+    - Gene-metabolite annotation with shortest reactional distance enhances metabolite genome-wide association studies result
