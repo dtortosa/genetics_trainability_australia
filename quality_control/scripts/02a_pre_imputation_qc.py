@@ -135,9 +135,12 @@ run_bash("ls")
 ##por aquiii
 
 #check the text I have in the next lines and then go directly to the protocol, follow it, except not starting with sex and hetero, see next comment.
+    #https://github.com/RitchieLab/GWAS-QC
 
 #sex (--check-sex) and hetero (--het) should be checked after PCA because accorindg to plink info, it can be problems if we have a sample with most of samples from one ancestry and then a few from another ancestry
     #https://www.cog-genomics.org/plink/1.9/basic_stats
+
+    #R log is present in our data, so we could check prob intensity in X for a full detail sex determination, think about it.
 
 
 #CHECK THE PDF REPORTs FROM ILLUMINA FOR EACH BATCH!
