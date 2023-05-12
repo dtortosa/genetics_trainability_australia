@@ -16,13 +16,27 @@
 ######## MERGE BATCHES AND ASSESS BATCH EFFECTS ########
 ########################################################
 
-#This script will merge the plink binary files of both batches and then check if there is any batch effect and then perform QCC
+#This script will merge the plink binary files of both batches and then check sex, batch effects and then perform QCC
 
 
 
-##################
-#### Starting ####
-##################
+########################################
+# define function to print text nicely #
+########################################
+
+#text="checking function to print nicely"
+#header=1
+def print_text(text, header=2):
+    if header==1:
+        print("\n#######################################\n#######################################")
+        print(text)
+        print("#######################################\n#######################################")
+    elif header==2:
+        print("\n###### " + text + " ######")
+    elif header==3:
+        print("\n## " + text + " ##")
+print_text("checking function to print nicely", header=1)
+print_text("checking function to print nicely", header=2)
 
 
 
@@ -88,13 +102,10 @@ def run_bash(command, return_value=False):
         raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
 
 #test it
-print("\n#######################################\n#######################################")
-print("see working directory")
-print("#######################################\n#######################################")
+print_text("check behaviour run_bash", header=1)
+print_text("see working directory", header=2)
 run_bash("pwd")
-print("\n#######################################\n#######################################")
-print("list files/folders there")
-print("#######################################\n#######################################")
+print_text("list files/folders there", header=2)
 run_bash("ls")
 
 
@@ -102,37 +113,36 @@ run_bash("ls")
 #############################
 ###### merging batches ######
 #############################
+print_text("merging batches", header=1)
 
-#############################################################
-# check we have the correct number of samples in each batch #
-#############################################################
 
-#
-print("\n#######################################\n#######################################")
-print("check we have 216 and 1242 samples for batch 1 and 2 (batch 2 losed 6 samples that were duplicated), respectively looking at the merged fam file and the list of samples to be merged")
-print("#######################################\n#######################################")
+print_text("check we have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 samples that were duplicated), respectively looking at the merged fam file of each batch and the list of samples to be merged", header=2)
 run_bash(" \
     n_samples_first_batch=$( \
         gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data.fam.gz | \
-        wc -l); \
+        awk 'END{print NR}'); \
     n_samples_second_batch=$( \
         gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data.fam.gz | \
-        wc -l); \
+        awk 'END{print NR}'); \
     if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
         echo 'TRUE'; \
     else \
         echo 'FALSE'; \
     fi")
         #decompress the fam file of each merged file, i.e., for each batch, then count the number of lines and save the output
+        #get the number of the row at the end, i.e., the total number of rows
+            #use awk instead wc -l because "wc -l" counts "new line" character, and it is possible to have a line without that character. If at the end of the file, you do not have an empty line, your actual last line will not have "new line" character so it will not be counted by wc -l.
+                #https://unix.stackexchange.com/a/362280
+                #https://stackoverflow.com/a/28038682/12772630
         #if the number of lines (samples) in the first and the second batch is 216 and 1242, respectively, then OK
             #remember that we lose 6 duplicated samples in the second batch.
             #note that "==" is only for strings, you have to use "-eq" for numbers
                 #https://stackoverflow.com/questions/20449543/shell-equality-operators-eq
 run_bash(" \
     n_samples_first_batch=$( \
-        awk 'END { print NR }' ./data/genetic_data/plink_bed_files/ILGSA24-17303/02_data_to_merge/list_to_merge.txt); \
+        awk 'END{print NR}' ./data/genetic_data/plink_bed_files/ILGSA24-17303/02_data_to_merge/list_to_merge.txt); \
     n_samples_second_batch=$( \
-        awk 'END { print NR }' ./data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/list_to_merge.txt); \
+        awk 'END{print NR}' ./data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/list_to_merge.txt); \
     if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
         echo 'TRUE'; \
     else \
@@ -143,12 +153,7 @@ run_bash(" \
             #https://stackoverflow.com/questions/12616039/wc-command-of-mac-showing-one-less-result
 
 
-
-##################################
-# merge both batches using plink #
-##################################
-
-#create new folders to store files to merged and then save the merging and do PCA
+print_text("create new folders to store files", header=2)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/; \
     rm -rf merged_batches/data_to_merge; \
@@ -157,18 +162,16 @@ run_bash(" \
     cd ./data/genetic_data/plink_bed_files/; \
     rm -rf merged_batches/merged_plink_files; \
     mkdir -p merged_batches/merged_plink_files")
-run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/; \
-    rm -rf merged_batches/merged_batches_pca; \
-    mkdir -p merged_batches/merged_batches_pca")
 
-#copy the plink files of both batches
+
+print_text("copy the plink files of both batches", header=2)
 run_bash("\
     cd ./data/genetic_data/plink_bed_files; \
     cp ./ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data* ./merged_batches/data_to_merge/; \
     cp ./ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data* ./merged_batches/data_to_merge/")
 
-#create a .txt with the name of the plink inputs for each batch
+
+print_text("create a .txt with the name of the plink inputs for each batch", header=2)
 run_bash("\
     cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/; \
     echo ILGSA24-17303_merged_data > list_files_to_merge.txt; \
@@ -181,16 +184,15 @@ run_bash("\
             #https://unix.stackexchange.com/questions/159513/what-are-the-shells-control-and-redirection-operators
             #https://unix.stackexchange.com/questions/77277/how-to-append-multiple-lines-to-a-file
 
-#decompress the plink inputs
+
+print_text("decompress the plink inputs", header=2)
 run_bash("\
     gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data*.gz; \
     gunzip --keep --force ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data*.gz")
         #-keep to keep the original compressed file and --force to overwrite if the decompressed file exists
 
-#do the merging using --merge-list
-print("\n#######################################\n#######################################")
-print("merge the two batches using two different approaches in plink")
-print("#######################################\n#######################################")
+
+print_text("merge the two batches using two different approaches in plink: --merge-list and --bmerge", header=2)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
     plink \
@@ -202,8 +204,6 @@ run_bash(" \
             #https://www.biostars.org/p/9467886/
         #alternatively, this can be used without a reference, i.e., all files are included in LIST_TO_MERGE. In that case, the newly created fileset is then treated as the reference by most other PLINK operations.
         #we are using the second option as we did for merging plink files of each sample within each batch.
-
-#do the merging using --bmerge
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
     plink \
@@ -212,10 +212,8 @@ run_bash(" \
         --out ../merged_plink_files/merged_batches_2")
         #we can also call first one of the batches with "--bfile" and use it as reference without using --merge-list, then add the second batch with --bmerge. We can directly use the prefix of the fileset, because the three files (bed, bim and fam) should be named the same way except for the extension.
 
-#
-print("\n#######################################\n#######################################")
-print("check that merging the two batches with --merge-list and --bmerge gives the same")
-print("#######################################\n#######################################")
+
+print_text("check that merging the two batches with --merge-list and --bmerge gives the same", header=2)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     bed_status=$(cmp --silent merged_batches.bed merged_batches_2.bed; echo $?); \
@@ -240,7 +238,8 @@ run_bash(" \
                 #https://stackoverflow.com/a/53529649/12772630
         #if the status of the three comparisons is zero, then perfect.
 
-#remove the second fileset created only for the check
+
+print_text("remove the second fileset created only for the check", header=2)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     rm merged_batches_2*; \
@@ -251,7 +250,10 @@ run_bash(" \
         echo 'FALSE'; \
     fi")
 
-#more info about merging
+
+##POR AQUII
+
+print_text("more info about merging", header=2)
     #The new fileset plink.bed + .bim + .fam is automatically created in the process. (Corner case exception: if "--recode lgen" is part of the same run, the prefix is plink-merge instead.) Thus, it is no longer necessary to combine --merge with --make-bed if you aren't simultaneously applying some filters to the data.
         #https://www.cog-genomics.org/plink/1.9/data#merge
     #The order of sample IDs in the new fileset can now be controlled with --indiv-sort. 
@@ -420,8 +422,9 @@ run_bash("\
 
 
 ###################################
-###### explore batch effects ######
+###### check sex ######
 ###################################
+
 
 #decompress merged data
 run_bash("\
@@ -429,6 +432,23 @@ run_bash("\
     gunzip \
         --keep \
         --force merged_batches*.gz")
+
+
+
+
+###################################
+###### explore batch effects ######
+###################################
+
+print_text("create folder to save pca")
+run_bash(" \
+    cd ./data/genetic_data/; \
+    rm -rf quality_control/pca; \
+    mkdir -p quality_control/pca")
+
+
+###CHANGE THE PATH lines below
+
 
 #
 print("\n#######################################\n#######################################")
@@ -560,12 +580,14 @@ I have checked that each pair of samples (e.g., 1100JHJM_1 and 1100JHJM_2) is no
 I have found out that both 1100JHJM and 1200JPJM appear two times in the AGRF code column of the excel with phenotypic data ("combact gene DNA GWAS 23062022.xlsx"). For example, row 157 shows a 21 years old male, while row 174 shows a 18.82 years old male. Both have the same ID (1200JPJM) but different values for the phenotypic variables.
 This explains why we have 4 illumina reports with these IDs changing the suffix.
 I do not think we can identify which phenotypic data belong to each of these final reports, so I would remove these 4 samples.
-This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200 JPJM, both male). I agree that we will need to remove these from our analysis.
+    - This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200 JPJM, both male). I agree that we will need to remove these from our analysis.
+        - Regarding 1100JHJM and 1200JPJM, I will removed these samples.
 
 In the case of 7800AGSO, there is no duplication in the excel file, but there are still two illumina reports with this ID (_1 and _2). These two reports have different genotypes, so they seem to come from different samples, but I do not know where the second ID comes from. My guess is that some error occured during the genotyping, but I am not sure.
 This explains another thing I wanted to mention. The total number of ID samples in the excel file is 1463. However, the number of illumina reports I have is 216 (first batch) + 1248 (second batch), totalling 1464 samples. There is a missing sample that could be this repeated 7800AGSO report.
 I do not think we can be sure which one (7800AGSO_1 or 7800AGSO_2) represents sample 7800AGSO in the excel file. Therefore, I would remove this sample (7800AGSO) and the corresponding illumina reports (7800AGSO_1 and 7800AGSO_2).
-There is only one individual (male) with code 7800 from session 878, so there appears to have been a labelling error while preparing the DNA samples. Are you able to tell us which is the sample from the excel file that doesn’t appear to have a DNA sample? That might help us to work this out. If not, I agree that we will need to remove this sample also.
+    - There is only one individual (male) with code 7800 from session 878, so there appears to have been a labelling error while preparing the DNA samples. Are you able to tell us which is the sample from the excel file that doesn’t appear to have a DNA sample? That might help us to work this out. If not, I agree that we will need to remove this sample also.
+        - Regarding 7800AGSO_1 and 7800AGSO_2, I do not think I can determine which of these genotypes correspond with 7800AGSO in the excel file, so we should also remove this sample, as you said.
 
 Another missing sample
 I have an Illumina report for one sample (2397LDJA; ILGSA24-17303) that is not present in the excel file.
@@ -573,14 +595,16 @@ In contrast, the sample ID 2399LDJA is present in the excel file but there is no
 Both IDs are the same except for the 4th digit.
 Maybe they are the same sample, but it would probably be a good idea to remove both IDs.
 Yes! I had exactly the same note, I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file.
+    - Ok, so I will change the name of 2397LDJA for 2399LDJA in the genotype data and maintain this sample.
 
 Non-matching sex
 I have detected some inconsistencies between the sex reported in the excel and the one reported by illumina and based on genetic data.
 There are 10 samples that are considered as sex=unknown by illumina, while they have defined sex in the excel file. My guess is this a problem from Illumina?
 I have also detected some samples that are defined as Male but have two copies for SNPs in the X chromosomes that should have only 1 copy (regions of the X chromosome that have no correspondence with the Y chromosome).
 There are also 9 samples for which the illumina reported sex is opposite to that shown in the phenotypic data.
-I still have to run more checks about this using specific bioinformatic tools, but still this is something to consider. My guess is that this is a problem from Illumina, but just to be sure, the "Gender" data in the excel file considers biological sex, right? Yes, this is biological sex (I’ll not to check if Defence allows recruits to self-identify).
-If I can get a list of the samples with non-matching sex, I can double check in the raw data and also check with the defence files.
+I still have to run more checks about this using specific bioinformatic tools, but still this is something to consider. My guess is that this is a problem from Illumina, but just to be sure, the "Gender" data in the excel file considers biological sex, right? 
+    - Yes, this is biological sex (I’ll not to check if Defence allows recruits to self-identify).
+    -  If I can get a list of the samples with non-matching sex, I can double check in the raw data and also check with the defence files.
 
 
 
@@ -985,6 +1009,25 @@ temp_dir.cleanup()
     #INTERESTING
         #they used an R function to do botstrap and calculate CI of AUC and p-value for the differences in AUC between DNNs, lasso and PRS!!!
     #i undesrtand they got the scores from the DNN and use them to stratify indiviausl in low, high and meidum risk of AD, they also correlate these scores with multiple phenotipic variables to understand the mechiansms through which these snps are acting.
+    #in patients without AD
+        #they correlated variants with different phenotypes that are AD markers, so these variants are related to AD even in patients without AD, so they could be useful for screening
+        #they use proteomics  to check correlation between variants and different protein levels, then go enricument analysis and foudn that inmmune stuff is implicate.
+    #they also used the arcihecture of the networks, instead of using the unique score of the last layer, they used the 5 scores from the penultimate layer. These scores are not correlated between them, but correlate each one with different plasma proteins, suggesting the network is targeting different metabolic pathways implicated in the pathogenesis of AD. They also used the scores of these 5 nodes of the penultimate layer to classify patients with AD as in risk or not.
+
+    #then they correlated variants with the score of the DNN so you can see the impact of each snp and look for functional impact of that variant.
+
+    #graph neural network model
+        #I think they present variants as nodes and connect them according to their correlation, but not sure how the CNN works here
+        #it seems that this analyses tries to maximize or minimize something from one point of the network to the other, for example, flight routes minimixing fuel...
+
+    #you could work on predicting obesity status or fat percentage in HELENA using this approach given we have a loooot of measurements in blood and good obesity markers, we could select markers by a meta-gwas (mira loos) y luego ir filtrando en la misma cohorte. Tenemos size para split y luego podriamos hablar con chiqui para validation.
+        #se podria mirar incluso si hacer el proteomic, there are a lot of peolple in helena with lab experience.
+
+    #you could also apply this to the UK biobank! they have good imaging data bout different adiposity compartiments. Visceral seems to be better indicator of complications, see nature paper of Pedro
+        #Obesity and the risk of cardiometabolic diseases
+
+
+    #todo esto es muy aplicado!! Data science portfolio!
 
 #maybe these plots woth R2 and gene names of the variants and p-value could be useful?  
     #Page 46 of "aau1043-halldorsson-sm-revision1.pdf"
