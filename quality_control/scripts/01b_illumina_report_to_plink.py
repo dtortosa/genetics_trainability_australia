@@ -134,6 +134,22 @@ run_bash("ls")
     #A SNP map file with the physical positions of the snps.
     #A sample map file with info for each individual, like the sex, ID..
 
+#IMPORTANT INFO ABOUT COORDINATE SYSTEM (1- vs. 0- based) in final reports
+    #our final reports are 1-based and hg38:
+        #I have checked if the physical position of three SNPs in the SNP map correspond with that in GeneBank, and that is the case. The three SNPs have the position indicated for hg38 in GeneBank, which is 1-based.
+            #https://www.ncbi.nlm.nih.gov/snp/?term=rs77927848
+            #https://www.ncbi.nlm.nih.gov/snp/?term=rs77928150
+            #https://www.ncbi.nlm.nih.gov/snp/?term=rs77928688
+        #These are also the coordinates in ensmeble. Importantly, for each SNP it is shown the VCF representation and the coordinate in that representation is also the same. Remember that VCF files are 1-based.
+            #https://useast.ensembl.org/Homo_sapiens/Variation/Explore?db=core;r=6:64108056-64109056;v=rs77927848;vdb=variation;vf=185603098
+            #https://useast.ensembl.org/Homo_sapiens/Variation/Explore?db=core;r=9:134543926-134544926;v=rs77928150;vdb=variation;vf=735478081
+            #https://useast.ensembl.org/Homo_sapiens/Variation/Explore?db=core;r=13:72551528-72552528;v=rs77928688;vdb=variation;vf=53001601
+            #https://useast.ensembl.org/Homo_sapiens/Variation/Explore?db=core;r=4:87992286-87993286;v=rs56917667;vdb=variation;vf=99078765
+            #https://useast.ensembl.org/Homo_sapiens/Variation/Explore?db=core;r=3:61685181-61686181;v=rs73099117;vdb=variation;vf=99493412
+        #blog post with summary of coordinate systems for several pages and programs
+            #https://tidyomics.com/blog/2018/12/09/2018-12-09-the-devil-0-and-1-coordinate-system-in-genomics/
+        #Therefore, we can say that the coordinates of the final reports are 1-based and hg38.
+
 #It is usually recommended to prepare this data to create a ped file with Plink, which is a tool to process genetic data (https://www.cog-genomics.org/plink/), perform some filtering and QC analyses and then export as VCF (https://www.biostars.org/p/210516/), (https://www.biostars.org/p/135156/), (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and use packages like Hail in python.
     #https://hail.is/docs/0.2/tutorials/01-genome-wide-association-study.html
 

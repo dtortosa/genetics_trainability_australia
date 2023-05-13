@@ -123,6 +123,13 @@ print_text("merging batches", header=1)
 ##READ the second ritchie paper to see how they merge and then what QC approaches used, the same than those of the protocol?
     #https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full
 
+##IMPORTANT, wen merging different batches, check same strand
+    #same strand in both batches?
+        #we are using forward right?
+    #https://www.biostars.org/p/310290/
+
+
+#you have to use the correct path and files to merge, becuase this coded uses the previous non-cleaned data as input, change that
 
 print_text("check we have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 samples that were duplicated), respectively looking at the merged fam file of each batch and the list of samples to be merged", header=2)
 run_bash(" \
@@ -481,3 +488,143 @@ run_bash("\
     else \
         echo 'FALSE'; \
     fi")
+
+
+
+###################################
+###### explore batch effects ######
+###################################
+print_text("explore batch effects", header=1)
+
+
+print_text("decompress merged data", header=2)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
+    gunzip \
+        --keep \
+        --force merged_batches*.gz")
+
+
+print_text("create folder to save pca", header=2)
+run_bash(" \
+    cd ./data/genetic_data/; \
+    rm -rf quality_control/pca; \
+    mkdir -p quality_control/pca")
+
+
+print_text("run PCA to detect clusters of samples", header=2)
+run_bash("\
+    cd ./data/genetic_data/; \
+    plink \
+        --pca \
+            'tabs' \
+            'header' \
+        --bfile ./plink_bed_files/merged_batches/merged_plink_files/merged_batches \
+        --out ./quality_control/pca/first_pca")
+        #dimensionality reduction
+            #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
+            #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
+            #By default, --pca extracts the top 20 principal components of the variance-standardized relationship matrix; you can change the number by passing a numeric parameter. Eigenvectors are written to plink.eigenvec, and top eigenvalues are written to plink.eigenval. 
+            #The 'header' modifier adds a header line to the .eigenvec file(s), and the 'tabs' modifier makes the .eigenvec file(s) tab- instead of space-delimited.
+            #https://www.cog-genomics.org/plink/1.9/strat#pca
+
+
+
+##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
+    #look tutorials
+    #https://www.cog-genomics.org/plink/1.9/strat
+
+
+#por aqui
+
+
+
+
+#load the eigenvec file generated
+import pandas as pd
+first_pca=pd.read_csv(\
+    "./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca/first_pca.eigenvec", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+        #Produced by --pca. Accompanied by an .eigenval file, which contains one eigenvalue per line.
+        #The .eigenvec file 
+            #is, by default, a space-delimited text file with no header line and 2+V columns per sample, where V is the number of requested principal components. 
+            #The --pca 'header' modifier causes a header line to be written, and the 'tabs' modifier makes this file tab-delimited.
+            #The first two columns are the sample's FID/IID, and the rest are principal component weights in the same order as the .eigenval values (if the header line is present, these columns are titled 'PC1', 'PC2', ...).
+        #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
+
+#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
+pheno_data = pd.read_excel(
+    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+print(pheno_data)
+
+#there are several phenotypes, see 01a_illumina_report_to_plink_DEV.py for details about possible errors.
+#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
+
+#beep test 8 has an error, "o" letter instead "0" number in one sample
+print("\n#####################\n#####################")
+print("Week 8 beep test for a sample is 11.1O, i.e., letter O instead number 0")
+print("#####################\n#####################")
+import numpy as np
+index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
+index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
+print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
+print(pheno_data.iloc[index_problematic_sample,:])
+
+#change 11.1O for 11.10
+print("\n#####################\n#####################")
+print("error solved")
+print("#####################\n#####################")
+pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
+print(pheno_data.iloc[index_problematic_sample,:])
+
+#change the type of phenotype that is not float but it should be
+pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype("float64")
+    #this column had a row with 11.1O, i.e., letter "O" instead of number "0", so python did not consider this column as float.
+
+#calculate differences
+pheno_data["body_mass_diff"] = pheno_data["Week 8 Body Mass"] - pheno_data["Week 1 Body Mass"]
+pheno_data["beep_test_diff"] = pheno_data["Week 8 beep test"] - pheno_data["Week 1 Beep test"]
+pheno_data["vo2max_diff"] = pheno_data["Week 8 Pred VO2max"] - pheno_data["Week 1 Pred VO2max"]
+
+#merge genetic and phenotypic data
+pca_pheno = pd.merge(
+    right=first_pca,
+    left=pheno_data,
+    how="right",
+    right_on="IID",
+    left_on="AGRF code")
+    #merge genetic data with phenotypes, selecting only those samples for which we have genetic data, now we are interested in cleaning genetic data
+        #https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
+
+#
+samples_lost_in_pheno = pca_pheno.loc[pca_pheno["AGRF code"].isna(), "IID"]
+print("All IDs in illumina data are in pheno data? " + str(samples_lost_in_pheno.shape[0] == 0))
+print("How many? " + str(samples_lost_in_pheno.shape[0]))
+print("It is ok to have False in this check, because we already knew that some samples had illumina report but where not included in pheno_data. The output script for the first batch shows that 1 sample has genetic data but it is not present in pheno_data (2397LDJA). In the second batch, the output script shows 6 samples with genetic but no pheno_data. In the PCA, we only have one 1 missing sample, so I guess the 6 missing samples of the second batch were those duplicated, i.e., those named as ID_1 and ID_2....")
+
+#make interactive plot of the two first PCAs, so you can zoom in
+import plotly.express as px
+fig = px.scatter(\
+    data_frame=pca_pheno, \
+    x="PC1", \
+    y="PC2", \
+    color="FID",
+    hover_data=[\
+        "IID", \
+        "body_mass_diff", \
+        "beep_test_diff", \
+        "vo2max_diff"])
+        #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
+        #https://plotly.com/python/line-and-scatter/
+        #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
+#fig.show()
+fig.write_html("./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca/pca_plot.html")
+    #https://plotly.com/python/interactive-html-export/
+
+
+
+

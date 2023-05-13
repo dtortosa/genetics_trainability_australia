@@ -143,58 +143,111 @@ run_bash("ls")
     #R log is present in our data, so we could check prob intensity in X for a full detail sex determination, think about it.
 
 
-#CHECK THE PDF REPORTs FROM ILLUMINA FOR EACH BATCH!
+    #IMPORTANT INFORMATION about integrity of the files
+        #I get a warning when unzipping the zip of the second batch (CAGRF20093767.zip) with unzip, and I cannot access the data
+        #with 7z I can access the data but I get a warning "headers error".
+
+        #I am checking the integrity of the files using checksums. You have to go to the folder where checksums.md5 is present and run "md5sum -c checksums.md5" as indicated in the PDF of validation
+            #first batch
+                #checksums.md5: FAILED
+                #example_ILGSA24-17303_FinalReport1.txt: OK
+                #example_Sample_Map.txt: OK
+                #example_SNP_Map.txt: OK
+                #ILGSA24-17303.zip: OK
+                #md5sum: WARNING: 1 computed checksum did NOT match
+            #second batch
+                #205771890087.zip: OK
+                #205771890120.zip: OK
+                #205771890129.zip: OK
+                #205771890173.zip: OK
+                #205785500018.zip: OK
+                #205785500033.zip: OK
+                #205785500038.zip: OK
+                #205785500075.zip: OK
+                #205857150085.zip: OK
+                #205857150090.zip: OK
+                #205857150136.zip: OK
+                #205857150149.zip: OK
+                #205955840060.zip: OK
+                #205955840105.zip: OK
+                #205955840108.zip: OK
+                #205955840137.zip: OK
+                #205960020112.zip: OK
+                #206023350028.zip: OK
+                #206023350029.zip: OK
+                #206023350043.zip: OK
+                #206023350156.zip: OK
+                #206036460037.zip: OK
+                #206036460040.zip: OK
+                #206036460041.zip: OK
+                #206036460042.zip: OK
+                #206036460091.zip: OK
+                #206036460093.zip: OK
+                #206036460121.zip: OK
+                #206036460124.zip: OK
+                #206036460127.zip: OK
+                #206036460128.zip: OK
+                #206036460129.zip: OK
+                #206036460164.zip: OK
+                #206036460165.zip: OK
+                #206036460169.zip: OK
+                #206053690035.zip: OK
+                #206063100046.zip: OK
+                #206063100048.zip: OK
+                #206063100056.zip: OK
+                #206063100059.zip: OK
+                #206063100076.zip: OK
+                #206063100077.zip: OK
+                #206063100078.zip: OK
+                #206063100079.zip: OK
+                #206063100080.zip: OK
+                #206063100081.zip: OK
+                #206063100119.zip: OK
+                #206063100120.zip: OK
+                #206063100131.zip: OK
+                #206063100132.zip: OK
+                #206123430018.zip: OK
+                #md5sum: 206123430033.zip: No such file or directory
+                #206123430033.zip: FAILED open or read
+                #CAGRF20093767_CNMetrics.csv: OK
+                #CAGRF20093767_DNAReport.csv: OK
+                #CAGRF20093767_Reproducibility and Heritability Report.csv: OK
+                #CAGRF20093767_SampleSheet.csv: OK
+                #CAGRF20093767.zip: OK
+                #checksums.md5: FAILED
+                #GSA-24v3-0_A1_ClusterFile.egt: OK
+                #GSA-24v3-0_A2.bpm: OK
+                #PLINK_030222_0457.zip: OK
+                #md5sum: WARNING: 1 listed file could not be read
+                #md5sum: WARNING: 1 computed checksum did NOT match
+            #In both batches we get some errors for some files, but the important thing is that the two zips we are using are OK!
+
+            #read very quicly about these checksums
+            #test integrity files with 7z? (7z t CAGRF20093767.zip)
+
+
+    #look for summary PDF for both batches, I think I got the summary of the frist batch, but in summer, and it is not in the compressed file
+
     #check folder called data in the second batch?
 
-
-##IMPORTANT, wen merging different batches, check same strand
-    #https://www.biostars.org/p/310290/
-
-    #illumina report is 1 based? look first script.
-
-    #same strand in both batches?
-        #we are using forward right?
-
     #check if the fact you did not change dtype of week 8 test beep to float in script 1, could be a problem
-
+        #save pheno_data after the cleaning?
 
     #think why you have a missing sample (2397LDJA), but when you check the number of samples between illumina and pheno_data, you only have 1 of difference. In the email to Bishop, you said that the missing sample could be the AGO... that was duplicated in illumina but not in pheno_data, so we should have 2 less samples, not 1. look the empty row between data and NAs... 
 
-    #there are some samples that are very far away, but both from batch 1 and 2. when you zoom in the bulk of the samples, samples of both batches are evenly distributed.
-
-    #save pheno_data after the cleaning?
 
 
 
 
 
 
+#filters I have not seen in ritchie's paper
 
 
-###THIIIS
-    #Genome-wide association studies
-        #https://www.nature.com/articles/s43586-021-00056-9
-        #lapalainen 2021
-        #they talk about using michinga server to impute as a standard proceedure
-    #Quality Control Procedures for Genome-Wide Association Studies
-        #Ritche 2011 (la versión 2022 no está disponible para mi)
-        #esta gente dice de hacer un case/control analysis con los batch to detect effects, just like in here (https://www.biostars.org/p/388300/). 
-        #they say that in the event of batch effect, you can use the same techinques used for population stratification.
-        #lee el paper antiguo pero mira el tutorial de github de la versión mas reciente
-            #https://github.com/RitchieLab/GWAS-QC
-    #Identifying and mitigating batch effects in whole genome sequencing data
+#filter by chromosome
+    #check strange chromosome numbers (non-autosomal)
+    #also check that no genetic position is added
 
-
-
-#you can merge snps with the same position merging the fileset with itself and using --merge-equal-pos
-    #If two variants have the same position, PLINK 1.9's merge commands will always notify you. If you wish to try to merge them, use --merge-equal-pos. (This will fail if any of the same-position variant pairs do not have matching allele names.) Unplaced variants (chromosome code 0) are not considered by --merge-equal-pos.
-    #Note that you are permitted to merge a fileset with itself; doing so with --merge-equal-pos can be worthwhile when working with data containing redundant loci for quality control purposes.
-
-
-#FOR QUALITY CONTROL, YOU COULD USE MIGHIGGAN SERVER, WHICH ALREADY APPLIES MULTIPLE FILTERS like duplicates AND THEN ADD A FEW WITH PLINK, AUGUSTO DID THAT
-#this michigan sever can be used also for imputing
-    #https://www.mdpi.com/2073-4425/14/2/248
-    #https://imputationserver.readthedocs.io/en/latest/pipeline/
 
 
 #check if indels!
@@ -202,17 +255,97 @@ run_bash("ls")
     #plink has flag  --snps-only to keep snps
         #https://www.biostars.org/p/378475/
 
+#FOR QUALITY CONTROL, YOU COULD USE MIGHIGGAN SERVER, WHICH ALREADY APPLIES MULTIPLE FILTERS like duplicates AND THEN ADD A FEW WITH PLINK, AUGUSTO DID THAT
+#this michigan sever can be used also for imputing
+    #https://www.mdpi.com/2073-4425/14/2/248
+    #https://imputationserver.readthedocs.io/en/latest/pipeline/
 
 
 
-#CHECK TUTORIALs so you are sure you are follwing the correct steps for filtering...
-    #In particular, we are going to use the a paper about QC by Ritchie. There is a first version 2011 (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/) and a second version in 2022 (https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603).
+
+
+#duplicates
+#you can merge snps with the same position merging the fileset with itself and using --merge-equal-pos
+    #If two variants have the same position, PLINK 1.9's merge commands will always notify you. If you wish to try to merge them, use --merge-equal-pos. (This will fail if any of the same-position variant pairs do not have matching allele names.) Unplaced variants (chromosome code 0) are not considered by --merge-equal-pos.
+    #Note that you are permitted to merge a fileset with itself; doing so with --merge-equal-pos can be worthwhile when working with data containing redundant loci for quality control purposes.
 
 
 
-#filter by chromosome
-    #check strange chromosome numbers (non-autosomal)
-    #also check that no genetic position is added
+##remove these duplicates
+#duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem.
+
+#if there are more than 2% of duplicates, stop
+if (n_duplicates_plink/n_genotypes)*100 > 2:
+    raise ValueError("ERROR! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
+
+#open a folder to save filtered dataset
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    rm -rf ./04_inspect_snp_dup/01_remove_dup/; \
+    mkdir -p ./04_inspect_snp_dup/01_remove_dup/")
+
+#filter these snps
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    plink \
+        --bfile ./03_merged_data/" + batch_name + "_merged_data \
+        -exclude ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar \
+        --out  ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
+        --make-bed")
+        #-exclude a list with the SNP names as input to remove snps
+
+#check again for duplicates
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
+    plink \
+        --bfile ./" + batch_name + "_merged_data_no_snp_dup \
+        --list-duplicate-vars suppress-first ids-only\
+        --out  ./" + batch_name + "_duplicates")
+
+#count number of duplicates
+print("\n#####################\n#####################")
+print("Do we have zero duplicated positions after filtering? THIS CHECK CAN BE PRINTED BEFORE THIS LINE")
+print("#####################\n#####################")
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/ \
+    n_lines=wc -l " + batch_name + "_duplicates.dupvar; \
+    FILE=" + batch_name + "_duplicates.dupvar; \
+    if [ -f $FILE ] && [ $n_lines==0 ]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+    #count the number of lines in the duplicates list
+    #save the name of that file
+    #if the file exists and the number of lines is zero, perfect because there no snp duplicated by position
+    #else False
+
+#remove the files we are not interested in
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
+    rm " + batch_name + "_duplicates.dupvar")
+
+#remove hh files only if they are present
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup; " \
+    "n_hh_files=$(ls *.hh | wc -l); \
+    if [ $n_hh_files -gt 0 ]; then \
+        rm ./" + batch_name + "*.hh; \
+    fi")
+    #count the number of files with the "hh" extension
+    #if that number is greater than 0, then remove all the hh files
+
+#compress the bed/bim/fam files
+os.system(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.bed; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
+    gzip ./03_merged_data/" + batch_name + "_merged_data.fam; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bed; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim; \
+    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.fam")
+
+
 
 
 
@@ -222,7 +355,7 @@ run_bash("ls")
 
 
 ###################################
-###### explore batch effects ######
+###### PCA ######
 ###################################
 print_text("explore batch effects", header=1)
 
@@ -263,11 +396,6 @@ run_bash("\
 ##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
     #look tutorials
     #https://www.cog-genomics.org/plink/1.9/strat
-
-
-#por aqui
-
-
 
 
 #load the eigenvec file generated
@@ -563,79 +691,7 @@ for row_index, hh_case in hh_plink.iterrows():
 
 
 
-##remove these duplicates
-#duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem.
 
-#if there are more than 2% of duplicates, stop
-if (n_duplicates_plink/n_genotypes)*100 > 2:
-    raise ValueError("ERROR! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
-
-#open a folder to save filtered dataset
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    rm -rf ./04_inspect_snp_dup/01_remove_dup/; \
-    mkdir -p ./04_inspect_snp_dup/01_remove_dup/")
-
-#filter these snps
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    plink \
-        --bfile ./03_merged_data/" + batch_name + "_merged_data \
-        -exclude ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar \
-        --out  ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
-        --make-bed")
-        #-exclude a list with the SNP names as input to remove snps
-
-#check again for duplicates
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
-    plink \
-        --bfile ./" + batch_name + "_merged_data_no_snp_dup \
-        --list-duplicate-vars suppress-first ids-only\
-        --out  ./" + batch_name + "_duplicates")
-
-#count number of duplicates
-print("\n#####################\n#####################")
-print("Do we have zero duplicated positions after filtering? THIS CHECK CAN BE PRINTED BEFORE THIS LINE")
-print("#####################\n#####################")
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/ \
-    n_lines=wc -l " + batch_name + "_duplicates.dupvar; \
-    FILE=" + batch_name + "_duplicates.dupvar; \
-    if [ -f $FILE ] && [ $n_lines==0 ]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-    #count the number of lines in the duplicates list
-    #save the name of that file
-    #if the file exists and the number of lines is zero, perfect because there no snp duplicated by position
-    #else False
-
-#remove the files we are not interested in
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
-    rm " + batch_name + "_duplicates.dupvar")
-
-#remove hh files only if they are present
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup; " \
-    "n_hh_files=$(ls *.hh | wc -l); \
-    if [ $n_hh_files -gt 0 ]; then \
-        rm ./" + batch_name + "*.hh; \
-    fi")
-    #count the number of files with the "hh" extension
-    #if that number is greater than 0, then remove all the hh files
-
-#compress the bed/bim/fam files
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    gzip ./03_merged_data/" + batch_name + "_merged_data.bed; \
-    gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
-    gzip ./03_merged_data/" + batch_name + "_merged_data.fam; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bed; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.fam")
 
 
 
