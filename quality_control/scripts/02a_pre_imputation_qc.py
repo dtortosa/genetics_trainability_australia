@@ -147,86 +147,123 @@ run_bash("ls")
         #I get a warning when unzipping the zip of the second batch (CAGRF20093767.zip) with unzip, and I cannot access the data
         #with 7z I can access the data but I get a warning "headers error".
 
-        #I am checking the integrity of the files using checksums. You have to go to the folder where checksums.md5 is present and run "md5sum -c checksums.md5" as indicated in the PDF of validation
-            #first batch
-                #checksums.md5: FAILED
-                #example_ILGSA24-17303_FinalReport1.txt: OK
-                #example_Sample_Map.txt: OK
-                #example_SNP_Map.txt: OK
-                #ILGSA24-17303.zip: OK
-                #md5sum: WARNING: 1 computed checksum did NOT match
-            #second batch
-                #205771890087.zip: OK
-                #205771890120.zip: OK
-                #205771890129.zip: OK
-                #205771890173.zip: OK
-                #205785500018.zip: OK
-                #205785500033.zip: OK
-                #205785500038.zip: OK
-                #205785500075.zip: OK
-                #205857150085.zip: OK
-                #205857150090.zip: OK
-                #205857150136.zip: OK
-                #205857150149.zip: OK
-                #205955840060.zip: OK
-                #205955840105.zip: OK
-                #205955840108.zip: OK
-                #205955840137.zip: OK
-                #205960020112.zip: OK
-                #206023350028.zip: OK
-                #206023350029.zip: OK
-                #206023350043.zip: OK
-                #206023350156.zip: OK
-                #206036460037.zip: OK
-                #206036460040.zip: OK
-                #206036460041.zip: OK
-                #206036460042.zip: OK
-                #206036460091.zip: OK
-                #206036460093.zip: OK
-                #206036460121.zip: OK
-                #206036460124.zip: OK
-                #206036460127.zip: OK
-                #206036460128.zip: OK
-                #206036460129.zip: OK
-                #206036460164.zip: OK
-                #206036460165.zip: OK
-                #206036460169.zip: OK
-                #206053690035.zip: OK
-                #206063100046.zip: OK
-                #206063100048.zip: OK
-                #206063100056.zip: OK
-                #206063100059.zip: OK
-                #206063100076.zip: OK
-                #206063100077.zip: OK
-                #206063100078.zip: OK
-                #206063100079.zip: OK
-                #206063100080.zip: OK
-                #206063100081.zip: OK
-                #206063100119.zip: OK
-                #206063100120.zip: OK
-                #206063100131.zip: OK
-                #206063100132.zip: OK
-                #206123430018.zip: OK
-                #md5sum: 206123430033.zip: No such file or directory
-                #206123430033.zip: FAILED open or read
-                #CAGRF20093767_CNMetrics.csv: OK
-                #CAGRF20093767_DNAReport.csv: OK
-                #CAGRF20093767_Reproducibility and Heritability Report.csv: OK
-                #CAGRF20093767_SampleSheet.csv: OK
-                #CAGRF20093767.zip: OK
-                #checksums.md5: FAILED
-                #GSA-24v3-0_A1_ClusterFile.egt: OK
-                #GSA-24v3-0_A2.bpm: OK
-                #PLINK_030222_0457.zip: OK
-                #md5sum: WARNING: 1 listed file could not be read
-                #md5sum: WARNING: 1 computed checksum did NOT match
-            #In both batches we get some errors for some files, but the important thing is that the two zips we are using are OK!
+        #I am checking the integrity of the files using checksums:
+            #https://www.tecmint.com/generate-verify-check-files-md5-checksum-linux/
+            #A checksum is a digit which serves as a sum of correct digits in data, which can be used later to detect errors in the data during storage or transmission. MD5 (Message Digest 5) sums can be used as a checksum to verify files or strings in a Linux file system.
+            #MD5 Sums are 128-bit character strings (numerals and letters) resulting from running the MD5 algorithm against a specific file. The MD5 algorithm is a popular hash function that generates 128-bit message digest referred to as a hash value, and when you generate one for a particular file, it is precisely unchanged on any machine no matter the number of times it is generated.
+            #It is normally very difficult to find two distinct files that results in same strings. Therefore, you can use md5sum to check digital data integrity by determining that a file or ISO you downloaded is a BIT-FOR-BIT COPY OF THE REMOTE FILE or ISO.
+            #you can do "md5sum file.txt" and get the 128-bit message. If you modify just a line, anything, from the file, you get a new 128-bit message.
+            #you can obtain the message just piping:
+                #echo "eso" | md5sum
+                #echo "eso1" | md5sum #they have different message
+            #This checks the content, but not the file name. So this would get the same checksum even having different names
+                #echo "eso" > file_1; md5sum file_1
+                #echo "eso" > file_2; md5sum file_2
+            #You can redirect the hash value(s) of a file(s) into a text file and store, share them with others. For the two files above, you can issues the command below to redirect generated hash values into a text file for later use:
+                #md5sum file_1 file_2 > checksum.md5
+                #cat checksum.md5 # you get two lines, one per file, with checksum and file name
+            #To check that the files have not been modified since you created the checksum, run "md5sum --check checksum.md5". You should be able to view the name of each file along with “OK”.
+                #md5sum --check checksum.md5
+                    #file_1: OK
+                    #file_2: OK
+            #Remember that after creating the checksum, you can not rename the files or else you get a “No such file or directory” error, when you try to verify the files with new names.
+                #mv file_1 file_3
+                #md5sum --check checksum.md5
+                    #file_1: FAILED open or read
+                    #file_2: OK
+            #This is exactly what the PDFs about data integrity in both batches says
+            #Our results
+                #first batch: 
+                    #in "CombatGenes" run "md5sum --check checksums.md5"
+                    #checksums.md5: FAILED
+                    #example_ILGSA24-17303_FinalReport1.txt: OK
+                    #example_Sample_Map.txt: OK
+                    #example_SNP_Map.txt: OK
+                    #ILGSA24-17303.zip: OK
+                    #md5sum: WARNING: 1 computed checksum did NOT match
+                #second batch
+                    #in "CombatGenes/17873" run "md5sum --check checksums.md5"
+                    #205771890087.zip: OK
+                    #205771890120.zip: OK
+                    #205771890129.zip: OK
+                    #205771890173.zip: OK
+                    #205785500018.zip: OK
+                    #205785500033.zip: OK
+                    #205785500038.zip: OK
+                    #205785500075.zip: OK
+                    #205857150085.zip: OK
+                    #205857150090.zip: OK
+                    #205857150136.zip: OK
+                    #205857150149.zip: OK
+                    #205955840060.zip: OK
+                    #205955840105.zip: OK
+                    #205955840108.zip: OK
+                    #205955840137.zip: OK
+                    #205960020112.zip: OK
+                    #206023350028.zip: OK
+                    #206023350029.zip: OK
+                    #206023350043.zip: OK
+                    #206023350156.zip: OK
+                    #206036460037.zip: OK
+                    #206036460040.zip: OK
+                    #206036460041.zip: OK
+                    #206036460042.zip: OK
+                    #206036460091.zip: OK
+                    #206036460093.zip: OK
+                    #206036460121.zip: OK
+                    #206036460124.zip: OK
+                    #206036460127.zip: OK
+                    #206036460128.zip: OK
+                    #206036460129.zip: OK
+                    #206036460164.zip: OK
+                    #206036460165.zip: OK
+                    #206036460169.zip: OK
+                    #206053690035.zip: OK
+                    #206063100046.zip: OK
+                    #206063100048.zip: OK
+                    #206063100056.zip: OK
+                    #206063100059.zip: OK
+                    #206063100076.zip: OK
+                    #206063100077.zip: OK
+                    #206063100078.zip: OK
+                    #206063100079.zip: OK
+                    #206063100080.zip: OK
+                    #206063100081.zip: OK
+                    #206063100119.zip: OK
+                    #206063100120.zip: OK
+                    #206063100131.zip: OK
+                    #206063100132.zip: OK
+                    #206123430018.zip: OK
+                    #md5sum: 206123430033.zip: No such file or directory
+                    #206123430033.zip: FAILED open or read
+                    #CAGRF20093767_CNMetrics.csv: OK
+                    #CAGRF20093767_DNAReport.csv: OK
+                    #CAGRF20093767_Reproducibility and Heritability Report.csv: OK
+                    #CAGRF20093767_SampleSheet.csv: OK
+                    #CAGRF20093767.zip: OK
+                    #checksums.md5: FAILED
+                    #GSA-24v3-0_A1_ClusterFile.egt: OK
+                    #GSA-24v3-0_A2.bpm: OK
+                    #PLINK_030222_0457.zip: OK
+                    #md5sum: WARNING: 1 listed file could not be read
+                    #md5sum: WARNING: 1 computed checksum did NOT match
+                #In both batches we get some errors for some files, but the important thing is that the two zips we are using are EXACTLY THE SAME than when they were created in first place by the sequencing center. Therefore, all our problem transfering the data has not affected the data.
+                    #in the first batch we get Fail for checksum file itself (checksums.md5), but the rest of files that the checksum file targets, which are the one we are interested, are OK.
+                    #in the second bath we have problems again with the checksum file but also with 1 compressed file: 206123430033.zip is not present.
+                        #I think these files include the image data used to do the sequencing. It seems that new illumina sequencing technology uses two color channels (red and green, which are the colors present in these zips) to determine which is present in a given position. A priori, we are not going to use this information, and if we need prob intensity, I think we can just use log R, so we should be fine.
+                            #https://www.ogc.ox.ac.uk/wp-content/uploads/2017/09/techspotlight_two-channel_sbs.pdf
 
-            #read very quicly about these checksums
-            #test integrity files with 7z? (7z t CAGRF20093767.zip)
+        #the check with sumchecks is great because we now know that the data I am using is exactly the same as created, but still we get the header warning in the zip of the second batch. As I said, that problem was not created by me nor David because the sumchecks are the same, we did not change anything, but maybe there was a problem when compressing the file by the sequencing center.
 
+
+    #CHECK that log R is prob intensity again
+
+    #do the check of integrity with 7z?
+
+    #heritability excel, they talk about the duplicates!! these were checks about reproducibility? but why we have two times in the pheno excel file
 
     #look for summary PDF for both batches, I think I got the summary of the frist batch, but in summer, and it is not in the compressed file
+        #preguntar david for this PDF in second batch?
 
     #check folder called data in the second batch?
 
