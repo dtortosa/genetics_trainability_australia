@@ -112,27 +112,172 @@ run_bash("ls")
 # General info about available data #
 #####################################
 
+#In general, I understand that the AGRF facility genotyped the DNA samples using illumina and then used GenomeStudio to analyze DNA quality and produce the FinalReports, being these reports the files we are using in our analyses.
+    #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf
+
 #Batches
     #Within combat_genes.zip, we have two batches (ILGSA24-17303 and ILGSA24-17873), being the data separated in these two.
-    #In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps.
-        #In the initial_stuff folder there is a zip called "ILGSA24-17303.zip" that I may have downloaded from the initial location where this data was stored in summer 2022. There are Plink files, but I am not sure this is the correct data and I cannot find the final_report files.
-    #In 17873
-        #we have the IDAT files with probs intensity from the microarrays used to genotype (first zips), the final reports+sample/snp maps (CAGRF20093767.zip) and a inputs for plink. But all of this only for 1248 individuals, not the whole cohort.
-        #we also have binary files like Heredity.bin, Duplicates.bin... I have seen other people got the same files from illumina. 
-            #If you see the linked biostars thread, there is someone with the illumina data within genome studio (software property of illumina). He has the same bin file I have, but the solution they gave him is that he needs to create the FinalReports and the Maps using genome studio in order to load the data in R and process it. We already have FinalReports and the maps, so I think we have everything we need to analyze the data.
-                #https://www.biostars.org/p/2240/
-        #note that the zip file of this batch gives error once we want to open it. It says it is corrupted.
-            #I do not think we have a problem here because I am able to access all the files using a module of python.
-            #I think I also downloaded this twice with the problem persisting, so it was not a problem of my download.
-            #Importantly, I have explored in detail the FinalReports and maps, and everything seems to be fine except for the 6 duplicated samples (see below). I did many checks within EACH final report using spark to ensure we have what we are supposed to have. For example, checking this that should be ok but I did anyways like checking that the number in the name of the FinalReport txt file matches the number of the sample within that file and things like that.
-            #So I think we are good here.
-    #the phenotype csv has 1463 samples, not having phenotype data for 41 of them. 1248+216=1464, so we also lack 1 sample in the csv file.
+    #In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps, while the IDAT files, DNA reports and other reports are in the folder ILGSA24-17303_idat_reports (I may have downloaded from the initial location where this data was stored in summer 2022).
+    #In 17873 we have For 1248 individuals the final reports, other reports and IDAT files.
 
-#I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
-    #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version  2.0.4). This includes a header with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. This is a BPM file.
-        #From this file, we can obtain the a lgen file. It is just taking the first few columns of the FinalReport. Plink has an option to read the .lgen format and convert it to PED or BED formats (see below; [link](https://www.biostars.org/p/13302/))
-    #A SNP map file with the physical positions of the snps.
-    #A sample map file with info for each individual, like the sex, ID..
+#Files we have
+    #we have the IDAT files with probs intensity from the microarrays used to genotype (first zips):
+        #I think these files include the image data used to do the sequencing. It seems that new illumina sequencing technology uses two color channels (red and green, which are the colors present in these zips) to determine which is present in a given position. In other words, I think these are IDAT files. A priori, we are not going to use this information, and if we need prob intensity, I think we can just use log R, so we should be fine. See next lines
+            #https://www.ogc.ox.ac.uk/wp-content/uploads/2017/09/techspotlight_two-channel_sbs.pdf
+    #CNMetrics (I guess copy number metrics)
+        #This includes average log R and B allele frequency. This is useful for sex mismatches and copy number analyses, but we have this information in the final reports! This excel gives average and dev per sample and type of SNP (e.g., A/C), but you could calculate that information using the FinalReport as you have one value per sample and SNP. So you can do this for this and for the first batch.
+            #log Ratio: 
+                #We have a value per SNP, so we can get the mean/median in a subset of variants in the X chromosome to do sex checks
+                    #"Examining the intensity of probe binding on the sex chromosomes will better resolve these cases. Illumina calls this intensity LogR ratio, and on Applied Biosystems (formerly Affymetrix systems), it is simply known as probe intensity. These metrics, once suitably normalized, are roughly linear in copy number. Because there are tens of thousands of loci on the X chromosome on modern platforms, it is appropriate to examine a subsample of markers and then take a measure of the central tendency of each sample, such as the median or mean intensity."
+                        #Quality Control Procedures for Genome-Wide Association Studies
+            #B allele frequency
+                #This is a metric about the allele intensity ratio of two alleles (A and B), with 0 or 1 meaning the absence of one of the two alleles, and 0.5 means equal presence of both alleles. So this can be used to detect imbalances due to higher copy numbers due to duplications... so the frequency would not be 0, 0.5 or 1, but it would be in between.
+                    #https://www.biostars.org/p/254848/#:~:text=%22The%20B%2DAllele%20Frequency%20is,alleles%20(e.g.%20AB).%22
+    #DNA report
+        #This file is generated with GenomeStudio prior the generation of the FinalReports. I think we can get all the information we need from the FinalReports, as we can calculate genotyping call, percentage of hetero. We even have the GenCall score (GC score) in the FinalReports so we can calculate calls vs no_calls, the percentiles of GC score...
+            #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf
+        #No_Calls
+            #Genotypes discarded
+            #The total number of genotypes in each sample with a GenCall score below the no-call threshold as defined in the project options (default is 0.1500; see below). Genotypes that are not called are shown on the GenomeStudio SNP Graph as black points falling outside of the darkly shaded regions.
+                #GenCall Score
+                    #The first GenomeStudio parameter that should be optimized to obtain the highest genotyping accuracy is the GenCall score cutoff, or nocall threshold. The GenCall score is a quality metric calculated for each genotype (data point), and ranges from 0 to 1. GenCall scores generally decrease in value the further a sample is from the center of the cluster to which the data point is associated. The nocall threshold is the lower bound for calling genotypes relative to its associated cluster. Illumina FastTrack Genotyping Project Managers typically use a nocall threshold of 0.15 with Infinium data. This means that genotypes with a GenCall score less than 0.15 are not assigned genotypes because they are considered too far from the cluster centroid to make reliable genotype calls. They are instead assigned a “no call” for that locus. No calls on successful DNAs at successful loci contribute to lowering the call rate for the overall project. The standard 0.15 no-call threshold for Infinium data was determined using projects with trio and replicate information. A range of no-call thresholds were evaluated to optimize the call rate without compromising reproducibility or Mendelian consistency. The nocall threshold in GenomeStudio can be changed by selecting Tools | Options | Project | Nocall Threshold. Sample and SNP statistics must be recalculated after an adjustment to the nocall threshold. 
+                    #This score is a quality metric that indicates the reliability of the genotypes called. A GenCall score value is calculated for every genotype and can range from 0.0 to 1.0. GenCall scores are calculated using information from the sample clustering algorithm. Each SNP is evaluated based on the angle of the clusters, dispersion of the clusters, overlap between clusters, and intensity. Genotypes with lower GenCall scores are located furthest from the center of a cluster and have lower reliability. There is no global interpretation of a GenCall score as it depends on the clustering of samples at each SNP. Clustering is affected by many different variables, including the quality of the samples and loci.
+        #Calls: 
+            #The total number of genotypes in each sample with a GenCall score above the no-call threshold.
+        #Note about Calls - No_Calls
+            #The sum of Calls + No_Calls is always 650181 in both batches
+            #However, we have 654027 variants in the SNP map.
+            #I think that No_Calls is NOT counting missing cases, because I guess you need to have genotype to obtain a GenCall score. Indeed, the parameter "# LOCI" in the same DNA report is 654027, so we indeed have the correct number of loci, but less genotypes, probably because of missing cases.
+        #Call_Freq: 
+            #Call_Freq is equal to #Calls /(#No_Calls + #Calls). Call_Freq is equivalent to Call Rate in the GenomeStudio Samples Table.
+        #A/A_Freq: 
+            #For each sample, the number of AA genotype calls divided by #Calls.
+        #A/B_Freq: 
+            #For each sample, the number of AB genotype calls divided by #Calls.
+        #B/B_Freq: 
+            #For each sample, the number of BB genotype calls divided by #Calls
+        #Minor_Freq: 
+            #If the number of AA calls is less than the number of BB calls for a sample, the frequency for the minor allele A is: [(2*AA) + AB] divided by [2*(AA+AB+BB)] across all called loci for that sample.
+                #AB cases count the same for both alleles, so makes sense to use AA and BB
+        #50%_GC_Score:
+            #For each sample, this represents the 50th percentile of the distribution of GenCall scores across all called genotypes. For SNPs across all samples, this is referred to as the 50%_GC_Score. For samples across all loci, it is referred to as p50GC in the Samples Table.
+        #10%_GC_Score: 
+            #For each sample, this represents the 10th percentile of the distribution of GenCall scores across all called genotypes. For SNPs across all samples, this is referred to as the 10%_GC_Score. For samples across all loci, it is referred to as p10GC in the Samples Table. 
+                #Note: Call frequency, 50% GenCall score, and 10% GenCall score are useful metrics for evaluating the quality and performance of DNA samples in an experiment.
+        #0/1: 
+            #GenomeStudio calculates a threshold from the distribution of 10%_GC_Score values across all samples in the DNA report. A ‘1’ is assigned to samples whose 10%_GC_Score is at or above this threshold. A ‘0’ is assigned to samples whose 10%_GC_Score is below this threshold. The equation defining this threshold is 0.85*90th percentile of 10%_GC_Score values for all samples in DNA Report (i.e., 0.85*90th percentile of column K in the DNA report).
+    #SampleSheet
+        #We have all the information we need about the samples in the final reports and the sample map
+        #Sample_ID
+            #Sample identifier (used only for display in the table).
+        #Sample_Plate
+            #The barcode of the sample plate for this sample (used only for display in the table).
+        #Sample_Well
+            #The well within the sample plate for this sample (used only for display in the table).
+        #Sex
+            #Male, Female, or Unknown.
+        #SentrixBarcode_A
+            #The barcode of the Universal Array Product that this sample was hybridized to for Manifest A
+        #SentrixBarcode_A
+            #The position within the Universal Array Product this sample was hybridized to for Manifest A (and similarly for _B, _C, etc. depending on how many manifests are used with your project).
+        #https://www.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2011-1/genomestudio-gt-module-v1-0-user-guide-11319113-a.pdf
+    #beadpool manifest (bpm file)
+        #Also referred to as a SNP Manifest, this is a file containing the SNP-to-beadtype mapping, as well as all SNP annotations. For the Infinium assay, this is a *.bpm file in binary format.
+            #https://www.biostars.org/p/82576/
+        #this is used as input on genome studio to do quality control of sequencing and generate the final reports. Already done by AGFR.
+    #ClusterFile.egt
+        #This is used by genome studio
+        #The cluster file contains the mean (R) and standard deviation (theta) of the cluster positions, in normalized coordinates, for every genotype, for every SNP. The cluster file also includes cluster score information, as well as the allele frequencies from the training set used to generate the cluster file. A cluster file is required for KaryoStudio. Illumina provides a standard cluster file for each product. Alternatively, customers may generate their own cluster file.
+            #https://www.biostars.org/p/82576/
+        #why we need a cluster?
+            #Each SNP is analyzed independently to identify genotypes. Genotypes are called by comparing customer-generated data with those in the supplied cluster file. Genotype calls are highly accurate and unambiguous for high-quality samples. Generally, high-quality data with 99.5% call rates can be expected. However, accuracy is highly sample dependent. When samples do not perform as expected, experimenters can choose to reprocess (requeue) these samples to confirm or potentially improve results. Poorly performing samples can be systematically excluded from the project before recalling genotypes. Additionally, some samples (e.g., samples that have been whole-genome amplified) may not fit standard cluster positions well. A custom-generated cluster file may improve the call rate and accuracy for these aberrant cases.
+            #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf 
+    #Reproducibility and Heritability Report.csv
+        #We only have replicates in the second batch, so we do not have this file for the FIRST batch, only for the SECOND.
+        #Reproducibility part is where we have data
+            #Rep1_DNA_Name
+                #Sample name designated as replicate #1.
+            #Rep2_DNA_Name
+                #Sample name designated as replicate #2
+            #Correct
+                #Number of loci with consistent replicate genotype comparisons
+            #Errors
+                #Number of loci with inconsistent replicate genotype comparisons.
+            #Total
+                #Number of total genotype comparisons (1 genotype comparison per locus per replicate pair). The report does not include genotypes with intensities that fall below the no-call threshold.
+            #Repro_Freq
+                #Reproducibility frequency. The error rate does not include genotype calls that fall below the no-call threshold
+            #https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf
+        #SampleMap has a column for replicates, but this column is empty for all the 6 samples with similar IDs. Therefore, we cannot know what sample is the replicate. Also, it is worriesome that for two of the samples we also have duplicate IDs in the phenotypic data but with different phenotypes! So I will continue with the plan and remove these samples.
+            #The Sample_ID of a sample that is a replicate to this sample (used in reproducibility error calculations).
+                #https://www.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2011-1/genomestudio-gt-module-v1-0-user-guide-11319113-a.pdf
+        #mail to bishop
+            #Apologies for writing again, but I have found something else I think we should also ask to AGRF. I have found a Reproducibility report among the files of the second batch. This file includes information of samples that were genotyped twice to test the reproducibility of the results. Here we have the three samples that are duplicated (e.g., 1100JHJM_1 and 1100JHJM_2). This is still confusing to me because 1100JHJM appears two times in the phenotype file with different phenotypic values, so what sample did they sequenced twice? Also, the illumina sample map says there is no replicate of any sample, which contradicts the reproducibility report. Finally and most important, the reproducibility rate between each pair of duplicates is around 0.86. In our past genomic studies, we had a concordance rate of 99% between replicates, which is expected when you sequence the same sample twice. Maybe they calculated the concordance between samples in a different way, but I am a bit surprised about the low reproducibility.
+    #plink files
+        #I guess they generated ped files with all the genotypes for each batch, also the map of the snps
+    #we also have binary files like Heredity.bin, Duplicates.bin... I have seen other people got the same files from illumina. 
+        #If you see the linked biostars thread, there is someone with the illumina data within genome studio (software property of illumina). He has the same bin file I have, but the solution they gave him is that he needs to create the FinalReports and the Maps using genome studio in order to load the data in R and process it. We already have FinalReports and the maps, so I think we have everything we need to analyze the data.
+            #https://www.biostars.org/p/2240/
+    #FinalReports and snp/sample maps
+        #I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
+            #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version  2.0.4). This includes a header with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. 
+                #columns
+                    #Sample Index    
+                    #Sample ID       
+                    #Sample Name     
+                    #SNP Index       
+                    #SNP Name        
+                    #Chr     
+                    #Position        
+                    #GT Score
+                        #Not sure what is this score     
+                    #GC Score
+                        #The GenCall score is a quality metric calculated for each genotype (data point), and ranges from 0 to 1. GenCall scores generally decrease in value the further a sample is from the center of the cluster to which the data point is associated.
+                        #see above for further details
+                    #Allele1 - AB    
+                    #Allele2 - AB
+                        #I guess this is only telling what allele is considered A in the notation of illumina, as 
+
+
+                                #strand
+            #Forward/Reverse is same as the one used in dbSNP, check if dbSNP always uses forward as reference in the last years
+            #https://www.biostars.org/p/4885/
+            #https://www.illumina.com/documents/products/technotes/technote_topbot.pdf
+  
+                    #Allele1 - Top   
+                    #Allele2 - Top   
+                    #Allele1 - Forward       
+                    #Allele2 - Forward       
+                    #Allele1 - Design        
+                    #Allele2 - Design        
+                    #Theta   
+                    #R   
+
+                            #The cluster file contains the mean (R) and standard deviation (theta) of the cluster positions, in normalized coordinates, for every genotype, for every SNP
+    
+                    #X Raw   
+                    #Y Raw   
+                    #X       
+                    #Y       
+                    #B Allele Freq   
+                    #Log R Ratio     
+                    #SNP Aux
+                    #SNP     
+                    #ILMN Strand     
+                    #Top Genomic Sequence    
+                    #Customer Strand
+
+                #From this file, we can obtain the a lgen file. It is just taking the first few columns of the FinalReport. Plink has an option to read the .lgen format and convert it to PED or BED formats (see below; [link](https://www.biostars.org/p/13302/))
+            #A SNP map file with the physical positions of the snps.
+            #A sample map file with info for each individual, like the sex, ID..
+
+
+
+        #try to use bmp file from genomestudio?
+
+
+    #the phenotype csv has 1463 samples, not having phenotype data for 41 of them. 1248+216=1464, so we also lack 1 sample in the csv file (this is the replicate of 7800AGSO)
+
 
 #IMPORTANT INFO ABOUT COORDINATE SYSTEM (1- vs. 0- based) in final reports
     #our final reports are 1-based and hg38:
@@ -150,12 +295,177 @@ run_bash("ls")
             #https://tidyomics.com/blog/2018/12/09/2018-12-09-the-devil-0-and-1-coordinate-system-in-genomics/
         #Therefore, we can say that the coordinates of the final reports are 1-based and hg38.
 
-#It is usually recommended to prepare this data to create a ped file with Plink, which is a tool to process genetic data (https://www.cog-genomics.org/plink/), perform some filtering and QC analyses and then export as VCF (https://www.biostars.org/p/210516/), (https://www.biostars.org/p/135156/), (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/)) and use packages like Hail in python.
-    #https://hail.is/docs/0.2/tutorials/01-genome-wide-association-study.html
+#IMPORTANT INFORMATION about integrity of the files
+    #I get a warning when unzipping the zip of the second batch (CAGRF20093767.zip) with unzip, and I cannot access the data
+    #with 7z I can access the data but I get a warning "headers error".
 
-#There is an interesting alternative, gtc2vcf ([link](https://github.com/freeseek/gtc2vcf), [link](https://software.broadinstitute.org/software/gtc2vcf/)), which can directly transform Ilumina reports into VCF files from command line. We are going to use Plink, though, because it is much more widely used and there are tutorials and best practice papers using it.
+    #I am checking the integrity of the files using checksums:
+        #https://www.tecmint.com/generate-verify-check-files-md5-checksum-linux/
+        #A checksum is a digit which serves as a sum of correct digits in data, which can be used later to detect errors in the data during storage or transmission. MD5 (Message Digest 5) sums can be used as a checksum to verify files or strings in a Linux file system.
+        #MD5 Sums are 128-bit character strings (numerals and letters) resulting from running the MD5 algorithm against a specific file. The MD5 algorithm is a popular hash function that generates 128-bit message digest referred to as a hash value, and when you generate one for a particular file, it is precisely unchanged on any machine no matter the number of times it is generated.
+        #It is normally very difficult to find two distinct files that results in same strings. Therefore, you can use md5sum to check digital data integrity by determining that a file or ISO you downloaded is a BIT-FOR-BIT COPY OF THE REMOTE FILE or ISO.
+        #you can do "md5sum file.txt" and get the 128-bit message. If you modify just a line, anything, from the file, you get a new 128-bit message.
+        #you can obtain the message just piping:
+            #echo "eso" | md5sum
+            #echo "eso1" | md5sum #they have different message
+        #This checks the content, but not the file name. So this would get the same checksum even having different names
+            #echo "eso" > file_1; md5sum file_1
+            #echo "eso" > file_2; md5sum file_2
+        #You can redirect the hash value(s) of a file(s) into a text file and store, share them with others. For the two files above, you can issues the command below to redirect generated hash values into a text file for later use:
+            #md5sum file_1 file_2 > checksum.md5
+            #cat checksum.md5 # you get two lines, one per file, with checksum and file name
+        #To check that the files have not been modified since you created the checksum, run "md5sum --check checksum.md5". You should be able to view the name of each file along with “OK”.
+            #md5sum --check checksum.md5
+                #file_1: OK
+                #file_2: OK
+        #Remember that after creating the checksum, you can not rename the files or else you get a “No such file or directory” error, when you try to verify the files with new names.
+            #mv file_1 file_3
+            #md5sum --check checksum.md5
+                #file_1: FAILED open or read
+                #file_2: OK
+        #This is exactly what the PDFs about data integrity in both batches says
+        #Our results
+            #first batch: 
+                #in "CombatGenes" run "md5sum --check checksums.md5"
+                #checksums.md5: FAILED
+                #example_ILGSA24-17303_FinalReport1.txt: OK
+                #example_Sample_Map.txt: OK
+                #example_SNP_Map.txt: OK
+                #ILGSA24-17303.zip: OK
+                #md5sum: WARNING: 1 computed checksum did NOT match
+            #second batch
+                #in "CombatGenes/17873" run "md5sum --check checksums.md5"
+                #205771890087.zip: OK
+                #205771890120.zip: OK
+                #205771890129.zip: OK
+                #205771890173.zip: OK
+                #205785500018.zip: OK
+                #205785500033.zip: OK
+                #205785500038.zip: OK
+                #205785500075.zip: OK
+                #205857150085.zip: OK
+                #205857150090.zip: OK
+                #205857150136.zip: OK
+                #205857150149.zip: OK
+                #205955840060.zip: OK
+                #205955840105.zip: OK
+                #205955840108.zip: OK
+                #205955840137.zip: OK
+                #205960020112.zip: OK
+                #206023350028.zip: OK
+                #206023350029.zip: OK
+                #206023350043.zip: OK
+                #206023350156.zip: OK
+                #206036460037.zip: OK
+                #206036460040.zip: OK
+                #206036460041.zip: OK
+                #206036460042.zip: OK
+                #206036460091.zip: OK
+                #206036460093.zip: OK
+                #206036460121.zip: OK
+                #206036460124.zip: OK
+                #206036460127.zip: OK
+                #206036460128.zip: OK
+                #206036460129.zip: OK
+                #206036460164.zip: OK
+                #206036460165.zip: OK
+                #206036460169.zip: OK
+                #206053690035.zip: OK
+                #206063100046.zip: OK
+                #206063100048.zip: OK
+                #206063100056.zip: OK
+                #206063100059.zip: OK
+                #206063100076.zip: OK
+                #206063100077.zip: OK
+                #206063100078.zip: OK
+                #206063100079.zip: OK
+                #206063100080.zip: OK
+                #206063100081.zip: OK
+                #206063100119.zip: OK
+                #206063100120.zip: OK
+                #206063100131.zip: OK
+                #206063100132.zip: OK
+                #206123430018.zip: OK
+                #md5sum: 206123430033.zip: No such file or directory
+                #206123430033.zip: FAILED open or read
+                #CAGRF20093767_CNMetrics.csv: OK
+                #CAGRF20093767_DNAReport.csv: OK
+                #CAGRF20093767_Reproducibility and Heritability Report.csv: OK
+                #CAGRF20093767_SampleSheet.csv: OK
+                #CAGRF20093767.zip: OK
+                #checksums.md5: FAILED
+                #GSA-24v3-0_A1_ClusterFile.egt: OK
+                #GSA-24v3-0_A2.bpm: OK
+                #PLINK_030222_0457.zip: OK
+                #md5sum: WARNING: 1 listed file could not be read
+                #md5sum: WARNING: 1 computed checksum did NOT match
+            #In both batches we get some errors for some files, but the important thing is that the two zips we are using are EXACTLY THE SAME than when they were created in first place by the sequencing center. Therefore, all our problem transfering the data has not affected the data.
+                #in the first batch we get Fail for checksum file itself (checksums.md5), but the rest of files that the checksum file targets, which are the one we are interested, are OK.
+                #in the second bath we have problems again with the checksum file but also with 1 compressed file: 206123430033.zip is not present.
+                    #As explained at the beginning of this script, I think we do not need these type of files (I think they are IDAT files), but just the FinalReports, so I think we are good here.
 
-#In particular, we are going to use the a paper about QC by Ritchie. There is a first version 2011 (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/) and a second version in 2022 (https://currentprotocols.onlinelibrary.wiley.com/doi/10.1002/cpz1.603).
+    #the check with sumchecks is great because we now know that the data I am using is exactly the same as created, but still we get the header warning in the zip of the second batch. As I said, that problem was not created by me nor David because the sumchecks are the same, we did not change anything, but maybe there was a problem when compressing the file by the sequencing center.
+
+    #Using "7z t CombatGenes.zip", I have checked again the integrity of the whole zip and the two zips of each batch, thus checking specifically each FinalReport file: 
+        #WHOLE ZIP: The result is OK
+            #Scanning the drive for archives:
+            #1 file, 79228316574 bytes (74 GiB)
+            #
+            #Testing archive: CombatGenes.zip
+            #--
+            #Path = CombatGenes.zip
+            #Type = zip
+            #Physical Size = 79228316574
+            #64-bit = +
+            #
+            #Everything is Ok                                 
+            #
+            #Folders: 2
+            #Files: 71
+            #Size:       79228299532
+            #Compressed: 79228316574
+        #FIRST BATCH: The result is OK
+            #Scanning the drive for archives:
+            #1 file, 5664833599 bytes (5403 MiB)
+            #
+            #Testing archive: ILGSA24-17303.zip
+            #--
+            #Path = ILGSA24-17303.zip
+            #Type = zip
+            #Physical Size = 5664833599
+            #64-bit = +
+            #
+            #Everything is Ok                                         
+            #
+            #Folders: 1
+            #Files: 218
+            #Size:       19929504446
+            #Compressed: 5664833599
+        #SECOND BATCH: ONLY 1 ERROR WITH THE HEADER
+            #Scanning the drive for archives:
+            #1 file, 36627556056 bytes (35 GiB)
+            #
+            #Testing archive: CAGRF20093767.zip
+            #             
+            #ERRORS:
+            #Headers Error
+            #
+            #--
+            #Path = CAGRF20093767.zip
+            #Type = zip
+            #ERRORS:
+            #Headers Error
+            #Physical Size = 36627556056
+            #64-bit = +
+            #
+            #Archives with Errors: 1
+            #
+            #Open Errors: 1
+
+    #I have written a question to "bioinformatics@agrf.org.au" to check this is ok:
+        #I would like to ask two questions regarding the project "CAGRF20093767":
+            #I have been checking the integrity of the specific compressed file containing the "FinalReports". The checksums are OK, but I get a warning when using "7z t": "Headers Error". I understand this is related to the signature header in the zip file, but should we worry about this? All FinalReports within the compressed file are OK (both according to 7z and checksums) and I have full access to them. 
+            #When looking at the checksums for the whole "CAGRF20093767" project, all files are OK with two exceptions: there is one file that is not found ("206123430033.zip"), while "checksums.md5" failed. I am not particularly worried about the missing zip as I think I have all the information I need in the FinalReports, but I would like to check that it is ok for "checksums.md5" to fail if the rest of the files are OK.
 
 
 
