@@ -122,16 +122,31 @@ run_bash("ls")
     #Allelic imbalances in samples can be conveniently visualized in BAF plots [5]. A BAF value of 0.5 indicates a heterozygous genotype (AB), whereas 0 and 1 indicate homozygous genotypes (AA and BB, respectively). The allelic intensity ratio may, in the Infinium II assay, be regarded as a comparative dual channel measurement of the allelic proportion for a given SNP, similar to, e.g., two-channel gene expression data. Several reports have underlined the importance of intensity-based normalization, e.g., lowess [14], to correct for dye specific differences both for gene expression profiling [15,16] and array comparative genomic hybridization (aCGH) [17-19] in two-channel microarray data. Since alleles for SNPs are arbitrarily called A or B, a set of genomically consecutive SNPs will appear in BAF plots as horizontal bands that are expected to be symmetrically positioned around 0.5. For example, a region of single copy number gain in all cells will, in addition to the two bands of homozygous SNPs at BAF = 0 and BAF = 1, result in two bands: one at BAF = 0.33 with SNPs having genotype AAB and one at BAF = 0.67 with SNPs having genotype ABB.
         #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2572624/
 
-
 #Batches
     #Within combat_genes.zip, we have two batches (ILGSA24-17303 and ILGSA24-17873), being the data separated in these two.
     #In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps, while the IDAT files, DNA reports and other reports are in the folder ILGSA24-17303_idat_reports (I may have downloaded from the initial location where this data was stored in summer 2022).
     #In 17873 we have For 1248 individuals the final reports, other reports and IDAT files.
 
 #Files we have
-    #we have the IDAT files with probs intensity from the microarrays used to genotype (first zips):
+    #Intensity data files (IDATs) with probs intensity from the microarrays used to genotype (first zips):
         #I think these files include the image data used to do the sequencing. It seems that illumina Infinium sequencing technology uses two color channels (red and green, which are the colors present in these zips) to determine which is present in a given position (see above). In other words, I think these are IDAT files. A priori, we are not going to use this information, and if we need prob intensity, I think we can just use log R, so we should be fine. See next lines
             #https://www.ogc.ox.ac.uk/wp-content/uploads/2017/09/techspotlight_two-channel_sbs.pdf
+        #The names of the zip files with IDAT and raw files corresponds with the entries in the column "SentrixBarcode_A" of the sample sheet. I think this is the Sentrix ID, i.e., the barcode number of the Universal Array Product to which this sample was hybridized.
+            #I have checked this comparing the name of the zip files in the second batch and the number of that column in sample sheet. We only lack "206123430033", which is the zip missing.
+        #There are options to convert Illumina DNA microarray intensity data files (IDATs) into VCF files without using Microsoft Windows.
+            #You can use "iaap-cli" to convert IDATs into GTC format or ped files.... 
+            #look at the readme in "/home/dftortosa/iaap-cli-linux-x64-v2.0.3/iaap-cli"
+                #https://support.illumina.com/downloads/iaap-genotyping-cli.html
+                #https://github.com/Illumina/BeadArrayFiles/blob/develop/docs/GTC_File_Format_v5.pdf
+            #From there you can 
+                #obtain Final reports using the Illumina's open source parser for GTC files (BeadArrayFiles). You have a example to do that in python. You can also get the DNA report...
+                    #https://github.com/Illumina/BeadArrayFiles
+                    #https://github.com/Illumina/BeadArrayFiles/blob/develop/examples/gtc_final_report.py
+                    #https://github.com/Illumina/BeadArrayFiles/blob/develop/examples/dna_summary.py
+                #Obtain VCF files using gtc2vcf
+                    #https://github.com/freeseek/gtc2vcf#identifying-chip-type-for-idat-and-cel-files
+                #Both options are usually mentioned in biostars
+                    #https://www.biostars.org/p/181924/
     #CNMetrics (I guess copy number metrics)
         #This includes average log R and B allele frequency. This is useful for sex mismatches and copy number analyses, but we have this information in the final reports! This excel gives average and dev per sample and type of SNP (e.g., A/C), but you could calculate that information using the FinalReport as you have one value per sample and SNP. So you can do this for this and for the first batch.
             #log Ratio: 
@@ -144,6 +159,8 @@ run_bash("ls")
     #DNA report
         #This file is generated with GenomeStudio prior the generation of the FinalReports. I think we can get all the information we need from the FinalReports, as we can calculate genotyping call, percentage of hetero. We even have the GenCall score (GC score) in the FinalReports so we can calculate calls vs no_calls, the percentiles of GC score...
             #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf
+        #Table 22 in Illumina docs
+            #https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf
         #No_Calls
             #Genotypes discarded
             #The total number of genotypes in each sample with a GenCall score below the no-call threshold as defined in the project options (default is 0.1500; see below). Genotypes that are not called are shown on the GenomeStudio SNP Graph as black points falling outside of the darkly shaded regions.
@@ -186,22 +203,15 @@ run_bash("ls")
             #Male, Female, or Unknown.
         #SentrixBarcode_A
             #The barcode of the Universal Array Product that this sample was hybridized to for Manifest A
+            #These numbers correspond with the names of the zip files with the IDAT and raw files.
+                #I have checked this comparing the name of the zip files in the second batch and the number of that column in sample sheet. We only lack "206123430033", which is the zip missing.
         #SentrixPosition_A
             #The position within the Universal Array Product this sample was hybridized to for Manifest A (and similarly for _B, _C, etc. depending on how many manifests are used with your project).
         #https://www.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2011-1/genomestudio-gt-module-v1-0-user-guide-11319113-a.pdf
-    #beadpool manifest (bpm file)
-        #Also referred to as a SNP Manifest, this is a file containing the SNP-to-beadtype mapping, as well as all SNP annotations. For the Infinium assay, this is a *.bpm file in binary format.
-            #https://www.biostars.org/p/82576/
-        #this is used as input on genome studio to do quality control of sequencing and generate the final reports. Already done by AGFR.
-    #ClusterFile.egt
-        #This is used by genome studio
-        #The cluster file contains the mean (R) and standard deviation (theta) of the cluster positions, in normalized coordinates, for every genotype, for every SNP. The cluster file also includes cluster score information, as well as the allele frequencies from the training set used to generate the cluster file. A cluster file is required for KaryoStudio. Illumina provides a standard cluster file for each product. Alternatively, customers may generate their own cluster file.
-            #https://www.biostars.org/p/82576/
-        #why we need a cluster?
-            #Each SNP is analyzed independently to identify genotypes. Genotypes are called by comparing customer-generated data with those in the supplied cluster file. Genotype calls are highly accurate and unambiguous for high-quality samples. Generally, high-quality data with 99.5% call rates can be expected. However, accuracy is highly sample dependent. When samples do not perform as expected, experimenters can choose to reprocess (requeue) these samples to confirm or potentially improve results. Poorly performing samples can be systematically excluded from the project before recalling genotypes. Additionally, some samples (e.g., samples that have been whole-genome amplified) may not fit standard cluster positions well. A custom-generated cluster file may improve the call rate and accuracy for these aberrant cases.
-            #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf 
     #Reproducibility and Heritability Report.csv
         #We only have replicates in the second batch, so we do not have this file for the FIRST batch, only for the SECOND.
+        #Table 25 in illumina manual
+            #https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf
         #Reproducibility part is where we have data
             #Rep1_DNA_Name
                 #Sample name designated as replicate #1.
@@ -221,127 +231,173 @@ run_bash("ls")
                 #https://www.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2011-1/genomestudio-gt-module-v1-0-user-guide-11319113-a.pdf
         #mail to bishop
             #Apologies for writing again, but I have found something else I think we should also ask to AGRF. I have found a Reproducibility report among the files of the second batch. This file includes information of samples that were genotyped twice to test the reproducibility of the results. Here we have the three samples that are duplicated (e.g., 1100JHJM_1 and 1100JHJM_2). This is still confusing to me because 1100JHJM appears two times in the phenotype file with different phenotypic values, so what sample did they sequenced twice? Also, the illumina sample map says there is no replicate of any sample, which contradicts the reproducibility report. Finally and most important, the reproducibility rate between each pair of duplicates is around 0.86. In our past genomic studies, we had a concordance rate of 99% between replicates, which is expected when you sequence the same sample twice. Maybe they calculated the concordance between samples in a different way, but I am a bit surprised about the low reproducibility.
+    #bsc file
+        #Genome Studio Project File (.bsc format)
+        #you can open this with GenomeStudio v2.05 in windows. It is free to use.
+    #beadpool manifest (bpm file)
+        #Also referred to as a SNP Manifest, this is a file containing the SNP-to-beadtype mapping, as well as all SNP annotations. For the Infinium assay, this is a *.bpm file in binary format.
+            #https://www.biostars.org/p/82576/
+        #this is used as input on genome studio to do quality control of sequencing and generate the final reports. Already done by AGFR.
+    #ClusterFile.egt
+        #This is used by genome studio
+        #The cluster file contains the mean (R) and standard deviation (theta) of the cluster positions, in normalized coordinates, for every genotype, for every SNP. The cluster file also includes cluster score information, as well as the allele frequencies from the training set used to generate the cluster file. A cluster file is required for KaryoStudio. Illumina provides a standard cluster file for each product. Alternatively, customers may generate their own cluster file.
+            #https://www.biostars.org/p/82576/
+        #why we need a cluster?
+            #Each SNP is analyzed independently to identify genotypes. Genotypes are called by comparing customer-generated data with those in the supplied cluster file. Genotype calls are highly accurate and unambiguous for high-quality samples. Generally, high-quality data with 99.5% call rates can be expected. However, accuracy is highly sample dependent. When samples do not perform as expected, experimenters can choose to reprocess (requeue) these samples to confirm or potentially improve results. Poorly performing samples can be systematically excluded from the project before recalling genotypes. Additionally, some samples (e.g., samples that have been whole-genome amplified) may not fit standard cluster positions well. A custom-generated cluster file may improve the call rate and accuracy for these aberrant cases.
+            #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf 
     #plink files
         #I guess they generated ped files with all the genotypes for each batch, also the map of the snps
     #we also have binary files like Heredity.bin, Duplicates.bin... I have seen other people got the same files from illumina. 
         #If you see the linked biostars thread, there is someone with the illumina data within genome studio (software property of illumina). He has the same bin file I have, but the solution they gave him is that he needs to create the FinalReports and the Maps using genome studio in order to load the data in R and process it. We already have FinalReports and the maps, so I think we have everything we need to analyze the data.
             #https://www.biostars.org/p/2240/
-    #FinalReports and snp/sample maps
-        #I have received a Illumina report with 3 files ([link](https://www.biostars.org/p/51928/)):
-            #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version  2.0.4). This includes a header with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. 
-                #columns
-                    #Sample Index    
-                    #Sample ID       
-                    #Sample Name     
-                    #SNP Index       
-                    #SNP Name        
-                    #Chr     
-                    #Position        
-                    #GT Score (Gene Train score?)
-                        #Not sure what is this score
-                        #The SNP cluster quality?
-                            #https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf  
-                    #GC Score
-                        #The GenCall score is a quality metric calculated for each genotype (data point), and ranges from 0 to 1. GenCall scores generally decrease in value the further a sample is from the center of the cluster to which the data point is associated.
-                        #see above for further details
-                    #Allele1 - AB    
-                    #Allele2 - AB
-                    #Allele1 - Top   
-                    #Allele2 - Top   
-                        #Top/Bot nomenclature was developed by Illumina using sequence-based context to assign strand designations that does not change regardless of database or genome assembly used. (e.g., depending on the NCBI Genome Build referenced, strand and allele designations can change). Top/Bot is not directly related to Fwd/Rev or (+/-).Top/Bot strand is determined by examining the SNP and the surrounding DNA sequence and it only applies to SNPs with two possible alleles.
-                            #https://www.biostars.org/p/4885/
-                        #For example
-                            #if you have A or T and the other base is C or G, then A allele will be A/T while the B allele will be C/G. In these cases, the strand will be TOP if A and BOT if T. These are unambiguous cases.
-                            #if we have A and T or C and G, that is ambiguous. In that case, they look for the first pair of alleles that are not ambiguous at both sides. For example, A in the 5' side, and G in the 3' side. If A or T is at 5', then the strand is TOP, if they are at 3', the is BOT. Then you can go to the actual SNP, and if TOP, the A allele will be A or C, while if BOT the A allele will be T or G.
-                        #Therefore:
-                            #the two first columns are just saying if the sample is AA, AB or BB for the corresponding SNP, considering A and B as explained. Allele 1 will be the first column and allele 2 the second.
-                            #The other two columns tell you the allele 1 and allele 2 in the TOP sequences following the strand definition of the previous line.
-                        #Technical note about A/B TOP/BOT definitions:
-                            #https://www.illumina.com/documents/products/technotes/technote_topbot.pdf  
-                    #Allele1 - Forward     
-                    #Allele2 - Forward
-                        #Forward/Reverse (Fwd/Rev) Strand: Used by dbSNP, Fwd/Rev DESIGNATIONS CAN CHANGE WITH NCBI GENOME BUILD UPDATES, SO GENOME BUILD MUST BE SPECIFIED WHEN REPORTING FWD/REV STRANDS. For SNPs in standard array products, Fwd strand = Source strand, and originates from dbSNP. For custom array product SNPs without rsid’s, the customer can identify the Source strand as Fwd or Rev, based on their own criteria. Illumina custom product files use the customer’s Fwd/Rev designations. Note: The Fwd strand, as identified in Illumina standard product files, should not be confused with Plus (+) strand, which HapMap interchangeably calls the “forward strand.” 
-                            #https://www.biostars.org/p/4885/
-                        #standard vs custom
-                            #I understand we have standard products, i.e., David has not selected new regions of the genome, new SNPs not included in SNPdb of ncbi. Therefore, we should only have SNPs of standard array products and the foward strand comes from ncbi
-                            #"Custom genotyping is the ideal solution for screening large sample sets against novel or targeted content. With custom designs, researchers can target regions of the genome relevant to their specific research interests. Illumina offers flexible options and simple online design tools to maximize success with your customized genotyping assays."
-                                #https://www.illumina.com/techniques/popular-applications/genotyping/custom-genotyping.html
-                        #I have checked several SNPs with and without rs number in our database. In all cases, the foward strand matches SNPdb
-                            #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A110231137
-                            #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A110256473
-                            #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A110257814
-                            #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A118227370
-                            #https://www.ncbi.nlm.nih.gov/snp/?term=12%3A94122419
-                            #https://www.ncbi.nlm.nih.gov/snp/?term=21%3A45544464
-                            #https://www.ncbi.nlm.nih.gov/snp/?term=3%3A67381889
-                    #Allele1 - Design        
-                    #Allele2 - Design
-                        #Alleles in the ILMN/Design Strand (see below.)     
-                    #ILMN Strand
-                        #ILMN Strand, a.k.a. Design Strand: The strand used by Illumina to design probes based on thermodynamic stability and locus specificity according to NCBI BLAST. For this reason, it can differ from the Customer/ Source strand.
-                    #Customer Strand
-                        #Source Strand: Same as the Customer strand. The strand submitted to the Illumina designer for probe design. For standard SNPs, it is the Fwd strand as reported in the source database (i.e., dbSNP). 2. Custom content can be reported as rsid’s or as the DNA sequences or chromosomal regions, depending on the format submitted by the customer.
-                    #Theta 
-                        #Normalized Theta-value for the sample
-                        #Definitions for theta, R... found in "https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf"  
-                    #R
-                        #Normalized R-value for the sample.
-                    #X Raw
-                        #Raw intensity of the A allele   
-                    #Y Raw
-                        #Raw intensity of the B allele.  
-                    #X
-                        #Normalized intensity of the A allele      
-                    #Y
-                        #Normalized intensity of the B allele.
-                    #B Allele Freq  
-                        #B allele frequency for this sample as interpolated from known B allele frequencies of 3 canonical clusters: 0, 0.5 and 1 if it is equal to or greater than the theta mean of the BB cluster. 
-                        #B Allele Freq is between 0 and 1, or set to NaN for loci categorized as intensity only. 
-                    #Log R Ratio
-                        #Base-2 log of the normalized R value over the expected R value for the theta value (interpolated from the R-values of the clusters). 
-                        #For loci categorized as intensity only; the value is adjusted so that the expected R value is the mean of the cluster.
-                    #Explanations for theta, R, X, Y, B allele freq, Log R Ratio
-                            #Infinium II is a two-channel assay and data consist of two intensity values (X, Y) for each SNP, with one intensity channel for each of the fluorescent dyes associated with the two alleles of the SNP.
-                            #The allele specific intensities are normalized using a proprietary algorithm in the Illumina Beadstudio software. The normalization algorithm is applied on a sub-bead pool level and is designed to adjust for channel-dependent background and global intensity differences, and to scale the data.
-                                #X/Y Raw are the values before normalization
-                            #After normalization, data should be as canonical as possible with homozygous SNPs positioned along the transformed X and Y intensity axes. Normalized allele intensities are transformed to a combined SNP intensity, R (R = X + Y), and an allelic intensity ratio, theta (θ = 2/π*arctan(Y/X)).
-                            #R values are calibrated to generate copy number estimates (CN) by comparison to either a matched reference sample analyzed simultaneously or to canonical genotype clusters [5] (our case is the later - hap map). CANONICAL GENOTYPE CLUSTERS ARE GENERATED FROM A LARGE PANEL OF NORMAL SAMPLES AND THE CLUSTERS FOR A SNP INDICATE THE R AND THETA VALUES EXPECTED FOR EACH GENOTYPE (AA, AB and BB).
-                                #Therefore they compare the combined and ratio intensity (R and theta) of a given SNP with the reference or baseline to check what cluster (AA-AB-BB) is more likely to belong our sample for this SNP. I understand these clusters are groups of intensities in a reference data (baseline), so AA samples produce a given intensity, AB other, and BB third different intensity. Existing variability within each cluster but being cohesive, so if your intensity falls within cluster AB, you have likely and heterozygous.
-                            #Theta values are calibrated to generate B allele frequencies (BAF) using canonical genotype clusters. BAF is a value between 0 and 1 and represents the proportion contributed by one SNP allele (B) to the total copy number: BAF is an estimate of NB/(NA+ NB), where NA and NB are the number of A and B alleles, respectively. So you get a frequency depending on the number of B copies.
-                            #Allelic imbalances in samples can be conveniently visualized in BAF plots [5]. A BAF value of 0.5 indicates a heterozygous genotype (AB), whereas 0 and 1 indicate homozygous genotypes (AA and BB, respectively). The allelic intensity ratio may, in the Infinium II assay, be regarded as a comparative dual channel measurement of the allelic proportion for a given SNP, similar to, e.g., two-channel gene expression data.
-                            #Estimate of the number of copies:
-                                #When canonical genotype clusters are used for calibration, copy number estimates are calculated per SNP by taking the log2 of the SNP intensity (R) divided by the SNP intensity expected from the canonical genotype clusters. Thus, copy number estimates may be regarded as a combination of two individual one-channel measurements of the amount of genetic material for a given SNP.
-                                #the manual says "Base-2 log of the normalized R value over the expected R value for the theta value (interpolated from the R-values of the clusters)." So you also use theta.
-                                #I understand that this is log R Ratio, as you are correction the intensity by the expected intensity in the cluster (baseline) and get information about copy number. 
-                                #In Ritchie's tutorial they say "Illumina calls this intensity LogR ratio, and on Applied Biosystems (formerly Affymetrix systems), it is simply known as probe intensity. These metrics, once suitably normalized, ARE ROUGHLY LINEAR IN COPY NUMBEr."
-                                #In biostars, one guy said "The log R ratio was obtained by dividing the R value of your sample by a baseline and represents the ploidy (copy number) of your sample at that genomic position. LRR of 0 means copy number neutral, positive values mean copy number gains, negative values mean copy number losses"
-                                    #https://www.biostars.org/p/98874/
-                                #I have checked a few cases and log R of homozygous is 0 or 1, while for heterozygous is around 0.5.
-                                #Therefore, it seems we can use log R Ratio as an estimate of the number of copies of each SNP in each sample.
-                        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2572624/
-                    #SNP Aux
-                        #User-defined auxiliary value for the SNP
-                    #SNP
-                        #Nucleotide substitution for the SNP on the Illumina ILMN strand
-                    #Top Genomic Sequence
-                        #Sequence on the top strand around the SNP.
-                        #I guess these are the nucleotides around the SNP considering the TOP strand.
-                #From this file, we can obtain the a lgen file. 
-                    #It is just taking the first few columns of the FinalReport. 
-                        #https://www.biostars.org/p/16982/
-                    #Plink has an option to read the .lgen format and convert it to PED or BED formats
-                        #https://www.biostars.org/p/13302/
-            #A SNP map file with the physical positions of the snps.
-            #A sample map file with info for each individual, like the sex, ID..
+    #FinalReports
+        #The "FinalReport.txt" for Illumina raw genotype data generated from Genome Bead Studio for 2.5M (GSGT Version  2.0.4). This includes a header with number of SNPs, samples.... and then the data with sample index, sample names, alleles... the first row includes the column names. 
+        #columns
+            #Sample Index    
+            #Sample ID       
+            #Sample Name     
+            #SNP Index       
+            #SNP Name        
+            #Chr     
+            #Position        
+            #GT Score (Gene Train score?)
+                #Not sure what is this score
+                #The SNP cluster quality?
+                #Score for a SNP from the GenTrain clustering algorithm?
+                    #https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf  
+            #GC Score
+                #The GenCall score is a quality metric calculated for each genotype (data point), and ranges from 0 to 1. GenCall scores generally decrease in value the further a sample is from the center of the cluster to which the data point is associated.
+                #see above for further details
+            #Allele1 - AB    
+            #Allele2 - AB
+            #Allele1 - Top   
+            #Allele2 - Top   
+                #Top/Bot nomenclature was developed by Illumina using sequence-based context to assign strand designations that does not change regardless of database or genome assembly used. (e.g., depending on the NCBI Genome Build referenced, strand and allele designations can change). Top/Bot is not directly related to Fwd/Rev or (+/-).Top/Bot strand is determined by examining the SNP and the surrounding DNA sequence and it only applies to SNPs with two possible alleles.
+                    #https://www.biostars.org/p/4885/
+                #For example
+                    #if you have A or T and the other base is C or G, then A allele will be A/T while the B allele will be C/G. In these cases, the strand will be TOP if A and BOT if T. These are unambiguous cases.
+                    #if we have A and T or C and G, that is ambiguous. In that case, they look for the first pair of alleles that are not ambiguous at both sides. For example, A in the 5' side, and G in the 3' side. If A or T is at 5', then the strand is TOP, if they are at 3', the is BOT. Then you can go to the actual SNP, and if TOP, the A allele will be A or C, while if BOT the A allele will be T or G.
+                #Therefore:
+                    #the two first columns are just saying if the sample is AA, AB or BB for the corresponding SNP, considering A and B as explained. Allele 1 will be the first column and allele 2 the second.
+                    #The other two columns tell you the allele 1 and allele 2 in the TOP sequences following the strand definition of the previous line.
+                #Technical note about A/B TOP/BOT definitions:
+                    #https://www.illumina.com/documents/products/technotes/technote_topbot.pdf  
+            #Allele1 - Forward     
+            #Allele2 - Forward
+                #Forward/Reverse (Fwd/Rev) Strand: Used by dbSNP, Fwd/Rev DESIGNATIONS CAN CHANGE WITH NCBI GENOME BUILD UPDATES, SO GENOME BUILD MUST BE SPECIFIED WHEN REPORTING FWD/REV STRANDS. For SNPs in standard array products, Fwd strand = Source strand, and originates from dbSNP. For custom array product SNPs without rsid’s, the customer can identify the Source strand as Fwd or Rev, based on their own criteria. Illumina custom product files use the customer’s Fwd/Rev designations. Note: The Fwd strand, as identified in Illumina standard product files, should not be confused with Plus (+) strand, which HapMap interchangeably calls the “forward strand.” 
+                    #https://www.biostars.org/p/4885/
+                #standard vs custom
+                    #I understand we have standard products, i.e., David has not selected new regions of the genome, new SNPs not included in SNPdb of ncbi. Therefore, we should only have SNPs of standard array products and the foward strand comes from ncbi
+                    #"Custom genotyping is the ideal solution for screening large sample sets against novel or targeted content. With custom designs, researchers can target regions of the genome relevant to their specific research interests. Illumina offers flexible options and simple online design tools to maximize success with your customized genotyping assays."
+                        #https://www.illumina.com/techniques/popular-applications/genotyping/custom-genotyping.html
+                #I have checked several SNPs with and without rs number in our database. In all cases, the foward strand matches SNPdb
+                    #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A110231137
+                    #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A110256473
+                    #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A110257814
+                    #https://www.ncbi.nlm.nih.gov/snp/?term=1%3A118227370
+                    #https://www.ncbi.nlm.nih.gov/snp/?term=12%3A94122419
+                    #https://www.ncbi.nlm.nih.gov/snp/?term=21%3A45544464
+                    #https://www.ncbi.nlm.nih.gov/snp/?term=3%3A67381889
+            #Allele1 - Design        
+            #Allele2 - Design
+                #Alleles in the ILMN/Design Strand (see below.)     
+            #ILMN Strand
+                #ILMN Strand, a.k.a. Design Strand: The strand used by Illumina to design probes based on thermodynamic stability and locus specificity according to NCBI BLAST. For this reason, it can differ from the Customer/ Source strand.
+            #Customer Strand
+                #Source Strand: Same as the Customer strand. The strand submitted to the Illumina designer for probe design. For standard SNPs, it is the Fwd strand as reported in the source database (i.e., dbSNP). 2. Custom content can be reported as rsid’s or as the DNA sequences or chromosomal regions, depending on the format submitted by the customer.
+            #Theta 
+                #Normalized Theta-value for the sample
+                #Definitions for theta, R... found in "https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf"  
+            #R
+                #Normalized R-value for the sample.
+            #X Raw
+                #Raw intensity of the A allele   
+            #Y Raw
+                #Raw intensity of the B allele.  
+            #X
+                #Normalized intensity of the A allele      
+            #Y
+                #Normalized intensity of the B allele.
+            #B Allele Freq  
+                #B allele frequency for this sample as interpolated from known B allele frequencies of 3 canonical clusters: 0, 0.5 and 1 if it is equal to or greater than the theta mean of the BB cluster. 
+                #B Allele Freq is between 0 and 1, or set to NaN for loci categorized as intensity only. 
+            #Log R Ratio
+                #Base-2 log of the normalized R value over the expected R value for the theta value (interpolated from the R-values of the clusters). 
+                #For loci categorized as intensity only; the value is adjusted so that the expected R value is the mean of the cluster.
+            #Explanations for theta, R, X, Y, B allele freq, Log R Ratio
+                    #Infinium II is a two-channel assay and data consist of two intensity values (X, Y) for each SNP, with one intensity channel for each of the fluorescent dyes associated with the two alleles of the SNP.
+                    #The allele specific intensities are normalized using a proprietary algorithm in the Illumina Beadstudio software. The normalization algorithm is applied on a sub-bead pool level and is designed to adjust for channel-dependent background and global intensity differences, and to scale the data.
+                        #X/Y Raw are the values before normalization
+                    #After normalization, data should be as canonical as possible with homozygous SNPs positioned along the transformed X and Y intensity axes. Normalized allele intensities are transformed to a combined SNP intensity, R (R = X + Y), and an allelic intensity ratio, theta (θ = 2/π*arctan(Y/X)).
+                    #R values are calibrated to generate copy number estimates (CN) by comparison to either a matched reference sample analyzed simultaneously or to canonical genotype clusters [5] (our case is the later - hap map). CANONICAL GENOTYPE CLUSTERS ARE GENERATED FROM A LARGE PANEL OF NORMAL SAMPLES AND THE CLUSTERS FOR A SNP INDICATE THE R AND THETA VALUES EXPECTED FOR EACH GENOTYPE (AA, AB and BB).
+                        #Therefore they compare the combined and ratio intensity (R and theta) of a given SNP with the reference or baseline to check what cluster (AA-AB-BB) is more likely to belong our sample for this SNP. I understand these clusters are groups of intensities in a reference data (baseline), so AA samples produce a given intensity, AB other, and BB third different intensity. Existing variability within each cluster but being cohesive, so if your intensity falls within cluster AB, you have likely and heterozygous.
+                    #Theta values are calibrated to generate B allele frequencies (BAF) using canonical genotype clusters. BAF is a value between 0 and 1 and represents the proportion contributed by one SNP allele (B) to the total copy number: BAF is an estimate of NB/(NA+ NB), where NA and NB are the number of A and B alleles, respectively. So you get a frequency depending on the number of B copies.
+                    #Allelic imbalances in samples can be conveniently visualized in BAF plots [5]. A BAF value of 0.5 indicates a heterozygous genotype (AB), whereas 0 and 1 indicate homozygous genotypes (AA and BB, respectively). The allelic intensity ratio may, in the Infinium II assay, be regarded as a comparative dual channel measurement of the allelic proportion for a given SNP, similar to, e.g., two-channel gene expression data.
+                    #Estimate of the number of copies:
+                        #When canonical genotype clusters are used for calibration, copy number estimates are calculated per SNP by taking the log2 of the SNP intensity (R) divided by the SNP intensity expected from the canonical genotype clusters. Thus, copy number estimates may be regarded as a combination of two individual one-channel measurements of the amount of genetic material for a given SNP.
+                        #the manual says "Base-2 log of the normalized R value over the expected R value for the theta value (interpolated from the R-values of the clusters)." So you also use theta.
+                        #I understand that this is log R Ratio, as you are correction the intensity by the expected intensity in the cluster (baseline) and get information about copy number. 
+                        #In Ritchie's tutorial they say "Illumina calls this intensity LogR ratio, and on Applied Biosystems (formerly Affymetrix systems), it is simply known as probe intensity. These metrics, once suitably normalized, ARE ROUGHLY LINEAR IN COPY NUMBEr."
+                        #In biostars, one guy said "The log R ratio was obtained by dividing the R value of your sample by a baseline and represents the ploidy (copy number) of your sample at that genomic position. LRR of 0 means copy number neutral, positive values mean copy number gains, negative values mean copy number losses"
+                            #https://www.biostars.org/p/98874/
+                        #I have checked a few cases and log R of homozygous is 0 or 1, while for heterozygous is around 0.5.
+                        #Therefore, it seems we can use log R Ratio as an estimate of the number of copies of each SNP in each sample.
+                #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2572624/
+            #SNP Aux
+                #User-defined auxiliary value for the SNP
+            #SNP
+                #Nucleotide substitution for the SNP on the Illumina ILMN strand
+            #Top Genomic Sequence
+                #Sequence on the top strand around the SNP.
+                #I guess these are the nucleotides around the SNP considering the TOP strand.
+        #From this file, we can obtain the a lgen file. 
+            #It is just taking the first few columns of the FinalReport. 
+                #https://www.biostars.org/p/16982/
+            #Plink has an option to read the .lgen format and convert it to PED or BED formats
+                #https://www.biostars.org/p/13302/
+    #SNP map file with the physical positions of the snps.
+        #Table 4 SNP Table Columns in Illumina info
+            #https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf 
+        #Index: Row name
+        #Name: SNP name
+            #in the format "chr:position" or with rs numbers
+        #Chromosome: Chromosome name
+            #in the format "1"
+        #Position: Physical position
+        #GenTrain
+            #I guess this is the "Score for a SNP from the GenTrain clustering algorithm"
+        #SNP: Nucleotide substitution for the SNP on the ILLUMINA ILMN STRAND. 
+            #THESE NUCLEOTIDES ARE NOT IN FORWARD/REVERSE FORMAT! (see above)
+        #ILMN Strand: Design strand designation (see above for further details: TOP/BOT vs forward/reverse) 
+        #Customer Strand: Customer strand designation.
+        #NormID: Normalization ID for the SNP
+    #Sample map file with info for each individual
+        #Table 6 Samples Table Columns in Illumina manual
+            #https://support.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2-0/genomestudio-genotyping-module-v2-user-guide-11319113-01.pdf
+        #Index: Sample index row
+        #Name:
+        #ID: Sample identifier   
+        #Gender: User-specified gender for the sample 
+        #Plate: Sample plate identifier
+        #Well: Well within the sample plate  
+        #Group   
+        #Parent1
+        #Parent2
+        #Replicate: 
+            #I understand that this indicates if a sample is a replicate or not.
+            #Indeed I talk with AGRF about the three duplicated samples, saying that these samples were not marked as replicate in this column and they said "As you have highlighted, these three pairs were not highlighted in the submission as technical replicates, but the pairs were assigned the same sample name for the sample manifest and tubes provided. ". So it seems this columns indicate replicates.
+            #We do not have replicates according to this column for both batches
+                #7z e -so '-i!ILGSA24-17303/Sample_Map.txt' ./ILGSA24-17303.zip | awk -F '\t' '{print $10}' | uniq
+                #7z e -so '-i!CAGRF20093767/Sample_Map.txt' ./17873/CAGRF20093767.zip | awk -F '\t' '{print $10}' | uniq
+        #SentrixPosition
+            #Sentrix ID is "Barcode number of the Universal Array Product to which this sample was hybridized.", while Sentrix Position is "Section on the product".
 
 
-        #POR AQUI
-        #quick check columns maps, but you got all of them.
-
+        #por aquii
+        #revisar email and last check of the things we are asking for
         #leer ILGSA24-17303 Report v1.0.pdf?
+            #maybe when you have both reports, read in biostars meaning, then check..
 
-        #try to use bmp file from genomestudio?
-            #you could acess .bin files in zip of the second batch?
 
 
     #the phenotype csv has 1463 samples, not having phenotype data for 41 of them. 1248+216=1464, so we also lack 1 sample in the csv file (this is the replicate of 7800AGSO)
