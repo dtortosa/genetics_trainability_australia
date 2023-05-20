@@ -231,6 +231,10 @@ run_bash("ls")
                 #https://www.illumina.com/content/dam/illumina-support/documents/documentation/software_documentation/genomestudio/genomestudio-2011-1/genomestudio-gt-module-v1-0-user-guide-11319113-a.pdf
         #mail to bishop
             #Apologies for writing again, but I have found something else I think we should also ask to AGRF. I have found a Reproducibility report among the files of the second batch. This file includes information of samples that were genotyped twice to test the reproducibility of the results. Here we have the three samples that are duplicated (e.g., 1100JHJM_1 and 1100JHJM_2). This is still confusing to me because 1100JHJM appears two times in the phenotype file with different phenotypic values, so what sample did they sequenced twice? Also, the illumina sample map says there is no replicate of any sample, which contradicts the reproducibility report. Finally and most important, the reproducibility rate between each pair of duplicates is around 0.86. In our past genomic studies, we had a concordance rate of 99% between replicates, which is expected when you sequence the same sample twice. Maybe they calculated the concordance between samples in a different way, but I am a bit surprised about the low reproducibility.
+        #Answer AGRF
+            #In terms of the replicates, you are correct.  For samples with a SNP call rate >99%, which the three samples in the reproducibility report have, you would expect a concordance rate of around 99%.  As you have highlighted, these three pairs were not highlighted in the submission as technical replicates, but the pairs were assigned the same sample name for the sample manifest and tubes provided. 
+        #My answer
+            #It seems that we are good about reproducibility. I was worried that 0.85 was indeed our concordance level, but this does not seem to be the case as the three samples with the same ID are not replicates. Therefore, I think we can safely remove these three samples (1100JHJM, 7800AGSO, 1200JPJM) as we discussed.
     #bsc file
         #Genome Studio Project File (.bsc format)
         #you can open this with GenomeStudio v2.05 in windows. It is free to use.
@@ -391,16 +395,10 @@ run_bash("ls")
                 #7z e -so '-i!CAGRF20093767/Sample_Map.txt' ./17873/CAGRF20093767.zip | awk -F '\t' '{print $10}' | uniq
         #SentrixPosition
             #Sentrix ID is "Barcode number of the Universal Array Product to which this sample was hybridized.", while Sentrix Position is "Section on the product".
-
-
-        #por aquii
-        #revisar email and last check of the things we are asking for
-        #leer ILGSA24-17303 Report v1.0.pdf?
-            #maybe when you have both reports, read in biostars meaning, then check..
-
-
-
-    #the phenotype csv has 1463 samples, not having phenotype data for 41 of them. 1248+216=1464, so we also lack 1 sample in the csv file (this is the replicate of 7800AGSO)
+    #Phenotype file (combact gene DNA GWAS 23062022.xlsx)
+        #the phenotype csv has 1463 samples, not having phenotype data for 41 of them. 1248+216=1464, so we also lack 1 sample in the csv file. 
+        #The lacking sample is the duplicate of 7800AGSO, as we have 7800AGSO_1 and 7800AGSO_2 in the illumina data of the second batch, but in the phenotype data we only have 7800AGSO.
+        #For the other two IDs with duplicates (1100JHJM and 1200JPJM), we have two samples in illumina (_1 and _2) and exactly the same ID two times in the phenotype CSV for each sample.
 
 
 #IMPORTANT INFO ABOUT COORDINATE SYSTEM (1- vs. 0- based) in final reports
@@ -590,6 +588,12 @@ run_bash("ls")
         #I would like to ask two questions regarding the project "CAGRF20093767":
             #I have been checking the integrity of the specific compressed file containing the "FinalReports". The checksums are OK, but I get a warning when using "7z t": "Headers Error". I understand this is related to the signature header in the zip file, but should we worry about this? All FinalReports within the compressed file are OK (both according to 7z and checksums) and I have full access to them. 
             #When looking at the checksums for the whole "CAGRF20093767" project, all files are OK with two exceptions: there is one file that is not found ("206123430033.zip"), while "checksums.md5" failed. I am not particularly worried about the missing zip as I think I have all the information I need in the FinalReports, but I would like to check that it is ok for "checksums.md5" to fail if the rest of the files are OK.
+        #Answer AGRF
+            #In regards to the final reports, if the checksums tally, I would not be concerned by the headers error you have described.
+            #If the checksum failed for BeadChip 206123430033, it does contain a number of files, which would explain this.  If you do require the .idat files and raw data for this, it would need to be retrieved from archive.
+        #My answer
+            #I understand that we are good about this as most files (including the FinalReports) have the correct checksum.
+            #The error in checksums.md5 is probably caused by the missing zip (206123430033.zip).
 
 
 

@@ -134,6 +134,27 @@ run_bash("ls")
 
 ##por aquiii
 
+#read the two summary illumina reports once you have both and understand the quality checks done looking at biostars
+    #ILGSA24-17303 Report v1.0.pdf
+
+#the three duplicated IDs
+    #For 1100JHJM and 1200JPJM, David's postdoc agrees we should remove them as we have the same ID for two different rows in the excel file.
+    #For 7800AGSO, David's postdoc asked if I could know which is the sample from the excel file that doesn’t appear to have a DNA sample, but I cannot know that.
+        #We have genetic data for 1464 samples, while in the excel we have 1463 samples.
+        #There are 41 of these samples with genetic but not phenotypic data.
+        #The missing sample is 7800AGSO_1 or 7800AGSO_2, but I cannot know which is these is 7800AGSO in the excel file.
+        #I do not have phenotypic information in illumina data, only the ID and then genetic data. The only information shared between the two datasets is the ID.
+        #Therefore, I would remove this sample.
+
+#change the name of the sample with wrong ID
+    #I have an Illumina report for one sample (2397LDJA; ILGSA24-17303) that is not present in the excel file.
+    #In contrast, the sample ID 2399LDJA is present in the excel file but there is no illumina report for this ID. 
+    #Both IDs are the same except for the 4th digit.
+    #Maybe they are the same sample, but it would probably be a good idea to remove both IDs.
+        #Yes! I had exactly the same note, I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file.
+
+
+
 #check the text I have in the next lines and then go directly to the protocol, follow it, except not starting with sex and hetero, see next comment.
     #https://github.com/RitchieLab/GWAS-QC
 
@@ -156,6 +177,7 @@ run_bash("ls")
     #R log is present in our data, so we could check prob intensity in X for a full detail sex determination, think about it.
 
 
+#with sex check done, tell David about mismatches
 
 
 
