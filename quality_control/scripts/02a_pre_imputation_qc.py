@@ -124,34 +124,92 @@ run_bash("ls")
 
 #I understand that specially when you have data from different sources, it is very important to do imputation because many SNPs are NOT going to be shared across sources, you are going to lose them unless you impute them to have the same SNPs across all panels.
 
-#In our particular case, this should not be very important because the same SNPs are genotyped in both batches, so it is very inlikely that all samples of a batch have missing for a given SNP so that SNP is not present in one batch but it is present in the other one. 
+#In our particular case, this should not be very important because the same SNPs are genotyped in both batches, so it is very unlikely that all samples of a batch have missing for a given SNP so that SNP is not present in one batch but it is present in the other one. 
 
 #I going to do imputation first just in case, to avoid any problems. Also, remember that the protocol mentions the possibility to merge after imputation the batch section, so it does not seem very strange to merge batches after imputation. Indeed, I have seen a post in biostarts doing PCAs and other stuff in different batches and then in the merged dataset.
     #https://www.biostars.org/p/438079/
 
 
 
-
-##por aquiii
-
-#read the two summary illumina reports once you have both and understand the quality checks done looking at biostars
-    #ILGSA24-17303 Report v1.0.pdf
+#############################################################
+# final decision about the 1100JHJM, 1200JPJM and 7800AGSO #
+#############################################################
 
 #the three duplicated IDs
     #For 1100JHJM and 1200JPJM, David's postdoc agrees we should remove them as we have the same ID for two different rows in the excel file.
+        #"This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200 JPJM, both male). I agree that we will need to remove these from our analysis."
     #For 7800AGSO, David's postdoc asked if I could know which is the sample from the excel file that doesn’t appear to have a DNA sample, but I cannot know that.
-        #We have genetic data for 1464 samples, while in the excel we have 1463 samples.
-        #There are 41 of these samples with genetic but not phenotypic data.
-        #The missing sample is 7800AGSO_1 or 7800AGSO_2, but I cannot know which is these is 7800AGSO in the excel file.
-        #I do not have phenotypic information in illumina data, only the ID and then genetic data. The only information shared between the two datasets is the ID.
-        #Therefore, I would remove this sample.
+        #"There is only one individual (male) with code 7800 from session 878, so there appears to have been a labelling error while preparing the DNA samples. Are you able to tell us which is the sample from the excel file that doesn’t appear to have a DNA sample? That might help us to work this out. If not, I agree that we will need to remove this sample also."
+            #We have genetic data for 1464 samples, while in the excel we have 1463 samples. So the problem is the other way around, all samples in excels have genetic data, but 1 sample in illumina does not have phenotypic data.
+                #There are 41 of these samples with genetic but not phenotypic data.
+            #7800AGSO in the excel could be 7800AGSO_1 or 7800AGSO_2, but I cannot know which of these is.
+                #I do not have phenotypic information in illumina data, only the ID and then genetic data. The only information shared between the two datasets is the ID.
 
-#change the name of the sample with wrong ID
-    #I have an Illumina report for one sample (2397LDJA; ILGSA24-17303) that is not present in the excel file.
-    #In contrast, the sample ID 2399LDJA is present in the excel file but there is no illumina report for this ID. 
-    #Both IDs are the same except for the 4th digit.
-    #Maybe they are the same sample, but it would probably be a good idea to remove both IDs.
-        #Yes! I had exactly the same note, I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file.
+#AGRF confirmed that they included these samples (1100JHJM, 1200JPJM and 7800AGSO) in the reproducibility report but they are duplicates, not replicates. See 01b_illumina_report_to_plink.py for further details.
+    #"As you have highlighted, these three pairs were not highlighted in the submission as technical replicates, but the pairs were assigned the same sample name for the sample manifest and tubes provided"
+
+#Therefore, these three pairs of samples should be removed. They have been removed by 01b_illumina_report_to_plink.py.
+
+
+
+########################
+# notes about 2397LDJA #
+########################
+
+#I have an Illumina report for one sample (2397LDJA; ILGSA24-17303) that is not present in the excel file. In contrast, the sample ID 2399LDJA is present in the excel file but there is no illumina report for this ID. Both IDs are the same except for the 4th digit. Maybe they are the same sample, but it would probably be a good idea to remove both IDs.
+    #"Yes! I had exactly the same note, I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file"
+
+
+
+#######################################
+# Passing arguments of python program #
+#######################################
+
+#define input arguments to be passed when running this script in bash
+#we will use a bash script to run this python program two times instead of doing a function and parallelize that function. In this way, the same python script is run for each batch and if we want to run again one batch, we just need to modify the bash script, not the python program. This makes sense because we have only two batches, and the parallelization will occur inside each batch. Importantly, we can also have separated .out files, so we can look at the checks separately.
+import sys
+import argparse
+parser=argparse.ArgumentParser()
+parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input. Always string.")
+parser.add_argument("--n_cores", type=int, default=4, help="Number of cores/threads requested. Integer always, None does not work!")
+parser.add_argument("--n_samples", type=int, default=10, help="Number of samples to be analyzed. Integer always, None does not work!")
+    #type=str to use the input as string
+    #type=int converts to integer
+    #default is the default value when the argument is not passed
+args=parser.parse_args()
+    #https://docs.python.org/3/library/argparse.html
+
+#get the arguments of the function that have been passed through command line
+batch_name = args.batch_name
+n_cores = args.n_cores
+n_samples = args.n_samples
+
+#stop if the number of samples is None
+if n_samples == None:
+    raise ValueError("ERROR! FALSE! --n_samples is None but this script is not ready to deal with None as n_samples")
+
+#starting
+print("#################################################################################################################################\n#################################################################################################################################")
+print("############################################# STARTING BATCH NUMBER " + batch_name + " USING " + str(n_cores) + " CORES AND " + str(n_samples) + " SAMPLES ##############################################")
+print("#################################################################################################################################\n#################################################################################################################################")
+
+##CHECK THE PARSING OF ARGUMENTS
+
+
+##por aquiii
+
+#create function that works on the batch according to the argument like in the previous step
+
+#CHECK WE DO NOT HAVE the 6 duplicates samples IN THE SECONd BATCH
+#change the name of the 2397LDJA? where? illumina or excel?
+    #it will be probably easier to change the excel, because it is just 1 file, while in illumina we would have to change the FinalReport, SampleMap, sample_sheet....
+
+
+
+
+
+#read the two summary illumina reports once you have both and understand the quality checks done looking at biostars
+    #ILGSA24-17303 Report v1.0.pdf
 
 
 
