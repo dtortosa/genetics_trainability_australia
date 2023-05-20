@@ -35,8 +35,9 @@ def print_text(text, header=2):
         print("\n###### " + text + " ######")
     elif header==3:
         print("\n## " + text + " ##")
-print_text("checking function to print nicely", header=1)
-print_text("checking function to print nicely", header=2)
+print_text("checking function to print nicely: header 1", header=1)
+print_text("checking function to print nicely: header 2", header=2)
+print_text("checking function to print nicely: header 3", header=3)
 
 
 
@@ -172,7 +173,6 @@ import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input. Always string.")
 parser.add_argument("--n_cores", type=int, default=4, help="Number of cores/threads requested. Integer always, None does not work!")
-parser.add_argument("--n_samples", type=int, default=10, help="Number of samples to be analyzed. Integer always, None does not work!")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -182,23 +182,195 @@ args=parser.parse_args()
 #get the arguments of the function that have been passed through command line
 batch_name = args.batch_name
 n_cores = args.n_cores
-n_samples = args.n_samples
 
-#stop if the number of samples is None
-if n_samples == None:
-    raise ValueError("ERROR! FALSE! --n_samples is None but this script is not ready to deal with None as n_samples")
 
-#starting
-print("#################################################################################################################################\n#################################################################################################################################")
-print("############################################# STARTING BATCH NUMBER " + batch_name + " USING " + str(n_cores) + " CORES AND " + str(n_samples) + " SAMPLES ##############################################")
-print("#################################################################################################################################\n#################################################################################################################################")
 
-##CHECK THE PARSING OF ARGUMENTS
+print_text("starting batch number " + batch_name + " using " + str(n_cores) + " cores ", header=1)
+
+
+print_text("check we have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 samples that were duplicated), respectively looking at the merged fam file of each batch and the list of samples to be merged", header=2)
+run_bash(" \
+    n_samples_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data.fam.gz | \
+        awk -F '\t' 'END{print NR}'); \
+    n_samples_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data.fam.gz | \
+        awk -F '\t' 'END{print NR}'); \
+    if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #decompress the fam file of each merged file, i.e., for each batch, then count the number of lines (load to awk indicating sep of fields and count number of rows at the end) and save the output
+        #get the number of the row at the end, i.e., the total number of rows
+            #use awk instead wc -l because "wc -l" counts "new line" character, and it is possible to have a line without that character. If at the end of the file, you do not have an empty line, your actual last line will not have "new line" character so it will not be counted by wc -l.
+                #https://unix.stackexchange.com/a/362280
+                #https://stackoverflow.com/a/28038682/12772630
+        #if the number of lines (samples) in the first and the second batch is 216 and 1242, respectively, then OK
+            #remember that we lose 6 duplicated samples in the second batch.
+            #note that "==" is only for strings, you have to use "-eq" for numbers
+                #https://stackoverflow.com/questions/20449543/shell-equality-operators-eq
+run_bash(" \
+    n_samples_first_batch=$( \
+        awk 'END{print NR}' ./data/genetic_data/plink_bed_files/ILGSA24-17303/02_data_to_merge/list_to_merge.txt); \
+    n_samples_second_batch=$( \
+        awk 'END{print NR}' ./data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/list_to_merge.txt); \
+    if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #count the number of rows in the file with the list of samples considered in the merging of both batches. We use NR (number of records) of awk instead of wc -l because the file does not end with an empty line, so wc does not count the last one, and we get 1 row less
+            #https://stackoverflow.com/questions/32481877/what-are-nr-and-fnr-and-what-does-nr-fnr-imply
+            #https://stackoverflow.com/questions/12616039/wc-command-of-mac-showing-one-less-result
 
 
 ##por aquiii
 
-#create function that works on the batch according to the argument like in the previous step
+#the three previous checks, you are doing the check of both batches instead of one, change? so you do the check of each batch by separately?
+
+
+
+print_text("check we do NOT have a .missnp file, where variants with more than two alleles are indicated. We should not have this file")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    count_miss_file=$(ls -l *.missnp | wc -l); \
+    if [[ $count_miss_file -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #list files with extension ".missnp" and count them. This should be zero.
+
+
+print_text("check that the bim files (SNP maps) of both batches and the merged file have the same SNPs, although the minor can be different", header=2)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./merged_plink_files/merged_batches.bim > merged_columns.txt; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./data_to_merge/ILGSA24-17303_merged_data.bim > batch_1_columns.txt; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./data_to_merge/ILGSA24-17873_merged_data.bim > batch_2_columns.txt; \
+    bim_check_1=$(cmp --silent merged_columns.txt batch_1_columns.txt; echo $?); \
+    bim_check_2=$(cmp --silent merged_columns.txt batch_2_columns.txt; echo $?); \
+    bim_check_3=$(cmp --silent batch_1_columns.txt batch_2_columns.txt; echo $?); \
+    if [[ $bim_check_1 -eq 0 && $bim_check_2 -eq 0 && $bim_check_3 -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi; \
+    rm merged_columns.txt; rm batch_1_columns.txt; rm batch_2_columns.txt")
+        #select the first 4 columns of the three bim files using awk (-F is the delimiter, space in this case). Save the result as three different .txt files.
+            #the 4 first columns are the chromosome code, Variant identifier, Position in morgans or centimorgans (safe to use dummy value of '0'), Base-pair coordinate (1-based).
+            #these columns should be the same in both batches, the difference can be in the last two columns with the name of the minor and major alleles, because it would be possible that one allele is not present in any of the samples of a batch, but in the other batch it has both alleles (see below).
+        #compare the merged file with both batches and then the two batches between them using cmp for that.
+            #cmp takes two files and compare them until 1 byte is different
+            #we make it silent and get the final status
+            #remember that "$?" gives the return value of the last run command.
+                #For example, 
+                    #ls somefile
+                    #echo $?
+                    #If somefile exists (regardless whether it is a file or directory), you will get the return value thrown by the ls command, which should be 0 (default "success" return value). If it doesn't exist, you should get a number other then 0. The exact number depends on the program.
+                #https://stackoverflow.com/a/6834572/12772630
+            #the return value of cmp will be 0 if the two files are identical, if not, then we have differences between the files
+                #https://stackoverflow.com/a/53529649/12772630
+        #if the status of the three comparisons is zero, then perfect.
+        #finally remove the files generated for this check
+
+#note about the differences in minor/major alleles between batches
+    #the four first columns are identical between batches, but the minor/major alleles are different.
+    #the first difference between the two batches is a SNP in row 140. It has only C in first bath (monomorphic), but it has also T in the second. Accordingly the merged batch has both alleles, because this included first and second batch
+        #first batch
+            #0       GSA-10:47138541 0       0       0       C
+        #second batch
+            #0       GSA-10:47138541 0       0       T       C
+        #merged file
+            #0       GSA-10:47138541 0       0       T       C
+    #opposite case with a snp in row 165, which is the first line of difference between merged and the second batch. It is monomorphic in second batch, but it has two alleles in first batch, so when merging, you get two alleles, not 1.
+        #first batch
+            #0       GSA-rs145797772 0       0       A       C
+        #second batch
+            #0       GSA-rs145797772 0       0       0       C
+        #merged file
+            #0       GSA-rs145797772 0       0       A       C
+
+
+print_text("see if the first SNPs that have different minor/major allele between batches are indeed different in terms of frequency and alleles according to plink --freq")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./data_to_merge/ILGSA24-17303_merged_data \
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./data_to_merge/ILGSA24-17873_merged_data \
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./merged_plink_files/merged_batches\
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+        #Calculate minor allele frequency of all SNPs in each batch using plink --freq
+            #By itself, --freq writes a minor allele frequency report to plink.frq. 
+                #https://www.cog-genomics.org/plink/1.9/basic_stats
+        #We use sed -n to show specific lines. -e lets you to select several lines. 
+            #note that line 140 in the bim file is 141 in this file because we have header in freq file, but no header is present in the bim file.
+            #https://unix.stackexchange.com/questions/288521/with-the-linux-cat-command-how-do-i-show-only-certain-lines-by-number
+        #the merged file has updated information about the minor/major alleles considering all samples, because of this, these two snps are biallelic in the merged file when in one of the batches is monomorphic, and the MAF changes when merging also, because now you have more samples.
+
+
+print_text("remove freq files", header=2)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    rm plink.frq; \
+    rm plink.hh; \
+    rm plink.log; \
+    rm plink.nosex")
+
+
+
+print_text("check again we have the exact sum of samples from both batches", header=2)
+run_bash("\
+    n_samples_merged=$(\
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam.gz | \
+        wc -l);\
+    n_samples_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.fam.gz | \
+        wc -l); \
+    n_samples_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.fam.gz | \
+        wc -l); \
+    if [[ $n_samples_merged -eq $n_samples_first_batch+$n_samples_second_batch ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+
+print_text("check again after merging we still have 654027 snps, and this is the number of variants than in each of the batches", header=2)
+run_bash("\
+    n_snps_merged=$(\
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim.gz | \
+        wc -l);\
+    n_snps_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bim.gz | \
+        wc -l); \
+    n_snps_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.bim.gz | \
+        wc -l); \
+    if [[ $n_snps_merged -eq 654027 && $n_snps_merged -eq $n_snps_first_batch && $n_snps_merged -eq $n_snps_second_batch ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+
+
 
 #CHECK WE DO NOT HAVE the 6 duplicates samples IN THE SECONd BATCH
 #change the name of the 2397LDJA? where? illumina or excel?
@@ -718,9 +890,14 @@ for row_index, hh_case in hh_plink.iterrows():
 
 
 
-#to remove the dir
-temp_dir.cleanup()
-    #https://stackoverflow.com/questions/3223604/how-to-create-a-temporary-directory-and-get-its-path-file-name
+#open a pool
+if n_cores==None:
+    pool_processors = None
+        #This uses all cores available
+else:
+    pool_processors = int(n_cores)
+import multiprocessing as mp
+pool = mp.Pool(processes=pool_processors)
 
 
 
