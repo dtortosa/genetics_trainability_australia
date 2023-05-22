@@ -1941,7 +1941,7 @@ run_bash(" \
         --bfile ./03_merged_data/" + batch_name + "_merged_data \
         --list-duplicate-vars suppress-first ids-only\
         --out  ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates")
-        #list-duplicate-vars to list duplicates by POSITION
+        #list-duplicate-vars to list duplicates by POSITION and ALLELES CODES. By default, this ignores A1/A2 allele assignments, since PLINK 1 normally does not preserve them. Therefore, two variants with identical positions and reversed allele assignments are considered duplicates. To avoid this, you have to use "use the 'require-same-ref' modifier, along with --keep-allele-order/--a2-allele". In our case, I am not sure what information uses Illumina to set the Allele 1 and 2 in the forward strand, but likely it is not REF/ANCESTRAL and plink 1 does not preserve A1/A2 allele assignments anyway. Therefore, we should not use this information and just consider as duplicates two SNPs with the same position and allele codes irrespectively of the allele1/allele2 assignment.
             #suppress-first prevents the first variant in each group from being reported (since, if you're removing duplicates, you probably want to keep one member of each group).
             #ids-only modifier removes the header and the position/allele columns, so the generated list can be used as input for --exclude
                 #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
@@ -1954,7 +1954,7 @@ duplicate_cases = pd.read_csv(
     header=None,
     low_memory=False)
 
-#the file generated has in each row ALL snps that have the same position and alleles, except the first one, thus, the number of rows it is not the total number of duplicates, we need also to know the number of snps in each row.
+#the file generated has in each row ALL snps that have the same position and allele codes, except the first one, thus, the number of rows it is not the total number of duplicates, we need also to know the number of snps in each row.
 n_duplicates_plink = sum([len(row.split(" ")) if " " in row else 1 for row in duplicate_cases[0]])
     #select each row in the first and only column of duplicate cases (only one columne due to "ids-only" flag in plink)
     #split the row by space and count the number of pieces, i.e., snps, if there are spaces in the row

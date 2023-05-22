@@ -363,14 +363,56 @@ if batch_name == "ILGSA24-17873":
             #if both numbers are the same, then number of rows without the duplicated samples is exactly the same than the total number of rows, i.e., we do NOT have duplicated samples.
 
 
-##por aqui
+print_text("Remove SNPs duplicated. We are going to remove first duplicates because this should not be affected by population structure", header=2)
+#Remember that plink considers duplicates by POSITION and ALLELES CODES. By default, this ignores A1/A2 allele assignments, since PLINK 1 normally does not preserve them. Therefore, two variants with identical positions and reversed allele assignments are considered duplicates. In our case, I am not sure what information uses Illumina to set the Allele 1 and 2 in the forward strand, but likely it is not REF/ANCESTRAL and plink 1 does not preserve A1/A2 allele assignments anyway. Therefore, we should not use this information and just consider as duplicates two SNPs with the same position and allele codes irrespectively of the allele1/allele2 assignment.
+#if two SNPs have the positions and allele codes, this is going to be irrespectively from the ancestry, this is in the SNP map of the whole batch, so all samples share the same information for these two SNPs in the map, except the genotype values, of course.
+    #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
 
 
-print_text("First, remove these duplicates. We are going to remove first duplicates because this should not be affected by population structure", header=2)
-#if two SNPs have the same ID, positions and alleles, this is going to be irrespectively from the ancestry, this is in the SNP map of the whole batch, so all samples share the same information for these two SNPs in the map, except the genotype values, of course. 
+print_text("check we have 654027 SNPs, saving the number of SNPs into a variable", header=3)
+n_snps = run_bash(" \
+    gunzip \
+        --stdout \
+        ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data/" + batch_name + "_merged_data.bim.gz | \
+    awk \
+        -F '\t' \
+        'END{print NR}'", return_value=True).strip()
+print(n_snps == "654027")
+
+
+print_text("check SNPs IDs are not duplicated", header=3)
+run_bash(" \
+    n_snp_ids_non_dup=$( \
+        gunzip \
+            --stdout \
+            ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data/" + batch_name +  "_merged_data.bim.gz | \
+        awk \
+            -F '\t' \
+            '!a[$2]++{count++} \
+            END{print count}'); \
+        if [[ $n_snp_ids_non_dup -eq " + str(n_snps) + " ]]; then \
+            echo 'TRUE'; \
+        else \
+            echo 'FALSE'; \
+        fi")
+            #detect duplicates of ID
+                #a[$2] is the name of the array that holds $2 (SNP ID) as keys.
+                #uses the current value of $2 as key to the array "a", taking the value stored there. If this particular key was never referenced before, a[$2] evaluates to the empty string.
+                #In "!a[$2]", the ! negates the value from before. If it was empty or zero (i.e., the key was never referenced before; false), we now have a true result. If it was non-zero (i.e., the key was referenced before; true), we have a false result. If the whole expression evaluated to true, meaning that a[$2] was not set to begin with, the whole line is printed as the default action. Therefore, it is only printing a value of $1 if was never references before, i.e., non-duplicate.
+                #In other words:
+                    #a[$2]: look at the value of key $2, in associative array a. If it does not exist, automatically create it with an empty string.
+                    #!a[$2]++: negate the value of expression. If a[$2]++ returned 0 (a false value), the whole expression evaluates to true, and makes awk perform the default action print $2. Otherwise, if the whole expression evaluates to false, no further action is taken.
+            #a[$1]++: 
+                #increment the value of a[$2], return the old value as value of expression. The ++ operator returns a numeric value, so if a[$2] was empty to begin with, 0 is returned and a[$2] incremented to 1.
+            #save into count
+            #the total number should be equal to the number of SNPs, meaning we do not have any duplicated SNP.
+            #https://unix.stackexchange.com/a/159697
+            #https://stackoverflow.com/a/32085039/12772630
+
 
 
 ##remove?? sure? o better merge?
+#we only have 3K SNPs duplicated....
 
 print_text("load the duplicates list obtained in '01b_illumina_report_to_plink.py' with the options '        --list-duplicate-vars suppress-first ids-only'. Therefore, for each group of SNPs with the same position and alleles, the first one is not included in the list, but the rest are and these are the one that will be removed", header=3)
 duplicate_cases = pd.read_csv(
@@ -391,17 +433,11 @@ n_duplicates_plink = sum([len(row.split(" ")) if " " in row else 1 for row in du
 
 print_text("see number of plink duplicates", header=3)
 print(n_duplicates_plink)
-print("count snps")
-n_snps = run_bash(" \
-    gunzip \
-        --stdout \
-        ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data/" + batch_name + "_merged_data.bim.gz | \
-    awk \
-        -F '\t' \
-        'END{print NR}'", return_value=True).strip()
 print(f"The number of duplicates is {(n_duplicates_plink/int(n_snps))*100} percent respect to the total number of SNPs")
 
 #por aquii
+
+#think again removind dups before pca?
 
 
 #check
