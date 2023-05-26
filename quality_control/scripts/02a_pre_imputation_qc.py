@@ -365,7 +365,8 @@ if batch_name == "ILGSA24-17873":
 
 print_text("Remove SNPs duplicated. We are going to remove first duplicates because this should not be affected by population structure", header=2)
 #Remember that plink considers duplicates by POSITION and ALLELES CODES. By default, this ignores A1/A2 allele assignments, since PLINK 1 normally does not preserve them. Therefore, two variants with identical positions and reversed allele assignments are considered duplicates. In our case, I am not sure what information uses Illumina to set the Allele 1 and 2 in the forward strand, but likely it is not REF/ANCESTRAL and plink 1 does not preserve A1/A2 allele assignments anyway. Therefore, we should not use this information and just consider as duplicates two SNPs with the same position and allele codes irrespectively of the allele1/allele2 assignment.
-#if two SNPs have the positions and allele codes, this is going to be irrespectively from the ancestry, this is in the SNP map of the whole batch, so all samples share the same information for these two SNPs in the map, except the genotype values, of course.
+#if two SNPs have the positions and allele codes, this is going to be irrespectively from the ancestry, this is in the SNP map of the whole batch, so all samples share the same information for these two SNPs in the map, except the genotype values, of course, and what allele is minor/major, but as I said, we are only using the position of the SNP the and the names of the alleles, not their assignment, so we should be fine.
+#Also, we do not want to use duplicated/error data for calculating PCAs and doing other checks, so it is better to just remove it now.
     #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
 
 
@@ -377,10 +378,11 @@ n_snps = run_bash(" \
     awk \
         -F '\t' \
         'END{print NR}'", return_value=True).strip()
-print(n_snps == "654027")
+n_snps = int(n_snps)
+print(n_snps == 654027)
 
 
-print_text("check SNPs IDs are not duplicated", header=3)
+print_text("check SNPs IDs are not duplicated, as plink 1.9 does not look for duplicates using the ID", header=3)
 run_bash(" \
     n_snp_ids_non_dup=$( \
         gunzip \
@@ -398,7 +400,7 @@ run_bash(" \
             #detect duplicates of ID
                 #a[$2] is the name of the array that holds $2 (SNP ID) as keys.
                 #uses the current value of $2 as key to the array "a", taking the value stored there. If this particular key was never referenced before, a[$2] evaluates to the empty string.
-                #In "!a[$2]", the ! negates the value from before. If it was empty or zero (i.e., the key was never referenced before; false), we now have a true result. If it was non-zero (i.e., the key was referenced before; true), we have a false result. If the whole expression evaluated to true, meaning that a[$2] was not set to begin with, the whole line is printed as the default action. Therefore, it is only printing a value of $1 if was never references before, i.e., non-duplicate.
+                #In "!a[$2]", the ! negates the value from before. If it was empty or zero (i.e., the key was never referenced before; false), we now have a true result. If it was non-zero (i.e., the key was referenced before; true in the original test), we have a false result. If the whole expression evaluated to true, meaning that a[$2] was not set to begin with, the whole line is printed as the default action. Therefore, it is only printing a value of $2 if was never references before, i.e., non-duplicate.
                 #In other words:
                     #a[$2]: look at the value of key $2, in associative array a. If it does not exist, automatically create it with an empty string.
                     #!a[$2]++: negate the value of expression. If a[$2]++ returned 0 (a false value), the whole expression evaluates to true, and makes awk perform the default action print $2. Otherwise, if the whole expression evaluates to false, no further action is taken.
@@ -410,9 +412,23 @@ run_bash(" \
             #https://stackoverflow.com/a/32085039/12772630
 
 
+print_text("check again SNPs IDs are not duplicated using pandas", header=3)
+sum( \
+    pd.read_csv( \
+        "./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/" + batch_name + "_merged_data.bim.gz", \
+        sep="\t", \
+        header=None, \
+        low_memory=False) \
+    .iloc[:,1] \
+    .duplicated( \
+        keep=False)) == 0
+        #load the bim file
+        #get all rows of the second column (IDs)
+        #check for duplicates
+            #keep=False:
+                #Mark all duplicates as ``True``, not only the second occurrence.
+        #the sum of Trues should be zero
 
-##remove?? sure? o better merge?
-#we only have 3K SNPs duplicated....
 
 print_text("load the duplicates list obtained in '01b_illumina_report_to_plink.py' with the options '        --list-duplicate-vars suppress-first ids-only'. Therefore, for each group of SNPs with the same position and alleles, the first one is not included in the list, but the rest are and these are the one that will be removed", header=3)
 duplicate_cases = pd.read_csv(
@@ -422,7 +438,8 @@ duplicate_cases = pd.read_csv(
     low_memory=False)
 print(duplicate_cases)
 
-#the file generated has in each row ALL snps that have the same position and alleles, except the first one, thus, the number of rows it is not the total number of duplicates. Therefore, we need also to know the number of snps in each row.
+print_text("the file generated has in each row ALL snps that have the same position and alleles, except the first one, thus, the number of rows it is not the total number of duplicates. Therefore, we need also to know the number of snps in each row.", header=3)
+print("For example: GSA-rs142775857 rs184047537 rs200286606")
 #row="GSA-rs142775857 rs184047537 rs200286606"
 n_duplicates_plink = sum([len(row.split(" ")) if " " in row else 1 for row in duplicate_cases[0]])
     #select each row in the first and only column of duplicate cases (only one column due to "ids-only" flag in plink)
@@ -433,44 +450,67 @@ n_duplicates_plink = sum([len(row.split(" ")) if " " in row else 1 for row in du
 
 print_text("see number of plink duplicates", header=3)
 print(n_duplicates_plink)
-print(f"The number of duplicates is {(n_duplicates_plink/int(n_snps))*100} percent respect to the total number of SNPs")
-
-#por aquii
-
-#think again removind dups before pca?
+print(f"The number of duplicates is {(n_duplicates_plink/n_snps)*100} percent respect to the total number of SNPs")
 
 
-#check
-print("\n#####################\n#####################")
-print("the number of duplicates based only on POSITION should be equal or higher than the duplicates based on POSITION AND ALLELES, i.e., plink duplicates. Duplicates in the latter have the same position and alleles, thus they should be included in the former list. Of course, the former list could have more snps that share position but not alleles, thus fulfilling criteria of the former but not the latter list")
-
-    ##CHECK PLINK DUPS ARE BY POSITION AND ALLELES
-
-print("#####################\n#####################")
-print(diff_n_snps_distinct_position >= n_duplicates_plink)
-    #There is no correspondence between the duplicated snps calculated with numpy and those of plink because plink uses both position and alleles. So it only removes snps with the same position AND the same alleles, irrespectively of the strand. For example, two snps with the same position and having A/T and T/A for reference and derived, will be considered duplicated by plink, while two snps with the same position but different alleles not. This explains why plink detects less duplicates than our approach with numpy/spark. It also explains why, if I select distinct snps according to the concatenation of position and allele colums (e.g., 3243241_A/T), I get less duplicates than with plink, because plink considers AT and TA, not only AT. In summary, I cannot replicate the filtering done by plink and it is ok to have different number of duplicates.
-        #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
-    #Also note that we do not have duplicated SNP names, so we do not have to apply filters for that, which would have to be applied using plink2.
-        #https://www.biostars.org/p/360918/
-
-
-
+print_text("calculate the number of duplicates with pandas and check is the same than plink duplicates. As we want to consider as duplicates SNPs with the same alleles, irrespectively of the assigment, we need to create a new column where we get both alleles in the same order independenlty if allele 1 is A or T. Therefore A1=A and A2=T will be the same than A1=T and A2=A, i.e., AT.", header=3)
+bim_file = pd.read_csv( \
+        "./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/" + batch_name + "_merged_data.bim.gz", \
+        sep="\t", \
+        header=None, \
+        low_memory=False)
+from natsort import natsorted
+#row=bim_file.iloc[0,:]
+def alleles_no_assigment(row):
+    return "".join( \
+        natsorted( \
+            [str(row[4]), str(row[5])]))
+        #make a list with the two alleles as strings
+        #then apply natural order, so we have the same order independently of the order between columns
+        #join without space
+            #https://stackoverflow.com/a/12453584/12772630
+#apply the function per row so you can access the alleles of each SNP
+bim_file["new_alleles"] = bim_file\
+    .apply(alleles_no_assigment, axis=1)
+#check for duplicates considering the chromosome (0), physical position (3) and new variable about alleles
+    #https://www.cog-genomics.org/plink/1.9/formats#bim
+n_duplicates_pandas = sum( \
+    bim_file \
+    .duplicated( \
+            subset=[0, 3, "new_alleles"], \
+            keep="first"))
+                #subset: Only consider certain columns for identifying duplicates
+                    #https://stackoverflow.com/a/46640992/12772630
+                #keep="first": Mark duplicates as ``True`` except for the first occurrence.
+                    #this is what we did in plink to get the list of duplicates.
+print(n_duplicates_plink == n_duplicates_pandas)
 
 
 print_text("if there are less than 2% of duplicates, cool, else stop", header=3)
 #duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem to remove them.
-if (n_duplicates_plink/n_genotypes)*100 < 2:
+if (n_duplicates_plink/n_snps)*100 < 2:
     print("less than 2% of duplicates, good to go!")
 else:
     raise ValueError("ERROR: FALSE! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
 
-#open a folder to save filtered dataset
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    rm -rf ./04_inspect_snp_dup/01_remove_dup/; \
-    mkdir -p ./04_inspect_snp_dup/01_remove_dup/")
 
-#filter these snps
+print_text("open a folder to save filtered dataset", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    rm --recursive --force ./04_inspect_snp_dup/01_remove_dup/; \
+    mkdir --parents ./04_inspect_snp_dup/01_remove_dup/; \
+    ls ./04_inspect_snp_dup")
+        #rm 
+            #--recursive: remove directories and their contents recursively
+            #--force: ignore nonexistent files and arguments, never prompt
+        #mkdir
+            #--parents: no error if existing, make parent directories as needed
+
+
+print_text("filter these snps", header=3)
+
+#por aquii
+
 os.system(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     plink \
@@ -534,6 +574,9 @@ os.system(
 
 
 
+
+
+##CHECK AFTER CLEANING THAT NO SNP HAS IN ITS ID "Ilmndup"
 
 
 
