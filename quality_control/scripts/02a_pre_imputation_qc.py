@@ -18,6 +18,15 @@
 
 #This script will perform pre-imputation QC. 
 
+#This and next scripts are based on the following tutorials:
+    #1. Quality Control Procedures for Genome-Wide Association Studies
+        #https://github.com/RitchieLab/GWAS-QC
+        #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
+    #2. Data Management and Summary Statistics with PLINK
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+    #3. Genomics Boot Camp
+        #https://genomicsbootcamp.github.io/book/
+
 
 
 ##################
@@ -43,9 +52,12 @@ def print_text(text, header=2):
         print("\n###### " + text + " ######")
     elif header==3:
         print("\n## " + text + " ##")
+    elif header==4:
+        print("\n# " + text + " #")
 print_text("checking function to print nicely: header 1", header=1)
 print_text("checking function to print nicely: header 2", header=2)
 print_text("checking function to print nicely: header 3", header=3)
+print_text("checking function to print nicely: header 4", header=4)
 
 
 
@@ -193,11 +205,13 @@ n_cores = args.n_cores
 
 
 
+###########################
+# starting with the batch #
+###########################
 print_text("starting batch number " + batch_name + " using " + str(n_cores) + " cores ", header=1)
 
 
 print_text("do some checks on the plink files of the batch", header=2)
-
 
 print_text("get the total number of samples per batch:", header=3)
 if batch_name=="ILGSA24-17873":
@@ -454,13 +468,13 @@ print(f"The number of duplicates is {(n_duplicates_plink/n_snps)*100} percent re
 
 
 print_text("calculate the number of duplicates with pandas and check is the same than plink duplicates. As we want to consider as duplicates SNPs with the same alleles, irrespectively of the assigment, we need to create a new column where we get both alleles in the same order independenlty if allele 1 is A or T. Therefore A1=A and A2=T will be the same than A1=T and A2=A, i.e., AT.", header=3)
-bim_file = pd.read_csv( \
+bim_file_dup_check = pd.read_csv( \
         "./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/" + batch_name + "_merged_data.bim.gz", \
         sep="\t", \
         header=None, \
         low_memory=False)
 from natsort import natsorted
-#row=bim_file.iloc[0,:]
+#row=bim_file_dup_check.iloc[0,:]
 def alleles_no_assigment(row):
     return "".join( \
         natsorted( \
@@ -470,19 +484,20 @@ def alleles_no_assigment(row):
         #join without space
             #https://stackoverflow.com/a/12453584/12772630
 #apply the function per row so you can access the alleles of each SNP
-bim_file["new_alleles"] = bim_file\
+bim_file_dup_check["new_alleles"] = bim_file_dup_check\
     .apply(alleles_no_assigment, axis=1)
 #check for duplicates considering the chromosome (0), physical position (3) and new variable about alleles
     #https://www.cog-genomics.org/plink/1.9/formats#bim
-n_duplicates_pandas = sum( \
-    bim_file \
+bool_dups_pandas = bim_file_dup_check \
     .duplicated( \
-            subset=[0, 3, "new_alleles"], \
-            keep="first"))
-                #subset: Only consider certain columns for identifying duplicates
-                    #https://stackoverflow.com/a/46640992/12772630
-                #keep="first": Mark duplicates as ``True`` except for the first occurrence.
-                    #this is what we did in plink to get the list of duplicates.
+        subset=[0, 3, "new_alleles"], \
+        keep="first")
+            #subset: Only consider certain columns for identifying duplicates
+                #https://stackoverflow.com/a/46640992/12772630
+            #keep="first": Mark duplicates as ``True`` except for the first occurrence.
+                #this is what we did in plink to get the list of duplicates.
+#count True cases for dups in pandas
+n_duplicates_pandas = sum(bool_dups_pandas)
 print(n_duplicates_plink == n_duplicates_pandas)
 
 
@@ -507,77 +522,312 @@ run_bash(" \
             #--parents: no error if existing, make parent directories as needed
 
 
+print_text("decompress the plink binary fileset", header=3)
+run_bash(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/; \
+    ls -l; \
+    gunzip --keep --force ./" + batch_name + "_merged_data.bed.gz; \
+    gunzip --keep --force ./" + batch_name + "_merged_data.bim.gz; \
+    gunzip --keep --force ./" + batch_name + "_merged_data.fam.gz; \
+    ls -l")
+        #-k: keep original compressed file
+        #-f: force compression or decompression even if the file has multiple links or the corresponding file already exists
+
+
 print_text("filter these snps", header=3)
-
-#por aquii
-
-os.system(
+run_bash(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     plink \
         --bfile ./03_merged_data/" + batch_name + "_merged_data \
-        -exclude ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar \
-        --out  ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
-        --make-bed")
-        #-exclude a list with the SNP names as input to remove snps
+        --exclude ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar \
+        --make-bed \
+        --out  ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup")
+            #--bfile: 
+                #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
+                #https://www.cog-genomics.org/plink/1.9/input#bed
+            #--exclude: Exclude ALL variants named in the file.
+                #We have in the ".dupvar" file only the second and next occurrences of each position/allele duplicate, not including the first one. Therefore, we can remove these SNPs.
+                #https://www.cog-genomics.org/plink/1.9/filter#snp
+            #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
+                #https://www.cog-genomics.org/plink/1.9/data#make_bed
 
-#check again for duplicates
-os.system(
+
+print_text("remove the non-compressed binary fileset of 03_merged_data")
+run_bash(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/; \
+    ls -l; \
+    rm ./" + batch_name + "_merged_data.bed; \
+    rm ./" + batch_name + "_merged_data.bim; \
+    rm ./" + batch_name + "_merged_data.fam; \
+    ls -l")
+
+
+print_text("check again for duplicates", header=3)
+run_bash(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
     plink \
         --bfile ./" + batch_name + "_merged_data_no_snp_dup \
         --list-duplicate-vars suppress-first ids-only\
         --out  ./" + batch_name + "_duplicates")
+        #--list-duplicate-vars
+            #When multiple variants share the same bp coordinate and allele codes, it is likely that they are not actually distinct, and the duplicates should be merged or removed. --list-duplicate-vars identifies them, and writes a report to plink.dupvar.
+            #This is not based on variant IDs. Use PLINK 2.0's --rm-dup for ID-based deduplication.
+            #By default, this ignores A1/A2 allele assignments, since PLINK 1 normally does not preserve them. If you want two variants with identical positions and reversed allele assignments to not be considered duplicates, use the 'require-same-ref' modifier, along with --keep-allele-order/--a2-allele.
+            #Normally, the report has a header line, and contains positions and allele codes in the first 3-4 columns. However, if you just want an input file for --extract/--exclude, the 'ids-only' modifier removes the header and the position/allele columns, and 'suppress-first' prevents the first variant in each group from being reported (since, if you're removing duplicates, you probably want to keep one member of each group).
+            #--list-duplicate-vars fails in 'ids-only' mode if any of the reported variant IDs are not unique.
 
-#count number of duplicates
-print("\n#####################\n#####################")
-print("Do we have zero duplicated positions after filtering? THIS CHECK CAN BE PRINTED BEFORE THIS LINE")
-print("#####################\n#####################")
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/ \
-    n_lines=wc -l " + batch_name + "_duplicates.dupvar; \
-    FILE=" + batch_name + "_duplicates.dupvar; \
-    if [ -f $FILE ] && [ $n_lines==0 ]; then \
+
+print_text("Do we have zero duplicated positions after filtering?", header=3)
+run_bash(
+    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
+    n_lines=$( \
+        awk \
+            -F '\t' \
+            'END{print NR}' \
+            " + batch_name + "_duplicates.dupvar); \
+    if [[ $n_lines -eq 0 ]]; then \
         echo 'TRUE'; \
     else \
         echo 'FALSE'; \
     fi")
-    #count the number of lines in the duplicates list
-    #save the name of that file
-    #if the file exists and the number of lines is zero, perfect because there no snp duplicated by position
-    #else False
 
-#remove the files we are not interested in
-os.system(
+
+print_text("remove the files we are not interested in", header=3)
+run_bash(
     "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
-    rm " + batch_name + "_duplicates.dupvar")
-
-#remove hh files only if they are present
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup; " \
-    "n_hh_files=$(ls *.hh | wc -l); \
-    if [ $n_hh_files -gt 0 ]; then \
-        rm ./" + batch_name + "*.hh; \
-    fi")
-    #count the number of files with the "hh" extension
-    #if that number is greater than 0, then remove all the hh files
-
-#compress the bed/bim/fam files
-os.system(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    gzip ./03_merged_data/" + batch_name + "_merged_data.bed; \
-    gzip ./03_merged_data/" + batch_name + "_merged_data.bim; \
-    gzip ./03_merged_data/" + batch_name + "_merged_data.fam; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bed; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim; \
-    gzip ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.fam")
+    ls -l; \
+    rm " + batch_name + "_duplicates.*; \
+    ls -l")
 
 
+print_text("load the bim file after removing duplicates", header=3)
+bim_no_dups = pd.read_csv( \
+    "./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+print(bim_no_dups)
+
+
+print_text("check that the IDs in the original bim file after excluding pandas dups are the same than the remaining IDs in the new bim file obtained with plink", header=3)
+print(bim_file_dup_check \
+    .loc[~bool_dups_pandas,1] \
+    .reset_index(drop=True) \
+    .equals( \
+        bim_no_dups.loc[:,1]))
+        #exclude duplicated rows according to pandas and select the ID column
+            #"bool_dups_pandas" contains booleans, with True for second and next occurrences of each group of duplicates
+        #reset the index to have the same than in the new cleaned bim file created with plink
+        #check that this is identical than the IDs in the new cleaned bim file
+
+print_text("check that we do not have any NA in the SNP IDs in the cleaned bim file", header=3)
+if sum(bim_no_dups.loc[:, 1].isna()) == 0:
+    print("We do NOT have NA in SNP IDs, so good to go!")
+else:
+    raise ValueError("ERROR: FALSE! WE DO HAVE NA IN SNP IDS")
+
+
+print_text("filter SNPs by chromosome type", header=2)
+
+print_text("see the unique chromosome names in the SNP map of this batch", header=3)
+print_text("select the name of the zip file with batch data based on the batch name because ILGSA24-17873 is called CAGRF20093767.zip, not ILGSA24-17873.zip", header=4)
+if batch_name=="ILGSA24-17873":
+    zip_name = "CAGRF20093767"
+elif batch_name=="ILGSA24-17303":
+    zip_name = "ILGSA24-17873"
+print(zip_name)
+
+print_text("load zip info from the zip file", header=4)
+import zipfile
+zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
+zipinfos = zipdata.infolist()
+zipinfos
+
+print_text("extract the zipinfo of the SNP_map", header=4)
+import numpy as np
+#zipinfo=zipinfos[0]
+for zipinfo in zipinfos:
+    if zipinfo.filename == zip_name + "/SNP_Map.txt":
+        zipinfo.filename = zipinfo.filename.split(zip_name+"/")[1]
+        zipinfo_snp_map = zipinfo
+            #select the zipinfo of SNP after removing the first part with the parent folder name
+zipinfo_snp_map
+
+print_text("extract the SNP map", header=4)
+zipdata.extract(zipinfo_snp_map, "./data/genetic_data/quality_control/" + batch_name + "/")
+
+print_text("extract the unique chromosome names using awk", header=4)
+unique_chr_map = run_bash(" \
+    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    tail \
+        -n +2 \
+        SNP_Map.txt | \
+    awk \
+        -F '\t' \
+        '!a[$3]++ {print $3}'", return_value=True)
+        #remove the column names with tail (first row)
+            #if you use tail with "+number_line" you can get all lines starting from the selected number of line
+                #tail is faster than sed
+                #https://stackoverflow.com/a/339941/12772630
+        #see unique cases of column 3
+            #a[$3] is the name of the array that holds $3 (chr name) as keys.
+                #uses the current value of $3 as key to the array "a", taking the value stored there. If this particular key was never referenced before, a[$3] evaluates to the empty string.
+            #In "!a[$3]", the ! negates the value from before. If it was empty or zero (i.e., the key was never referenced before; false), we now have a true result. If it was non-zero (i.e., the key was referenced before; true in the original test), we have a false result. If the whole expression evaluated to true, meaning that a[$3] was not set to begin with, the whole line is printed as the default action. Therefore, it is only printing a value of $3 if was never references before, i.e., non-duplicate.
+            #In other words:
+                #a[$3]: look at the value of key $3, in associative array a. If it does not exist, automatically create it with an empty string.
+                #!a[$3]++: negate the value of expression. If a[$3]++ returned 0 (a false value), the whole expression evaluates to true, and makes awk perform the default action print $3. Otherwise, if the whole expression evaluates to false, no further action is taken.
+            #a[$3]++: 
+                #increment the value of a[$3], return the old value as value of expression. The ++ operator returns a numeric value, so if a[$3] was empty to begin with, 0 is returned and a[$3] incremented to 1.
+            #other explanation calling "a" as "seen"
+                #seen is the arbitrary name of an associative array. It is not an option of any kind. You could use a or b or most other names in its place.
+                #The code !seen[$0]++ consists of a TEST and an INCREMENT.
+                #If seen[$0], i.e. the value of the array element associated with the key $0, the current line of input, is zero (or empty), then the test is true.
+                    #I guess this means if the value of the current line is NOT present as a key in seen, then true, because it has not been seen before
+                #The value in the array corresponding to the key $0 is then incremented, which means that the test will be false all other times that the same value of $0 is found.
+                    #This value is now added as a key
+                #The effect is that the test is true the first time a particular line is seen in the input, and false all other times.
+                #Whenever the a test with no associated action is true, the default action is triggered. The default action is the equivalent of { print } or { print $0 }, which prints the current record, which for all accounts and purposes in this example is the current unmodified line of input.
+                #https://unix.stackexchange.com/a/604294
+
+print_text("split the string generated with the awk unique chromsome names using '\n', but avoid the last element which is the last empty line, then order using natural sorting", header=4)
+unique_chr_map = natsorted(unique_chr_map.split("\n")[0:-1])
+print(unique_chr_map)
+
+print_text("create a list with the expected chromosome names, i.e., unknown (0), 22 autosomals, mito, sex and pseudo-autosomal", header=4)
+expected_chr = [str(i) for i in range(0, 23, 1)]
+[expected_chr.append(i) for i in ["MT", "X", "XY", "Y"]]
+    #first create list with unknown and autosomes (range from 0 to 23, without including 23)
+    #then add mito, sex and PAR to that list
+
+print_text("check we have the expect unique chromosome names", header=4)
+print(unique_chr_map == expected_chr)
+
+print_text("check again we have the expect unique chromosome names using pandas this time", header=4)
+print( \
+    natsorted( \
+        pd.read_csv( \
+            "./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt", \
+            sep="\t", \
+            header=0, \
+            low_memory=False) \
+        ["Chromosome"] \
+        .unique()) == \
+    expected_chr)
+        #load SNP_Map as pandas DF
+        #get the chromosome column
+        #select unique cases
+        #apply natural sorting
+        #check is the same than expected unique chromosome names
+
+
+print_text("we will use an empty list to save the IDs of the SNPs with strange chromosomes, then use plink to exclude", header=3)
+list_snp_ids_to_exclude = []
+print(list_snp_ids_to_exclude)
+    #https://www.biostars.org/p/281334/
+
+
+print_text("explore chromosome 0", header=3)
+#chromosome with 0
+    #in the SNP_Map file of illumina
+        #During manifest creation, the probe sequence is mapped to the genome build notated in the GenomeBuild column in the manifest. The single nucleotide polymorphisms (SNP) or indel coordinate is then recorded in the MapInfo column. If a marker is annotated with Chr = 0 or MapInfo = 0 in the manifest, there are two possible explanations:
+            #No valid mapping for the probe.
+            #More than 1 best-scoring mapping for the probe.
+        #https://knowledge.illumina.com/microarray/general/microarray-general-reference_material-list/000001423
+    #in plink
+        #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #https://www.cog-genomics.org/plink/1.9/formats#bim
+    #I understand then that the SNP with chromosome=0 is not correctly mapped to hg38 (our genome build), so we do not know where it is located. Therefore we cannot use SNPs with zero
+    #these are only 12 cases anyway
+
+print_text("check we have 0 chromosome in the SNP_map", header=4)
+print("0" in unique_chr_map)
+
+print_text("count SNPs for which we have 0 chromosome", header=4)
+chr_0_bool = bim_no_dups[0]==0
+print(f"We have {sum(chr_0_bool)} SNPs with chromosome zero")
+if sum(chr_0_bool) < 50:
+    print("we have less than 50 variants with chromosome zero, no problem! add them to the list to SNPs to be excluded")
+    chrom_zero_cases = bim_no_dups.loc[chr_0_bool, 1].to_list()
+        #select ID of these cases and convert to list
+    [list_snp_ids_to_exclude.append(snp) for snp in chrom_zero_cases]
+        #take each of these snps and save it in the result list
+    print(list_snp_ids_to_exclude)
+else:
+    raise ValueError("ERROR: FALSE! WE DO HAVE TOO MUCH VARIANTS WITH CHROMOSOME 0")
+
+
+print_text("explore SNPs with XY", header=3)
+#I understand these are SNPs in pseudoautosomal regions of the sex chromsomes, i.e., regions of the X and Y chromosome that are homologues and recombinate during meiosis. Therefore, they behave like autosomes in these regions.
+    #in illumina
+        #I have snps whose chromosome is XY
+    #in plink
+        #Chromosome code (either an integer, or 'X'/'Y'/'XY'/'MT'; '0' indicates unknown) or name.
+        #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #https://www.cog-genomics.org/plink/1.9/formats#bim
+
+print_text("check we have XY chromosome in the SNP_map", header=4)
+print("XY" in unique_chr_map)
+
+print_text("count SNPs for which we have XY chromosome, i.e., pseudo-autosomal", header=4)
+chr_XY_bool = bim_no_dups[0]==25
+print(f"We have {sum(chr_XY_bool)} SNPs pseudo-autosomal regions")
+if sum(chr_XY_bool) < 1000:
+    print("we have less than 1000 variants in pseudo-autosomal regions, no problem! add them to the list to SNPs to be excluded")
+    chrom_xy_cases = bim_no_dups.loc[chr_XY_bool, 1].to_list()
+        #select ID of these cases and convert to list
+    [list_snp_ids_to_exclude.append(snp) for snp in chrom_xy_cases]
+        #take each of these snps and save it in the result list
+    print(list_snp_ids_to_exclude)
+else:
+    raise ValueError("ERROR: FALSE! WE DO HAVE TOO MUCH VARIANTS WITH CHROMOSOME 0")
+
+
+
+#check 25 in plink is XY in illumina snp_map
+
+snp_map = pd.read_csv( \
+            "./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt", \
+            sep="\t", \
+            header=0, \
+            low_memory=False)
+
+sum(~snp_map.loc[snp_map["Chromosome"] == "XY", "Name"].isin(bim_file_dup_check.loc[bim_file_dup_check[0]==25, 1]))
+sum(~bim_file_dup_check.loc[bim_file_dup_check[0]==25, 1].isin(snp_map.loc[snp_map["Chromosome"] == "XY", "Name"]))
+    #we have the same PAR SNPs for XY and 25 (code for PAR in plink)
+    #I used bim original because we are using the SNP which is not filtered by duplicates, so bim_no_dups would be different
+
+#think if remove mito, par
+#I think we can leave for now sex chromosome and mito for QC, indeed we need sex chromosomes in order to do checks about sex
+#mito and PAR are only a few thousand SNPs...
+
+
+#USE EXCLUDE IN PLINK WITH THE LIST TO REMOVE SNPS
+
+
+#check the list of snps to remove is the sum of each indivudual list of snps to remove
+#check all the unwanted chromosomes are removed
+
+
+#we do not have duplicated IDs (checked above)
+
+#tiene sentido eliminar snps with low-call rate, ancestria no deberia afectar
 
 
 
 
-##CHECK AFTER CLEANING THAT NO SNP HAS IN ITS ID "Ilmndup"
+#do plot hetero - missingness, althouhg remove samples after PCA?
+#remove snps and samples by call rate, check your three tutorials
+#then removal of samples with PCA and in the next script removal of samples with heterozigosity?
 
+
+#run again the first script do to removal of compressed files of 03?
+
+
+
+#remove SNP map
+"./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt"
 
 
 
@@ -597,7 +847,8 @@ os.system(
     #check that the number of missing SNPs is 654027-650181, because the sum of genotypes that pass quality fileters and tjhose not passing the filter in the DNAreport is 650181, not 654027, for the second batch.
         #If that is the case, add it to line "Note about Calls - No_Calls" in the first script
     #in the tutorial they say that "Note that similarly to heterozygosity rates, both minor allele frequencies and deviations from Hardy-Weinberg will be affected by differ- ences in ancestry and should be considered in a population-specific way."
-    #therefore I think we should check first PCA
+        #therefore I think we should check first PCA
+    #note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differen
 
 
 #sex (--check-sex) and hetero (--het) should be checked after PCA because accorindg to plink info, it can be problems if we have a sample with most of samples from one ancestry and then a few from another ancestry
@@ -607,6 +858,10 @@ os.system(
 
     #with sex check done, tell David about mismatches
 
+    #Warning: 30589 het. haploid genotypes present (see
+    #./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.hh );
+    #many commands treat these as missing.
+    #Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands treat these as missing.
 
 
 
@@ -648,10 +903,22 @@ os.system(
 
 
 
-###################################
-###### PCA ######
-###################################
-print_text("explore batch effects", header=1)
+#you could end this script by creating the missingness-heterogizosity rate plot and the PCA
+#then use the information of both approaches to remove samples because different ancestry (outlier PCA), contamination (high hetero) or inbreeding (low hetero)
+#yes, hetero can be influenced by ancestry, but I am going to use the threshold of the tutorial and if this is not ok for other ancestries, we can check if the outlier hetero are from other ancestries
+    #see tutorials
+
+print_text("start PCA to detect individuals that are outliers", header=2)
+
+print_text("prepare folder for PCA", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    ls -l; \
+    mkdir \
+        --parents \
+        " + batch_name + "/pca; \
+    ls -lR")
+        #ls -R is for recursive
 
 
 #read the two summary illumina reports once you have both and understand the quality checks done looking at biostars
