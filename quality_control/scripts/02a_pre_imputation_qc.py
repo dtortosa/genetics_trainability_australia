@@ -22,9 +22,11 @@
     #1. Quality Control Procedures for Genome-Wide Association Studies
         #https://github.com/RitchieLab/GWAS-QC
         #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
-    #2. Data Management and Summary Statistics with PLINK
+    #2. Genome-wide association studies
+        #https://www.nature.com/articles/s43586-021-00056-9
+    #3. Data Management and Summary Statistics with PLINK
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-    #3. Genomics Boot Camp
+    #4. Genomics Boot Camp
         #https://genomicsbootcamp.github.io/book/
 
 
@@ -743,6 +745,27 @@ print_text("explore chromosome 0", header=3)
 print_text("check we have 0 chromosome in the SNP_map", header=4)
 print("0" in unique_chr_map)
 
+print_text("check 0 in plink is 0 in illumina snp_map", header=4)
+snp_map = pd.read_csv( \
+    "./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+print( \
+    natsorted( \
+        snp_map \
+            .loc[snp_map["Chromosome"] == "0", "Name"] \
+            .to_list()) == \
+    natsorted( \
+        bim_file_dup_check \
+            .loc[bim_file_dup_check[0]==0, 1] \
+            .to_list()))
+                #get the IDs of SNPs that have as chromosome XY and 25 in the SNP_map and plink, respectively.
+                    #I used bim original because we are using the SNP map, which is not filtered by duplicates, so bim_no_dups would have a different (reduced) set of SNPs
+                #convert to list
+                #apply natural sorting
+                #check identical
+
 print_text("count SNPs for which we have 0 chromosome", header=4)
 chr_0_bool = bim_no_dups[0]==0
 print(f"We have {sum(chr_0_bool)} SNPs with chromosome zero")
@@ -770,37 +793,148 @@ print_text("explore SNPs with XY", header=3)
 print_text("check we have XY chromosome in the SNP_map", header=4)
 print("XY" in unique_chr_map)
 
+print_text("check 25 in plink is XY in illumina snp_map", header=4)
+print( \
+    natsorted( \
+        snp_map \
+            .loc[snp_map["Chromosome"] == "XY", "Name"] \
+            .to_list()) == \
+    natsorted( \
+        bim_file_dup_check \
+            .loc[bim_file_dup_check[0]==25, 1] \
+            .to_list()))
+                #get the IDs of SNPs that have as chromosome XY and 25 in the SNP_map and plink, respectively.
+                    #I used bim original because we are using the SNP map, which is not filtered by duplicates, so bim_no_dups would have a different (reduced) set of SNPs
+                #convert to list
+                #apply natural sorting
+                #check identical
+
 print_text("count SNPs for which we have XY chromosome, i.e., pseudo-autosomal", header=4)
 chr_XY_bool = bim_no_dups[0]==25
 print(f"We have {sum(chr_XY_bool)} SNPs pseudo-autosomal regions")
 if sum(chr_XY_bool) < 1000:
-    print("we have less than 1000 variants in pseudo-autosomal regions, no problem! add them to the list to SNPs to be excluded")
-    chrom_xy_cases = bim_no_dups.loc[chr_XY_bool, 1].to_list()
-        #select ID of these cases and convert to list
-    [list_snp_ids_to_exclude.append(snp) for snp in chrom_xy_cases]
-        #take each of these snps and save it in the result list
-    print(list_snp_ids_to_exclude)
+    print("we have less than 1000 variants in pseudo-autosomal regions, no problem!")
 else:
-    raise ValueError("ERROR: FALSE! WE DO HAVE TOO MUCH VARIANTS WITH CHROMOSOME 0")
+    raise ValueError("ERROR: FALSE! WE DO HAVE MORE THAN 1000 VARIANTS IN PSEUDO-AUTOSOMAL REGIONS")
 
 
+print_text("explore SNPs in MT", header=3)
+#I understand these are SNPs in mitochondrial genome
+    #in illumina
+        #I have snps whose chromosome is MT
+    #in plink
+        #Chromosome code (either an integer, or 'X'/'Y'/'XY'/'MT'; '0' indicates unknown) or name.
+        #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #https://www.cog-genomics.org/plink/1.9/formats#bim
 
-#check 25 in plink is XY in illumina snp_map
+print_text("check we have MT chromosome in the SNP_map", header=4)
+print("MT" in unique_chr_map)
 
-snp_map = pd.read_csv( \
-            "./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt", \
-            sep="\t", \
-            header=0, \
-            low_memory=False)
+print_text("check 26 in plink is MT in illumina snp_map", header=4)
+print( \
+    natsorted( \
+        snp_map \
+            .loc[snp_map["Chromosome"] == "MT", "Name"] \
+            .to_list()) == \
+    natsorted( \
+        bim_file_dup_check \
+            .loc[bim_file_dup_check[0]==26, 1] \
+            .to_list()))
+                #get the IDs of SNPs that have as chromosome XY and 25 in the SNP_map and plink, respectively.
+                    #I used bim original because we are using the SNP map, which is not filtered by duplicates, so bim_no_dups would have a different (reduced) set of SNPs
+                #convert to list
+                #apply natural sorting
+                #check identical
 
-sum(~snp_map.loc[snp_map["Chromosome"] == "XY", "Name"].isin(bim_file_dup_check.loc[bim_file_dup_check[0]==25, 1]))
-sum(~bim_file_dup_check.loc[bim_file_dup_check[0]==25, 1].isin(snp_map.loc[snp_map["Chromosome"] == "XY", "Name"]))
-    #we have the same PAR SNPs for XY and 25 (code for PAR in plink)
-    #I used bim original because we are using the SNP which is not filtered by duplicates, so bim_no_dups would be different
+print_text("count SNPs for which we have MT chromosome", header=4)
+chr_mito_bool = bim_no_dups[0]==26
+print(f"We have {sum(chr_mito_bool)} SNPs in mito genome")
+if sum(chr_mito_bool) < 1500:
+    print("we have less than 1500 variants in mito genome, no problem!")
+else:
+    raise ValueError("ERROR: FALSE! WE DO HAVE MORE THAN 1500 VARIANTS IN mito genome")
+
+
+print_text("explore SNPs in X", header=3)
+#I understand these are SNPs in X
+    #in illumina
+        #I have snps whose chromosome is X
+    #in plink
+        #Chromosome code (either an integer, or 'X'/'Y'/'XY'/'MT'; '0' indicates unknown) or name.
+        #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #https://www.cog-genomics.org/plink/1.9/formats#bim
+
+print_text("check we have X chromosome in the SNP_map", header=4)
+print("X" in unique_chr_map)
+
+print_text("check 23 in plink is X in illumina snp_map", header=4)
+print( \
+    natsorted( \
+        snp_map \
+            .loc[snp_map["Chromosome"] == "X", "Name"] \
+            .to_list()) == \
+    natsorted( \
+        bim_file_dup_check \
+            .loc[bim_file_dup_check[0]==23, 1] \
+            .to_list()))
+                #get the IDs of SNPs that have as chromosome XY and 25 in the SNP_map and plink, respectively.
+                    #I used bim original because we are using the SNP map, which is not filtered by duplicates, so bim_no_dups would have a different (reduced) set of SNPs
+                #convert to list
+                #apply natural sorting
+                #check identical
+
+print_text("count SNPs in X", header=4)
+chr_X_bool = bim_no_dups[0]==23
+print(f"We have {sum(chr_X_bool)} SNPs in X")
+if sum(chr_X_bool) > 20000:
+    print("we have more than 20000 variants in X, no problem!")
+else:
+    raise ValueError("ERROR: FALSE! WE DO HAVE LESS THAN 20000")
+
+
+print_text("explore SNPs in Y", header=3)
+#I understand these are SNPs in Y
+    #in illumina
+        #I have snps whose chromosome is Y
+    #in plink
+        #Chromosome code (either an integer, or 'X'/'Y'/'XY'/'MT'; '0' indicates unknown) or name.
+        #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #https://www.cog-genomics.org/plink/1.9/formats#bim
+
+print_text("check we have Y chromosome in the SNP_map", header=4)
+print("Y" in unique_chr_map)
+
+print_text("check 23 in plink is X in illumina snp_map", header=4)
+print( \
+    natsorted( \
+        snp_map \
+            .loc[snp_map["Chromosome"] == "Y", "Name"] \
+            .to_list()) == \
+    natsorted( \
+        bim_file_dup_check \
+            .loc[bim_file_dup_check[0]==24, 1] \
+            .to_list()))
+                #get the IDs of SNPs that have as chromosome XY and 25 in the SNP_map and plink, respectively.
+                    #I used bim original because we are using the SNP map, which is not filtered by duplicates, so bim_no_dups would have a different (reduced) set of SNPs
+                #convert to list
+                #apply natural sorting
+                #check identical
+
+print_text("count SNPs in Y", header=4)
+chr_Y_bool = bim_no_dups[0]==24
+print(f"We have {sum(chr_Y_bool)} SNPs in Y")
+if (sum(chr_Y_bool) > 3000) & (sum(chr_Y_bool) < 10000):
+    print("variants in Y are more than 3K and less than 10K, no problem!")
+else:
+    raise ValueError("ERROR: FALSE! WE VARIANTS IN Y ARE NOT BETWEEN 3 AND 10K")
+
 
 #think if remove mito, par
 #I think we can leave for now sex chromosome and mito for QC, indeed we need sex chromosomes in order to do checks about sex
-#mito and PAR are only a few thousand SNPs...
+#mito and PAR are only a few thousand SNPs... and these are not errors. A different thing is for downstream analysis of polygenic scores...
 
 
 #USE EXCLUDE IN PLINK WITH THE LIST TO REMOVE SNPS
@@ -814,6 +948,8 @@ sum(~bim_file_dup_check.loc[bim_file_dup_check[0]==25, 1].isin(snp_map.loc[snp_m
 
 #tiene sentido eliminar snps with low-call rate, ancestria no deberia afectar
 
+
+#CHECK SUMMARY OF QC IN "Genome-wide association studies", nature protocols
 
 
 
