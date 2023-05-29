@@ -134,6 +134,7 @@ run_bash("ls")
 
 ###IMPORTANT, THINK WHAT chromosomes include, X, Y, PAR and mito should be analyzed?
     #I guess in independent associations is ok, an SNP in X is not affecting chromosome 1,
+        #but if you use any tool that consider all snps, then they can influence
     #but what about polygenic scores? there all snps are combined!
 
 ###GWAS VALIDATION
@@ -145,5 +146,10 @@ run_bash("ls")
 
 ##POLY SCORE CALC
 #you can do polygenic score with your own data? CHECK this before making a deciison
+    #I guess we cannot do GWAS, validation of GWAS and PRS with the same datasset, too many splits for a small dataset... 
+        #"Accuracy measurements can be inflated if the discovery GWAS and the target cohort share individuals"
+            #Genome-wide association studies
+                #https://www.nature.com/articles/s43586-021-00056-9
+    #we could do PRS if we find summary statistics for VO2 max for our snps in previous GWAS, so they can be used as input for PRS, deep learning (like in "Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction" )
     #Tutorial: a guide to performing polygenic risk score analyses, nsture, o reilly
         #https://www.nature.com/articles/s41596-020-0353-1

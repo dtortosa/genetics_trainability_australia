@@ -120,6 +120,9 @@ print_text("merging batches", header=1)
     #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view?usp=sharing
     #https://github.com/RitchieLab/GWAS-QC
 
+#we could have removed different snps in each batch!! be careful with that
+    #althouhg this is after imputation, so both batches should have been filled with the same SNPs
+
 ##READ the second ritchie paper to see how they merge and then what QC approaches used, the same than those of the protocol?
     #https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full
 

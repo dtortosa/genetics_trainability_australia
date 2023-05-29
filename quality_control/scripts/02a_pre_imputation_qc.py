@@ -631,6 +631,15 @@ else:
 
 print_text("filter SNPs by chromosome type", header=2)
 
+
+print_text("create folder to do operations", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/" + batch_name + "; \
+    ls -l; \
+    mkdir --parents ./0_chromosome_fitlering/; \
+    ls -lR")
+
+
 print_text("see the unique chromosome names in the SNP map of this batch", header=3)
 print_text("select the name of the zip file with batch data based on the batch name because ILGSA24-17873 is called CAGRF20093767.zip, not ILGSA24-17873.zip", header=4)
 if batch_name=="ILGSA24-17873":
@@ -656,11 +665,11 @@ for zipinfo in zipinfos:
 zipinfo_snp_map
 
 print_text("extract the SNP map", header=4)
-zipdata.extract(zipinfo_snp_map, "./data/genetic_data/quality_control/" + batch_name + "/")
+zipdata.extract(zipinfo_snp_map, "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering")
 
 print_text("extract the unique chromosome names using awk", header=4)
 unique_chr_map = run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    cd ./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/; \
     tail \
         -n +2 \
         SNP_Map.txt | \
@@ -708,7 +717,7 @@ print_text("check again we have the expect unique chromosome names using pandas 
 print( \
     natsorted( \
         pd.read_csv( \
-            "./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt", \
+            "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/SNP_Map.txt", \
             sep="\t", \
             header=0, \
             low_memory=False) \
@@ -747,7 +756,7 @@ print("0" in unique_chr_map)
 
 print_text("check 0 in plink is 0 in illumina snp_map", header=4)
 snp_map = pd.read_csv( \
-    "./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt", \
+    "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/SNP_Map.txt", \
     sep="\t", \
     header=0, \
     low_memory=False)
@@ -932,47 +941,106 @@ else:
     raise ValueError("ERROR: FALSE! WE VARIANTS IN Y ARE NOT BETWEEN 3 AND 10K")
 
 
-#think if remove mito, par
-#I think we can leave for now sex chromosome and mito for QC, indeed we need sex chromosomes in order to do checks about sex
-#mito and PAR are only a few thousand SNPs... and these are not errors. A different thing is for downstream analysis of polygenic scores...
+print_text("remove selected SNPs", header=3)
+
+print_text("save to a file the list of SNPs to be excluded, each SNP in anew line", header=4)
+with open("./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/snps_to_exclude.txt", "w") as f:
+    #snp=list_snp_ids_to_exclude[0]
+    for snp in list_snp_ids_to_exclude:
+        f.write(f"{snp}\n") #print the SNP and add new line
+        #https://stackoverflow.com/questions/899103/writing-a-list-to-a-file-with-python-with-newlines
+run_bash(" \
+    cat ./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/snps_to_exclude.txt")
+
+print_text("exclude these SNPs using --exclude of plink", header=4)
+run_bash(
+    "cd ./data/genetic_data/; \
+    plink \
+        --bfile ./plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
+        --exclude ./quality_control/" + batch_name + "/0_chromosome_fitlering/snps_to_exclude.txt \
+        --make-bed \
+        --out  ./quality_control/" + batch_name + "/0_chromosome_fitlering/" + batch_name + "_filtered_chromosomes")
+            #--bfile: 
+                #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
+                #https://www.cog-genomics.org/plink/1.9/input#bed
+            #--exclude
+                #Exclude ALL variants named in the file
+                #--exclude normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces), and removes all listed variants from the current analysis. 
+                #Note that this is slightly different from PLINK 1.07's behavior when the main input fileset contains duplicate variant IDs: PLINK 1.9 removes all matches, while PLINK 1.07 just removes one of the matching variants. If your intention is to resolve duplicates, you should now use --bmerge instead of --exclude.
+                    #we do not have duplicate SNP IDs, so no problem here.
+                #https://www.cog-genomics.org/plink/1.9/filter#snp
+                #https://www.biostars.org/p/281334/
+            #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
+                #https://www.cog-genomics.org/plink/1.9/data#make_bed
+
+print_text("check that the excluded SNPs are actually out of the new bim file", header=4)
+bim_chrom_filter = pd.read_csv( \
+    "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/" + batch_name + "_filtered_chromosomes.bim", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+print( \
+    sum(bim_chrom_filter \
+        .loc[:,1] \
+        .isin(values=list_snp_ids_to_exclude) \
+        .to_list()) == 0)
+        #get the column with IDs from the bim file (second column)
+        #check if any of the IDs is included in the list of exclusions, generating a pandas series with booleans
+            #values: set or list-like
+                #The sequence of values to test
+        #convert to list
+        #the sum should be zero, becuase no True should be present
+
+print_text("check that the number of snps removed from the bim file is the same than the number of snps in the exclusion list", header=4)
+print(bim_no_dups.shape[0] - bim_chrom_filter.shape[0] == len(list_snp_ids_to_exclude))
+
+print_text("check that snps present in the first bim file but not in the new one are exactly those of the exclusion list", header=4)
+print( \
+    bim_no_dups \
+        .loc[ \
+            ~bim_no_dups \
+                .loc[:,1] \
+                .isin( \
+                    bim_chrom_filter \
+                        .loc[:,1]), \
+            1] \
+        .to_list() == \
+    list_snp_ids_to_exclude)
+    #from the original bim file, select those rows
+        #whose SNP ID is NOT present in the SNP ID column of the new bim file
+    #convert to list
+    #the list should be identical to list_snp_ids_to_exclude
+
+print_text("check all the unwanted chromosomes are removed", header=4)
+unique_chr_after_filter = bim_chrom_filter.loc[:,0].unique()
+print(0 not in unique_chr_after_filter)
+print(np.array_equal(unique_chr_after_filter, [i for i in range(1, 27, 1)]))
+    #the array with unique chromosomes should be 1 (0 was removed) to 26, so range 1-27 because in python the last element of the range is not included.
+
+print_text("see the remaining chromosomes", header=4)
+print(unique_chr_after_filter)
+
+print_text("check again we do not have duplicated snp ids", header=4)
+print( \
+    sum( \
+        bim_chrom_filter \
+        .loc[:,1] \
+        .duplicated(keep=False)) == 0)
+    #select the column with SNP ids
+    #check for duplicates
+        #keep=False:
+            #Mark all duplicates as ``True``, not only the second occurrence
+    #no true should be present, so the sum should be zero
 
 
-#USE EXCLUDE IN PLINK WITH THE LIST TO REMOVE SNPS
-
-
-#check the list of snps to remove is the sum of each indivudual list of snps to remove
-#check all the unwanted chromosomes are removed
-
-
-#we do not have duplicated IDs (checked above)
-
-#tiene sentido eliminar snps with low-call rate, ancestria no deberia afectar
-
-
-#CHECK SUMMARY OF QC IN "Genome-wide association studies", nature protocols
-
-
-
-#do plot hetero - missingness, althouhg remove samples after PCA?
-#remove snps and samples by call rate, check your three tutorials
-#then removal of samples with PCA and in the next script removal of samples with heterozigosity?
+##por aqui
 
 
 #run again the first script do to removal of compressed files of 03?
 
 
 
-#remove SNP map
-"./data/genetic_data/quality_control/" + batch_name + "/SNP_Map.txt"
-
-
-
-
-
-
-
-
-#after removing duplicates, check the text I have in the next lines and then go directly to the protocol, follow it, except not starting with sex and hetero but with PCA, see next comment.
+#after removing duplicates, check the text I have in the next lines and then go directly to the protocol and tutorials, probably startging with missingess.
     #https://github.com/RitchieLab/GWAS-QC
 
 #Use GC score to filter?
@@ -985,6 +1053,17 @@ else:
     #in the tutorial they say that "Note that similarly to heterozygosity rates, both minor allele frequencies and deviations from Hardy-Weinberg will be affected by differ- ences in ancestry and should be considered in a population-specific way."
         #therefore I think we should check first PCA
     #note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differen
+
+
+
+#tiene sentido eliminar snps with low-call rate, ancestria no deberia afectar
+
+
+
+
+#do plot hetero - missingness, althouhg remove samples after PCA?
+#remove snps and samples by call rate, check your three tutorials
+#then removal of samples with PCA and in the next script removal of samples with heterozigosity?
 
 
 #sex (--check-sex) and hetero (--het) should be checked after PCA because accorindg to plink info, it can be problems if we have a sample with most of samples from one ancestry and then a few from another ancestry
