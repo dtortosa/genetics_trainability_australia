@@ -1036,12 +1036,17 @@ print( \
 ##por aqui
 
 
-#run again the first script do to removal of compressed files of 03?
+#check new run of the first container
+
 
 
 
 #after removing duplicates, check the text I have in the next lines and then go directly to the protocol and tutorials, probably startging with missingess.
     #https://github.com/RitchieLab/GWAS-QC
+
+
+#https://onlinelibrary.wiley.com/doi/full/10.1111/age.13043#:~:text=The%20GenTrain%20score%20is%20a,genotypes%20for%20a%20given%20SNP.
+
 
 #Use GC score to filter?
     #it should be above 0.15 in all cases, right? if not the genotype is empty? They calculated this with GenomeStudio 

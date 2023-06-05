@@ -131,6 +131,43 @@ run_bash("pwd")
 print_text("list files/folders there", header=2)
 run_bash("ls")
 
+### APPROACH
+#VO2 max trainibility
+    #Make a Polygenic predictor score of VO2 max trainibility
+        #Obtain effect sizes and p-values from previous genome-wide studies done on VO2 max trainibility. This is important to avoid using the same data to derive the score and validate, if not we could overestimate its predictive power of the score.
+            #Genes to predict VO2max trainability: a systematic review
+                #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+            #Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+                #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7#Sec21
+            #Genotype-Phenotype Models Predicting VO2max Response to High-Intensity Interval Training in Physically Inactive Chinese
+        #if we have data from different gwas we can obtain meta-p-values or something like that
+            #Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
+        #use this information to create algorithms that predict trainability on our study.
+            #We could use simple techniques like P-value prunning, or use machine learning from linear models to neural networks
+        #we train the algorithm and evaluate it with our data, so we can have a measure of predictive power for trainability
+        #In summary, we would take advantage of your experiment and machine learning to use previous genetic knowledge in the prediction of trainability.
+        #problems
+            #the GWAS studies performed by Bouchard et al do not report p-values or effect sizes. 
+            #I have found an intervention study, in which David is indeed a co-author, that says the data could be shared if requested. I am talking about the Predict-HIIT study. We could use their data to develop different polygenic predictive scores, not only using their approach, but also others (e.g., machine learning), and validate the different scores in our cohort. I know that the protocols and the populations used are different, but we do not have the same protocol applied to other cohort with also genetic data...
+                #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+        #solutions
+            #obtain effects sizes of variants from GWAS studies of VO2 max which I think there are more. It is not ideal to use a base line instead of change, but I have seen other studies doing similar things with BMI and weight loss. 
+                #Polygenic risk score for predicting weight loss after bariatric surgery
+                    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6171810/
+            #just use VO2 max directly
+    #Discover new variants associated with trainability
+        #I would not got for this option as we do not have a validation cohort. 
+        #we would need genome-wide data from an intervention where VO2 was measured.
+        #PPS more interesting because we are directly predicting trainability.
+    #Make a Polygenic predictor score of VO2 max
+        #It is less interesting, but it would be easier because we could use the previous GWAS studies to obtain effect sizes, then train in our dataset and even validate in a third dataset, as the UK biobank has VO2 max data along with genetics.
+
+
+
+
+
+
+
 
 ###IMPORTANT, THINK WHAT chromosomes include, X, Y, PAR and mito should be analyzed?
     #I guess in independent associations is ok, an SNP in X is not affecting chromosome 1,

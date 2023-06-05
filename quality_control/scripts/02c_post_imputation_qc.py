@@ -116,6 +116,10 @@ run_bash("ls")
 print_text("merging batches", header=1)
 
 
+#some studies do not merge batches and just add it as a factor in the models
+    #New genetic determinants of VO2max-level identified by GWAS: The HUNT Study
+        #https://academic.oup.com/cardiovascres/article/118/Supplement_1/cvac066.013/6605381
+
 ##IMPORTANT: We are merging batches after imputation, I think that merging can be done after imputation and then perform post-imputation QC in the merged dataset, as Ritchi did in this paper (https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full). See the protocol we are following to do post-imputation QC
     #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view?usp=sharing
     #https://github.com/RitchieLab/GWAS-QC
