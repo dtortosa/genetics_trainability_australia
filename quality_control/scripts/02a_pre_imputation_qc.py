@@ -1037,6 +1037,9 @@ print( \
 
 ##por aqui
 
+#if we use this cohort for discovery and then test in the second one, we could be less stringent here?
+    #not really because base and test sets need to have the same SNPs
+        #https://www.nature.com/articles/s41596-020-0353-1
 
 
 #after removing duplicates, check the text I have in the next lines and then go directly to the protocol and tutorials, probably startging with missingess.

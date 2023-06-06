@@ -134,75 +134,73 @@ run_bash("ls")
 
 
 
+#################################
+# approach to calculate the PRS #
+#################################
 
-### APPROACH
 #VO2 max trainibility
     #Make a Polygenic predictor score (PPS) of VO2 max trainibility
-        #In order to calculate a PPS, we need effect sizes and p-values for the association between SNPs and the trait.
-        #I have checked previous GWAS about VO2 max trainability and they all have much lower sample size than this study and hence, less power than us. Therefore, I think makes sense to use this study to associate genes and trainability rather than use p-values from previous GWAS to calculate the scores.
-        #The problem is that we then need a second cohort to validate the scores. 
-        #David, I have seen you are co-author of one of the previous GWAS on V02 max trainability, the HIIT-Predict study. Do you think there would have been any possibility to talk with them about using their data for validation purposes? They say in the paper data is avaiable upon reasonable request.
-        #there are alternatives, like get p-values/betas from previous GWAS (VO2 max change or just VO2 max if no more is available) to calculate the scores and validate these scores in our cohort. But I think it would be better the other way around, as our cohort is much larger than the HIIT or the HERITAGE studies, so it would be better for discovery.
-
-        #NO SE SI TIENE SENTIDO HACER CV EN EL NUESTRO O EN EL SEDUNGO
-            #ESTA GENTE USA CV EN EL PROPPIO DATASET DE DISCOVERY
-        #SE PODRIA MIRAR TAL VEZ INTERACCION ENTRE GRUPOS DE HIIT, LO MISMO VALORES ALTOS DE SCORE EXPLICAN PORQUE ALGUNOS INDIVIDUOS RESPONSEN MAS PARA HITT HIGH VOL, PERO NO PARA CONTINUO. 
-            #COMPBAR GENES USED TO IMRPOVE TRAINING PERSONALIZATION
-        #SE PODRIA USER EL TERCER ESTUDIO DE ESTA GENTE PARA TEST!
-
-
-            #https://www.nature.com/articles/s41596-020-0353-1
-
-        #Obtain effect sizes and p-values from previous genome-wide studies done on VO2 max trainibility. This is important to avoid using the same data to derive the score and validate, if not we could overestimate its predictive power of the score.
+        #In order to calculate a PPS, we need effect sizes and p-values for the association between SNPs and the trait obtained from a different study than the one used to train the scores, so we avoid overestimating its predictive power.
             #"Accuracy measurements can be inflated if the discovery GWAS and the target cohort share individuals"
                 #Genome-wide association studies
                     #https://www.nature.com/articles/s43586-021-00056-9
-            #some GWAS of VO2 max trainability
-                #Genes to predict VO2max trainability: a systematic review
-                    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-                #Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
-                    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7#Sec21
-                #Genotype-Phenotype Models Predicting VO2max Response to High-Intensity Interval Training in Physically Inactive Chinese
-        #if we have data from different gwas we can obtain meta-p-values or something like that
-            #Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
-        #use this information to create algorithms that predict trainability on our study.
-            #We could use simple techniques like P-value prunning, or use machine learning from linear models to neural networks
-        #we train the algorithm and evaluate it with our data, so we can have a measure of predictive power for trainability
-        #In summary, we would take advantage of your experiment and machine learning to use previous genetic knowledge in the prediction of trainability.
-        #problems
-            #the GWAS studies performed by Bouchard et al do not report p-values or effect sizes. 
-            #I have found an intervention study, in which David is indeed a co-author, that says the data could be shared if requested. I am talking about the Predict-HIIT study. We could use their data to develop different polygenic predictive scores, not only using their approach, but also others (e.g., machine learning), and validate the different scores in our cohort. I know that the protocols and the populations used are different, but we do not have the same protocol applied to other cohort with also genetic data...
-                #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-        #solutions
-            #obtain effects sizes of variants from GWAS studies of VO2 max which I think there are more. It is not ideal to use a base line instead of change, but I have seen other studies doing similar things with BMI and weight loss. 
-                #Polygenic risk score for predicting weight loss after bariatric surgery
-                    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6171810/
-            #just use VO2 max directly
-    #Discover new variants associated with trainability
-        #I would not got for this option as we do not have a validation cohort, only the discovery cohort.
-        #In some cases like studies of rare diseases, they use interval validation of the GWAS, i.e., using the same cohort but applying resampling methods. 
-            #This is an option but it would be a clear limitation of the study.
-            #the gold standard in this point is to use an independent and diverse cohort for validation
-        #info
-            #Evaluation of a two-step iterative resampling procedure for internal validation of genome-wide association studies
-                #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4859941/
-            #In "Genome-wide association studies", nature review methods, they say that internal validation is a possibility, but no the gold standard
-                #https://www.nature.com/articles/s43586-021-00056-9
-
-
-    #Make a Polygenic predictor score of VO2 max
-        #It is less interesting, but it would be easier because we could use the previous GWAS studies to obtain effect sizes, then train in our dataset and even validate in a third dataset, as the UK biobank has VO2 max data along with genetics.
-
-
-
-
-
-
-##POLY SCORE CALC
-#you can do polygenic score with your own data? CHECK this before making a deciison
-    #Tutorial: a guide to performing polygenic risk score analyses, nsture, o reilly
-        #https://www.nature.com/articles/s41596-020-0353-1
-
+            #if the score has a small effect size but it is associated and robust to confounders, you can at least say that there is a connection between genetics and the trait
+                #"However, if the results are shown to be robust to confounding (see Population genetic structure and the generalizability of PRSs), then the effect size is not important if the aim is only to establish whether an association exists, which may provide etiological insight."
+                    #Interpretation of PRS-trait associations
+                        #https://www.nature.com/articles/s41596-020-0353-1
+        #I have checked previous GWAS about VO2 max trainability and they all have much lower sample size than this study and hence, less power to detect true associations than us. Therefore, I think makes sense to use this study to associate genes and trainability rather than use p-values from previous GWAS to calculate the scores.
+        #The problem is that we then need at least a second cohort to train the score and see how they predict. 
+            #In the PRS tutorial, they say that you need at least two cohort, the base to obtain GWAS summary statistics and then the target to do cross-validation with the PRS. 
+            #Of course, a test set would be then necessary for truly real predictive power, but in the absence of that, we could just use CV.
+                #Overfitting in PRS-trait association testing
+                    #https://www.nature.com/articles/s41596-020-0353-1
+            #maybe Improve-HIIT could be used as a test set?
+        #David, I have seen you are co-author of one of the previous GWAS on V02 max trainability, the HIIT-Predict study. Do you think there would have been any possibility to talk with them about using their data for training polygenic scores purposes? They say in the paper data is avaiable upon reasonable request.
+            #we should check that samples from both cohorts are not related, as both come from Australia
+            #maybe Improve-HIIT could be used as a test set?
+            #Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+                #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7#Sec21
+        #maybe we could even use our PPS developed in the cohort to test whether it interacts with the intervention type in HIIT?
+            #In other words, try also models with the interaction PPSxTrainingType
+            #maybe high PPS values associate with higher increase in VO2 max only in high volumen HIIT, while not in constant training. This would be a small window to training personalization based on genetics.
+            #I am just speculating in this point because I am not sure if there is enough sample size in Predict-HIIT to do test interaction and also split data for training-evaluation.
+        #In summary, we would take advantage of your experiment and machine learning to develop a new PPS of trainability that would be then tested.
+    #Alternatives
+        #just ask for p-values/betas from previous GWAS on VO2 max change like the HERITAGE of Predict-HIIT studies. 
+            #This is not genotypes, just the summary statistics.
+            #the problem is that we would be using studies with smaller sample size to discover variants. Indeed, the Predict-HIIT study did not have any SNP with a significant p-value after correction and the paper say that they are probably underpowered. Their power calculations indicates that "a cohort of 2960 samples would have 80% power to detect a quantitative trait with a true heritability of 30%.". Therefore, it would be better to use our study to discover, given its larger sample size.
+            #if we have data from different gwas we can obtain meta-p-values or something like that
+                #Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
+            #previos GWAS about trainability
+                #some GWAS of VO2 max trainability
+                    #Genes to predict VO2max trainability: a systematic review
+                        #https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-4192-6
+                    #Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+                        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+                    #Genotype-Phenotype Models Predicting VO2max Response to High-Intensity Interval Training in Physically Inactive Chinese
+        #Obtain p-values/betas from GWAS of baseline VO2 max in the UK Biobank. 
+            #This biobank includes estimates of VO2 max based on a submaximal cycle ramp test and it has a large sample size, which is good for power in the base cohort.
+            #there is already a study that have done a GWAS on this data, so we could just ask them for the summary statistics. In the worst case scenario, we could do the GWAS on our own.
+            #then we can test the polygenic scores in our cohort.
+                #The genetic case for cardiorespiratory fitness as a clinical vital sign and the routine prescription of physical activity in healthcare
+                    #https://www.medrxiv.org/content/10.1101/2020.12.08.20243337v2
+            #problems
+                #we would use a correlate of VO2 change, not the trait itself. this can be done, but it is not optimal
+                    #See "Predicting different traits and exploiting multiple PRSs" 
+                        #https://www.nature.com/articles/s41596-020-0353-1
+                #we would not take advantage of the greater sample size we have in this study compared to previous interventions in order to derive the polygenic score.
+        #Just do GWAS of trainability with our cohort
+            #I would not got for this option as we do not have a validation cohort, only the discovery cohort.
+            #In some cases like studies of rare diseases, they use interval validation of the GWAS, i.e., using the same cohort but applying resampling methods. 
+                #This is an option but it would be a clear limitation of the study.
+                #the gold standard in this point is to use an independent and diverse cohort for validation
+            #info
+                #Evaluation of a two-step iterative resampling procedure for internal validation of genome-wide association studies
+                    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4859941/
+                #In "Genome-wide association studies", nature review methods, they say that internal validation is a possibility, but no the gold standard
+                    #https://www.nature.com/articles/s43586-021-00056-9
+        #Make a Polygenic predictor score of VO2 max
+            #It is less interesting, but it would be easier because we could use the previous GWAS studies to obtain effect sizes, then train in our dataset and even validate in a third dataset, as the UK biobank has VO2 max data along with genetics.
 
 
 
