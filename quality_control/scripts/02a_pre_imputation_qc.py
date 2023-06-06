@@ -28,6 +28,8 @@
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
     #4. Genomics Boot Camp
         #https://genomicsbootcamp.github.io/book/
+    #5. Tutorial: a guide to performing polygenic risk score analyses
+        #https://www.nature.com/articles/s41596-020-0353-1
 
 
 
@@ -1036,21 +1038,22 @@ print( \
 ##por aqui
 
 
-#check new run of the first container
-
-
-
 
 #after removing duplicates, check the text I have in the next lines and then go directly to the protocol and tutorials, probably startging with missingess.
     #https://github.com/RitchieLab/GWAS-QC
 
 
-#https://onlinelibrary.wiley.com/doi/full/10.1111/age.13043#:~:text=The%20GenTrain%20score%20is%20a,genotypes%20for%20a%20given%20SNP.
 
 
 #Use GC score to filter?
     #it should be above 0.15 in all cases, right? if not the genotype is empty? They calculated this with GenomeStudio 
     #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf
+
+
+#https://onlinelibrary.wiley.com/doi/full/10.1111/age.13043#:~:text=The%20GenTrain%20score%20is%20a,genotypes%20for%20a%20given%20SNP.
+
+
+
 
 #marker quality
     #check that the number of missing SNPs is 654027-650181, because the sum of genotypes that pass quality fileters and tjhose not passing the filter in the DNAreport is 650181, not 654027, for the second batch.
