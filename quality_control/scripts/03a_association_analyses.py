@@ -30,6 +30,12 @@
         #https://genomicsbootcamp.github.io/book/
     #5. Tutorial: a guide to performing polygenic risk score analyses
         #https://www.nature.com/articles/s41596-020-0353-1
+        #https://choishingwan.github.io/PRS-Tutorial/
+    #6. Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+    #7. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
+        #https://www.mdpi.com/2073-4425/14/2/248
+
 
 
 ##################

@@ -30,6 +30,78 @@
         #https://genomicsbootcamp.github.io/book/
     #5. Tutorial: a guide to performing polygenic risk score analyses
         #https://www.nature.com/articles/s41596-020-0353-1
+        #https://choishingwan.github.io/PRS-Tutorial/
+    #6. Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+    #7. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
+        #https://www.mdpi.com/2073-4425/14/2/248
+
+
+
+###########################################
+# conservative approach for performing QC #
+###########################################
+
+#we should be conservatives in the QC analysis because small errors can become inflated when aggregated across SNPs in PRS calculation.
+    #"QC of base and target data" in:
+        #https://www.nature.com/articles/s41596-020-0353-1
+
+#It makes sense because when doing polygenic score, you are analyzing results of previous analyses, maybe several GWAS combined (meta-p-values..) so you can add many errors...
+
+#this applies if our cohort is going to be used as base, thus it does not matter if we are going to use it as discovery because it can aggregate errors.
+
+#if our cohort is going to be used as target, then it is final, the last step where we want to check how useful our PRS is with cross-validation, thus we still need to be conservative.
+
+
+
+#########################################
+# rationale of merging after imputation #
+#########################################
+
+#From reading the recent GWAS protocol of the Ritchie lab. I understand that the usual approach is to do the imputation of different sources (e.g., batches) separately and then do the merging. In the section "Batches effect", they say that "Genotype imputation strategies now provide an opportunity to impute genotypes from multiple platforms to a reference genotyping platform. THEREFORE, DATA FROM DIFFERENT SOURCES CAN BE MERGED AFTER IMPUTATION."
+    #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view?usp=sharing
+
+#In addition, in other paper they say 
+    #"This process (imputation) is particularly important when combining or performing meta-analysis on data generated using multiple different genotyping platforms"
+    #"After imputation and merging of the datasets, quality control procedures were implemented to create high quality, analysis-ready data set for genome-wide association studies."
+    #https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full
+
+#I understand that specially when you have data from different sources, it is very important to do imputation because many SNPs are NOT going to be shared across sources, you are going to lose them unless you impute them to have the same SNPs across all panels.
+
+#In our particular case, this should not be very important because the same SNPs are genotyped in both batches, so it is very unlikely that all samples of a batch have missing for a given SNP so that SNP is not present in one batch but it is present in the other one. 
+
+#I going to do imputation first just in case, to avoid any problems. Also, remember that the protocol mentions the possibility to merge after imputation the batch section, so it does not seem very strange to merge batches after imputation. Indeed, I have seen a post in biostarts doing PCAs and other stuff in different batches and then in the merged dataset.
+    #https://www.biostars.org/p/438079/
+
+
+
+#############################################################
+# final decision about the 1100JHJM, 1200JPJM and 7800AGSO #
+#############################################################
+
+#the three duplicated IDs
+    #For 1100JHJM and 1200JPJM, David's postdoc agrees we should remove them as we have the same ID for two different rows in the excel file.
+        #"This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200 JPJM, both male). I agree that we will need to remove these from our analysis."
+    #For 7800AGSO, David's postdoc asked if I could know which is the sample from the excel file that doesn’t appear to have a DNA sample, but I cannot know that.
+        #"There is only one individual (male) with code 7800 from session 878, so there appears to have been a labelling error while preparing the DNA samples. Are you able to tell us which is the sample from the excel file that doesn’t appear to have a DNA sample? That might help us to work this out. If not, I agree that we will need to remove this sample also."
+            #We have genetic data for 1464 samples, while in the excel we have 1463 samples. So the problem is the other way around, all samples in excels have genetic data, but 1 sample in illumina does not have phenotypic data.
+                #There are 41 of these samples with genetic but not phenotypic data.
+            #7800AGSO in the excel could be 7800AGSO_1 or 7800AGSO_2, but I cannot know which of these is.
+                #I do not have phenotypic information in illumina data, only the ID and then genetic data. The only information shared between the two datasets is the ID.
+
+#AGRF confirmed that they included these samples (1100JHJM, 1200JPJM and 7800AGSO) in the reproducibility report but they are duplicates, not replicates. See 01b_illumina_report_to_plink.py for further details.
+    #"As you have highlighted, these three pairs were not highlighted in the submission as technical replicates, but the pairs were assigned the same sample name for the sample manifest and tubes provided"
+
+#Therefore, these three pairs of samples should be removed. They have been removed by 01b_illumina_report_to_plink.py.
+
+
+
+########################
+# notes about 2397LDJA #
+########################
+
+#I have an Illumina report for one sample (2397LDJA; ILGSA24-17303) that is not present in the excel file. In contrast, the sample ID 2399LDJA is present in the excel file but there is no illumina report for this ID. Both IDs are the same except for the 4th digit. Maybe they are the same sample, but it would probably be a good idea to remove both IDs.
+    #"Yes! I had exactly the same note, I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file"
 
 
 
@@ -132,57 +204,6 @@ print_text("see working directory", header=2)
 run_bash("pwd")
 print_text("list files/folders there", header=2)
 run_bash("ls")
-
-
-
-#########################################
-# rationale of merging after imputation #
-#########################################
-
-#From reading the recent GWAS protocol of the Ritchie lab. I understand that the usual approach is to do the imputation of different sources (e.g., batches) separately and then do the merging. In the section "Batches effect", they say that "Genotype imputation strategies now provide an opportunity to impute genotypes from multiple platforms to a reference genotyping platform. THEREFORE, DATA FROM DIFFERENT SOURCES CAN BE MERGED AFTER IMPUTATION."
-    #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view?usp=sharing
-
-#In addition, in other paper they say 
-    #"This process (imputation) is particularly important when combining or performing meta-analysis on data generated using multiple different genotyping platforms"
-    #"After imputation and merging of the datasets, quality control procedures were implemented to create high quality, analysis-ready data set for genome-wide association studies."
-    #https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full
-
-#I understand that specially when you have data from different sources, it is very important to do imputation because many SNPs are NOT going to be shared across sources, you are going to lose them unless you impute them to have the same SNPs across all panels.
-
-#In our particular case, this should not be very important because the same SNPs are genotyped in both batches, so it is very unlikely that all samples of a batch have missing for a given SNP so that SNP is not present in one batch but it is present in the other one. 
-
-#I going to do imputation first just in case, to avoid any problems. Also, remember that the protocol mentions the possibility to merge after imputation the batch section, so it does not seem very strange to merge batches after imputation. Indeed, I have seen a post in biostarts doing PCAs and other stuff in different batches and then in the merged dataset.
-    #https://www.biostars.org/p/438079/
-
-
-
-#############################################################
-# final decision about the 1100JHJM, 1200JPJM and 7800AGSO #
-#############################################################
-
-#the three duplicated IDs
-    #For 1100JHJM and 1200JPJM, David's postdoc agrees we should remove them as we have the same ID for two different rows in the excel file.
-        #"This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200 JPJM, both male). I agree that we will need to remove these from our analysis."
-    #For 7800AGSO, David's postdoc asked if I could know which is the sample from the excel file that doesn’t appear to have a DNA sample, but I cannot know that.
-        #"There is only one individual (male) with code 7800 from session 878, so there appears to have been a labelling error while preparing the DNA samples. Are you able to tell us which is the sample from the excel file that doesn’t appear to have a DNA sample? That might help us to work this out. If not, I agree that we will need to remove this sample also."
-            #We have genetic data for 1464 samples, while in the excel we have 1463 samples. So the problem is the other way around, all samples in excels have genetic data, but 1 sample in illumina does not have phenotypic data.
-                #There are 41 of these samples with genetic but not phenotypic data.
-            #7800AGSO in the excel could be 7800AGSO_1 or 7800AGSO_2, but I cannot know which of these is.
-                #I do not have phenotypic information in illumina data, only the ID and then genetic data. The only information shared between the two datasets is the ID.
-
-#AGRF confirmed that they included these samples (1100JHJM, 1200JPJM and 7800AGSO) in the reproducibility report but they are duplicates, not replicates. See 01b_illumina_report_to_plink.py for further details.
-    #"As you have highlighted, these three pairs were not highlighted in the submission as technical replicates, but the pairs were assigned the same sample name for the sample manifest and tubes provided"
-
-#Therefore, these three pairs of samples should be removed. They have been removed by 01b_illumina_report_to_plink.py.
-
-
-
-########################
-# notes about 2397LDJA #
-########################
-
-#I have an Illumina report for one sample (2397LDJA; ILGSA24-17303) that is not present in the excel file. In contrast, the sample ID 2399LDJA is present in the excel file but there is no illumina report for this ID. Both IDs are the same except for the 4th digit. Maybe they are the same sample, but it would probably be a good idea to remove both IDs.
-    #"Yes! I had exactly the same note, I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file"
 
 
 
@@ -1035,46 +1056,158 @@ print( \
     #no true should be present, so the sum should be zero
 
 
+print_text("GeneCall and GeneTrain scores", header=2)
+
+
+print_text("We are not going to use GeneCall and GeneTrain scores. See script for further details", header=3)
+#The GenCall score (GC) is a confidence measure assigned to each call which can be used to filter poor quality calls, SNPs or samples. Illumina generally recommend that calls with GC ≤ 0.15 represent failed genotypes. Averaged GC scores over all SNPs from a given sample, or across all samples for a given SNP can be used as sample or SNP quality metrics. A more commonly used sample quality metric is the 'no call rate'. For GenCall, genotypes with GC score less than a given threshold (0.15 in our analyses) are declared as missing. The proportion of missing values, or 'no calls' in each sample gives the no call rate; samples with higher rates are deemed less reliable than samples with lower rates. No call rates less than 1% should be expected for good quality samples which have been properly processed (Illumina Technical Support, personal communication).
+    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3063825/
+
+#I have found an study of animal breeding where they test whether these two scores are correlated with the concordance, i.e., whether they are markers of genotyping errors. They associate, but there are differences between animal species.
+    #https://onlinelibrary.wiley.com/doi/full/10.1111/age.13043
+
+#I have also seen these scores as mentioned in papers about the previous steps, i.e., the steps done by AGRF to convert prob intensities to genotypes. For example, to check these scores to see if manual-re clustering is needed
+    #see section "Manual re-clustering"
+        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6171493/
+
+#what AGRF did was to set no call for snps with GC score < 0.15 filter. Then, we can discard samples for which more than 1% of SNPs have GC score < 0.15, i.e., no call. Indeed, in the PDF report of the first batch, they say "Four samples are below the illumina expected 99% SNP call rate". We are going to stick to that.
+    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3063825/
+
+#Remember that prob intensity is used to split samples between the three genotypes so you plot prob intesnity in try to define three clusters of samples. Sometimes the clusters of hetero and one homozygous can be very close making it difficult to separate... T
+    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6171493/
+
+#I have NOT checked in each final report whether all genotypes per sampe have gene call > 0.15.
+    #However, the DNAReport of both batches says that "Low GenCall Score Cutoff" is 0.15. 
+    #I have also checked in these reports that the "Call_Rate" column is very similar to divide the column "#Calls" (number of genotypes with GS score > 0.15) by the total number of SNPs.
+    #this call rate is what in the PDF of the first batch they say that is too low for 4 samples, being below the 99% call rate expected for illumina.
+    #Indeed, I have checked that those samples with call rate < 0.99 in the DNA report of the first batch are indeed those with call rate < 0.99 in the PDF report.
+    #Therefore, I understand that AGFR has applied the filter of GC score < 0.15 to set as no call a given genotype and now we can use this to calculate the call rate per sample and per snp in order to filter by missingness.
+    
+
+
+print_text("check no genetic position in map and select only snps", header=2)
+
+
+print_text("check no genetic position in the map, it should be 0 always", header=3)
+print(bim_chrom_filter.loc[:,2].unique() == 0)
+    #Column 3 (named as 2 by python as is 0-based):
+        #Position in morgans or centimorgans (safe to use dummy value of '0')
+            #https://www.cog-genomics.org/plink/1.9/formats#bim
+
+print_text("select only SNPs", header=3)
+
+print_text("see unique alleles: we have insertions and deletions (indels) along with 0, which means all samples are major homozigous and no minor allele is present", header=4)
+print(bim_chrom_filter.loc[:, 4].unique())
+print(bim_chrom_filter.loc[:, 5].unique())
+    #Zero indicates missing.  In the old .ped format, a missing call was indicated by "0 0".  A .bim file should only have both allele codes set to '0' when every sample has a missing call at that site.  
+    #More commonly, when every sample is homozygous major at a site, PLINK might not have any of knowing what the minor allele is supposed to be (for example, the old .ped/.map format didn't keep track of that), so it provisionally sets the minor allele code to '0' until the dataset is merged with sample(s) which aren't homozygous major there.
+        #https://groups.google.com/g/plink2-users/c/JRrOneIuKRQ
+print_text("remove non-SNPs", header=4)
+run_bash(
+    "cd ./data/genetic_data/; \
+    mkdir \
+        ./quality_control/" + batch_name + "/01_remove_non_snps/ \
+        --parents; \
+    plink \
+        --bfile ./quality_control/" + batch_name + "/0_chromosome_fitlering/" + batch_name + "_filtered_chromosomes \
+        --snps-only just-acgt\
+        --make-bed \
+        --out  ./quality_control/" + batch_name + "/01_remove_non_snps/" + batch_name + "_remove_non_snps")
+            #--snps-only excludes all variants with one or more multi-character allele codes. With 'just-acgt', variants with single-character allele codes outside of {'A', 'C', 'G', 'T', 'a', 'c', 'g', 't', <missing code>} are also excluded.
+                #we are going to remove the Insertion and Deletions, leaving only ACTG.
+                #missing cases are retained (see below), and we will check them after filtering by MAF, i.e., after removing SNPs with low minor frequencies.
+                #https://www.cog-genomics.org/plink/1.9/filter
+            #just using --snp-only does not remove INDELS. My guess is that the format of INDELS is not AAGCC, i.e., having several letter in the allele column of the bim file, but instead I or D. We have only one letter, so I guess plinl cannot detect it. When using "just-acgt", these rows are removed because they do not have single ACGT allele names in the allele columns.
+print_text("check no indels are present and we only have ACTG + 0", header=4)
+bim_remove_non_snps = pd.read_csv(
+    "./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/" + batch_name + "_remove_non_snps.bim", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+print([element in ["A", "C", "T", "G", "0"] for element in bim_remove_non_snps.loc[:,4].unique()])
+print([element in ["A", "C", "T", "G", "0"] for element in bim_remove_non_snps.loc[:,5].unique()])
+n_indels = bim_chrom_filter.shape[0]-bim_remove_non_snps.shape[0]
+if (n_indels/bim_chrom_filter.shape[0])*100 < 5:
+    print(f"We have lost {n_indels} rows after removing INDELS")
+else:
+    raise ValueError("ERROR: FALSE! We have more than 5% of indels!!")
+
+
+
+print_text("missingness", header=2)
+#in Ritchie's tutorial they say that "Note that similarly to heterozygosity rates, both minor allele frequencies and deviations from Hardy-Weinberg will be affected by differ- ences in ancestry and should be considered in a population-specific way."
+    #therefore I think we should check first PCA
+#note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differen
+
+
+print_text("", header=3)
+
+
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
+    plink \
+        --bfile " + batch_name + "_remove_non_snps \
+        --missing")
+        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
+            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+
+#explore snp and sample missingnsss
+
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
+    awk \
+        -F ' ' \
+        '{print $1}' \
+        plink.imiss")
+
+#first remove SNPs with low call rate to avoid their influence when filtering samples
+#Markers can be re- moved based on call rate by using the --geno option, followed by a threshold for a lower limit of missingness (e.g.,--geno 0.02 would remove SNPs with more than 2% missing, i.e., less than a 98% call rate).
+
+#Samples below the desired threshold can be eliminated from any down stream analyses using the --mind option in PLINK.
+
+
+
 ##por aqui
 
-#if we use this cohort for discovery and then test in the second one, we could be less stringent here?
-    #not really because base and test sets need to have the same SNPs
-        #https://www.nature.com/articles/s41596-020-0353-1
+
+#remove snps and samples by call rate, check your three tutorials
 
 
-#after removing duplicates, check the text I have in the next lines and then go directly to the protocol and tutorials, probably startging with missingess.
-    #https://github.com/RitchieLab/GWAS-QC
-
-
-
-
-#Use GC score to filter?
-    #it should be above 0.15 in all cases, right? if not the genotype is empty? They calculated this with GenomeStudio 
-    #https://www.illumina.com/Documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf
-
-
-#https://onlinelibrary.wiley.com/doi/full/10.1111/age.13043#:~:text=The%20GenTrain%20score%20is%20a,genotypes%20for%20a%20given%20SNP.
-
-
-
-
-#marker quality
     #check that the number of missing SNPs is 654027-650181, because the sum of genotypes that pass quality fileters and tjhose not passing the filter in the DNAreport is 650181, not 654027, for the second batch.
         #If that is the case, add it to line "Note about Calls - No_Calls" in the first script
-    #in the tutorial they say that "Note that similarly to heterozygosity rates, both minor allele frequencies and deviations from Hardy-Weinberg will be affected by differ- ences in ancestry and should be considered in a population-specific way."
-        #therefore I think we should check first PCA
-    #note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differen
-
-
-
-#tiene sentido eliminar snps with low-call rate, ancestria no deberia afectar
 
 
 
 
-#do plot hetero - missingness, althouhg remove samples after PCA?
-#remove snps and samples by call rate, check your three tutorials
-#then removal of samples with PCA and in the next script removal of samples with heterozigosity?
+
+
+
+
+
+
+
+
+
+
+
+##filter by LogR SD
+#In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report."
+#in the CNMetrics, you can see how the three samples with more than 0.3 of LogR SD are the same with call rate < 0.99
+#however, in the the second batch, some of the samples with LogR SD < 0.3 have also call rate < 0.99 but not others, therefore we need to specifically filter by LogR SD in addition to call rate.
+#remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
+
+
+
+
+#####see tutorials
+#I guess we can then use PCA to remove outlier samples, also by heterogizogisty, maf.... those factors that can be influenced by ancestry
+#do plot hetero - missingness
+
+
+#after filtering for maf, you should not have any SNP with 0 in the allele column for minor. in that moment, we would have remove snps with very low minor frequencies.
+#look at the bim file the unique cases
+#bim_no_dups.loc[:, 4].unique()
+#bim_no_dups.loc[:, 5].unique()
 
 
 #sex (--check-sex) and hetero (--het) should be checked after PCA because accorindg to plink info, it can be problems if we have a sample with most of samples from one ancestry and then a few from another ancestry
@@ -1091,18 +1224,6 @@ print( \
 
 
 
-
-    #think why you have a missing sample (2397LDJA), but when you check the number of samples between illumina and pheno_data, you only have 1 of difference. In the email to Bishop, you said that the missing sample could be the AGO... that was duplicated in illumina but not in pheno_data, so we should have 2 less samples, not 1. look the empty row between data and NAs... 
-
-#filters I have not seen in ritchie's paper
-    #filter by chromosome
-        #check strange chromosome numbers (non-autosomal)
-        #also check that no genetic position is added
-
-    #check if indels!
-        #1:207754848-GATAA-G
-        #plink has flag  --snps-only to keep snps
-            #https://www.biostars.org/p/378475/
 
 #FOR QUALITY CONTROL, YOU COULD USE MIGHIGGAN SERVER, WHICH ALREADY APPLIES MULTIPLE FILTERS like duplicates AND THEN ADD A FEW WITH PLINK, AUGUSTO DID THAT
     #this michigan sever can be used also for imputing
