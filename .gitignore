@@ -2,4 +2,5 @@
 *.ipynb_checkpoints
 
 /quality_control/data
+/quality_control/literature
 /plink_versions
