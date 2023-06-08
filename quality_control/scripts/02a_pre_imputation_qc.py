@@ -247,6 +247,60 @@ print("we should have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 sam
 print(f"For batch {batch_name}, we have {total_samples} total samples")
 
 
+print_text("create a new folder to calcualte missing reports of the plink file sets generated in the previous step", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/; \
+    mkdir \
+        --parents \
+        ./05_missing_calc/; \
+    cp ./03_merged_data/" + batch_name + "_merged_data* ./05_missing_calc; \
+    cd ./05_missing_calc; \
+    rm " + batch_name + "_merged_data.log; \
+    gunzip \
+        --keep \
+        --force \
+        ./" + batch_name + "_merged_data*;\
+    plink \
+        --bfile ./" + batch_name + "_merged_data \
+        --missing; \
+    sleep 2 ;\
+    ls -lh")
+        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
+            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+
+bim_file_before_any_filter = pd.read_csv( \
+    "./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/" + batch_name + "_merged_data.bim.gz", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+
+#check that the number of missing SNPs is 654027-650181, because the sum of genotypes that pass quality fileters and tjhose not passing the filter in the DNAreport is 650181, not 654027, for the second batch.
+        #If that is the case, add it to line "Note about Calls - No_Calls" in the first script
+
+#in the second batch, for ALL samples, the sum of no-calls + calls is equals to 650181, instead of 654027. There are 654027-650181=3846 SNPs that are not considered in the DNA report.
+    #check in the first batch
+
+#in the bim file, the number of SNPs with 0 for the allele1 and allele2 is also 3846!
+sum((bim_file_before_any_filter.loc[:,4]=="0") & (bim_file_before_any_filter.loc[:,5]=="0"))
+
+#this explains why the sum of calls and non-calls in the DNA report is not 650181 but 654027
+
+#i do not think we can compare the number of genotypes in the missing report and the DNA report, because plink does not count hetero haploids while is is counting zero cases, as for some samples, the total number of snps is 654027. Therefore, the total number of SNPs is different that the one consdiered in the DNA report.
+
+#not sure why in plink some samples have as total number of geno less than 654027, probably becuase hetero haplo cases (non-PAR regions in Y with two different coopies)
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    awk \
+        'BEGIN{FS=\" \"}{if(NR<10){print $0, $5-$4}}' \
+        plink.imiss")
+
+
+
+
+
 print_text("check we have the correct number of samples looking at the merged fam file and the list of samples considered to merge for each batch", header=3)
 run_bash(" \
     n_samples_batch=$( \
@@ -1094,8 +1148,11 @@ print(bim_chrom_filter.loc[:,2].unique() == 0)
         #Position in morgans or centimorgans (safe to use dummy value of '0')
             #https://www.cog-genomics.org/plink/1.9/formats#bim
 
-print_text("select only SNPs", header=3)
+print_text("check no SNP has empty ID", header=3)
+print(sum(bim_chrom_filter.loc[:,1].isin(["", " ", "."]))==0)
+print(sum(bim_chrom_filter.loc[:,1].isna())==0)
 
+print_text("select only SNPs", header=3)
 print_text("see unique alleles: we have insertions and deletions (indels) along with 0, which means all samples are major homozigous and no minor allele is present", header=4)
 print(bim_chrom_filter.loc[:, 4].unique())
 print(bim_chrom_filter.loc[:, 5].unique())
@@ -1471,17 +1528,10 @@ run_bash(
         #see SNP missing code to details about awk steps
 
 
-#plot missing - hetero
-
 
 ##por aqui
 
 
-#remove snps and samples by call rate, check your three tutorials
-
-
-    #check that the number of missing SNPs is 654027-650181, because the sum of genotypes that pass quality fileters and tjhose not passing the filter in the DNAreport is 650181, not 654027, for the second batch.
-        #If that is the case, add it to line "Note about Calls - No_Calls" in the first script
 
 
 
