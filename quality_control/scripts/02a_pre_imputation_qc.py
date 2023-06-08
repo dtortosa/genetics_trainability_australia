@@ -1139,10 +1139,7 @@ print_text("missingness", header=2)
     #therefore I think we should check first PCA
 #note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differen
 
-
-print_text("", header=3)
-
-
+print_text("create missing report per SNP and sample", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
     plink \
@@ -1150,22 +1147,258 @@ run_bash(
         --missing")
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
             #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
-
-#explore snp and sample missingnsss
-
+print_text("See the first lines of the lmiss file", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
+    head plink.lmiss")
+    #lmiss: A text file with a header line, and K line(s) per variant with the following 5-7 fields (where K is the number of cluster(s) if --within/--family was specified, or 1 if it wasn't):
+        #CHR Chromosome code
+        #SNP Variant identifier
+        #CLST    Cluster identifier. Only present with --within/--family.
+        #N_MISS  Number of missing genotype call(s), not counting obligatory missings or het. haploids
+        #N_CLST  Cluster size (does not include nonmales on chrY). Only present with --within/--family.
+        #N_GENO  Number of potentially valid call(s)
+        #F_MISS  Missing call rate
+            #https://www.cog-genomics.org/plink/1.9/formats#lmiss
+    #IMPORTANT: I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+        #https://www.cog-genomics.org/plink/1.9/formats#imiss
+print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=4)
 run_bash(
     "cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
+    n_snps_freq_file=$( \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\" \"} \
+            {if(NR>1)(count++)}\
+            END{print count}'\
+            plink.lmiss \
+    ); \
+    n_correct_freq_miss=$( \
+        awk \
+            'BEGIN{ \
+                FS=\" \"; OFS=\" \" \
+            } \
+            { \
+                if((int(($3/$4)*100+0.5)/100==int($5*100+0.5)/100) && (NR>1)){ \
+                    count++ \
+                } \
+            } \
+            END { \
+                print count \
+            }' \
+            plink.lmiss \
+    ); \
+    if [[ $n_correct_freq_miss -eq $n_snps_freq_file ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #get the number of snps in the file
+            #count lines starting from the second line using "++". This adds 1 to the variables previously defined ("count" in our case) every time the condition is satisfied. then we print the variable at the end.
+                #https://stackoverflow.com/questions/12809909/efficient-way-to-count-the-amount-lines-obeying-some-condition
+        #count the number of rows for which the division of field 3 and 4 (missing and potential number of valid calls) is equal to field 5 (frequency missing)
+            #for that count every from the second row if the division rounded to the second decimal is equal to field 5 rounded to the second decimal. 
+                #we have to round because some times freq missing is rounded to 6 decimals, others to 7.... so I am just rounding everything to the second. It is not the best option, but this is just a small checks to see there is some concordance and freq miss is what we expect.
+                    #For example: 
+                        #the following code converts "2.568" to "2.57". 2.568 multiplied by 100 is 256.8, then you add 0.5. As you are closer to 257 than 256 (256.8+0.5=257.3), you reach 257 when applying int(), as int(257.3) gives 257 because int() remove the decimals. Then divide by 100 and get 2.57.
+                            #!echo "2.568" | awk '{print int($1*100+0.5)/100}'
+                        #in contrast, 2.564 gives 2.56 because it is closer to 2.56 than to 2.57: 2.564*100=256.4; 256.4+0.5=256.9; then int() removes the decimal leaving 256.
+                            #!echo "2.564" | awk '{print int($1*100+0.5)/100}'
+                        #https://superuser.com/questions/656534/round-off-the-decimal-value-in-awk
+print_text("remove SNPs with low call rate to avoid their influence when filtering samples", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    mkdir \
+        --parents \
+        ./02_remove_missing_snps/;\
+    plink \
+        --bfile ./01_remove_non_snps/" + batch_name + "_remove_non_snps \
+        --geno 0.01 \
+        --make-bed \
+        --out ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps")
+        #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
+            #https://www.cog-genomics.org/plink/1.9/filter
+        #genotyping rate >0.99 recommended for PRS tutorial, i.e., remove SNPs with more than 1% (0.01) missing. this is more stringent than used by Ritchie tutorial, but it is ok. We lose a few thousand SNPs (see below) and it is important to be conservative given we are going to use this data for PRS.
+            #https://www.nature.com/articles/s41596-020-0353-1#Sec4
+            #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
+print_text("see the number of SNPs removed", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    n_snps_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./01_remove_non_snps/" + batch_name + "_remove_non_snps.bim); \
+    n_snps_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps.bim); \
+    lost_snps=$(($n_snps_before - $n_snps_after)); \
+    lost_snps_percent=$( \
+        awk \
+            -v l=$lost_snps \
+            -v b=$n_snps_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_snps_percent < 4 ]]; then \
+        printf 'The number of SNPs lost due to call rate below 0.99 is: %s' \"$lost_snps\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 1% of SNPs due low-call rate';\
+    fi")
+        #First calculate the number of SNPs, i.e., rows, in the bim files before and after filtering using for that "++" to count cases.
+        #Calculate the difference of snps, i.e., SNPs removed.
+        #calculate the percentage respect to the initial number of SNPs
+            #use the -v flag to load variables into awk, so we can use the number of SNPs removed and those previously present before the filtering. Use awk to calculate the percentage.
+                #https://stackoverflow.com/a/12147154/12772630
+                #https://www.unix.com/unix-for-dummies-questions-and-answers/15651-awk-v.html
+            #bash cannot do operations with floats
+        #if the percentage of lost SNPs is less than 1%, we are fine. So print the number of SNPs using printf, so you can combine string message with a variable, indicated as %s because it is loaded as string.
+            #https://phoenixnap.com/kb/bash-printf
+print_text("create again the missing report", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    plink \
+        --bfile " + batch_name + "_remove_missing_snps \
+        --missing")
+        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
+            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+print_text("check that no SNP has a missing % above the selected threshold", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    total_number_snps=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
+            plink.lmiss);\
+    n_snps_below_threshold=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($5 <= 0.01)){count++}}END{print count}' \
+            plink.lmiss); \
+    if [[ $n_snps_below_threshold -eq $total_number_snps ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #count the number of rows of the missing report, i.e., total number of SNPs
+        #then count the number of SNPs in that file that have a freq missing equal or lower than 1%, i.e., call rate equal or higher than 99%, which is our selected threshold.
+        #the number of snps meeting this conditions should be the same than the total number of SNPs, because we have already applied the filter.
+
+
+
+##por aquii
+
+
+print_text("filter by sample missingness", header=3)
+print_text("see first lines of the sample missing report previously created", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    head plink.imiss")
+    #imiss: A text file with a header line, and one line per sample with the following six fields:
+        #FID    Family ID
+        #IID Within-family ID
+        #MISS_PHENO  Phenotype missing? (Y/N)
+        #N_MISS  Number of missing genotype call(s), not including obligatory missings or het. haploids
+        #N_GENO  Number of potentially valid call(s)
+        #F_MISS  Missing call rate
+            #https://www.cog-genomics.org/plink/1.9/formats#imiss
+    #IMPORTANT: I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    n_samples_freq_file=$( \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\" \"} \
+            {if(NR>1)(count++)}\
+            END{print count}'\
+            plink.imiss \
+    ); \
+    n_correct_freq_miss=$( \
+        awk \
+            'BEGIN{ \
+                FS=\" \"; OFS=\" \" \
+            } \
+            { \
+                if((int(($4/$5)*100+0.5)/100==int($6*100+0.5)/100) && (NR>1)){ \
+                    count++ \
+                } \
+            } \
+            END { \
+                print count \
+            }' \
+            plink.imiss \
+    ); \
+    if [[ $n_correct_freq_miss -eq $n_samples_freq_file ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #just check we freq miss is the ratio of missing calls respect to the potential number of valid calls per sample.
+        #see above in the SNP missing part for explanations about the script
+print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
     awk \
-        -F ' ' \
-        '{print $1}' \
-        plink.imiss")
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{if(NR>0){print $1,$2,$3,$4,$5,$6}}' \
+        plink.imiss \
+    > plink_awk_processed.imiss; \
+    head plink_awk_processed.imiss")
+print_text("load in pandas", header=4)
+sample_missing_report = pd.read_csv( \
+    "./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/plink_awk_processed.imiss", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+print(sample_missing_report)
+print_text("check we have the correct number of samples and columns in the missing sample report", header=4)
+print(sample_missing_report.shape[0]==total_samples) 
+print(sample_missing_report.shape[1]==6) 
 
-#first remove SNPs with low call rate to avoid their influence when filtering samples
-#Markers can be re- moved based on call rate by using the --geno option, followed by a threshold for a lower limit of missingness (e.g.,--geno 0.02 would remove SNPs with more than 2% missing, i.e., less than a 98% call rate).
 
-#Samples below the desired threshold can be eliminated from any down stream analyses using the --mind option in PLINK.
+thresholds = [x / 1000 for x in range(985, 1000, 1)]
+    #https://stackoverflow.com/a/7267287/12772630
+
+list_tuples_thresholds = []
+#threshold=thresholds[0]
+for threshold in thresholds:
+    n_retained_samples = sample_missing_report.loc[(1-sample_missing_report["F_MISS"]) >= threshold,:].shape[0]
+    proportion_remaining = n_retained_samples/sample_missing_report.shape[0]
+    list_tuples_thresholds.append((threshold, proportion_remaining))
+list_tuples_thresholds
+
+pd_tuples_thresholds = pd.DataFrame(list_tuples_thresholds, columns=["threshold", "proportion_remaining"])
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    mkdir \
+        --parents \
+        ./03_remove_low_call_samples/;")
+
+import matplotlib.pyplot as plt
+#open the plot
+plt.plot(pd_tuples_thresholds["threshold"], pd_tuples_thresholds["proportion_remaining"], marker="o", linestyle="dashed")
+#plot the xlabel
+plt.xlabel("Call Rate Threshold")
+plt.ylabel("Proportion Remaining")
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/" + batch_name + "/03_remove_low_call_samples/" + batch_name + "_plot_sample_retention_thresholds.png", \
+    bbox_inches='tight')
+plt.close()
 
 
+
+
+
+print_text("remove samples with low call rate", header=4)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    plink \
+        --bfile ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps \
+        --mind 0.02 \
+        --make-bed \
+        --out ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples")
+            #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
+                #https://www.cog-genomics.org/plink/1.9/filter
+            #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
+
+
+
+##check the number and IDs of the samples removed
 
 ##por aqui
 
