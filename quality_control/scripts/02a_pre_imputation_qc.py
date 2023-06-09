@@ -283,6 +283,7 @@ run_bash(" \
         #see lines below for details about missing report format
             #https://www.cog-genomics.org/plink/1.9/formats#imiss
 
+
 print_text("check about the number of genotypes in the DNA report file", header=3)
 #I have detected something odd in the DNA report of BOTH batches. For ALL samples, if you sum the number of genotypes with GS_score < 0.15, i.e., no calls, plus the number of called genotypes, we do not get 654027, but 650181. Therefore, we have 654027-650181=3846 missing variants.
 #Note that both DNA reports indicate that the total number of loci is 654027, but then the sums are not 654027.
@@ -300,6 +301,9 @@ if (n_zero_alleles == 3846):
     print("the number of SNPs with allele1 and allele1 as zero is 3846, which is exactly the number of SNPs lacking in the sum of SNPs called+non-called of the DNA report for each individual. This explains that this sum does not total to 654027. These cases with allele1 and allele2 as zero cannot have genotypes (there are no alleles), and without genotypes you cannot calculate the GS_score, which is used to determine whether a SNP is called or not.")
 else:
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE dna REPORT")
+#Conclusion about missing vs DNA report: 
+#I am not going to do more comparisons. The DNA report is not counting cases with allele1 and allele2 as zero, while the missing report it is. The missing report count every snp except those with hetero problems (heterozigous in non-PAR regions of sex chromosomes for males) or those that are obligatory (e.g., Y snps in women). This is what we want, as we will deal with hetero problems later.
+
 
 print_text("check what is going on with the samples in the missing file whose potential number of total SNPs is lower", header=3)
 print_text("see the distinct values for the number of potential SNPs across the whole sample missing report", header=4)
@@ -312,70 +316,61 @@ run_bash(" \
                 #if the value in $5 has not been previously included in "a" before get True (without the "!" you would get false). Then, print the value of $5 in those cases, i.e., the unique value of potential number of SNPs
                 #https://stackoverflow.com/questions/1915636/is-there-a-way-to-uniq-by-column
 
-#por aquii
-
+print_text("process the sample missing file with awk in order to read it then with pandas", header=4)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
     awk \
         'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6}' \
         plink.imiss > plink_awk_processed.imiss")
-        
-        #654027
-        #649889
+            #I have problems with reading the missing report directly in pandas due to the delimiter. I have to do this to have all 6 columns correctly detected.
 
-run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
-    awk \
-        'BEGIN{FS=\" \"}{if($5==649889){print $2count}}' \
-        plink.imiss")
-run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
-    male_ids=$( \
-        awk \
-            'BEGIN{FS=\" \"; OFS=\"\t\"}{if($5==1){print $2}}' \
-            " + batch_name + "_merged_data.fam); \
-    ids_less_snps=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if($5==649889){print $2}}' \
-            plink.imiss); \
-    awk \
-        -v a=$male_ids \
-        -v b=$ids_less_snps \
-        'BEGIN{my_dict[$1] = a}END{for(i in my_dict){print my_dict[i]}}'")
+print_text("load the missing sample report and the fam file into python", header=4)
+sample_missing_report_before_filtering = pd.read_csv( \
+    "./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/plink_awk_processed.imiss", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+merged_fam_file = pd.read_csv( \
+    "./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/" + batch_name + "_merged_data.fam", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
 
+print_text("calculate the number of variants excluding those in Y chromosome", header=4)
+n_variants_excluding_y = bim_file_before_any_filter.shape[0]-sum(bim_file_before_any_filter[0]==24)
+print(n_variants_excluding_y)
+    #in plink
+        #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #https://www.cog-genomics.org/plink/1.9/formats#bim
 
-sample_missing_report_before_filtering = pd.read_csv("./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/plink_awk_processed.imiss", sep="\t", header=0, low_memory=False)
-merged_fam_file = pd.read_csv("./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/" + batch_name + "_merged_data.fam", sep="\t", header=None, low_memory=False)
-merged_hetero_file = pd.read_csv("./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/plink.hh", sep="\t", header=None, low_memory=False)
-
-sample_missing_report_before_filtering.loc[sample_missing_report_before_filtering.loc[:,"N_GENO"] == 649889, "IID"].isin(merged_fam_file.loc[merged_fam_file.loc[:,4]==2,1])
-
-    #IF THEY ARE WOMEN THEY CANNOT HAVE Y!!!
-
-sample_missing_report_before_filtering.loc[sample_missing_report_before_filtering.loc[:,"N_GENO"] == 649889, "IID"].isin(merged_hetero_file.loc[:,1])
-
-#no problematic case is in hetero file!!?
-    #https://www.cog-genomics.org/plink/1.9/formats#hh
-
-
-sum(bim_file_before_any_filter.loc[:,0]==24)
-
-        #654027-649889=4138
-
-        #https://stackoverflow.com/questions/1915636/is-there-a-way-to-uniq-by-column
-
-
-
-
-#i do not think we can compare the number of genotypes in the missing report and the DNA report, because plink does not count hetero haploids while is is counting zero cases, as for some samples, the total number of snps is 654027. Therefore, the total number of SNPs is different that the one consdiered in the DNA report.
-
-#not sure why in plink some samples have as total number of geno less than 654027, probably becuase hetero haplo cases (non-PAR regions in Y with two different coopies)
-
-
-
-
-
-
+print_text("check that the number of unique cases for n_snps in sample missing is only 2, being one the total number of snps and the second the number of snps minus Y snps. Also check that the samples in the missing report with less than 654027 are non-males, because they should not have SNPs in Y chromosome (chromosome 24)", header=4)
+unique_n_variants_missing_rep = sample_missing_report_before_filtering["N_GENO"].unique()
+check_1 = len(unique_n_variants_missing_rep) == 2
+    #only two different number of total variants in the missing report
+check_2 = bim_file_before_any_filter.shape[0] in unique_n_variants_missing_rep
+    #the total number of snps in the whole snp map is one of these two numbers
+check_3 = unique_n_variants_missing_rep[unique_n_variants_missing_rep !=bim_file_before_any_filter.shape[0]] == n_variants_excluding_y
+    #the other number is the number of non-Y variants
+check_4 = \
+    sum( \
+        sample_missing_report_before_filtering \
+            .loc[ \
+                sample_missing_report_before_filtering["N_GENO"] == n_variants_excluding_y, \
+                "IID"] \
+            .isin( \
+                merged_fam_file \
+                    .loc[ \
+                        merged_fam_file[4].isin([0,2]), \
+                        1])) == \
+    sum(sample_missing_report_before_filtering["N_GENO"] == n_variants_excluding_y)
+            #get the IDs of all samples in the missing report whose number of variants is 654027 - number of Y SNPs. 
+            #these IDs should be all included in those IDs of non-males (0 and 2 which is unknown and female) in the fam file
+            #the cases with True for this should be the same than ALL samples in the report that have the number of non-Y variants as the potential number of genotypes 
+if(check_1 & check_2 & check_3 & check_4):
+    print("We do have the expected number of potential genotypes for samples in the missing report according to the number of non-Y variants in non-male samples. Y SNPs in females are obligatory missing, so they are not counted.")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DIFFERENT NUMBER OF VARIANTS BETWEEN MEN AND WOMEN")
 
 
 print_text("check we have the correct number of samples looking at the merged fam file and the list of samples considered to merge for each batch", header=3)
@@ -1297,7 +1292,9 @@ run_bash(" \
         #N_GENO  Number of potentially valid call(s)
         #F_MISS  Missing call rate
             #https://www.cog-genomics.org/plink/1.9/formats#lmiss
-    #IMPORTANT: I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+    #IMPORTANT: 
+        #I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+        #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
         #https://www.cog-genomics.org/plink/1.9/formats#imiss
 
 print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=4)
@@ -1434,7 +1431,10 @@ run_bash(
         #N_GENO  Number of potentially valid call(s)
         #F_MISS  Missing call rate
             #https://www.cog-genomics.org/plink/1.9/formats#imiss
-    #IMPORTANT: I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+    #IMPORTANT: 
+        #I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+        #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
+
 
 print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=4)
 run_bash(
@@ -1603,6 +1603,9 @@ run_bash(
         echo 'FALSE'; \
     fi")
         #see SNP missing code to details about awk steps
+
+
+
 
 
 
