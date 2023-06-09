@@ -209,7 +209,7 @@ run_bash("ls")
             #It is less interesting, but it would be easier because we could use the previous GWAS studies to obtain effect sizes, then train in our dataset and even validate in a third dataset, as the UK biobank has VO2 max data along with genetics.
 
 
-
+###you have 1057 men!! sex imbalance
 
 ###IMPORTANT, THINK WHAT chromosomes include, X, Y, PAR and mito should be analyzed?
     #I guess in independent associations is ok, an SNP in X is not affecting chromosome 1,

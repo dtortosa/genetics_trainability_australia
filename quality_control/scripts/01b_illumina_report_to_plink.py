@@ -173,6 +173,7 @@ run_bash("ls")
             #The sum of Calls + No_Calls is always 650181 in both batches
             #However, we have 654027 variants in the SNP map.
             #I think that No_Calls is NOT counting missing cases, because I guess you need to have genotype to obtain a GenCall score. Indeed, the parameter "# LOCI" in the same DNA report is 654027, so we indeed have the correct number of loci, but less genotypes, probably because of missing cases.
+            #The difference between 654027 and 650181 is 3846, which is the exact number of SNPs in the map file with zero for both alleles, i.e., these SNPs cannot have genotypes. Without genotypes, the GS_score cannot be calculated (see above). This explain the difference in SNPs between the total number of loci and the sum og call-non-call
         #Call_Freq: 
             #Call_Freq is equal to #Calls /(#No_Calls + #Calls). Call_Freq is equivalent to Call Rate in the GenomeStudio Samples Table.
         #A/A_Freq: 

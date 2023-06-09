@@ -247,7 +247,8 @@ print("we should have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 sam
 print(f"For batch {batch_name}, we have {total_samples} total samples")
 
 
-print_text("create a new folder to calcualte missing reports of the plink file sets generated in the previous step", header=3)
+print_text("perform missing report with the merged data", header=3)
+print_text("create a new folder to calculate missing reports of the plink file sets generated in the previous step", header=4)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/; \
     mkdir \
@@ -265,25 +266,106 @@ run_bash(" \
         --missing; \
     sleep 2 ;\
     ls -lh")
-        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
-            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+        #create the new folder to save the missing report
+        #copy the merge file set to the new folder
+        #gunzip all the files of the file set
+        #use them as input to calculate the missing report
+            #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
+                #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+        #sleep 2 seconds to get first the output of plink (it takes a bit) and then list the files in the new folder
 
+print_text("see first rows of the missing report for samples", header=4)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    awk \
+        'BEGIN{FS=\" \"}{if(NR<10){print $0}}' \
+        plink.imiss")
+        #see lines below for details about missing report format
+            #https://www.cog-genomics.org/plink/1.9/formats#imiss
+
+print_text("check about the number of genotypes in the DNA report file", header=3)
+#I have detected something odd in the DNA report of BOTH batches. For ALL samples, if you sum the number of genotypes with GS_score < 0.15, i.e., no calls, plus the number of called genotypes, we do not get 654027, but 650181. Therefore, we have 654027-650181=3846 missing variants.
+#Note that both DNA reports indicate that the total number of loci is 654027, but then the sums are not 654027.
+#This is caused by the SNPs where both the allele1 and allele2 are 0, see below.
+print_text("load the bim file", header=4)
 bim_file_before_any_filter = pd.read_csv( \
     "./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/" + batch_name + "_merged_data.bim.gz", \
     sep="\t", \
     header=None, \
     low_memory=False)
 
-#check that the number of missing SNPs is 654027-650181, because the sum of genotypes that pass quality fileters and tjhose not passing the filter in the DNAreport is 650181, not 654027, for the second batch.
-        #If that is the case, add it to line "Note about Calls - No_Calls" in the first script
+print_text("check that the number of variants with 0 for the allele1 and allele2 is 3846", header=4)
+n_zero_alleles = sum((bim_file_before_any_filter.loc[:,4]=="0") & (bim_file_before_any_filter.loc[:,5]=="0"))
+if (n_zero_alleles == 3846):
+    print("the number of SNPs with allele1 and allele1 as zero is 3846, which is exactly the number of SNPs lacking in the sum of SNPs called+non-called of the DNA report for each individual. This explains that this sum does not total to 654027. These cases with allele1 and allele2 as zero cannot have genotypes (there are no alleles), and without genotypes you cannot calculate the GS_score, which is used to determine whether a SNP is called or not.")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE dna REPORT")
 
-#in the second batch, for ALL samples, the sum of no-calls + calls is equals to 650181, instead of 654027. There are 654027-650181=3846 SNPs that are not considered in the DNA report.
-    #check in the first batch
+print_text("check what is going on with the samples in the missing file whose potential number of total SNPs is lower", header=3)
+print_text("see the distinct values for the number of potential SNPs across the whole sample missing report", header=4)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    awk \
+        'BEGIN{FS=\" \"}{if(!a[$5]++){print $5}}' \
+        plink.imiss")
+            #this is the way to get uniq cases from a colum in awk
+                #if the value in $5 has not been previously included in "a" before get True (without the "!" you would get false). Then, print the value of $5 in those cases, i.e., the unique value of potential number of SNPs
+                #https://stackoverflow.com/questions/1915636/is-there-a-way-to-uniq-by-column
 
-#in the bim file, the number of SNPs with 0 for the allele1 and allele2 is also 3846!
-sum((bim_file_before_any_filter.loc[:,4]=="0") & (bim_file_before_any_filter.loc[:,5]=="0"))
+#por aquii
 
-#this explains why the sum of calls and non-calls in the DNA report is not 650181 but 654027
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6}' \
+        plink.imiss > plink_awk_processed.imiss")
+        
+        #654027
+        #649889
+
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    awk \
+        'BEGIN{FS=\" \"}{if($5==649889){print $2count}}' \
+        plink.imiss")
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    male_ids=$( \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\"\t\"}{if($5==1){print $2}}' \
+            " + batch_name + "_merged_data.fam); \
+    ids_less_snps=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if($5==649889){print $2}}' \
+            plink.imiss); \
+    awk \
+        -v a=$male_ids \
+        -v b=$ids_less_snps \
+        'BEGIN{my_dict[$1] = a}END{for(i in my_dict){print my_dict[i]}}'")
+
+
+sample_missing_report_before_filtering = pd.read_csv("./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/plink_awk_processed.imiss", sep="\t", header=0, low_memory=False)
+merged_fam_file = pd.read_csv("./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/" + batch_name + "_merged_data.fam", sep="\t", header=None, low_memory=False)
+merged_hetero_file = pd.read_csv("./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/plink.hh", sep="\t", header=None, low_memory=False)
+
+sample_missing_report_before_filtering.loc[sample_missing_report_before_filtering.loc[:,"N_GENO"] == 649889, "IID"].isin(merged_fam_file.loc[merged_fam_file.loc[:,4]==2,1])
+
+    #IF THEY ARE WOMEN THEY CANNOT HAVE Y!!!
+
+sample_missing_report_before_filtering.loc[sample_missing_report_before_filtering.loc[:,"N_GENO"] == 649889, "IID"].isin(merged_hetero_file.loc[:,1])
+
+#no problematic case is in hetero file!!?
+    #https://www.cog-genomics.org/plink/1.9/formats#hh
+
+
+sum(bim_file_before_any_filter.loc[:,0]==24)
+
+        #654027-649889=4138
+
+        #https://stackoverflow.com/questions/1915636/is-there-a-way-to-uniq-by-column
+
+
+
 
 #i do not think we can compare the number of genotypes in the missing report and the DNA report, because plink does not count hetero haploids while is is counting zero cases, as for some samples, the total number of snps is 654027. Therefore, the total number of SNPs is different that the one consdiered in the DNA report.
 
@@ -291,11 +373,6 @@ sum((bim_file_before_any_filter.loc[:,4]=="0") & (bim_file_before_any_filter.loc
 
 
 
-run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
-    awk \
-        'BEGIN{FS=\" \"}{if(NR<10){print $0, $5-$4}}' \
-        plink.imiss")
 
 
 
