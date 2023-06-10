@@ -264,7 +264,6 @@ run_bash(" \
     plink \
         --bfile ./" + batch_name + "_merged_data \
         --missing; \
-    sleep 2 ;\
     ls -lh")
         #create the new folder to save the missing report
         #copy the merge file set to the new folder
@@ -794,7 +793,7 @@ print_text("select the name of the zip file with batch data based on the batch n
 if batch_name=="ILGSA24-17873":
     zip_name = "CAGRF20093767"
 elif batch_name=="ILGSA24-17303":
-    zip_name = "ILGSA24-17873"
+    zip_name = "ILGSA24-17303"
 print(zip_name)
 
 print_text("load zip info from the zip file", header=4)
@@ -1546,12 +1545,16 @@ run_bash(
     "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
     plink \
         --bfile ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps \
-        --mind 0.02 \
+        --mind 0.01 \
         --make-bed \
         --out ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples")
             #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
                 #https://www.cog-genomics.org/plink/1.9/filter
-            #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
+            #recommended threshold
+                #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. 
+                #The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
+                #The illumina report of the first batch says "Four samples are below the illumina expected 99% SNP call rate (values expected for typical projects, excluding tumour samples)".
+                #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is above the expectation of Illunina. Therefore, I think we are ok removing these samples.
 
 print_text("see the number of samples removed", header=4)
 run_bash(
@@ -1571,7 +1574,7 @@ run_bash(
             -v b=$n_samples_before \
             'BEGIN{print (l/b)*100}'); \
     if [[ $lost_samples_percent < 2 ]]; then \
-        printf 'The number of samples lost due to call rate below 0.98 is: %s' \"$lost_samples\"; \
+        printf 'The number of samples lost due to call rate below 0.99 is: %s' \"$lost_samples\"; \
     else \
         echo 'ERROR: FALSE! We have lost more than 2% of samples due low-call rate';\
     fi")
@@ -1582,7 +1585,8 @@ run_bash(
     "cd ./data/genetic_data/quality_control/" + batch_name + "/03_remove_low_call_samples/; \
     plink \
         --bfile " + batch_name + "_remove_low_call_samples \
-        --missing")
+        --missing; \
+    ls -lh")
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
             #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
 
@@ -1595,7 +1599,7 @@ run_bash(
             plink.imiss);\
     n_samples_below_threshold=$( \
         awk \
-            'BEGIN{FS=\" \"}{if((NR>1) && ($6 <= 0.02)){count++}}END{print count}' \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($6 <= 0.01)){count++}}END{print count}' \
             plink.imiss); \
     if [[ $n_samples_below_threshold -eq $total_number_samples ]]; then \
         echo 'TRUE'; \
@@ -1605,33 +1609,80 @@ run_bash(
         #see SNP missing code to details about awk steps
 
 
+print_text("remove samples with LogR SD above the illumina expectation", header=3)
+#In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
+#Some the samples above the expectation have also a call rate below 0.99, but not others, thus a specific filter is needed for this. Given that Illumina says that level of LogR SD is not normal, we should remove these individuals.
+
+print_text("process the file with the logR deviation", header=4)
+if(batch_name == "ILGSA24-17873"):
+    cnmetricts_file_name="CAGRF20093767_CNMetrics"
+elif(batch_name == "ILGSA24-17303"):
+    cnmetricts_file_name="ILGSA24-17303_CNMetrics"
+print(cnmetricts_file_name)
+
+print_text("get the ID of samples above the illuina expectation for logR SD", header=4)
+removed_samples_logRdev = run_bash(" \
+    cd ./data/genetic_data/cn_metrics/; \
+    awk \
+        'BEGIN{ \
+            FS=\",\"; \
+            OFS=\"\t\"} \
+        { \
+            if((NR>2) && ($9 >= 0.3)){ \
+                print \"combat_" + batch_name + "\", $1 \
+            }\
+        }' \
+        " + cnmetricts_file_name + ".csv > " + batch_name + "_samples_filter_out_LogRDev.tsv; \
+    awk \
+        'BEGIN{FS=\"\t\"}{print $2}' \
+        " + batch_name + "_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
+        #load the CNMetrics CSV file into awk indicating that sep is ",", but the output should be tab
+        #print only from the third row (the two first have complicated headers) and only those rows for which the 9th column (the one with logR SD) is above the expectation (i.e., 0.3).
+            #from that rows, only print the first column, which is the ID.
+            #also print the name of the family first, because plink --remove needs a file with two columns, the family ID and the within-family ID
+                #in our case, the family ID is the batch name, which is "combat_" + batch_name
+                #this can be add as another column just with print and ""
+                    #https://stackoverflow.com/questions/7551991/add-a-new-column-to-the-file
+        #the resulting IDs of samples above the expectation can be saved as a TSV file
+        #also get the output in python
+            #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
+print(removed_samples_logRdev)
+
+print_text("remove these samples", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    mkdir \
+        --parents \
+        04_remove_high_LogRDev_samples; \
+    plink \
+        --bfile ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples \
+        --remove ../../cn_metrics/" + batch_name + "_samples_filter_out_LogRDev.tsv \
+        --make-bed \
+        --out ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples")
+            #create a new folder to save plink filesets after filtering
+            #then use --remove to remove samples included in a file with two columns: family id and within-family id.
+                #this file is in a different parent folder so we have to use "../"
+                #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+                    #https://www.cog-genomics.org/plink/1.9/filter
+
+print_text("check that the corresponding samples are indeed not included in the new fam file", header=4)
+fam_file_after_logRdev_filtering = pd.read_csv( \
+    "./data/genetic_data/quality_control/" + batch_name + "/04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples.fam", \
+    sep=" ", \
+    header=0, \
+    low_memory=False)
+print(sum(fam_file_after_logRdev_filtering[1].isin(removed_samples_logRdev)) == 0)
+    #no sample ID (second column in fam file) should be included in the list of IDs to be removed
+
+
+
+
 
 
 
 
 ##por aqui
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##filter by LogR SD
-#In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report."
-#in the CNMetrics, you can see how the three samples with more than 0.3 of LogR SD are the same with call rate < 0.99
-#however, in the the second batch, some of the samples with LogR SD < 0.3 have also call rate < 0.99 but not others, therefore we need to specifically filter by LogR SD in addition to call rate.
-#remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
 
 
 
@@ -2055,7 +2106,7 @@ for row_index, hh_case in hh_plink.iterrows():
 
 
 
-###when finished this script, you should check missing, hetero and PCA plots
+###when finished this script, you should check missing threholds, hetero and PCA plots
 
 
 
