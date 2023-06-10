@@ -236,8 +236,9 @@ n_cores = args.n_cores
 print_text("starting batch number " + batch_name + " using " + str(n_cores) + " cores ", header=1)
 
 
-print_text("do some checks on the plink files of the batch", header=2)
 
+
+print_text("do some checks on the plink files of the batch", header=2)
 print_text("get the total number of samples per batch:", header=3)
 if batch_name=="ILGSA24-17873":
     total_samples=1242
@@ -527,6 +528,8 @@ if batch_name == "ILGSA24-17873":
             #if both numbers are the same, then number of rows without the duplicated samples is exactly the same than the total number of rows, i.e., we do NOT have duplicated samples.
 
 
+
+
 print_text("Remove SNPs duplicated. We are going to remove first duplicates because this should not be affected by population structure", header=2)
 #Remember that plink considers duplicates by POSITION and ALLELES CODES. By default, this ignores A1/A2 allele assignments, since PLINK 1 normally does not preserve them. Therefore, two variants with identical positions and reversed allele assignments are considered duplicates. In our case, I am not sure what information uses Illumina to set the Allele 1 and 2 in the forward strand, but likely it is not REF/ANCESTRAL and plink 1 does not preserve A1/A2 allele assignments anyway. Therefore, we should not use this information and just consider as duplicates two SNPs with the same position and allele codes irrespectively of the allele1/allele2 assignment.
 #if two SNPs have the positions and allele codes, this is going to be irrespectively from the ancestry, this is in the SNP map of the whole batch, so all samples share the same information for these two SNPs in the map, except the genotype values, of course, and what allele is minor/major, but as I said, we are only using the position of the SNP the and the names of the alleles, not their assignment, so we should be fine.
@@ -777,9 +780,9 @@ else:
     raise ValueError("ERROR: FALSE! WE DO HAVE NA IN SNP IDS")
 
 
+
+
 print_text("filter SNPs by chromosome type", header=2)
-
-
 print_text("create folder to do operations", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/" + batch_name + "; \
@@ -1181,9 +1184,9 @@ print( \
     #no true should be present, so the sum should be zero
 
 
+
+
 print_text("GeneCall and GeneTrain scores", header=2)
-
-
 print_text("We are not going to use GeneCall and GeneTrain scores. See script for further details", header=3)
 #The GenCall score (GC) is a confidence measure assigned to each call which can be used to filter poor quality calls, SNPs or samples. Illumina generally recommend that calls with GC ≤ 0.15 represent failed genotypes. Averaged GC scores over all SNPs from a given sample, or across all samples for a given SNP can be used as sample or SNP quality metrics. A more commonly used sample quality metric is the 'no call rate'. For GenCall, genotypes with GC score less than a given threshold (0.15 in our analyses) are declared as missing. The proportion of missing values, or 'no calls' in each sample gives the no call rate; samples with higher rates are deemed less reliable than samples with lower rates. No call rates less than 1% should be expected for good quality samples which have been properly processed (Illumina Technical Support, personal communication).
     #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3063825/
@@ -1210,9 +1213,8 @@ print_text("We are not going to use GeneCall and GeneTrain scores. See script fo
     
 
 
+
 print_text("check no genetic position in map and select only snps", header=2)
-
-
 print_text("check no genetic position in the map, it should be 0 always", header=3)
 print(bim_chrom_filter.loc[:,2].unique() == 0)
     #Column 3 (named as 2 by python as is 0-based):
@@ -1261,6 +1263,7 @@ if (n_indels/bim_chrom_filter.shape[0])*100 < 5:
     print(f"We have lost {n_indels} rows after removing INDELS")
 else:
     raise ValueError("ERROR: FALSE! We have more than 5% of indels!!")
+
 
 
 
@@ -1609,18 +1612,20 @@ run_bash(
         #see SNP missing code to details about awk steps
 
 
-print_text("remove samples with LogR SD above the illumina expectation", header=3)
+
+
+print_text("remove samples with LogR SD above the illumina expectation", header=2)
 #In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
 #Some the samples above the expectation have also a call rate below 0.99, but not others, thus a specific filter is needed for this. Given that Illumina says that level of LogR SD is not normal, we should remove these individuals.
 
-print_text("process the file with the logR deviation", header=4)
+print_text("process the file with the logR deviation", header=3)
 if(batch_name == "ILGSA24-17873"):
     cnmetricts_file_name="CAGRF20093767_CNMetrics"
 elif(batch_name == "ILGSA24-17303"):
     cnmetricts_file_name="ILGSA24-17303_CNMetrics"
 print(cnmetricts_file_name)
 
-print_text("get the ID of samples above the illuina expectation for logR SD", header=4)
+print_text("get the ID of samples above the illuina expectation for logR SD", header=3)
 removed_samples_logRdev = run_bash(" \
     cd ./data/genetic_data/cn_metrics/; \
     awk \
@@ -1648,7 +1653,7 @@ removed_samples_logRdev = run_bash(" \
             #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
 print(removed_samples_logRdev)
 
-print_text("remove these samples", header=4)
+print_text("remove these samples", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/" + batch_name + "/; \
     mkdir \
@@ -1665,7 +1670,7 @@ run_bash(" \
                 #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
                     #https://www.cog-genomics.org/plink/1.9/filter
 
-print_text("check that the corresponding samples are indeed not included in the new fam file", header=4)
+print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
 fam_file_after_logRdev_filtering = pd.read_csv( \
     "./data/genetic_data/quality_control/" + batch_name + "/04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples.fam", \
     sep=" ", \
@@ -1674,144 +1679,70 @@ fam_file_after_logRdev_filtering = pd.read_csv( \
 print(sum(fam_file_after_logRdev_filtering[1].isin(removed_samples_logRdev)) == 0)
     #no sample ID (second column in fam file) should be included in the list of IDs to be removed
 
+print_text("see the number of samples removed", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    n_samples_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples.fam); \
+    n_samples_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples.fam); \
+    lost_samples=$(($n_samples_before - $n_samples_after)); \
+    lost_samples_percent=$( \
+        awk \
+            -v l=$lost_samples \
+            -v b=$n_samples_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_samples_percent < 2 || $lost_samples_percent -eq 0 ]]; then \
+        printf 'The number of samples lost due to logR SD above illumina expectations: %s' \"$lost_samples\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 2% of samples due logR SD above illumina expectations OR just zero samples removed, which would be also strange, maybe you are using the wrong CNMetric file';\
+    fi")
+        #see SNP missing code to details about awk steps
+        #just added another condition, if the number of removed samples is zero, get error because we have problematic samples for this in both batches, so maybe you are using the incorrect CNMetric file
+    
 
 
-
-
-
-
-
-##por aqui
-
-
-
-
-
-#####see tutorials
-#I guess we can then use PCA to remove outlier samples, also by heterogizogisty, maf.... those factors that can be influenced by ancestry
-#do plot hetero - missingness
-
-
-#after filtering for maf, you should not have any SNP with 0 in the allele column for minor. in that moment, we would have remove snps with very low minor frequencies.
-#look at the bim file the unique cases
-#bim_no_dups.loc[:, 4].unique()
-#bim_no_dups.loc[:, 5].unique()
-
-
-#sex (--check-sex) and hetero (--het) should be checked after PCA because accorindg to plink info, it can be problems if we have a sample with most of samples from one ancestry and then a few from another ancestry
-    #https://www.cog-genomics.org/plink/1.9/basic_stats
-
-    #R log is present in our data, so we could check prob intensity in X for a full detail sex determination, think about it.
-
-    #with sex check done, tell David about mismatches
-
-    #Warning: 30589 het. haploid genotypes present (see
-    #./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.hh );
-    #many commands treat these as missing.
-    #Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands treat these as missing.
-
-
-
-
-#FOR QUALITY CONTROL, YOU COULD USE MIGHIGGAN SERVER, WHICH ALREADY APPLIES MULTIPLE FILTERS like duplicates AND THEN ADD A FEW WITH PLINK, AUGUSTO DID THAT
-    #this michigan sever can be used also for imputing
-        #https://www.mdpi.com/2073-4425/14/2/248
-        #https://imputationserver.readthedocs.io/en/latest/pipeline/
-
-
-
-
-
-#duplicates
-#you can merge snps with the same position merging the fileset with itself and using --merge-equal-pos
-    #If two variants have the same position, PLINK 1.9's merge commands will always notify you. If you wish to try to merge them, use --merge-equal-pos. (This will fail if any of the same-position variant pairs do not have matching allele names.) Unplaced variants (chromosome code 0) are not considered by --merge-equal-pos.
-    #Note that you are permitted to merge a fileset with itself; doing so with --merge-equal-pos can be worthwhile when working with data containing redundant loci for quality control purposes.
-
-
-
-
-
-
-
-
-
-
-
-
-#you could end this script by creating the missingness-heterogizosity rate plot and the PCA
-#then use the information of both approaches to remove samples because different ancestry (outlier PCA), contamination (high hetero) or inbreeding (low hetero)
-#yes, hetero can be influenced by ancestry, but I am going to use the threshold of the tutorial and if this is not ok for other ancestries, we can check if the outlier hetero are from other ancestries
-    #see tutorials
 
 print_text("start PCA to detect individuals that are outliers", header=2)
-
 print_text("prepare folder for PCA", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    ls -l; \
+    cd ./data/genetic_data/quality_control/" + batch_name + "; \
     mkdir \
         --parents \
-        " + batch_name + "/pca; \
-    ls -lR")
-        #ls -R is for recursive
+        ./05_pca; \
+    ls -l")
 
 
-#read the two summary illumina reports once you have both and understand the quality checks done looking at biostars
-    #ILGSA24-17303 Report v1.0.pdf
 
-
-#if you are going to use pheno data, clean the file using a different script!!!
-    #change the name of the 2399LDJA for 2397LDJA in the excel file with phenotype data.
-        #if we change the ID in illumina, we would have to change the FinalReport, SampleMap, sample_sheet.... and the new data we receive from illumina (IDAT files of the first batch) would need to be changed also. Therefore, it is much more complicated.
-    #check if the fact you did not change dtype of week 8 test beep to float in script 1, could be a problem
-        #save pheno_data after the cleaning?
-    #CHECK THE QUESTIONS TO DAVID about pheno
-
-print_text("decompress merged data", header=2)
+print_text("run PCA to detect clusters of samples", header=3)
 run_bash("\
-    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
-    gunzip \
-        --keep \
-        --force merged_batches*.gz")
-
-
-print_text("create folder to save pca", header=2)
-run_bash(" \
-    cd ./data/genetic_data/; \
-    rm -rf quality_control/pca; \
-    mkdir -p quality_control/pca")
-
-
-print_text("run PCA to detect clusters of samples", header=2)
-run_bash("\
-    cd ./data/genetic_data/; \
+    cd ./data/genetic_data/quality_control/" + batch_name + "; \
     plink \
         --pca \
             'tabs' \
             'header' \
-        --bfile ./plink_bed_files/merged_batches/merged_plink_files/merged_batches \
-        --out ./quality_control/pca/first_pca")
+        --bfile ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples \
+        --out ./05_pca/pca_after_logR_filter")
         #dimensionality reduction
             #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
             #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
             #By default, --pca extracts the top 20 principal components of the variance-standardized relationship matrix; you can change the number by passing a numeric parameter. Eigenvectors are written to plink.eigenvec, and top eigenvalues are written to plink.eigenval. 
             #The 'header' modifier adds a header line to the .eigenvec file(s), and the 'tabs' modifier makes the .eigenvec file(s) tab- instead of space-delimited.
-            #https://www.cog-genomics.org/plink/1.9/strat#pca
+                #https://www.cog-genomics.org/plink/1.9/strat#pca
 
 
 
-##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
-    #look tutorials
-    #https://www.cog-genomics.org/plink/1.9/strat
-
-
-#load the eigenvec file generated
-import pandas as pd
-first_pca=pd.read_csv(\
-    "./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca/first_pca.eigenvec", \
+print_text("load the eigenvec file generated", header=3)
+pca_after_logR_filter=pd.read_csv(\
+    "./data/genetic_data/quality_control/" + batch_name + "/05_pca/pca_after_logR_filter.eigenvec", \
     sep="\t", \
     header=0, \
     low_memory=False)
+pca_after_logR_filter
         #Produced by --pca. Accompanied by an .eigenval file, which contains one eigenvalue per line.
         #The .eigenvec file 
             #is, by default, a space-delimited text file with no header line and 2+V columns per sample, where V is the number of requested principal components. 
@@ -1819,77 +1750,84 @@ first_pca=pd.read_csv(\
             #The first two columns are the sample's FID/IID, and the rest are principal component weights in the same order as the .eigenval values (if the header line is present, these columns are titled 'PC1', 'PC2', ...).
         #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
 
-#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
-pheno_data = pd.read_excel(
-    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
-    header=0,
-    sheet_name="All DNA samples")
-print(pheno_data)
 
-#there are several phenotypes, see 01a_illumina_report_to_plink_DEV.py for details about possible errors.
-#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
 
-#beep test 8 has an error, "o" letter instead "0" number in one sample
-print("\n#####################\n#####################")
-print("Week 8 beep test for a sample is 11.1O, i.e., letter O instead number 0")
-print("#####################\n#####################")
-import numpy as np
-index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
-index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
-print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
-print(pheno_data.iloc[index_problematic_sample,:])
-
-#change 11.1O for 11.10
-print("\n#####################\n#####################")
-print("error solved")
-print("#####################\n#####################")
-pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
-print(pheno_data.iloc[index_problematic_sample,:])
-
-#change the type of phenotype that is not float but it should be
-pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype("float64")
-    #this column had a row with 11.1O, i.e., letter "O" instead of number "0", so python did not consider this column as float.
-
-#calculate differences
-pheno_data["body_mass_diff"] = pheno_data["Week 8 Body Mass"] - pheno_data["Week 1 Body Mass"]
-pheno_data["beep_test_diff"] = pheno_data["Week 8 beep test"] - pheno_data["Week 1 Beep test"]
-pheno_data["vo2max_diff"] = pheno_data["Week 8 Pred VO2max"] - pheno_data["Week 1 Pred VO2max"]
-
-#merge genetic and phenotypic data
-pca_pheno = pd.merge(
-    right=first_pca,
-    left=pheno_data,
-    how="right",
-    right_on="IID",
-    left_on="AGRF code")
-    #merge genetic data with phenotypes, selecting only those samples for which we have genetic data, now we are interested in cleaning genetic data
-        #https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
-
-#
-samples_lost_in_pheno = pca_pheno.loc[pca_pheno["AGRF code"].isna(), "IID"]
-print("All IDs in illumina data are in pheno data? " + str(samples_lost_in_pheno.shape[0] == 0))
-print("How many? " + str(samples_lost_in_pheno.shape[0]))
-print("It is ok to have False in this check, because we already knew that some samples had illumina report but where not included in pheno_data. The output script for the first batch shows that 1 sample has genetic data but it is not present in pheno_data (2397LDJA). In the second batch, the output script shows 6 samples with genetic but no pheno_data. In the PCA, we only have one 1 missing sample, so I guess the 6 missing samples of the second batch were those duplicated, i.e., those named as ID_1 and ID_2....")
-
-#make interactive plot of the two first PCAs, so you can zoom in
+print_text("make interactive plot of the two first PCAs, so you can zoom in", header=3)
 import plotly.express as px
 fig = px.scatter(\
-    data_frame=pca_pheno, \
+    data_frame=pca_after_logR_filter, \
     x="PC1", \
     y="PC2", \
     color="FID",
     hover_data=[\
-        "IID", \
-        "body_mass_diff", \
-        "beep_test_diff", \
-        "vo2max_diff"])
+        "IID"])
         #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
         #https://plotly.com/python/line-and-scatter/
         #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
 #fig.show()
-fig.write_html("./data/genetic_data/plink_bed_files/merged_batches/merged_batches_pca/pca_plot.html")
+fig.write_html("./data/genetic_data/quality_control/" + batch_name + "/05_pca/pca_after_logR_filter_plot.html")
     #https://plotly.com/python/interactive-html-export/
 
+
+#Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
+    #general tutorial gwas
+
+#ritche says to filter snps used in PCA by MAF and LD..., use eigensoft... see the vairance of the PCA axes to select those included in the models...
+
+#Once you have LD-pruned and MAF-filtered your dataset, PLINK 2’s –pca command has a good shot of revealing large-scale population structure
+    #EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure
+    #If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding
+    #plink tutorial
+
+
+#SNPs with Minor Allele Frequency (MAF) > 0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n = 10). 
+    #paper VO2 max
+
+
+#POR AQUII
+#IT SEEMS THAT MAF FILTERING IS REUQIRED TO DO PCA!
+#LD FILTER?
+
+
+##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
+    #look tutorials
+    #https://www.cog-genomics.org/plink/1.9/strat
+
+
+
+
+###when finished this script, you should check missing threholds, hetero and PCA plots
+
+
+
+
+
+
+
+
+
+
+########################################################################
+#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
+########################################################################
+
+
+
+#you could end this script by creating the missingness-heterogizosity rate plot and the PCA
+#yes, hetero can be influenced by ancestry, but I am going to use the threshold of the tutorial and if this is not ok for other ancestries, we can check if the outlier hetero are from other ancestries
+    #see tutorials
+
+#I guess we can then use PCA to remove outlier samples because of ancestry issues, also by heterogizogisty, maf.... those factors that can be influenced by ancestry
+#do plot hetero - missingness
+#use the information of both approaches to remove samples because different ancestry (outlier PCA), contamination (high hetero) or inbreeding (low hetero)
+
+#####see tutorials
+
+
+#after filtering for maf, you should not have any SNP with 0 in the allele column for minor. in that moment, we would have remove snps with very low minor frequencies.
+#look at the bim file the unique cases
+#bim_no_dups.loc[:, 4].unique()
+#bim_no_dups.loc[:, 5].unique()
 
 
 
@@ -1991,9 +1929,17 @@ subset_mismatch.to_csv("sample_sex_mimatch.txt",
     header=True,
     index=False)
 
+#sex (--check-sex) and hetero (--het) should be checked after PCA because accorindg to plink info, it can be problems if we have a sample with most of samples from one ancestry and then a few from another ancestry
+    #https://www.cog-genomics.org/plink/1.9/basic_stats
 
+    #R log is present in our data, so we could check prob intensity in X for a full detail sex determination, think about it.
 
+    #with sex check done, tell David about mismatches
 
+    #Warning: 30589 het. haploid genotypes present (see
+    #./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.hh );
+    #many commands treat these as missing.
+    #Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands treat these as missing.
 
 
 ##CHECK ALL OF THIS
@@ -2086,45 +2032,66 @@ for row_index, hh_case in hh_plink.iterrows():
 
 
 
+##then PCA with pheno to check correlation pheno - genetic structure?
+#you can use your plotting approach in python to see pheno and genetic structure
+
+#if you are going to use pheno data, clean the file using a different script!!!
+    #change the name of the 2399LDJA for 2397LDJA in the excel file with phenotype data.
+        #if we change the ID in illumina, we would have to change the FinalReport, SampleMap, sample_sheet.... and the new data we receive from illumina (IDAT files of the first batch) would need to be changed also. Therefore, it is much more complicated.
+    #check if the fact you did not change dtype of week 8 test beep to float in script 1, could be a problem
+        #save pheno_data after the cleaning?
+    #CHECK THE QUESTIONS TO DAVID about pheno
 
 
+#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
+pheno_data = pd.read_excel(
+    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+print(pheno_data)
 
+#there are several phenotypes, see 01a_illumina_report_to_plink_DEV.py for details about possible errors.
+#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
 
+#beep test 8 has an error, "o" letter instead "0" number in one sample
+print("\n#####################\n#####################")
+print("Week 8 beep test for a sample is 11.1O, i.e., letter O instead number 0")
+print("#####################\n#####################")
+import numpy as np
+index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
+index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
+print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
+print(pheno_data.iloc[index_problematic_sample,:])
 
+#change 11.1O for 11.10
+print("\n#####################\n#####################")
+print("error solved")
+print("#####################\n#####################")
+pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
+print(pheno_data.iloc[index_problematic_sample,:])
 
+#change the type of phenotype that is not float but it should be
+pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype("float64")
+    #this column had a row with 11.1O, i.e., letter "O" instead of number "0", so python did not consider this column as float.
 
+#calculate differences
+pheno_data["body_mass_diff"] = pheno_data["Week 8 Body Mass"] - pheno_data["Week 1 Body Mass"]
+pheno_data["beep_test_diff"] = pheno_data["Week 8 beep test"] - pheno_data["Week 1 Beep test"]
+pheno_data["vo2max_diff"] = pheno_data["Week 8 Pred VO2max"] - pheno_data["Week 1 Pred VO2max"]
 
+#merge genetic and phenotypic data
+pca_pheno = pd.merge(
+    right=first_pca,
+    left=pheno_data,
+    how="right",
+    right_on="IID",
+    left_on="AGRF code")
+    #merge genetic data with phenotypes, selecting only those samples for which we have genetic data, now we are interested in cleaning genetic data
+        #https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
 
-    
+#
+samples_lost_in_pheno = pca_pheno.loc[pca_pheno["AGRF code"].isna(), "IID"]
+print("All IDs in illumina data are in pheno data? " + str(samples_lost_in_pheno.shape[0] == 0))
+print("How many? " + str(samples_lost_in_pheno.shape[0]))
+print("It is ok to have False in this check, because we already knew that some samples had illumina report but where not included in pheno_data. The output script for the first batch shows that 1 sample has genetic data but it is not present in pheno_data (2397LDJA). In the second batch, the output script shows 6 samples with genetic but no pheno_data. In the PCA, we only have one 1 missing sample, so I guess the 6 missing samples of the second batch were those duplicated, i.e., those named as ID_1 and ID_2....")
 
-
-
-
-
-
-
-
-
-
-###when finished this script, you should check missing threholds, hetero and PCA plots
-
-
-
-
-
-
-#open a pool
-if n_cores==None:
-    pool_processors = None
-        #This uses all cores available
-else:
-    pool_processors = int(n_cores)
-import multiprocessing as mp
-pool = mp.Pool(processes=pool_processors)
-
-
-
-
-########################################################################
-#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
-########################################################################
