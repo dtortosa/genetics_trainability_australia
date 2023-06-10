@@ -41,8 +41,13 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#https://www.cog-genomics.org/plink/
 	/home/dftortosa/singularity/australian_army_bishop/plink_versions/plink_linux_x86_64_20230116/plink /bin/plink
 
+	#copy the binary of plink2 (Alpha 4.2 final (31 May)) and save it in /bin so we can use the command "plink"
+	#https://www.cog-genomics.org/plink/2.0/
+	/home/dftortosa/singularity/australian_army_bishop/plink_versions/plink2_linux_x86_64_20230531/plink2 /bin/plink2
+
 	#copy script
-	/home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/02a_merging_batches_quality_control.py /opt/scripts/02a_merging_batches_quality_control.py
+	/home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/02a_pre_imputation_qc.py /opt/scripts/02a_pre_imputation_qc.py
+	/home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/02c_post_imputation_qc.py /opt/scripts/02c_post_imputation_qc.py
 
     #From the original folder in the host, we copy a R script to a new folder in the container called scripts. NEVER PUT ANYTHING ELSE IN THE LINE WITH SOURCE AND DESTINATION, GIVES ERROR.
     #https://groups.google.com/a/lbl.gov/forum/#!topic/singularity/4NFDsohnxgg
@@ -211,14 +216,14 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 
 #Command to build, enter interactively or run
 	#now apply the definition file final_test_def for creating a container
-		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_merging_batches_quality_control.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/02_merging_batches_quality_control.def
+		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_pre_post_input_qc.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/02_pre_post_input_qc.def
 			#In the definition file is indicate that we will take an Ubuntu 20.04 container from the Singularity library. We do not need anything else. We do not need a previous image in the host system! The definition file has the instructions to get the required container from the library.
 	#you can run this image interactively with shell. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_merging_batches_quality_control.sif
+		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_pre_post_input_qc.sif
 	#to run the container. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_merging_batches_quality_control.sif
+		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_pre_post_input_qc.sif
 
 %labels
     Author dftortosa

@@ -1707,6 +1707,104 @@ run_bash(
 
 
 
+print_text("sample relatdness", header=2)
+#the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+#sample relatedness is also explained before than population substructure in Ritchie's tutorial. Indeed, they also talk about LD pruning, which is an step needed for selecting SNPs for the PCA.
+    #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
+#In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the MAF filtering and PCA
+    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+
+
+
+
+#para king we do not need to LD prune, it is NOT recommended
+    #Please do not prune or filter any "good" SNPs that pass QC prior to any KING inference, unless the number of variants is too many to fit the computer memory, e.g., > 100,000,000 as in a WGS study, in which case rare variants can be filtered out. LD pruning is not recommended in KING.
+        #https://www.kingrelatedness.com/manual.shtml
+
+
+#you coud filter by IBD as the VO2 max paper did usin plink, but you need to do LD prunning before
+    #https://www.cog-genomics.org/plink/1.9/ibd
+
+#if you do the full exploration of ritiche tutorial, you need to select a subset of SNPs in equilibrium, but this will not be the set used for further analyses!!! just for exploring relatedness
+
+#maybe we can just use king in plink
+    #From Ritchie tutorial: 
+        #Retaining a maximal set of unrelated individuals is computationally expensive (NP-hard), but an efficient greedy approximation is available in PLINK 2.0 using the --king-cutoff flag (as opposed to just removing one of each pair of related individuals) (Garey & Johnson, 1978).
+
+
+run_bash(" \
+    cd /home/dftortosa/Desktop; \
+    plink2 \
+        --bfile " + batch_name + "_remove_high_LogRDev_samples \
+        --king-cutoff 0.177 \
+        --make-bed \
+        --out " + batch_name + "_removed_related")
+        #check general usage of plink2
+
+        #maybe it would be good idea to calculate pi-hat to see if we have parents-siblings or just siblings....
+
+        #The exception is that KING-robust underestimates kinship when the parents are from very different populations. You may want to have some special handling of this case; --pca can help detect it.
+
+        #Note that KING kinship coefficients are scaled such that duplicate samples have kinship 0.5, not 1. First-degree relations (parent-child, full siblings) correspond to ~0.25, second-degree relations correspond to ~0.125, etc. It is conventional to use a cutoff of ~0.354 (the geometric mean of 0.5 and 0.25) to screen for monozygotic twins and duplicate samples, ~0.177 to add first-degree relations, etc.
+
+        #PLINK tries to maximize the final sample size, but this maximum independent set problem is NP-hard, so we use a greedy algorithm which does not guarantee an optimal result. In practice, --king-cutoff does yield a maximum set whenever there aren't too many intertwined close relations, but if you want to try to beat it (or optimize a fancier function that takes the exact kinship-coefficient values into account), use the --make-king and --keep/--remove flags and patch your preferred algorithm in between.
+
+        #The same samples are removed with threshold 0.354 and 4. Maybe these are duplicated samples?
+            #only 3 more samples are removed with 0.177, i.e., when removing first-degree relations (parent–child and sibling–sibling)
+
+
+
+        #https://www.cog-genomics.org/plink/2.0/distance#make_king
+
+
+
+
+
+#POR AQUII
+
+### NOW MAF
+
+#LD seem to be done before PCA, but also HWE? plink tutorial does but not ritche tutorial doing after imputation, also Augusot paper does it after imptuation
+
+#the plink tutorials says to do it before and after PCA: 
+    #The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner (so the fewer-hets-than-expected variants that one would expect from population stratification would not be filtered out by this command)
+    #if a snAfter you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.p can violate HWE becuase pop structure, should be control (remove ancestry outliers) before filtering for HWE.
+#the VO2 max paper does HWE before PCA
+
+
+
+#Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
+    #general tutorial gwas
+
+
+#several tutorials say that the MAF (and LD) filtering should be done before the PCA, then filter by MAF again after imputation
+    #not sure if LD prunning should be done in general or only for the snps of the PCA
+    #see EIGENSOFT
+
+    #ritche says to filter snps used in PCA by MAF and LD..., use eigensoft... see the vairance of the PCA axes to select those included in the models...
+    
+    #Once you have LD-pruned and MAF-filtered your dataset, PLINK 2’s –pca command has a good shot of revealing large-scale population structure
+        #EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure
+        #If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding
+        #plink tutorial
+
+    #SNPs with Minor Allele Frequency (MAF)>0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n=10). 
+        #paper VO2 max
+
+
+
+
+#after filtering for maf, you should not have any SNP with 0 in the allele column for minor. in that moment, we would have remove snps with very low minor frequencies.
+#look at the bim file the unique cases
+#bim_no_dups.loc[:, 4].unique()
+#bim_no_dups.loc[:, 5].unique()
+
+
+
+
+##CHANGE NAME OF THE FOLDER PCA, THIS IS NO LONGER THE 5TH
+
 print_text("start PCA to detect individuals that are outliers", header=2)
 print_text("prepare folder for PCA", header=3)
 run_bash(" \
@@ -1769,24 +1867,14 @@ fig.write_html("./data/genetic_data/quality_control/" + batch_name + "/05_pca/pc
     #https://plotly.com/python/interactive-html-export/
 
 
-#Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
-    #general tutorial gwas
-
-#ritche says to filter snps used in PCA by MAF and LD..., use eigensoft... see the vairance of the PCA axes to select those included in the models...
-
-#Once you have LD-pruned and MAF-filtered your dataset, PLINK 2’s –pca command has a good shot of revealing large-scale population structure
-    #EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure
-    #If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding
-    #plink tutorial
 
 
-#SNPs with Minor Allele Frequency (MAF) > 0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n = 10). 
-    #paper VO2 max
 
 
-#POR AQUII
-#IT SEEMS THAT MAF FILTERING IS REUQIRED TO DO PCA!
-#LD FILTER?
+
+
+
+
 
 
 ##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
@@ -1824,10 +1912,6 @@ fig.write_html("./data/genetic_data/quality_control/" + batch_name + "/05_pca/pc
 #####see tutorials
 
 
-#after filtering for maf, you should not have any SNP with 0 in the allele column for minor. in that moment, we would have remove snps with very low minor frequencies.
-#look at the bim file the unique cases
-#bim_no_dups.loc[:, 4].unique()
-#bim_no_dups.loc[:, 5].unique()
 
 
 
