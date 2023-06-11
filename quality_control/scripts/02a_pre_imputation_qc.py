@@ -1707,63 +1707,106 @@ run_bash(
 
 
 
-print_text("sample relatdness", header=2)
+print_text("MAF filtering", header=2)
+#I wasn't sure whether to remove related samples before or after the MAF filtering:
+    #The VO2 max paper seems to remove related samples before and plink tutorial remove related samples before MAF filtering
+    #In contrast, the Ritche tutorial consider the filter by MAF, SNP and sample call rate as a package called "Standard Quality Control", being explained before sample relatedness.
+    #The most important argument I have found to do MAF before is the following:
+        #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
+            #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
+        #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    mkdir \
+        --parents \
+        ./05_remove_low_maf/; \
+    plink2 \
+        --bfile ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples \
+        --maf 0.05 \
+        --make-bed \
+        --out ./05_remove_low_maf/" + batch_name + "_remove_low_maf")
+            #create a new folder to save filesets after removing related samples
+            #apply the MAF filter to the fileset filtered for logR SD
+                #--maf filters out all variants with minor allele frequency below the provided threshold (default 0.01), while --max-maf imposes an upper MAF bound. Similarly, --mac and --max-mac impose lower and upper minor allele count bounds, respectively.
+                    #https://www.cog-genomics.org/plink/1.9/filter
+
+##por aquii
+
+#too much snps removed, half of them with MAF<0.05!! much less with 0.01
+    #the PRS tutorials recommend to remove SNPs with MAF < 0.05 if the target sample is below 1000 samples, in the rest of cases MAF<0.01. Our target would be the what? the VO2 max study? they have 500... if the target is our study, then we are above 1000
+        #in the VO2 max study they used MAF<0.05
+        #it makes sense, larger sample sizes give less power to detect SNPs between MAF 0.05 - 0.01 
+    #maybe having both batches together would give us more samples and less probability to have low MAF? we could do just check batch effects with PCA
+        #see plink
+            #You will usually want to sanity-check the output at this point, and verify that the top principal components do not correlate too strongly with, e.g., sequencing facility or date. (A full discussion of “batch effects” and how to deal with them could take up an entire chapter; worst case, you may have to analyze your batches separately, or even redo all genotyping/sequencing from scratch. I will be optimistic here and suppose that no major problem was uncovered by PCA, but be aware that this is frequently your best chance to catch data problems that would otherwise sink your entire analysis.)
+
+
+
+
+###por aqui
+
+
+print_text("sample relatedness", header=2)
 #the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 #sample relatedness is also explained before than population substructure in Ritchie's tutorial. Indeed, they also talk about LD pruning, which is an step needed for selecting SNPs for the PCA.
     #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
-#In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the MAF filtering and PCA
+#In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the PCA
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-
-
-
-
-#para king we do not need to LD prune, it is NOT recommended
-    #Please do not prune or filter any "good" SNPs that pass QC prior to any KING inference, unless the number of variants is too many to fit the computer memory, e.g., > 100,000,000 as in a WGS study, in which case rare variants can be filtered out. LD pruning is not recommended in KING.
-        #https://www.kingrelatedness.com/manual.shtml
-
-
-#you coud filter by IBD as the VO2 max paper did usin plink, but you need to do LD prunning before
-    #https://www.cog-genomics.org/plink/1.9/ibd
-
-#if you do the full exploration of ritiche tutorial, you need to select a subset of SNPs in equilibrium, but this will not be the set used for further analyses!!! just for exploring relatedness
-
-#maybe we can just use king in plink
-    #From Ritchie tutorial: 
-        #Retaining a maximal set of unrelated individuals is computationally expensive (NP-hard), but an efficient greedy approximation is available in PLINK 2.0 using the --king-cutoff flag (as opposed to just removing one of each pair of related individuals) (Garey & Johnson, 1978).
-
-
-run_bash(" \
-    cd /home/dftortosa/Desktop; \
-    plink2 \
-        --bfile " + batch_name + "_remove_high_LogRDev_samples \
-        --king-cutoff 0.177 \
-        --make-bed \
-        --out " + batch_name + "_removed_related")
-        #check general usage of plink2
-
-        #maybe it would be good idea to calculate pi-hat to see if we have parents-siblings or just siblings....
-
-        #The exception is that KING-robust underestimates kinship when the parents are from very different populations. You may want to have some special handling of this case; --pca can help detect it.
-
-        #Note that KING kinship coefficients are scaled such that duplicate samples have kinship 0.5, not 1. First-degree relations (parent-child, full siblings) correspond to ~0.25, second-degree relations correspond to ~0.125, etc. It is conventional to use a cutoff of ~0.354 (the geometric mean of 0.5 and 0.25) to screen for monozygotic twins and duplicate samples, ~0.177 to add first-degree relations, etc.
-
-        #PLINK tries to maximize the final sample size, but this maximum independent set problem is NP-hard, so we use a greedy algorithm which does not guarantee an optimal result. In practice, --king-cutoff does yield a maximum set whenever there aren't too many intertwined close relations, but if you want to try to beat it (or optimize a fancier function that takes the exact kinship-coefficient values into account), use the --make-king and --keep/--remove flags and patch your preferred algorithm in between.
-
-        #The same samples are removed with threshold 0.354 and 4. Maybe these are duplicated samples?
-            #only 3 more samples are removed with 0.177, i.e., when removing first-degree relations (parent–child and sibling–sibling)
-
-
-
-        #https://www.cog-genomics.org/plink/2.0/distance#make_king
-
-
-
 
 
 #POR AQUII
 
-### NOW MAF
+
+
+#READ sample relatedness from Ritche
+#calculate IBD and pi-hat with KING? 
+#you have samples with very high similarity, so we should have enough arugments to remove them? the plots of pi-hat and IBD could be useful, but THINK
+
+
+print_text("run KING-robust with plink2", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    mkdir \
+        --parents \
+        ./06_remove_related/; \
+    plink2 \
+        --bfile ./05_remove_low_maf/" + batch_name + "_remove_low_maf \
+        --king-cutoff 0.177 \
+        --make-bed \
+        --out ./06_remove_related/" + batch_name + "_remove_related")
+            #create a new folder to save filesets after removing related samples
+            #apply the KING-robust method to the fileset filtered for logR SD
+                #
+                #https://www.cog-genomics.org/plink/2.0/distance#make_king
+
+
+        #check general usage of plink2 and king
+
+            #it seems this approach tris to balance between getting a subset of unrelated samples and speed. This does not just remove one sample of each related pair
+
+            #Please do not prune or filter any "good" SNPs that pass QC prior to any KING inference, unless the number of variants is too many to fit the computer memory, e.g., > 100,000,000 as in a WGS study, in which case rare variants can be filtered out. LD pruning is not recommended in KING.
+                #https://www.kingrelatedness.com/manual.shtml
+
+            #LOOK to this ancestry problem:
+                #The exception is that KING-robust underestimates kinship when the parents are from very different populations. You may want to have some special handling of this case; --pca can help detect it.
+
+            #The same samples are removed with threshold 0.354 and 4. Maybe these are duplicated samples?
+                #only 3 more samples are removed with 0.177, i.e., when removing first-degree relations (parent–child and sibling–sibling)
+
+
+
+
+
+
+
+
+
+
+
+#LD equlibbrium es solo para un subset que se usa solo para PCA!! no para el resto de analisis!
 
 #LD seem to be done before PCA, but also HWE? plink tutorial does but not ritche tutorial doing after imputation, also Augusot paper does it after imptuation
 

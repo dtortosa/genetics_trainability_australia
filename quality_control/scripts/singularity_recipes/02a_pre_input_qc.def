@@ -5,7 +5,7 @@
 
 Bootstrap: library #It determines the bootstrap agent that will be used to create the base operating system you want to use. For example, the library bootstrap agent will pull a container from the Container Library. 
 
-From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword becomes valid. You indicate the container you want from the library. This will be downloaded and build. 
+From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword becomes valid. You indicate the container you want from the library. This will be downloaded and build. #it seem deadsnakes for downloading python does not work anymore with ubuntu 18.04, so we use ubuntu 20.04 #https://stackoverflow.com/a/64353748/12772630 
 
 
 
@@ -47,7 +47,6 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 
 	#copy script
 	/home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/02a_pre_imputation_qc.py /opt/scripts/02a_pre_imputation_qc.py
-	/home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/02c_post_imputation_qc.py /opt/scripts/02c_post_imputation_qc.py
 
     #From the original folder in the host, we copy a R script to a new folder in the container called scripts. NEVER PUT ANYTHING ELSE IN THE LINE WITH SOURCE AND DESTINATION, GIVES ERROR.
     #https://groups.google.com/a/lbl.gov/forum/#!topic/singularity/4NFDsohnxgg
@@ -152,7 +151,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	#pip3.9 install --upgrade pandas
 	
 	#give rights to run the bash script
-	chmod +x opt/scripts/02a_merging_batches_quality_control.py
+	chmod +x opt/scripts/02a_pre_imputation_qc.py
 	
 
 
@@ -205,7 +204,7 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 	
 	#run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
 	#run first the smallest batch with all cores and then the second batch. If we do it in parallel both batches with half of the cores, then the smallest one will be finished early and its cores will not be used by the other batch.
-	/opt/scripts/./02a_merging_batches_quality_control.py > ./02a_merging_batches_quality_control.out 2>&1
+	/opt/scripts/./02a_pre_imputation_qc.py > ./02a_pre_imputation_qc.out 2>&1
 
 
 
@@ -216,14 +215,14 @@ From: ubuntu:18.04 #When using the library bootstrap agent, the From keyword bec
 
 #Command to build, enter interactively or run
 	#now apply the definition file final_test_def for creating a container
-		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_pre_post_input_qc.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/02_pre_post_input_qc.def
+		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02a_pre_input_qc.sif /home/dftortosa/singularity/australian_army_bishop/quality_control/scripts/singularity_recipes/02a_pre_input_qc.def
 			#In the definition file is indicate that we will take an Ubuntu 20.04 container from the Singularity library. We do not need anything else. We do not need a previous image in the host system! The definition file has the instructions to get the required container from the library.
 	#you can run this image interactively with shell. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_pre_post_input_qc.sif
+		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02a_pre_input_qc.sif
 	#to run the container. For that you have to be in a specific folder in order to have the scripts workingnter in the container
 		#cd /home/dftortosa/singularity/australian_army_bishop/quality_control
-		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02_pre_post_input_qc.sif
+		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/quality_control/singularity_containers/02a_pre_input_qc.sif
 
 %labels
     Author dftortosa
