@@ -932,8 +932,6 @@ n_snps = int(n_snps)
 print(n_snps == 654027)
 
 
-##por aquiii
-
 
 print_text("check SNPs IDs are not duplicated, as plink 1.9 does not look for duplicates using the ID", header=3)
 run_bash(" \
@@ -963,10 +961,11 @@ run_bash(" \
             #https://stackoverflow.com/a/32085039/12772630
 
 
+
 print_text("check again SNPs IDs are not duplicated using pandas", header=3)
 sum( \
     pd.read_csv( \
-        "./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/" + batch_name + "_merged_data.bim.gz", \
+        "./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim", \
         sep="\t", \
         header=None, \
         low_memory=False) \
@@ -981,13 +980,35 @@ sum( \
         #the sum of Trues should be zero
 
 
-print_text("load the duplicates list obtained in '01b_illumina_report_to_plink.py' with the options '        --list-duplicate-vars suppress-first ids-only'. Therefore, for each group of SNPs with the same position and alleles, the first one is not included in the list, but the rest are and these are the one that will be removed", header=3)
+
+print_text("list duplicated SNPs", header=3)
+run_bash(" \
+    cd ./data/genetic_data/; \
+    mkdir \
+        --parents \
+        ./quality_control/00_snp_duplicates/; \
+    plink \
+        --bfile ./plink_bed_files/merged_batches/merged_plink_files/merged_batches \
+        --list-duplicate-vars suppress-first ids-only\
+        --out  ./quality_control/00_snp_duplicates/list_duplicates; \
+    ls -l ./quality_control/00_snp_duplicates/")
+        #list-duplicate-vars to list duplicates by POSITION and ALLELES CODES. By default, this ignores A1/A2 allele assignments, since PLINK 1 normally does not preserve them. Therefore, two variants with identical positions and reversed allele assignments are considered duplicates. To avoid this, you have to use "use the 'require-same-ref' modifier, along with --keep-allele-order/--a2-allele". In our case, I am not sure what information uses Illumina to set the Allele 1 and 2 in the forward strand, but likely it is not REF/ANCESTRAL and plink 1 does not preserve A1/A2 allele assignments anyway. Therefore, we should not use this information and just consider as duplicates two SNPs with the same position and allele codes irrespectively of the allele1/allele2 assignment.
+            #suppress-first prevents the first variant in each group from being reported (since, if you're removing duplicates, you probably want to keep one member of each group).
+            #ids-only modifier removes the header and the position/allele columns, so the generated list can be used as input for --exclude
+                #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
+        #in plink 2 you can also look for duplicates in ID, but we already check SNP names duplicates with spark and it is seems is ok
+
+
+
+print_text("load the files with duplicates into pandas", header=3)
 duplicate_cases = pd.read_csv(
-    "./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar", 
+    "./data/genetic_data/quality_control/00_snp_duplicates/list_duplicates.dupvar", 
     sep="\t", 
     header=None,
     low_memory=False)
 print(duplicate_cases)
+
+
 
 print_text("the file generated has in each row ALL snps that have the same position and alleles, except the first one, thus, the number of rows it is not the total number of duplicates. Therefore, we need also to know the number of snps in each row.", header=3)
 print("For example: GSA-rs142775857 rs184047537 rs200286606")
@@ -1004,9 +1025,10 @@ print(n_duplicates_plink)
 print(f"The number of duplicates is {(n_duplicates_plink/n_snps)*100} percent respect to the total number of SNPs")
 
 
-print_text("calculate the number of duplicates with pandas and check is the same than plink duplicates. As we want to consider as duplicates SNPs with the same alleles, irrespectively of the assigment, we need to create a new column where we get both alleles in the same order independenlty if allele 1 is A or T. Therefore A1=A and A2=T will be the same than A1=T and A2=A, i.e., AT.", header=3)
+
+print_text("calculate the number of duplicates with pandas and check is the same than plink duplicates. As we want to consider as duplicates SNPs with the same alleles, irrespectively of the assigment, we need to create a new column where we get both alleles in the same order independently if allele 1 is A or T. Therefore A1=A and A2=T will be the same than A1=T and A2=A, i.e., AT.", header=3)
 bim_file_dup_check = pd.read_csv( \
-        "./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/" + batch_name + "_merged_data.bim.gz", \
+        "./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim", \
         sep="\t", \
         header=None, \
         low_memory=False)
@@ -1021,7 +1043,7 @@ def alleles_no_assigment(row):
         #join without space
             #https://stackoverflow.com/a/12453584/12772630
 #apply the function per row so you can access the alleles of each SNP
-bim_file_dup_check["new_alleles"] = bim_file_dup_check\
+bim_file_dup_check["new_alleles"] = bim_file_dup_check \
     .apply(alleles_no_assigment, axis=1)
 #check for duplicates considering the chromosome (0), physical position (3) and new variable about alleles
     #https://www.cog-genomics.org/plink/1.9/formats#bim
@@ -1038,6 +1060,7 @@ n_duplicates_pandas = sum(bool_dups_pandas)
 print(n_duplicates_plink == n_duplicates_pandas)
 
 
+
 print_text("if there are less than 2% of duplicates, cool, else stop", header=3)
 #duplicated positions should be merged or removed. In our case, we are talking about 1% of the snps, so it should not be a problem to remove them.
 if (n_duplicates_plink/n_snps)*100 < 2:
@@ -1047,72 +1070,46 @@ else:
 
 
 
-
-
-print_text("open a folder to save filtered dataset", header=3)
-
-####SAVE THE RESULT IN QUALITY CONTROL, OPENING A NEW FOLDER
-
-
-run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
-    rm --recursive --force ./04_inspect_snp_dup/01_remove_dup/; \
-    mkdir --parents ./04_inspect_snp_dup/01_remove_dup/; \
-    ls ./04_inspect_snp_dup")
-        #rm 
-            #--recursive: remove directories and their contents recursively
-            #--force: ignore nonexistent files and arguments, never prompt
-        #mkdir
-            #--parents: no error if existing, make parent directories as needed
-
-
-print_text("decompress the plink binary fileset", header=3)
-run_bash(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/; \
-    ls -l; \
-    gunzip --keep --force ./" + batch_name + "_merged_data.bed.gz; \
-    gunzip --keep --force ./" + batch_name + "_merged_data.bim.gz; \
-    gunzip --keep --force ./" + batch_name + "_merged_data.fam.gz; \
-    ls -l")
-        #-k: keep original compressed file
-        #-f: force compression or decompression even if the file has multiple links or the corresponding file already exists
-
-
 print_text("filter these snps", header=3)
 run_bash(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
+    "cd ./data/genetic_data/; \
     plink \
-        --bfile ./03_merged_data/" + batch_name + "_merged_data \
-        --exclude ./04_inspect_snp_dup/00_list_dup/" + batch_name + "_duplicates.dupvar \
+        --bfile ./plink_bed_files/merged_batches/merged_plink_files/merged_batches \
+        --exclude ./quality_control/00_snp_duplicates/list_duplicates.dupvar \
         --make-bed \
-        --out  ./04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup")
-            #--bfile: 
-                #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
-                #https://www.cog-genomics.org/plink/1.9/input#bed
-            #--exclude: Exclude ALL variants named in the file.
-                #We have in the ".dupvar" file only the second and next occurrences of each position/allele duplicate, not including the first one. Therefore, we can remove these SNPs.
-                #https://www.cog-genomics.org/plink/1.9/filter#snp
-            #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
-                #https://www.cog-genomics.org/plink/1.9/data#make_bed
+        --out ./quality_control/00_snp_duplicates/merged_batches_no_snp_duplicates; \
+    ls -l ./quality_control/00_snp_duplicates/")
+        #--bfile: 
+            #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
+            #https://www.cog-genomics.org/plink/1.9/input#bed
+        #--exclude: Exclude ALL variants named in the file.
+            #We have in the ".dupvar" file only the second and next occurrences of each position/allele duplicate, not including the first one. Therefore, we can remove these SNPs.
+            #https://www.cog-genomics.org/plink/1.9/filter#snp
+        #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
+            #https://www.cog-genomics.org/plink/1.9/data#make_bed
 
 
-print_text("remove the non-compressed binary fileset of 03_merged_data")
+
+print_text("remove the non-compressed fileset of the input folder")
 run_bash(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/03_merged_data/; \
-    ls -l; \
-    rm ./" + batch_name + "_merged_data.bed; \
-    rm ./" + batch_name + "_merged_data.bim; \
-    rm ./" + batch_name + "_merged_data.fam; \
+    "cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
+    rm ./merged_batches.bed; \
+    rm ./merged_batches.bim; \
+    rm ./merged_batches.fam; \
     ls -l")
 
 
 print_text("check again for duplicates", header=3)
 run_bash(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
+    "cd ./data/genetic_data/quality_control/00_snp_duplicates/; \
+    mkdir \
+        --parents \
+        ./check_no_duplicates/; \
     plink \
-        --bfile ./" + batch_name + "_merged_data_no_snp_dup \
+        --bfile ./merged_batches_no_snp_duplicates \
         --list-duplicate-vars suppress-first ids-only\
-        --out  ./" + batch_name + "_duplicates")
+        --out  ./check_no_duplicates/check_duplicates; \
+    ls -l ./check_no_duplicates")
         #--list-duplicate-vars
             #When multiple variants share the same bp coordinate and allele codes, it is likely that they are not actually distinct, and the duplicates should be merged or removed. --list-duplicate-vars identifies them, and writes a report to plink.dupvar.
             #This is not based on variant IDs. Use PLINK 2.0's --rm-dup for ID-based deduplication.
@@ -1123,12 +1120,12 @@ run_bash(
 
 print_text("Do we have zero duplicated positions after filtering?", header=3)
 run_bash(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
+    "cd ./data/genetic_data/quality_control/00_snp_duplicates/check_no_duplicates/; \
     n_lines=$( \
         awk \
             -F '\t' \
             'END{print NR}' \
-            " + batch_name + "_duplicates.dupvar); \
+            check_duplicates.dupvar); \
     if [[ $n_lines -eq 0 ]]; then \
         echo 'TRUE'; \
     else \
@@ -1136,21 +1133,15 @@ run_bash(
     fi")
 
 
-print_text("remove the files we are not interested in", header=3)
-run_bash(
-    "cd ./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/; \
-    ls -l; \
-    rm " + batch_name + "_duplicates.*; \
-    ls -l")
-
 
 print_text("load the bim file after removing duplicates", header=3)
 bim_no_dups = pd.read_csv( \
-    "./data/genetic_data/plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup.bim", \
+    "./data/genetic_data/quality_control/00_snp_duplicates/merged_batches_no_snp_duplicates.bim", \
     sep="\t", \
     header=None, \
     low_memory=False)
 print(bim_no_dups)
+
 
 
 print_text("check that the IDs in the original bim file after excluding pandas dups are the same than the remaining IDs in the new bim file obtained with plink", header=3)
@@ -1164,6 +1155,8 @@ print(bim_file_dup_check \
         #reset the index to have the same than in the new cleaned bim file created with plink
         #check that this is identical than the IDs in the new cleaned bim file
 
+
+
 print_text("check that we do not have any NA in the SNP IDs in the cleaned bim file", header=3)
 if sum(bim_no_dups.loc[:, 1].isna()) == 0:
     print("We do NOT have NA in SNP IDs, so good to go!")
@@ -1176,48 +1169,23 @@ else:
 print_text("filter SNPs by chromosome type", header=2)
 print_text("create folder to do operations", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "; \
-    ls -l; \
-    mkdir --parents ./0_chromosome_fitlering/; \
-    ls -lR")
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./01_chromosome_filtering/; \
+    ls -l")
 
 
-print_text("see the unique chromosome names in the SNP map of this batch", header=3)
-print_text("select the name of the zip file with batch data based on the batch name because ILGSA24-17873 is called CAGRF20093767.zip, not ILGSA24-17873.zip", header=4)
-if batch_name=="ILGSA24-17873":
-    zip_name = "CAGRF20093767"
-elif batch_name=="ILGSA24-17303":
-    zip_name = "ILGSA24-17303"
-print(zip_name)
 
-print_text("load zip info from the zip file", header=4)
-import zipfile
-zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
-zipinfos = zipdata.infolist()
-zipinfos
-
-print_text("extract the zipinfo of the SNP_map", header=4)
-import numpy as np
-#zipinfo=zipinfos[0]
-for zipinfo in zipinfos:
-    if zipinfo.filename == zip_name + "/SNP_Map.txt":
-        zipinfo.filename = zipinfo.filename.split(zip_name+"/")[1]
-        zipinfo_snp_map = zipinfo
-            #select the zipinfo of SNP after removing the first part with the parent folder name
-zipinfo_snp_map
-
-print_text("extract the SNP map", header=4)
-zipdata.extract(zipinfo_snp_map, "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering")
-
+print_text("see the unique chromosome names in the bim file map", header=3)
 print_text("extract the unique chromosome names using awk", header=4)
 unique_chr_map = run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/; \
-    tail \
-        -n +2 \
-        SNP_Map.txt | \
+    cd ./data/genetic_data/quality_control/01_chromosome_filtering/; \
+    cp ../00_snp_duplicates/merged_batches_no_snp_duplicates.bim ./merged_batches_no_snp_duplicates.bim; \
     awk \
         -F '\t' \
-        '!a[$3]++ {print $3}'", return_value=True)
+        '!a[$1]++ {print $1}' \
+        merged_batches_no_snp_duplicates.bim", return_value=True)
         #remove the column names with tail (first row)
             #if you use tail with "+number_line" you can get all lines starting from the selected number of line
                 #tail is faster than sed
@@ -1242,29 +1210,36 @@ unique_chr_map = run_bash(" \
                 #Whenever the a test with no associated action is true, the default action is triggered. The default action is the equivalent of { print } or { print $0 }, which prints the current record, which for all accounts and purposes in this example is the current unmodified line of input.
                 #https://unix.stackexchange.com/a/604294
 
+
 print_text("split the string generated with the awk unique chromsome names using '\n', but avoid the last element which is the last empty line, then order using natural sorting", header=4)
 unique_chr_map = natsorted(unique_chr_map.split("\n")[0:-1])
 print(unique_chr_map)
 
+
 print_text("create a list with the expected chromosome names, i.e., unknown (0), 22 autosomals, mito, sex and pseudo-autosomal", header=4)
-expected_chr = [str(i) for i in range(0, 23, 1)]
-[expected_chr.append(i) for i in ["MT", "X", "XY", "Y"]]
-    #first create list with unknown and autosomes (range from 0 to 23, without including 23)
+expected_chr = [str(i) for i in range(0, 27, 1)]
+    #first create list with unknown and autosomes (range from 0 to 27, without including 27)
     #then add mito, sex and PAR to that list
+
 
 print_text("check we have the expect unique chromosome names", header=4)
 print(unique_chr_map == expected_chr)
+
+
+##por aquiii
+#check well checks with snp map because now you are using the bim file
+
 
 print_text("check again we have the expect unique chromosome names using pandas this time", header=4)
 print( \
     natsorted( \
         pd.read_csv( \
-            "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/SNP_Map.txt", \
+            "./data/genetic_data/quality_control/01_chromosome_filtering/merged_batches_no_snp_duplicates.bim", \
             sep="\t", \
             header=0, \
             low_memory=False) \
-        ["Chromosome"] \
-        .unique()) == \
+        ["0"] \
+        .apply(lambda x: str(x)).unique()) == \
     expected_chr)
         #load SNP_Map as pandas DF
         #get the chromosome column
@@ -1298,7 +1273,7 @@ print("0" in unique_chr_map)
 
 print_text("check 0 in plink is 0 in illumina snp_map", header=4)
 snp_map = pd.read_csv( \
-    "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/SNP_Map.txt", \
+    "./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/SNP_Map.txt", \
     sep="\t", \
     header=0, \
     low_memory=False)
@@ -1486,22 +1461,22 @@ else:
 print_text("remove selected SNPs", header=3)
 
 print_text("save to a file the list of SNPs to be excluded, each SNP in anew line", header=4)
-with open("./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/snps_to_exclude.txt", "w") as f:
+with open("./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/snps_to_exclude.txt", "w") as f:
     #snp=list_snp_ids_to_exclude[0]
     for snp in list_snp_ids_to_exclude:
         f.write(f"{snp}\n") #print the SNP and add new line
         #https://stackoverflow.com/questions/899103/writing-a-list-to-a-file-with-python-with-newlines
 run_bash(" \
-    cat ./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/snps_to_exclude.txt")
+    cat ./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/snps_to_exclude.txt")
 
 print_text("exclude these SNPs using --exclude of plink", header=4)
 run_bash(
     "cd ./data/genetic_data/; \
     plink \
         --bfile ./plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
-        --exclude ./quality_control/" + batch_name + "/0_chromosome_fitlering/snps_to_exclude.txt \
+        --exclude ./quality_control/" + batch_name + "/01_chromosome_filtering/snps_to_exclude.txt \
         --make-bed \
-        --out  ./quality_control/" + batch_name + "/0_chromosome_fitlering/" + batch_name + "_filtered_chromosomes")
+        --out  ./quality_control/" + batch_name + "/01_chromosome_filtering/" + batch_name + "_filtered_chromosomes")
             #--bfile: 
                 #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
                 #https://www.cog-genomics.org/plink/1.9/input#bed
@@ -1517,7 +1492,7 @@ run_bash(
 
 print_text("check that the excluded SNPs are actually out of the new bim file", header=4)
 bim_chrom_filter = pd.read_csv( \
-    "./data/genetic_data/quality_control/" + batch_name + "/0_chromosome_fitlering/" + batch_name + "_filtered_chromosomes.bim", \
+    "./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/" + batch_name + "_filtered_chromosomes.bim", \
     sep="\t", \
     header=None, \
     low_memory=False)
@@ -1631,7 +1606,7 @@ run_bash(
         ./quality_control/" + batch_name + "/01_remove_non_snps/ \
         --parents; \
     plink \
-        --bfile ./quality_control/" + batch_name + "/0_chromosome_fitlering/" + batch_name + "_filtered_chromosomes \
+        --bfile ./quality_control/" + batch_name + "/01_chromosome_filtering/" + batch_name + "_filtered_chromosomes \
         --snps-only just-acgt\
         --make-bed \
         --out  ./quality_control/" + batch_name + "/01_remove_non_snps/" + batch_name + "_remove_non_snps")
