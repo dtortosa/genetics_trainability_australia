@@ -55,23 +55,30 @@
 
 
 #########################################
-# rationale of merging after imputation #
+# rationale of merging before imputation #
 #########################################
 
-#From reading the recent GWAS protocol of the Ritchie lab. I understand that the usual approach is to do the imputation of different sources (e.g., batches) separately and then do the merging. In the section "Batches effect", they say that "Genotype imputation strategies now provide an opportunity to impute genotypes from multiple platforms to a reference genotyping platform. THEREFORE, DATA FROM DIFFERENT SOURCES CAN BE MERGED AFTER IMPUTATION."
-    #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view?usp=sharing
+#It is clear that we can do merging after imputation
+    #From reading the recent GWAS protocol of the Ritchie lab. I understand that the usual approach is to do the imputation of different sources (e.g., batches) separately and then do the merging. In the section "Batches effect", they say that "Genotype imputation strategies now provide an opportunity to impute genotypes from multiple platforms to a reference genotyping platform. THEREFORE, DATA FROM DIFFERENT SOURCES CAN BE MERGED AFTER IMPUTATION."
+        #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view?usp=sharing
+    
+    #In addition, in other paper they say 
+        #"This process (imputation) is particularly important when combining or performing meta-analysis on data generated using multiple different genotyping platforms"
+        #"After imputation and merging of the datasets, quality control procedures were implemented to create high quality, analysis-ready data set for genome-wide association studies."
+        #https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full
 
-#In addition, in other paper they say 
-    #"This process (imputation) is particularly important when combining or performing meta-analysis on data generated using multiple different genotyping platforms"
-    #"After imputation and merging of the datasets, quality control procedures were implemented to create high quality, analysis-ready data set for genome-wide association studies."
-    #https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full
+#but it seems to be done for data from different studies
+    #I understand that specially when you have data from different sources, it is very important to do imputation because many SNPs are NOT going to be shared across sources, you are going to lose them unless you impute them to have the same SNPs across all panels.
 
-#I understand that specially when you have data from different sources, it is very important to do imputation because many SNPs are NOT going to be shared across sources, you are going to lose them unless you impute them to have the same SNPs across all panels.
+    #In our particular case, this should not be very important because the same SNPs are genotyped in both batches, so it is very unlikely that all samples of a batch have missing for a given SNP so that SNP is not present in one batch but it is present in the other one. 
 
-#In our particular case, this should not be very important because the same SNPs are genotyped in both batches, so it is very unlikely that all samples of a batch have missing for a given SNP so that SNP is not present in one batch but it is present in the other one. 
+#We have a problem because our sample size is not very big, so if we split even more between batches and filter by missingness, MAF... it is more likely to lose more SNPs. Indeed, a filter of MAF<0.05, which is recommended for sample sizes < 1000, leads to the lost of half of SNPs in both batches!! We should try at least to combine the batches to gain more minor homozygotes for these low-MAF SNPs.
 
-#I going to do imputation first just in case, to avoid any problems. Also, remember that the protocol mentions the possibility to merge after imputation the batch section, so it does not seem very strange to merge batches after imputation. Indeed, I have seen a post in biostarts doing PCAs and other stuff in different batches and then in the merged dataset.
-    #https://www.biostars.org/p/438079/
+#It does not make sense to lose SNPs just because the merging was done after. If the batch effects are carefully checked, we should not have a problem. Both batches should be a random sample of samples, so they would be equally influenced by ancestry, etc...
+
+#We can merge, then apply the filters required before PCA and then run the PCA to check for batch effects. We can also include the batch as a factor in the models as done in this paper:
+    #New genetic determinants of VO2max-level identified by GWAS: The HUNT Study
+        #https://academic.oup.com/cardiovascres/article/118/Supplement_1/cvac066.013/6605381
 
 
 
@@ -212,11 +219,9 @@ run_bash("ls")
 #######################################
 
 #define input arguments to be passed when running this script in bash
-#we will use a bash script to run this python program two times instead of doing a function and parallelize that function. In this way, the same python script is run for each batch and if we want to run again one batch, we just need to modify the bash script, not the python program. This makes sense because we have only two batches, and the parallelization will occur inside each batch. Importantly, we can also have separated .out files, so we can look at the checks separately.
 import sys
 import argparse
 parser=argparse.ArgumentParser()
-parser.add_argument("--batch_name", type=str, default="ILGSA24-17873", help="Name of the batch used as input. Always string.")
 parser.add_argument("--n_cores", type=int, default=4, help="Number of cores/threads requested. Integer always, None does not work!")
     #type=str to use the input as string
     #type=int converts to integer
@@ -225,63 +230,452 @@ args=parser.parse_args()
     #https://docs.python.org/3/library/argparse.html
 
 #get the arguments of the function that have been passed through command line
-batch_name = args.batch_name
 n_cores = args.n_cores
 
 
 
-###########################
-# starting with the batch #
-###########################
-print_text("starting batch number " + batch_name + " using " + str(n_cores) + " cores ", header=1)
+
+############################
+# starting with the script #
+############################
+print_text("starting with the pre-imputation QC using " + str(n_cores) + " cores ", header=1)
+
+
+
+
+#############################
+###### merging batches ######
+#############################
+print_text("merging batches", header=2)
+print_text("check we have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 samples that were duplicated), respectively looking at the merged fam file of each batch and the list of samples to be merged", header=3)
+run_bash(" \
+    n_samples_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data.fam.gz | \
+        awk 'END{print NR}'); \
+    n_samples_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data.fam.gz | \
+        awk 'END{print NR}'); \
+    if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #decompress the fam file of each merged file, i.e., for each batch, then count the number of lines and save the output
+        #get the number of the row at the end, i.e., the total number of rows
+            #use awk instead wc -l because "wc -l" counts "new line" character, and it is possible to have a line without that character. If at the end of the file, you do not have an empty line, your actual last line will not have "new line" character so it will not be counted by wc -l.
+                #https://unix.stackexchange.com/a/362280
+                #https://stackoverflow.com/a/28038682/12772630
+        #if the number of lines (samples) in the first and the second batch is 216 and 1242, respectively, then OK
+            #remember that we lose 6 duplicated samples in the second batch.
+            #note that "==" is only for strings, you have to use "-eq" for numbers
+                #https://stackoverflow.com/questions/20449543/shell-equality-operators-eq
+run_bash(" \
+    n_samples_first_batch=$( \
+        awk 'END{print NR}' ./data/genetic_data/plink_bed_files/ILGSA24-17303/02_data_to_merge/list_to_merge.txt); \
+    n_samples_second_batch=$( \
+        awk 'END{print NR}' ./data/genetic_data/plink_bed_files/ILGSA24-17873/02_data_to_merge/list_to_merge.txt); \
+    if [[ $n_samples_first_batch -eq 216 && $n_samples_second_batch -eq 1242 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #count the number of rows in the file with the list of samples to be merged in both batches. We use NR (number of records) of awk instead of wc -l because the file does not end with an empty line, so wc does not count the last one, and we get 1 row less
+            #https://stackoverflow.com/questions/32481877/what-are-nr-and-fnr-and-what-does-nr-fnr-imply
+            #https://stackoverflow.com/questions/12616039/wc-command-of-mac-showing-one-less-result
+
+
+
+print_text("create new folders to store files", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/; \
+    mkdir \
+        --parents \
+        merged_batches/data_to_merge; \
+    mkdir \
+        --parents \
+        merged_batches/merged_plink_files; \
+    ls -l ./merged_batches")
+        #--parents to make folders recursively and avoid errors if the folder already exists
+
+
+
+print_text("copy the plink files of both batches", header=3)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files; \
+    cp ./ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data* ./merged_batches/data_to_merge/; \
+    cp ./ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data* ./merged_batches/data_to_merge/")
+
+
+
+print_text("create a .txt with the name of the plink inputs for each batch", header=3)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/; \
+    echo ILGSA24-17303_merged_data > list_files_to_merge.txt; \
+    echo ILGSA24-17873_merged_data >> list_files_to_merge.txt; \
+    cat list_files_to_merge.txt")
+        #for --merge-list
+            #If a line contains only one name, it is assumed to be the prefix for a binary fileset
+            #https://www.cog-genomics.org/plink/1.9/data#merge_list
+        #">" creates a new file where the output of the command it is saved
+        #">>" appends the output of the command to an existing file
+            #https://unix.stackexchange.com/questions/159513/what-are-the-shells-control-and-redirection-operators
+            #https://unix.stackexchange.com/questions/77277/how-to-append-multiple-lines-to-a-file
+
+
+
+print_text("decompress the plink inputs", header=3)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/; \
+    gunzip \
+        --keep \
+        --force \
+        ./ILGSA24-17303_merged_data*.gz; \
+    gunzip \
+        --keep \
+        --force \
+        ./ILGSA24-17873_merged_data*.gz; \
+    ls -l")
+        #-keep to keep the original compressed file and --force to overwrite if the decompressed file exists
+
+
+
+print_text("merge the two batches using two different approaches in plink: --merge-list and --bmerge", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
+    plink \
+        --merge-list ./list_files_to_merge.txt \
+        --out ../merged_plink_files/merged_batches")
+        #we can use --merge-list to merge batches listed in a .txt file.
+            #https://www.cog-genomics.org/plink/1.9/data#merge_list
+        #you can first call a fileset (used as reference) doing "plink --bfile NAME_REFERENCE" and then add "--merge-list LIST_TO_MERGE" where LIST_TO_MERGE has the names of the filesets to be merged with the reference fileset.
+            #https://www.biostars.org/p/9467886/
+        #alternatively, this can be used without a reference, i.e., all files are included in LIST_TO_MERGE. In that case, the newly created fileset is then treated as the reference by most other PLINK operations.
+        #we are using the second option as we did for merging plink files of each sample within each batch.
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge; \
+    plink \
+        --bfile ILGSA24-17303_merged_data\
+        --bmerge ILGSA24-17873_merged_data \
+        --out ../merged_plink_files/merged_batches_2")
+        #we can also call first one of the batches with "--bfile" and use it as reference without using --merge-list, then add the second batch with --bmerge. We can directly use the prefix of the fileset, because the three files (bed, bim and fam) should be named the same way except for the extension.
+
+
+
+print_text("check that merging the two batches with --merge-list and --bmerge gives the same", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    bed_status=$(cmp --silent merged_batches.bed merged_batches_2.bed; echo $?); \
+    bim_status=$(cmp --silent merged_batches.bim merged_batches_2.bim; echo $?); \
+    fam_status=$(cmp --silent merged_batches.fam merged_batches_2.fam; echo $?); \
+    if [[ $bed_status -eq 0 && $bim_status -eq 0 && $fam_status -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #check that files (bed, bim, fam) obtained with --merged-list (merged_batches) and --bmerge (merged_batches_2) are the same.
+        #check byte by byte whether the two files are the same
+            #cmp takes two files and compare them until 1 byte is different
+            #we make it silent and get the final status
+            #remember that "$?" gives the return value of the last run command.
+                #For example, 
+                    #ls somefile
+                    #echo $?
+                    #If somefile exists (regardless whether it is a file or directory), you will get the return value thrown by the ls command, which should be 0 (default "success" return value). If it doesn't exist, you should get a number other then 0. The exact number depends on the program.
+                #https://stackoverflow.com/a/6834572/12772630
+            #the return value of cmp will be 0 if the two files are identical, if not, then we have differences between the files
+                #https://stackoverflow.com/a/53529649/12772630
+        #if the status of the three comparisons is zero, then perfect.
+
+
+
+print_text("remove the second fileset created only for the check", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    rm merged_batches_2*; \
+    n_files=$(ls | wc -l); \
+    if [[ $n_files -eq 4 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+
+
+print_text("check that the number of unique sample IDs in the merged fam file is equal to the total number of samples, i.e., no ID is duplicated", header=3)
+run_bash("\
+    n_uniq_ids=$(\
+        awk \
+            'BEGIN{ \
+                FS=\"\t\"; \
+                OFS=\"\t\"};\
+            { \
+                print $2\
+            }' \
+            ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam | \
+        uniq | \
+        wc -l); \
+    n_samples_batch_1=$(\
+        awk \
+            'BEGIN{ \
+                FS=\"\t\"; \
+                OFS=\"\t\"};\
+            { \
+                if($1==\"combat_ILGSA24-17303\"){ \
+                    print $0 \
+                } \
+            }' \
+            ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam | \
+        wc -l); \
+    n_samples_batch_2=$(\
+        awk \
+            'BEGIN{ \
+                FS=\"\t\"; \
+                OFS=\"\t\"};\
+            { \
+                if($1==\"combat_ILGSA24-17873\"){ \
+                    print $0 \
+                } \
+            }' \
+            ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam | \
+        wc -l); \
+    total_number_samples=$(($n_samples_batch_1+$n_samples_batch_2));\
+    if [[ $total_number_samples -eq 1458 && $n_uniq_ids -eq $total_number_samples && n_samples_batch_1 -eq 216 && n_samples_batch_2 -eq 1242 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #load the fam file with awk using tabs for the input and also for the output, then select the second column, IDs, get uniq cases and count them.
+        #also count the number of rows for which the first column, family ID, is the name of the first and the second batch, count cases.
+        #sum the number of samples of both batches using shell arithmetic expansion ("$(())")
+            #https://phoenixnap.com/kb/bash-math
+        #Each bath has 216 and 1242 samples, respectively, totalling 1458 samples. Therefore, the number of of unique IDs should be also 1458.
+            #Remember that we lose 6 duplicated samples in the second batch.
+
+
+
+## more info about merging ##
+    #The new fileset plink.bed + .bim + .fam is automatically created in the process. (Corner case exception: if "--recode lgen" is part of the same run, the prefix is plink-merge instead.) Thus, it is no longer necessary to combine --merge with --make-bed if you aren't simultaneously applying some filters to the data.
+        #https://www.cog-genomics.org/plink/1.9/data#merge
+    #The order of sample IDs in the new fileset can now be controlled with --indiv-sort. 
+        #the default is 'natural'/'n'
+            #"Natural sort" of family and within-family IDs, similar to the logic used in macOS and Windows file selection dialogs; e.g. 'id2' < 'ID3' < 'id10'. This is the PLINK 1.9 default when merging datasets.
+            #this is what we want, because we have actually a pattern in the IDs, first numbers and then letters. According the manual, if the IDs mix letters and numbers randomly, then other modes are better, but this is not our case.
+                #Therefore, first samples of the first batch and then samples of the second batch, as the number ID of the second batch is larger (sort between families, which is the batch in our case). Within batch, we also want natural order by numberic and alphabetic.
+            #https://www.cog-genomics.org/plink/1.9/data#indiv_sort
+    #the default merging mode is (default) Ignore missing calls, otherwise set mismatches to missing.
+        #I guess the default mode will set as missing those SNPs that are present in one batch but not in other.
+        #In an example (https://www.biostars.org/p/496434/), this guy select shared SNPs between the two batches and then do the merge with --merge-list, but in our case we have the same number of SNPs in both batches (checked in the next lines), so we should not have problems with this.
+    #If binary merging fails because at least one variant would have more than two alleles, a list of offending variant(s) will be written to plink.missnp
+        #we do not have a plink.missnp file, so we should be good with this.
+
+
+
+print_text("check we do NOT have a .missnp file, where variants with more than two alleles are indicated. We should not have this file", header=3)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    count_miss_file=$(ls -l *.missnp | wc -l); \
+    if [[ $count_miss_file -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #list files with extension ".missnp" and count them. This should be zero.
+
+
+
+print_text("check that the bim files (SNP maps) of both batches and the merged file have the same SNPs, although the minor can be different", header=3)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./merged_plink_files/merged_batches.bim > merged_columns.txt; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./data_to_merge/ILGSA24-17303_merged_data.bim > batch_1_columns.txt; \
+    awk -F ' ' '{print $1, $2, $3, $4}' ./data_to_merge/ILGSA24-17873_merged_data.bim > batch_2_columns.txt; \
+    bim_check_1=$(cmp --silent merged_columns.txt batch_1_columns.txt; echo $?); \
+    bim_check_2=$(cmp --silent merged_columns.txt batch_2_columns.txt; echo $?); \
+    bim_check_3=$(cmp --silent batch_1_columns.txt batch_2_columns.txt; echo $?); \
+    if [[ $bim_check_1 -eq 0 && $bim_check_2 -eq 0 && $bim_check_3 -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi; \
+    rm merged_columns.txt; rm batch_1_columns.txt; rm batch_2_columns.txt")
+        #select the first 4 columns of the three bim files using awk (-F is the delimiter, space in this case). Save the result as three different .txt files.
+            #the 4 first columns are the chromosome code, Variant identifier, Position in morgans or centimorgans (safe to use dummy value of '0'), Base-pair coordinate (1-based).
+            #these columns should be the same in both batches, the difference can be in the last two columns with the name of the minor and major alleles, because it would be possible that one allele is not present in any of the samples of a batch, but in the other batch it has both alleles (see below).
+        #compare the merged file with both batches and then the two batches between them using cmp for that.
+            #cmp takes two files and compare them until 1 byte is different
+            #we make it silent and get the final status
+            #remember that "$?" gives the return value of the last run command.
+                #For example, 
+                    #ls somefile
+                    #echo $?
+                    #If somefile exists (regardless whether it is a file or directory), you will get the return value thrown by the ls command, which should be 0 (default "success" return value). If it doesn't exist, you should get a number other then 0. The exact number depends on the program.
+                #https://stackoverflow.com/a/6834572/12772630
+            #the return value of cmp will be 0 if the two files are identical, if not, then we have differences between the files
+                #https://stackoverflow.com/a/53529649/12772630
+        #if the status of the three comparisons is zero, then perfect.
+        #finally remove the files generated for this check
+
+
+
+## note about the differences in minor/major alleles between batches ##
+    #the four first columns are identical between batches, but the minor/major alleles are different.
+    #the first difference between the two batches is a SNP in row 140. It has only C in first bath (monomorphic), but it has also T in the second. Accordingly the merged batch has both alleles, because this included first and second batch
+        #first batch
+            #0       GSA-10:47138541 0       0       0       C
+        #second batch
+            #0       GSA-10:47138541 0       0       T       C
+        #merged file
+            #0       GSA-10:47138541 0       0       T       C
+    #opposite case with a snp in row 165, which is the first line of difference between merged and the second batch. It is monomorphic in second batch, but it has two alleles in first batch, so when merging, you get two alleles, not 1.
+        #first batch
+            #0       GSA-rs145797772 0       0       A       C
+        #second batch
+            #0       GSA-rs145797772 0       0       0       C
+        #merged file
+            #0       GSA-rs145797772 0       0       A       C
+
+
+
+print_text("see if the first SNPs that have different minor/major allele between batches are indeed different in terms of frequency and alleles according to plink --freq", header=3)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./data_to_merge/ILGSA24-17303_merged_data \
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./data_to_merge/ILGSA24-17873_merged_data \
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    plink \
+        --bfile ./merged_plink_files/merged_batches\
+        --freq; \
+    sed -n -e 1p -e 141p plink.frq; \
+    sed -n 166p plink.frq;")
+        #Calculate minor allele frequency of all SNPs in each batch using plink --freq
+            #By itself, --freq writes a minor allele frequency report to plink.frq. 
+                #https://www.cog-genomics.org/plink/1.9/basic_stats
+        #We use sed -n to show specific lines. -e lets you to select several lines. 
+            #note that line 140 in the bim file is 141 in this file because we have header in freq file, but no header is present in the bim file.
+            #https://unix.stackexchange.com/questions/288521/with-the-linux-cat-command-how-do-i-show-only-certain-lines-by-number
+        #the merged file has updated information about the minor/major alleles considering all samples, because of this, these two snps are biallelic in the merged file when in one of the batches is monomorphic, and the MAF changes when merging also, because now you have more samples.
+
+
+
+print_text("remove freq files", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/; \
+    rm plink.frq; \
+    rm plink.hh; \
+    rm plink.log; \
+    rm plink.nosex; \
+    ls -l")
+
+
+
+print_text("compress the merged files", header=3)
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
+    gzip \
+        --force \
+        ./merged_batches.bed; \
+    gzip \
+        --force \
+        ./merged_batches.bim; \
+    gzip \
+        --force \
+        ./merged_batches.fam; \
+    ls -l")
+        #--force: force overwrite of output file and compress links
+
+
+print_text("remove the decompressed input files", header=2)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/;\
+    rm ./ILGSA24-17303_merged_data.bed; \
+    rm ./ILGSA24-17303_merged_data.bim; \
+    rm ./ILGSA24-17303_merged_data.fam; \
+    rm ./ILGSA24-17873_merged_data.bed; \
+    rm ./ILGSA24-17873_merged_data.bim; \
+    rm ./ILGSA24-17873_merged_data.fam; \
+    ls -l")
+
+
+
+print_text("check again we have the exact sum of samples from both batches", header=3)
+run_bash("\
+    n_samples_merged=$(\
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam.gz | \
+        wc -l);\
+    n_samples_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.fam.gz | \
+        wc -l); \
+    n_samples_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.fam.gz | \
+        wc -l); \
+    sum_samples=$((n_samples_first_batch+$n_samples_second_batch)); \
+    if [[ $n_samples_merged -eq $sum_samples ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+
+
+print_text("check again after merging we still have 654027 snps, and this is the number of variants than in each of the batches", header=3)
+run_bash("\
+    n_snps_merged=$(\
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim.gz | \
+        wc -l);\
+    n_snps_first_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17303_merged_data.bim.gz | \
+        wc -l); \
+    n_snps_second_batch=$( \
+        gunzip -c ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/ILGSA24-17873_merged_data.bim.gz | \
+        wc -l); \
+    if [[ $n_snps_merged -eq 654027 && $n_snps_merged -eq $n_snps_first_batch && $n_snps_merged -eq $n_snps_second_batch ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
 
 
 
 
 print_text("do some checks on the plink files of the batch", header=2)
-print_text("get the total number of samples per batch:", header=3)
-if batch_name=="ILGSA24-17873":
-    total_samples=1242
-elif batch_name=="ILGSA24-17303":    
-    total_samples=216
-print("we should have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 samples that were duplicated), respectively")
-print(f"For batch {batch_name}, we have {total_samples} total samples")
-
-
 print_text("perform missing report with the merged data", header=3)
 print_text("create a new folder to calculate missing reports of the plink file sets generated in the previous step", header=4)
 run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/; \
-    mkdir \
-        --parents \
-        ./05_missing_calc/; \
-    cp ./03_merged_data/" + batch_name + "_merged_data* ./05_missing_calc; \
-    cd ./05_missing_calc; \
-    rm " + batch_name + "_merged_data.log; \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     gunzip \
         --keep \
         --force \
-        ./" + batch_name + "_merged_data*;\
+        ./merged_batches*;\
     plink \
-        --bfile ./" + batch_name + "_merged_data \
+        --bfile ./merged_batches \
         --missing; \
-    ls -lh")
-        #create the new folder to save the missing report
-        #copy the merge file set to the new folder
+    ls -l")
         #gunzip all the files of the file set
         #use them as input to calculate the missing report
             #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
                 #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
-        #sleep 2 seconds to get first the output of plink (it takes a bit) and then list the files in the new folder
+
 
 print_text("see first rows of the missing report for samples", header=4)
 run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     awk \
         'BEGIN{FS=\" \"}{if(NR<10){print $0}}' \
         plink.imiss")
         #see lines below for details about missing report format
             #https://www.cog-genomics.org/plink/1.9/formats#imiss
+
 
 
 print_text("check about the number of genotypes in the DNA report file", header=3)
@@ -290,10 +684,11 @@ print_text("check about the number of genotypes in the DNA report file", header=
 #This is caused by the SNPs where both the allele1 and allele2 are 0, see below.
 print_text("load the bim file", header=4)
 bim_file_before_any_filter = pd.read_csv( \
-    "./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/" + batch_name + "_merged_data.bim.gz", \
+    "./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim", \
     sep="\t", \
     header=None, \
     low_memory=False)
+
 
 print_text("check that the number of variants with 0 for the allele1 and allele2 is 3846", header=4)
 n_zero_alleles = sum((bim_file_before_any_filter.loc[:,4]=="0") & (bim_file_before_any_filter.loc[:,5]=="0"))
@@ -308,7 +703,7 @@ else:
 print_text("check what is going on with the samples in the missing file whose potential number of total SNPs is lower", header=3)
 print_text("see the distinct values for the number of potential SNPs across the whole sample missing report", header=4)
 run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     awk \
         'BEGIN{FS=\" \"}{if(!a[$5]++){print $5}}' \
         plink.imiss")
@@ -316,25 +711,32 @@ run_bash(" \
                 #if the value in $5 has not been previously included in "a" before get True (without the "!" you would get false). Then, print the value of $5 in those cases, i.e., the unique value of potential number of SNPs
                 #https://stackoverflow.com/questions/1915636/is-there-a-way-to-uniq-by-column
 
-print_text("process the sample missing file with awk in order to read it then with pandas", header=4)
+
+print_text("process the sample missing file with awk in order to read it with pandas", header=4)
 run_bash(" \
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/; \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     awk \
         'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6}' \
         plink.imiss > plink_awk_processed.imiss")
             #I have problems with reading the missing report directly in pandas due to the delimiter. I have to do this to have all 6 columns correctly detected.
 
+
 print_text("load the missing sample report and the fam file into python", header=4)
 sample_missing_report_before_filtering = pd.read_csv( \
-    "./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/plink_awk_processed.imiss", \
+    "./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/plink_awk_processed.imiss", \
     sep="\t", \
     header=0, \
     low_memory=False)
 merged_fam_file = pd.read_csv( \
-    "./data/genetic_data/plink_bed_files/" + batch_name +  "/05_missing_calc/" + batch_name + "_merged_data.fam", \
+    "./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam", \
     sep="\t", \
     header=None, \
     low_memory=False)
+
+print_text("check we have the correct number of samples in each batch", header=4)
+print(sum(merged_fam_file[0] == "combat_ILGSA24-17303") == 216)
+print(sum(merged_fam_file[0] == "combat_ILGSA24-17873") == 1242)
+
 
 print_text("calculate the number of variants excluding those in Y chromosome", header=4)
 n_variants_excluding_y = bim_file_before_any_filter.shape[0]-sum(bim_file_before_any_filter[0]==24)
@@ -343,6 +745,7 @@ print(n_variants_excluding_y)
         #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
         #https://www.cog-genomics.org/plink/1.9/formats#bim
+
 
 print_text("check that the number of unique cases for n_snps in sample missing is only 2, being one the total number of snps and the second the number of snps minus Y snps. Also check that the samples in the missing report with less than 654027 are non-males, because they should not have SNPs in Y chromosome (chromosome 24)", header=4)
 unique_n_variants_missing_rep = sample_missing_report_before_filtering["N_GENO"].unique()
@@ -373,12 +776,94 @@ else:
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DIFFERENT NUMBER OF VARIANTS BETWEEN MEN AND WOMEN")
 
 
-print_text("check we have the correct number of samples looking at the merged fam file and the list of samples considered to merge for each batch", header=3)
+
+print_text("check differences in call rate and MAF between batches. According to Ritchie's tutorial, one simple approach to detect batch effects is to calculate the average minor allele frequency and average genotyping call rate across all SNPs for each batch. Gross differences in either of these on any batch can easily be identified", header=3)
+print_text("call rate", header=4)
+batch_1_call_rate = 1 - sample_missing_report_before_filtering \
+    .loc[ \
+        sample_missing_report_before_filtering["FID"]=="combat_ILGSA24-17303", \
+        "F_MISS"] \
+    .mean()
+batch_2_call_rate = 1 - sample_missing_report_before_filtering \
+    .loc[ \
+        sample_missing_report_before_filtering["FID"]=="combat_ILGSA24-17873", \
+        "F_MISS"] \
+    .mean()
+        #calculate the average frequency of missing (number of non-obligatory missing / number potential genotypes) per sample in each batch and then subtract from 1 to get the call rate.
+        #The results are going to be over 1, so 0.98, 0.99....
+print(f"average call rate for batch 1 and 2 is {round(batch_1_call_rate, 3)} and {round(batch_2_call_rate, 3)}, respectively")
+import numpy as np
+diff_call = np.abs(batch_1_call_rate-batch_2_call_rate)
+if (diff_call <= 0.01):
+    print(f"The difference in call rate between batches is {round(diff_call, 3)}%")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE MORE THAN 1% OF DIFFERENCE IN CALL RATE BETWEEN BATCHES")
+    
+
+print_text("MAF", header=4)
+run_bash("\
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    plink \
+        --bfile ./merged_batches \
+        --family \
+        --freq; \
+    ls -l")
+        #calculate MAF per SNP but stratifying by batch
+            #By itself, --freq writes a minor allele frequency report to plink.frq. 
+            #you can use --freq with --within/--family to write a cluster-stratified frequency report to plink.frq.strat
+                #https://www.cog-genomics.org/plink/1.9/basic_stats
+                #https://www.cog-genomics.org/plink/1.9/input#within
+#process the file with awk in order to correctly specify the delimiter and avoid problems with pandas
+run_bash(" \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/; \
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6,$7,$8}' \
+        plink.frq.strat > plink_awk_processed.frq.strat; \
+    head plink_awk_processed.frq.strat")
+#read the stratified frequency file
+freqency_report_before_filtering = pd.read_csv( \
+    "./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/plink_awk_processed.frq.strat", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+        #A text file with a header line, and then C lines per variant (where C is the number of clusters; batches in our case) with the following 8-9 lines:
+            #CHR Chromosome code
+            #SNP Variant identifier
+            #CLST    Cluster identifier
+            #A1  Allele 1 (usually minor)
+            #A2  Allele 2 (usually major)
+            #MAF Allele 1 frequency in cluster
+            #MAC Allele 1 count in cluster
+            #NCHROBS Number of allele observations in cluster
+                #https://www.cog-genomics.org/plink/1.9/formats#frq_strat
+#calculate the average MAF within each batch 
+avg_maf_batch_1 = freqency_report_before_filtering \
+    .loc[ \
+        freqency_report_before_filtering["CLST"] == "combat_ILGSA24-17303", \
+        "MAF"] \
+    .mean()
+avg_maf_batch_2 = freqency_report_before_filtering \
+    .loc[ \
+        freqency_report_before_filtering["CLST"] == "combat_ILGSA24-17873", \
+        "MAF"] \
+    .mean()
+print(f"average MAF for batch 1 and 2 is {round(avg_maf_batch_1, 3)} and {round(avg_maf_batch_2, 3)}, respectively")
+diff_maf = np.abs(avg_maf_batch_1-avg_maf_batch_2)
+if (diff_maf <= 0.01):
+    print(f"The difference in call rate between batches is {round(diff_maf, 3)}%")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE MORE THAN 1% OF DIFFERENCE IN MAF BETWEEN BATCHES")
+
+
+
+print_text("check we have the correct number of samples looking at the merged fam file", header=3)
 run_bash(" \
     n_samples_batch=$( \
-        gunzip -c ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data/" + batch_name + "_merged_data.fam.gz | \
-        awk -F '\t' 'END{print NR}'); \
-    if [[ $n_samples_batch -eq " + str(total_samples) + " ]]; then \
+        awk \
+            -F '\t' \
+            'END{print NR}' \
+            ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.fam); \
+    if [[ $n_samples_batch -eq 1458 ]]; then \
         echo 'TRUE'; \
     else \
         echo 'FALSE'; \
@@ -392,140 +877,38 @@ run_bash(" \
             #remember that we lose 6 duplicated samples in the second batch.
             #note that "==" is only for strings, you have to use "-eq" for numbers
                 #https://stackoverflow.com/questions/20449543/shell-equality-operators-eq
-run_bash(" \
-    n_samples=$( \
-        awk 'END{print NR}' ./data/genetic_data/plink_bed_files/" + batch_name + "/02_data_to_merge/list_to_merge.txt); \
-    if [[ $n_samples -eq " + str(total_samples) + " ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #count the number of rows in the file with the list of samples considered in the merging of both batches. We use NR (number of records) of awk instead of wc -l because the file does not end with an empty line, so wc does not count the last one, and we get 1 row less
-            #https://stackoverflow.com/questions/32481877/what-are-nr-and-fnr-and-what-does-nr-fnr-imply
-            #https://stackoverflow.com/questions/12616039/wc-command-of-mac-showing-one-less-result
 
 
-print_text("check we do NOT have a .missnp file, where variants with more than two alleles are indicated. We should not have this file", header=3)
+
+print_text("check that we do NOT have the duplicate samples (1100JHJM, 1200JPJM and 7800AGSO) in the second batch", header=3)
 run_bash("\
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data; \
-    count_miss_file=$(ls -l *.missnp | wc -l); \
-    if [[ $count_miss_file -eq 0 ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #list files with extension ".missnp" and count them. This should be zero.
-
-
-print_text("check we have 654027 snps", header=3)
-run_bash("\
-    cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data; \
-    n_snps=$( \
-        gunzip \
-            --stdout \
-            ./" + batch_name + "_merged_data.bim.gz | \
+    cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
+    n_no_dups=$( \
         awk \
             -F '\t' \
-            'END{print NR}'); \
-    if [[ $n_snps -eq 654027 ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-
-
-print_text("check that the bim files (SNP maps) of both batches are identical, at least the first 4 columns, because the allele that is minor can be different", header=3)
-run_bash("\
-    cd ./data/genetic_data/plink_bed_files/; \
-        gunzip \
-            --stdout \
-            ./ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data.bim.gz | \
-        awk \
-            -F '\t' \
-            '{print $1, $2, $3, $4}' > \
-        batch_1_columns.txt; \
-        gunzip \
-            --stdout \
-            ./ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data.bim.gz | \
-        awk \
-            -F '\t' \
-            '{print $1, $2, $3, $4}' > \
-        batch_2_columns.txt; \
-    bim_check=$(cmp --silent batch_1_columns.txt batch_2_columns.txt; echo $?); \
-    if [[ $bim_check -eq 0 ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi; \
-    rm batch_1_columns.txt; \
-    rm batch_2_columns.txt")
-        #select the first 4 columns of the three bim files using awk (-F is the delimiter, tab in this case). Save the result as three different .txt files.
-            #the 4 first columns are the chromosome code, Variant identifier, Position in morgans or centimorgans (safe to use dummy value of '0'), Base-pair coordinate (1-based).
-            #these columns should be the same in both batches, the difference can be in the last two columns with the name of the minor and major alleles, because it would be possible that one allele is not present in any of the samples of a batch, but in the other batch it has both alleles (see below).
-        #compare the two batches between them using cmp for that.
-            #cmp takes two files and compare them until 1 byte is different
-            #we make it silent and get the final status
-            #remember that "$?" gives the return value of the last run command.
-                #For example, 
-                    #ls somefile
-                    #echo $?
-                    #If somefile exists (regardless whether it is a file or directory), you will get the return value thrown by the ls command, which should be 0 (default "success" return value). If it doesn't exist, you should get a number other then 0. The exact number depends on the program.
-                #https://stackoverflow.com/a/6834572/12772630
-            #the return value of cmp will be 0 if the two files are identical, if not, then we have differences between the files
-                #https://stackoverflow.com/a/53529649/12772630
-        #if the status of the three comparisons is zero, then perfect.
-        #finally remove the files generated for this check
-
-#note about the differences in minor/major alleles between batches
-    #the four first columns are identical between batches, but the minor/major alleles are different.
-    #the first difference between the two batches is a SNP in row 140. It has only C in first batch (monomorphic), but it has also T in the second. Accordingly the merged batch has both alleles, because this included first and second batch
-        #first batch
-            #0       GSA-10:47138541 0       0       0       C
-        #second batch
-            #0       GSA-10:47138541 0       0       T       C
-    #opposite case with a snp in row 165, which is the first line of difference between merged (a merge file i did with both batches) and the second batch. It is monomorphic in second batch, but it has two alleles in first batch, so when merging, you get two alleles, not 1.
-        #first batch
-            #0       GSA-rs145797772 0       0       A       C
-        #second batch
-            #0       GSA-rs145797772 0       0       0       C
-        #merged file
-            #0       GSA-rs145797772 0       0       A       C
-
-
-if batch_name == "ILGSA24-17873":
-    print_text("check that we do NOT have the duplicate samples (1100JHJM, 1200JPJM and 7800AGSO) in the second batch", header=3)
-    run_bash("\
-        cd ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data; \
-        n_no_dups=$( \
-            gunzip \
-                --stdout \
-                " + batch_name + "_merged_data.fam.gz | \
-            awk \
-                -F '\t' \
-                '{ \
-                    if($2!=\"1100JHJM_1\" && $2!=\"1200JPJM_1\" && $2!=\"7800AGSO_1\" && $2!=\"1100JHJM_2\" && $2!=\"1200JPJM_2\" && $2!=\"7800AGSO_2\"){\
-                        count ++\
-                    } \
+            '{ \
+                if($2!=\"1100JHJM_1\" && $2!=\"1200JPJM_1\" && $2!=\"7800AGSO_1\" && $2!=\"1100JHJM_2\" && $2!=\"1200JPJM_2\" && $2!=\"7800AGSO_2\"){\
+                    count ++\
                 } \
-                END {print count}'); \
-        total_n=$( \
-            gunzip \
-                --stdout \
-                " + batch_name + "_merged_data.fam.gz | \
-            awk \
-                -F '\t' \
-                'END{print NR}'); \
-        if [[ $n_no_dups -eq $total_n ]]; then \
-            echo 'TRUE'; \
-        else \
-            echo 'FALSE'; \
-        fi")
-            #first create a count in awk adding 1 for each row in the fam file that do not contain the ID of the duplicated samples (both suffixes), then print the count at the end.
-                #https://stackoverflow.com/questions/14739057/using-awk-with-column-value-conditions
-                #https://stackoverflow.com/questions/15839723/awk-or-statement
-                #https://stackoverflow.com/questions/12809909/efficient-way-to-count-the-amount-lines-obeying-some-condition
-            #second calculate the number of rows of the whole fam file
-            #if both numbers are the same, then number of rows without the duplicated samples is exactly the same than the total number of rows, i.e., we do NOT have duplicated samples.
+            } \
+            END {print count}' \
+            merged_batches.fam); \
+    total_n=$( \
+        awk \
+            -F '\t' \
+            'END{print NR}' \
+            merged_batches.fam); \
+    if [[ $n_no_dups -eq $total_n ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #first create a count in awk adding 1 for each row in the fam file that do not contain the ID of the duplicated samples (both suffixes), then print the count at the end.
+            #https://stackoverflow.com/questions/14739057/using-awk-with-column-value-conditions
+            #https://stackoverflow.com/questions/15839723/awk-or-statement
+            #https://stackoverflow.com/questions/12809909/efficient-way-to-count-the-amount-lines-obeying-some-condition
+        #second calculate the number of rows of the whole fam file
+        #if both numbers are the same, then number of rows without the duplicated samples is exactly the same than the total number of rows, i.e., we do NOT have duplicated samples.
 
 
 
@@ -537,28 +920,29 @@ print_text("Remove SNPs duplicated. We are going to remove first duplicates beca
     #https://www.cog-genomics.org/plink/1.9/data#list_duplicate_vars
 
 
+
 print_text("check we have 654027 SNPs, saving the number of SNPs into a variable", header=3)
 n_snps = run_bash(" \
-    gunzip \
-        --stdout \
-        ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data/" + batch_name + "_merged_data.bim.gz | \
     awk \
         -F '\t' \
-        'END{print NR}'", return_value=True).strip()
+        'END{print NR}' \
+        ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim", \
+    return_value=True).strip()
 n_snps = int(n_snps)
 print(n_snps == 654027)
+
+
+##por aquiii
 
 
 print_text("check SNPs IDs are not duplicated, as plink 1.9 does not look for duplicates using the ID", header=3)
 run_bash(" \
     n_snp_ids_non_dup=$( \
-        gunzip \
-            --stdout \
-            ./data/genetic_data/plink_bed_files/" + batch_name +  "/03_merged_data/" + batch_name +  "_merged_data.bim.gz | \
         awk \
             -F '\t' \
             '!a[$2]++{count++} \
-            END{print count}'); \
+            END{print count}' \
+            ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files/merged_batches.bim); \
         if [[ $n_snp_ids_non_dup -eq " + str(n_snps) + " ]]; then \
             echo 'TRUE'; \
         else \
@@ -662,7 +1046,14 @@ else:
     raise ValueError("ERROR: FALSE! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
 
 
+
+
+
 print_text("open a folder to save filtered dataset", header=3)
+
+####SAVE THE RESULT IN QUALITY CONTROL, OPENING A NEW FOLDER
+
+
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/" + batch_name + "/; \
     rm --recursive --force ./04_inspect_snp_dup/01_remove_dup/; \
@@ -1267,6 +1658,17 @@ else:
 
 
 
+###CHECK THAT WE DO NOT HAVE SNPS WITH THE SAME ID AND SAME POSITION
+###CHECK SNP ID IS NOT DUPLICATED
+#snps with switched alleles could have same position, being the same SNP, but not detected due to strand issues
+    #https://www.biostars.org/p/310290/
+
+
+
+
+
+
+
 print_text("missingness", header=2)
 #in Ritchie's tutorial they say that "Note that similarly to heterozygosity rates, both minor allele frequencies and deviations from Hardy-Weinberg will be affected by differ- ences in ancestry and should be considered in a population-specific way."
     #therefore I think we should check first PCA
@@ -1490,7 +1892,7 @@ sample_missing_report = pd.read_csv( \
 print(sample_missing_report)
 
 print_text("check we have the correct number of samples and columns in the missing sample report", header=4)
-print(sample_missing_report.shape[0]==total_samples) 
+print(sample_missing_report.shape[0]==1458) 
 print(sample_missing_report.shape[1]==6) 
 
 print_text("calculate the proportion of samples retained at different missing thresholds", header=4)
@@ -1735,7 +2137,7 @@ run_bash(" \
 ##por aquii
 
 #too much snps removed, half of them with MAF<0.05!! much less with 0.01
-    #the PRS tutorials recommend to remove SNPs with MAF < 0.05 if the target sample is below 1000 samples, in the rest of cases MAF<0.01. Our target would be the what? the VO2 max study? they have 500... if the target is our study, then we are above 1000
+    #the PRS tutorials recommend to remove SNPs with MAF < 0.05 if the target sample is below 1000 samples, in the rest of cases MAF<0.01. Our target would be then what? the VO2 max study? they have 500... if the target is our study, then we are above 1000
         #in the VO2 max study they used MAF<0.05
         #it makes sense, larger sample sizes give less power to detect SNPs between MAF 0.05 - 0.01 
     #maybe having both batches together would give us more samples and less probability to have low MAF? we could do just check batch effects with PCA
@@ -1848,6 +2250,8 @@ run_bash(" \
 
 ##CHANGE NAME OF THE FOLDER PCA, THIS IS NO LONGER THE 5TH
 
+#do case-control study for batch effects after PCA? or after all pre-QC steps?
+
 print_text("start PCA to detect individuals that are outliers", header=2)
 print_text("prepare folder for PCA", header=3)
 run_bash(" \
@@ -1925,6 +2329,7 @@ fig.write_html("./data/genetic_data/quality_control/" + batch_name + "/05_pca/pc
     #https://www.cog-genomics.org/plink/1.9/strat
 
 
+#check differences in pheno between batches?
 
 
 ###when finished this script, you should check missing threholds, hetero and PCA plots
@@ -2222,3 +2627,13 @@ print("All IDs in illumina data are in pheno data? " + str(samples_lost_in_pheno
 print("How many? " + str(samples_lost_in_pheno.shape[0]))
 print("It is ok to have False in this check, because we already knew that some samples had illumina report but where not included in pheno_data. The output script for the first batch shows that 1 sample has genetic data but it is not present in pheno_data (2397LDJA). In the second batch, the output script shows 6 samples with genetic but no pheno_data. In the PCA, we only have one 1 missing sample, so I guess the 6 missing samples of the second batch were those duplicated, i.e., those named as ID_1 and ID_2....")
 
+
+
+#CHECK STRAND BEFORE IMPUTATON
+#PHASING BEFORE IMPUTATION
+    #check ritchie paper
+
+
+
+############run case-control study to check for batch effects once you have pre-imputation QC done
+    #Another method involves coding case/control status by batch followed by running the GWAS analysis testing each batch against all other batches. For example, the status of all samples on batch 1 will be coded as case, while the status of every other sample is to be coded control. A GWAS analysis is performed (e.g., using the --assoc option in PLINK), and both the average p-value and the number of results significant at a given threshold (e.g., p <1 × 10-4) can be recorded. SNPs with low minor allele frequency (i.e., <5%) should be removed before this analysis is performed to improve the stability of test statistics. This procedure should be repeated for each batch in the study. If any single batch has many more or many fewer significant results or has an average p-value <0.5 (under the null, the average p-value will be 0.5 over many tests), then this batch should be further inves tigated for genotyping, imputation, or compo sition problems. If batch effects are present, methods like those employed for population stratification (e.g., genomic control) may be used to mitigate the confounding effects.

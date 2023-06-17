@@ -204,7 +204,7 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	
 	#run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
 	#run first the smallest batch with all cores and then the second batch. If we do it in parallel both batches with half of the cores, then the smallest one will be finished early and its cores will not be used by the other batch.
-	/opt/scripts/./02a_pre_imputation_qc.py > ./02a_pre_imputation_qc.out 2>&1
+	/opt/scripts/./02a_pre_imputation_qc.py --n_cores=5 > ./02a_pre_imputation_qc.out 2>&1
 
 
 

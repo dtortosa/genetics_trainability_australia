@@ -216,3 +216,6 @@ run_bash("ls")
         #but if you use any tool that consider all snps, then they can influence
     #but what about polygenic scores? there all snps are combined!
 
+#### add genotyping batch as a factor in the model???
+    #done here:
+    #https://academic.oup.com/cardiovascres/article/118/Supplement_1/cvac066.013/6605381
