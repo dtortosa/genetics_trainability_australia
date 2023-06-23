@@ -1177,15 +1177,69 @@ run_bash(" \
 
 
 
-print_text("see the unique chromosome names in the bim file map", header=3)
+print_text("see the unique chromosome names in the SNP map", header=3)
+print_text("select the name of the zip file with batch data based on the batch name because ILGSA24-17873 is called CAGRF20093767.zip, not ILGSA24-17873.zip", header=4)
+#batch_name = "ILGSA24-17873"
+for batch_name in ["ILGSA24-17873", "ILGSA24-17303"]:
+    print_text(batch_name + ": starting", header=4)
+    if batch_name=="ILGSA24-17873":
+        zip_name = "CAGRF20093767"
+    elif batch_name=="ILGSA24-17303":
+        zip_name = "ILGSA24-17303"
+    print("zip name is: " + zip_name)
+
+    print_text(batch_name + ": load zip info from the zip file", header=4)
+    import zipfile
+    zipdata = zipfile.ZipFile("./data/genetic_data/illumina_batches/" + zip_name + ".zip")
+    zipinfos = zipdata.infolist()
+
+    print_text(batch_name + ": extract the zipinfo of the SNP_map", header=4)
+    import numpy as np
+    #zipinfo=zipinfos[0]
+    for zipinfo in zipinfos:
+        if zipinfo.filename == zip_name + "/SNP_Map.txt":
+            zipinfo.filename = zipinfo.filename.split(zip_name+"/")[1]
+            zipinfo_snp_map = zipinfo
+                #select the zipinfo of SNP after removing the first part with the parent folder name
+    print(zipinfo_snp_map)
+
+    print_text(batch_name + ": extract the SNP map", header=4)
+    zipdata.extract(zipinfo_snp_map, "./data/genetic_data/quality_control/01_chromosome_filtering/")
+
+    print_text(batch_name + ": add batch name to the SNP map file", header=4)
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/01_chromosome_filtering/; \
+        mv SNP_Map.txt " + batch_name + "_SNP_Map.txt; \
+        ls -l")
+
+print_text("check both SNP maps identical", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/01_chromosome_filtering/; \
+    head ILGSA24-17303_SNP_Map.txt; \
+    head ILGSA24-17873_SNP_Map.txt; \
+    map_status=$(cmp --silent ILGSA24-17303_SNP_Map.txt ILGSA24-17873_SNP_Map.txt; echo $?); \
+    if [[ $map_status -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+print_text("remove the map of one batch are retain just one to do heck as they are identical", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/01_chromosome_filtering/; \
+    rm ILGSA24-17303_SNP_Map.txt; \
+    mv ILGSA24-17873_SNP_Map.txt SNP_Map.txt; \
+    ls -l")
+
 print_text("extract the unique chromosome names using awk", header=4)
 unique_chr_map = run_bash(" \
     cd ./data/genetic_data/quality_control/01_chromosome_filtering/; \
-    cp ../00_snp_duplicates/merged_batches_no_snp_duplicates.bim ./merged_batches_no_snp_duplicates.bim; \
+    tail \
+        -n +2 \
+        SNP_Map.txt | \
     awk \
         -F '\t' \
-        '!a[$1]++ {print $1}' \
-        merged_batches_no_snp_duplicates.bim", return_value=True)
+        '{if(!a[$3]++){print $3}}'", return_value=True)
         #remove the column names with tail (first row)
             #if you use tail with "+number_line" you can get all lines starting from the selected number of line
                 #tail is faster than sed
@@ -1210,36 +1264,29 @@ unique_chr_map = run_bash(" \
                 #Whenever the a test with no associated action is true, the default action is triggered. The default action is the equivalent of { print } or { print $0 }, which prints the current record, which for all accounts and purposes in this example is the current unmodified line of input.
                 #https://unix.stackexchange.com/a/604294
 
-
 print_text("split the string generated with the awk unique chromsome names using '\n', but avoid the last element which is the last empty line, then order using natural sorting", header=4)
 unique_chr_map = natsorted(unique_chr_map.split("\n")[0:-1])
 print(unique_chr_map)
 
-
 print_text("create a list with the expected chromosome names, i.e., unknown (0), 22 autosomals, mito, sex and pseudo-autosomal", header=4)
-expected_chr = [str(i) for i in range(0, 27, 1)]
-    #first create list with unknown and autosomes (range from 0 to 27, without including 27)
+expected_chr = [str(i) for i in range(0, 23, 1)]
+[expected_chr.append(i) for i in ["MT", "X", "XY", "Y"]]
+    #first create list with unknown and autosomes (range from 0 to 23, without including 23)
     #then add mito, sex and PAR to that list
-
 
 print_text("check we have the expect unique chromosome names", header=4)
 print(unique_chr_map == expected_chr)
-
-
-##por aquiii
-#check well checks with snp map because now you are using the bim file
-
 
 print_text("check again we have the expect unique chromosome names using pandas this time", header=4)
 print( \
     natsorted( \
         pd.read_csv( \
-            "./data/genetic_data/quality_control/01_chromosome_filtering/merged_batches_no_snp_duplicates.bim", \
+            "./data/genetic_data/quality_control/01_chromosome_filtering/SNP_Map.txt", \
             sep="\t", \
             header=0, \
             low_memory=False) \
-        ["0"] \
-        .apply(lambda x: str(x)).unique()) == \
+        ["Chromosome"] \
+        .unique()) == \
     expected_chr)
         #load SNP_Map as pandas DF
         #get the chromosome column
@@ -1273,7 +1320,7 @@ print("0" in unique_chr_map)
 
 print_text("check 0 in plink is 0 in illumina snp_map", header=4)
 snp_map = pd.read_csv( \
-    "./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/SNP_Map.txt", \
+    "./data/genetic_data/quality_control/01_chromosome_filtering/SNP_Map.txt", \
     sep="\t", \
     header=0, \
     low_memory=False)
@@ -1286,7 +1333,7 @@ print( \
         bim_file_dup_check \
             .loc[bim_file_dup_check[0]==0, 1] \
             .to_list()))
-                #get the IDs of SNPs that have as chromosome XY and 25 in the SNP_map and plink, respectively.
+                #get the IDs of SNPs that have as chromosome XY and 25 in the SNP_map and plink (original bim file without any filter), respectively.
                     #I used bim original because we are using the SNP map, which is not filtered by duplicates, so bim_no_dups would have a different (reduced) set of SNPs
                 #convert to list
                 #apply natural sorting
@@ -1433,7 +1480,7 @@ print_text("explore SNPs in Y", header=3)
 print_text("check we have Y chromosome in the SNP_map", header=4)
 print("Y" in unique_chr_map)
 
-print_text("check 23 in plink is X in illumina snp_map", header=4)
+print_text("check 24 in plink is Y in illumina snp_map", header=4)
 print( \
     natsorted( \
         snp_map \
@@ -1459,24 +1506,24 @@ else:
 
 
 print_text("remove selected SNPs", header=3)
-
 print_text("save to a file the list of SNPs to be excluded, each SNP in anew line", header=4)
-with open("./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/snps_to_exclude.txt", "w") as f:
+with open("./data/genetic_data/quality_control/01_chromosome_filtering/snps_to_exclude.txt", "w") as f:
     #snp=list_snp_ids_to_exclude[0]
     for snp in list_snp_ids_to_exclude:
         f.write(f"{snp}\n") #print the SNP and add new line
         #https://stackoverflow.com/questions/899103/writing-a-list-to-a-file-with-python-with-newlines
 run_bash(" \
-    cat ./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/snps_to_exclude.txt")
+    cat ./data/genetic_data/quality_control/01_chromosome_filtering/snps_to_exclude.txt")
 
 print_text("exclude these SNPs using --exclude of plink", header=4)
 run_bash(
-    "cd ./data/genetic_data/; \
+    "cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./plink_bed_files/" + batch_name + "/04_inspect_snp_dup/01_remove_dup/" + batch_name + "_merged_data_no_snp_dup \
-        --exclude ./quality_control/" + batch_name + "/01_chromosome_filtering/snps_to_exclude.txt \
+        --bfile ./00_snp_duplicates/merged_batches_no_snp_duplicates \
+        --exclude ./01_chromosome_filtering/snps_to_exclude.txt \
         --make-bed \
-        --out  ./quality_control/" + batch_name + "/01_chromosome_filtering/" + batch_name + "_filtered_chromosomes")
+        --out  ./01_chromosome_filtering/merged_batches_filtered_chromosomes; \
+    ls -l ./01_chromosome_filtering/")
             #--bfile: 
                 #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
                 #https://www.cog-genomics.org/plink/1.9/input#bed
@@ -1492,7 +1539,7 @@ run_bash(
 
 print_text("check that the excluded SNPs are actually out of the new bim file", header=4)
 bim_chrom_filter = pd.read_csv( \
-    "./data/genetic_data/quality_control/" + batch_name + "/01_chromosome_filtering/" + batch_name + "_filtered_chromosomes.bim", \
+    "./data/genetic_data/quality_control/01_chromosome_filtering/merged_batches_filtered_chromosomes.bim", \
     sep="\t", \
     header=None, \
     low_memory=False)
@@ -1599,17 +1646,23 @@ print(bim_chrom_filter.loc[:, 5].unique())
     #More commonly, when every sample is homozygous major at a site, PLINK might not have any of knowing what the minor allele is supposed to be (for example, the old .ped/.map format didn't keep track of that), so it provisionally sets the minor allele code to '0' until the dataset is merged with sample(s) which aren't homozygous major there.
         #https://groups.google.com/g/plink2-users/c/JRrOneIuKRQ
 
+print_text("make new dir", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        ./02_remove_non_snps/ \
+        --parents; \
+    ls -l")
+
 print_text("remove non-SNPs", header=4)
 run_bash(
-    "cd ./data/genetic_data/; \
-    mkdir \
-        ./quality_control/" + batch_name + "/01_remove_non_snps/ \
-        --parents; \
+    "cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./quality_control/" + batch_name + "/01_chromosome_filtering/" + batch_name + "_filtered_chromosomes \
+        --bfile ./01_chromosome_filtering/merged_batches_filtered_chromosomes \
         --snps-only just-acgt\
         --make-bed \
-        --out  ./quality_control/" + batch_name + "/01_remove_non_snps/" + batch_name + "_remove_non_snps")
+        --out ./02_remove_non_snps/merged_batches_remove_non_snps; \
+    ls -l ./02_remove_non_snps")
             #--snps-only excludes all variants with one or more multi-character allele codes. With 'just-acgt', variants with single-character allele codes outside of {'A', 'C', 'G', 'T', 'a', 'c', 'g', 't', <missing code>} are also excluded.
                 #we are going to remove the Insertion and Deletions, leaving only ACTG.
                 #missing cases are retained (see below), and we will check them after filtering by MAF, i.e., after removing SNPs with low minor frequencies.
@@ -1618,7 +1671,7 @@ run_bash(
 
 print_text("check no indels are present and we only have ACTG + 0", header=4)
 bim_remove_non_snps = pd.read_csv(
-    "./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/" + batch_name + "_remove_non_snps.bim", \
+    "./data/genetic_data/quality_control/02_remove_non_snps/merged_batches_remove_non_snps.bim", \
     sep="\t", \
     header=None, \
     low_memory=False)
@@ -1633,34 +1686,118 @@ else:
 
 
 
-###CHECK THAT WE DO NOT HAVE SNPS WITH THE SAME ID AND SAME POSITION
-###CHECK SNP ID IS NOT DUPLICATED
-#snps with switched alleles could have same position, being the same SNP, but not detected due to strand issues
+print_text("remove again duplicates but this time only considering position", header=2)
+#plink1.9 removes duplicates considering position AND alleles. Therefore, SNPs with the same position but different allele names are not removed. For example, rs387907306 and rs387907306.1 have the exact same position, but different alleles, AG and TG, respectively. Remember that plink1.9 does not consider the order (A1-A2) for duplicates, so AG and GA are considered duplicates. However, in this case, we have AG and TG, A is not present in the second SNP.  
+#We are going to retain only the first instance of each duplicate group, removing the rest of instances.
+#Some duplications could be caused by strand issues. For example, 0T and 0A. The second SNP can have the opposite strand. This will be solved later in the pipeline when we check strand. The remaining SNP will be checked for correct strand.
     #https://www.biostars.org/p/310290/
+print_text("see duplicates by position", header=3)
+print(bim_remove_non_snps \
+    .loc[ \
+        bim_remove_non_snps \
+            .duplicated( \
+                subset=[0,3], \
+                keep=False), :])
+                #subset: Only consider certain columns for identifying duplicates
+                    #https://stackoverflow.com/a/46640992/12772630
+                #keep=False: Mark all duplicates as ``True``
 
 
+print_text("make new dir", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        ./03_remove_pos_dups/ \
+        --parents; \
+    ls -l")
 
+
+print_text("select those SNPs with the same position", header=3)
+list_snps_pos_dup = bim_remove_non_snps \
+    .loc[ \
+        bim_remove_non_snps \
+            .duplicated( \
+                subset=[0,3], \
+                keep="first"), 1].to_list()
+                #keep="first": Mark duplicates as ``True`` except for the first occurrence.
+print(list_snps_pos_dup)
+
+
+print_text("check the number of SNPs with this problem", header=3)
+if (len(list_snps_pos_dup)/bim_remove_non_snps.shape[0])*100 < 1:
+    print(f"We have {len(list_snps_pos_dup)} snps with duplicated position")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE MORE THAN 1% OF SNPS WITH THE SAME POSITION")
+
+
+print_text("save as txt", header=3)
+with open("./data/genetic_data/quality_control/03_remove_pos_dups/snps_pos_dup.txt", "w") as f:
+    #snp=list_snp_ids_to_exclude[0]
+    for snp in list_snps_pos_dup:
+        f.write(f"{snp}\n") #print the SNP and add new line
+        #https://stackoverflow.com/questions/899103/writing-a-list-to-a-file-with-python-with-newlines
+run_bash("head ./data/genetic_data/quality_control/03_remove_pos_dups/snps_pos_dup.txt")
+
+
+print_text("check we have the correct number of SNPs in the list", header=3)
+run_bash(" \
+    snps_to_remove=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./data/genetic_data/quality_control/03_remove_pos_dups/snps_pos_dup.txt); \
+    if [[ $snps_to_remove -eq " + str(len(list_snps_pos_dup)) + " ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #just count the number of rows at the end of the file with awk and check this is the same than the length of the original python list with the SNPs to be removed
+
+
+print_text("remove these SNPs", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./02_remove_non_snps/merged_batches_remove_non_snps \
+        --exclude ./03_remove_pos_dups/snps_pos_dup.txt \
+        --make-bed \
+        --out ./03_remove_pos_dups/merged_batches_remove_dup_pos; \
+    ls -l ./03_remove_pos_dups/")
+
+
+print_text("check for pos dups after filtering", header=3)
+print_text("load the bim file after filtering", header=4)
+bim_remove_non_pos_dup = pd.read_csv(
+    "./data/genetic_data/quality_control/03_remove_pos_dups/merged_batches_remove_dup_pos.bim", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+print(bim_remove_non_pos_dup)
+print_text("check for position duplicates", header=4)
+print(sum(bim_remove_non_pos_dup.duplicated(subset=[0,3], keep=False)) == 0)
+
+
+print_text("check also for duplicates in ID", header=3)
+print(sum(bim_remove_non_pos_dup.loc[:,1].duplicated(keep=False)) == 0)
 
 
 
 
 print_text("missingness", header=2)
 #in Ritchie's tutorial they say that "Note that similarly to heterozygosity rates, both minor allele frequencies and deviations from Hardy-Weinberg will be affected by differ- ences in ancestry and should be considered in a population-specific way."
-    #therefore I think we should check first PCA
-#note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differen
-
+#note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differentiation
 print_text("create missing report per SNP and sample", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
+    "cd ./data/genetic_data/quality_control/03_remove_pos_dups/; \
     plink \
-        --bfile " + batch_name + "_remove_non_snps \
-        --missing")
+        --bfile merged_batches_remove_dup_pos \
+        --missing; \
+    ls -l")
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
             #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
 
 print_text("See the first lines of the lmiss file", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
+    cd ./data/genetic_data/quality_control/03_remove_pos_dups/; \
     head plink.lmiss")
     #lmiss: A text file with a header line, and K line(s) per variant with the following 5-7 fields (where K is the number of cluster(s) if --within/--family was specified, or 1 if it wasn't):
         #CHR Chromosome code
@@ -1676,60 +1813,18 @@ run_bash(" \
         #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
         #https://www.cog-genomics.org/plink/1.9/formats#imiss
 
-print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=4)
-run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/01_remove_non_snps/; \
-    n_snps_freq_file=$( \
-        awk \
-            'BEGIN{FS=\" \"; OFS=\" \"} \
-            {if(NR>1)(count++)}\
-            END{print count}'\
-            plink.lmiss \
-    ); \
-    n_correct_freq_miss=$( \
-        awk \
-            'BEGIN{ \
-                FS=\" \"; OFS=\" \" \
-            } \
-            { \
-                if((int(($3/$4)*100+0.5)/100==int($5*100+0.5)/100) && (NR>1)){ \
-                    count++ \
-                } \
-            } \
-            END { \
-                print count \
-            }' \
-            plink.lmiss \
-    ); \
-    if [[ $n_correct_freq_miss -eq $n_snps_freq_file ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #get the number of snps in the file
-            #count lines starting from the second line using "++". This adds 1 to the variables previously defined ("count" in our case) every time the condition is satisfied. then we print the variable at the end.
-                #https://stackoverflow.com/questions/12809909/efficient-way-to-count-the-amount-lines-obeying-some-condition
-        #count the number of rows for which the division of field 3 and 4 (missing and potential number of valid calls) is equal to field 5 (frequency missing)
-            #for that count every from the second row if the division rounded to the second decimal is equal to field 5 rounded to the second decimal. 
-                #we have to round because some times freq missing is rounded to 6 decimals, others to 7.... so I am just rounding everything to the second. It is not the best option, but this is just a small checks to see there is some concordance and freq miss is what we expect.
-                    #For example: 
-                        #the following code converts "2.568" to "2.57". 2.568 multiplied by 100 is 256.8, then you add 0.5. As you are closer to 257 than 256 (256.8+0.5=257.3), you reach 257 when applying int(), as int(257.3) gives 257 because int() remove the decimals. Then divide by 100 and get 2.57.
-                            #!echo "2.568" | awk '{print int($1*100+0.5)/100}'
-                        #in contrast, 2.564 gives 2.56 because it is closer to 2.56 than to 2.57: 2.564*100=256.4; 256.4+0.5=256.9; then int() removes the decimal leaving 256.
-                            #!echo "2.564" | awk '{print int($1*100+0.5)/100}'
-                        #https://superuser.com/questions/656534/round-off-the-decimal-value-in-awk
-
 print_text("remove SNPs with low call rate to avoid their influence when filtering samples", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    "cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./02_remove_missing_snps/;\
+        ./04_remove_missing_snps/;\
     plink \
-        --bfile ./01_remove_non_snps/" + batch_name + "_remove_non_snps \
+        --bfile ./03_remove_pos_dups/merged_batches_remove_dup_pos \
         --geno 0.01 \
         --make-bed \
-        --out ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps")
+        --out ./04_remove_missing_snps/merged_batches_remove_missing_snps; \
+    ls -l ./04_remove_missing_snps/")
         #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
             #https://www.cog-genomics.org/plink/1.9/filter
         #genotyping rate >0.99 recommended for PRS tutorial, i.e., remove SNPs with more than 1% (0.01) missing. this is more stringent than used by Ritchie tutorial, but it is ok. We lose a few thousand SNPs (see below) and it is important to be conservative given we are going to use this data for PRS.
@@ -1738,15 +1833,15 @@ run_bash(
 
 print_text("see the number of SNPs removed", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    "cd ./data/genetic_data/quality_control/; \
     n_snps_before=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./01_remove_non_snps/" + batch_name + "_remove_non_snps.bim); \
+            ./03_remove_pos_dups/merged_batches_remove_dup_pos.bim); \
     n_snps_after=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps.bim); \
+            ./04_remove_missing_snps/merged_batches_remove_missing_snps.bim); \
     lost_snps=$(($n_snps_before - $n_snps_after)); \
     lost_snps_percent=$( \
         awk \
@@ -1770,16 +1865,17 @@ run_bash(
 
 print_text("create again the missing report", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
     plink \
-        --bfile " + batch_name + "_remove_missing_snps \
-        --missing")
+        --bfile merged_batches_remove_missing_snps \
+        --missing; \
+    ls -l")
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
             #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
 
 print_text("check that no SNP has a missing % above the selected threshold", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
     total_number_snps=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
@@ -1797,10 +1893,11 @@ run_bash(
         #then count the number of SNPs in that file that have a freq missing equal or lower than 1%, i.e., call rate equal or higher than 99%, which is our selected threshold.
         #the number of snps meeting this conditions should be the same than the total number of SNPs, because we have already applied the filter.
 
+
 print_text("filter by sample missingness", header=3)
 print_text("see first lines of the sample missing report previously created", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
     head plink.imiss")
     #imiss: A text file with a header line, and one line per sample with the following six fields:
         #FID    Family ID
@@ -1814,10 +1911,9 @@ run_bash(
         #I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
         #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
 
-
 print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
     n_samples_freq_file=$( \
         awk \
             'BEGIN{FS=\" \"; OFS=\" \"} \
@@ -1850,7 +1946,7 @@ run_bash(
 
 print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
     awk \
         'BEGIN{FS=\" \"; OFS=\"\t\"}{if(NR>0){print $1,$2,$3,$4,$5,$6}}' \
         plink.imiss \
@@ -1860,7 +1956,7 @@ run_bash(
 
 print_text("load in pandas", header=4)
 sample_missing_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/" + batch_name + "/02_remove_missing_snps/plink_awk_processed.imiss", \
+    "./data/genetic_data/quality_control/04_remove_missing_snps/plink_awk_processed.imiss", \
     sep="\t", \
     header=0, \
     low_memory=False)
@@ -1902,10 +1998,11 @@ print(pd_tuples_thresholds)
 
 #create a new folder for doing operations about missing in samples
 run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./03_remove_low_call_samples/;")
+        ./05_remove_low_call_samples/; \
+    ls -l")
 
 print_text("plot sample missing thresholds against the proportion of samples retained", header=4)
 import matplotlib.pyplot as plt
@@ -1917,36 +2014,36 @@ plt.plot( \
 plt.xlabel("Call Rate Threshold")
 plt.ylabel("Proportion Remaining")
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/" + batch_name + "/03_remove_low_call_samples/" + batch_name + "_plot_sample_retention_thresholds.png")
+    fname="./data/genetic_data/quality_control/05_remove_low_call_samples/merged_batches_plot_sample_retention_thresholds.png")
 plt.close()
 
 print_text("remove samples with low call rate", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    "cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps \
+        --bfile ./04_remove_missing_snps/merged_batches_remove_missing_snps \
         --mind 0.01 \
         --make-bed \
-        --out ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples")
+        --out ./05_remove_low_call_samples/merged_batches_remove_low_call_samples")
             #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
                 #https://www.cog-genomics.org/plink/1.9/filter
             #recommended threshold
                 #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. 
                 #The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
                 #The illumina report of the first batch says "Four samples are below the illumina expected 99% SNP call rate (values expected for typical projects, excluding tumour samples)".
-                #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is above the expectation of Illunina. Therefore, I think we are ok removing these samples.
+                #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is below the expectation of Illunina. Therefore, I think we are ok removing these samples.
 
 print_text("see the number of samples removed", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    "cd ./data/genetic_data/quality_control/; \
     n_samples_before=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./02_remove_missing_snps/" + batch_name + "_remove_missing_snps.fam); \
+            ./04_remove_missing_snps/merged_batches_remove_missing_snps.fam); \
     n_samples_after=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples.fam); \
+            ./05_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
     lost_samples=$(($n_samples_before - $n_samples_after)); \
     lost_samples_percent=$( \
         awk \
@@ -1962,9 +2059,9 @@ run_bash(
     
 print_text("create again the missing report", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/03_remove_low_call_samples/; \
+    "cd ./data/genetic_data/quality_control/05_remove_low_call_samples/; \
     plink \
-        --bfile " + batch_name + "_remove_low_call_samples \
+        --bfile merged_batches_remove_low_call_samples \
         --missing; \
     ls -lh")
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
@@ -1972,7 +2069,7 @@ run_bash(
 
 print_text("check that no sample has a missing % above the selected threshold", header=4)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/03_remove_low_call_samples/; \
+    "cd ./data/genetic_data/quality_control/05_remove_low_call_samples/; \
     total_number_samples=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
@@ -1995,86 +2092,126 @@ print_text("remove samples with LogR SD above the illumina expectation", header=
 #In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
 #Some the samples above the expectation have also a call rate below 0.99, but not others, thus a specific filter is needed for this. Given that Illumina says that level of LogR SD is not normal, we should remove these individuals.
 
-print_text("process the file with the logR deviation", header=3)
-if(batch_name == "ILGSA24-17873"):
-    cnmetricts_file_name="CAGRF20093767_CNMetrics"
-elif(batch_name == "ILGSA24-17303"):
-    cnmetricts_file_name="ILGSA24-17303_CNMetrics"
-print(cnmetricts_file_name)
 
-print_text("get the ID of samples above the illuina expectation for logR SD", header=3)
-removed_samples_logRdev = run_bash(" \
+print_text("obtain the samples above the expectation for logR dev in each batch", header=3)
+#batch_name = "ILGSA24-17873"
+for batch_name in ["ILGSA24-17873", "ILGSA24-17303"]:
+    
+    print_text(batch_name + ": process the file with the logR deviation", header=4)
+    if(batch_name == "ILGSA24-17873"):
+        cnmetricts_file_name="CAGRF20093767_CNMetrics"
+    elif(batch_name == "ILGSA24-17303"):
+        cnmetricts_file_name="ILGSA24-17303_CNMetrics"
+    print(cnmetricts_file_name)
+    
+    print_text(batch_name + ": get the ID of samples above the illumina expectation for logR SD", header=3)
+    removed_samples_logRdev = run_bash(" \
+        cd ./data/genetic_data/cn_metrics/; \
+        awk \
+            'BEGIN{ \
+                FS=\",\"; \
+                OFS=\"\t\"} \
+            { \
+                if((NR>2) && ($9 >= 0.3)){ \
+                    print \"combat_" + batch_name + "\", $1 \
+                }\
+            }' \
+            " + cnmetricts_file_name + ".csv > " + batch_name + "_samples_filter_out_LogRDev.tsv; \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            " + batch_name + "_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
+            #load the CNMetrics CSV file into awk indicating that sep is ",", but the output should be tab
+            #print only from the third row (the two first have complicated headers) and only those rows for which the 9th column (the one with logR SD) is above the expectation (i.e., 0.3).
+                #from that rows, only print the first column, which is the ID.
+                #also print the name of the family first, because plink --remove needs a file with two columns, the family ID and the within-family ID
+                    #in our case, the family ID is the batch name, which is "combat_" + batch_name
+                    #this can be add as another column just with print and ""
+                        #https://stackoverflow.com/questions/7551991/add-a-new-column-to-the-file
+            #the resulting IDs of samples above the expectation can be saved as a TSV file
+            #also get the output in python
+                #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
+    print(removed_samples_logRdev)
+
+
+print_text("combine the IDs from both batched into one single file", header=3)
+run_bash(" \
     cd ./data/genetic_data/cn_metrics/; \
-    awk \
-        'BEGIN{ \
-            FS=\",\"; \
-            OFS=\"\t\"} \
-        { \
-            if((NR>2) && ($9 >= 0.3)){ \
-                print \"combat_" + batch_name + "\", $1 \
-            }\
-        }' \
-        " + cnmetricts_file_name + ".csv > " + batch_name + "_samples_filter_out_LogRDev.tsv; \
+    cat \
+        ILGSA24-17303_samples_filter_out_LogRDev.tsv  \
+        ILGSA24-17873_samples_filter_out_LogRDev.tsv > \
+    merged_batches_samples_filter_out_LogRDev.tsv; \
+    cat merged_batches_samples_filter_out_LogRDev.tsv")
+        #https://stackoverflow.com/a/2150794/12772630
+
+
+print_text("check we have the correct IDs in the merged file", header=3)
+print_text("get IDs from the merged file", header=4)
+total_removed_samples_logRdev = run_bash(" \
     awk \
         'BEGIN{FS=\"\t\"}{print $2}' \
-        " + batch_name + "_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
-        #load the CNMetrics CSV file into awk indicating that sep is ",", but the output should be tab
-        #print only from the third row (the two first have complicated headers) and only those rows for which the 9th column (the one with logR SD) is above the expectation (i.e., 0.3).
-            #from that rows, only print the first column, which is the ID.
-            #also print the name of the family first, because plink --remove needs a file with two columns, the family ID and the within-family ID
-                #in our case, the family ID is the batch name, which is "combat_" + batch_name
-                #this can be add as another column just with print and ""
-                    #https://stackoverflow.com/questions/7551991/add-a-new-column-to-the-file
-        #the resulting IDs of samples above the expectation can be saved as a TSV file
-        #also get the output in python
-            #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
-print(removed_samples_logRdev)
+        ./data/genetic_data/cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
+
+print_text("combine the list of ID samples from both batches and check it is identical than the merged list", header=4)
+print( \
+    run_bash(" \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            ./data/genetic_data/cn_metrics/ILGSA24-17303_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") + \
+    run_bash(" \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            ./data/genetic_data/cn_metrics/ILGSA24-17873_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") == \
+    total_removed_samples_logRdev)
+
+
 
 print_text("remove these samples", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        04_remove_high_LogRDev_samples; \
+        06_remove_high_LogRDev_samples; \
     plink \
-        --bfile ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples \
-        --remove ../../cn_metrics/" + batch_name + "_samples_filter_out_LogRDev.tsv \
+        --bfile ./05_remove_low_call_samples/merged_batches_remove_low_call_samples \
+        --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
         --make-bed \
-        --out ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples")
+        --out ./06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples")
             #create a new folder to save plink filesets after filtering
             #then use --remove to remove samples included in a file with two columns: family id and within-family id.
                 #this file is in a different parent folder so we have to use "../"
                 #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
                     #https://www.cog-genomics.org/plink/1.9/filter
 
+
 print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
 fam_file_after_logRdev_filtering = pd.read_csv( \
-    "./data/genetic_data/quality_control/" + batch_name + "/04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples.fam", \
+    "./data/genetic_data/quality_control/06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
     sep=" ", \
     header=0, \
     low_memory=False)
-print(sum(fam_file_after_logRdev_filtering[1].isin(removed_samples_logRdev)) == 0)
+print(sum(fam_file_after_logRdev_filtering.iloc[:, 1].isin(total_removed_samples_logRdev)) == 0)
     #no sample ID (second column in fam file) should be included in the list of IDs to be removed
+
 
 print_text("see the number of samples removed", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    "cd ./data/genetic_data/quality_control/; \
     n_samples_before=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./03_remove_low_call_samples/" + batch_name + "_remove_low_call_samples.fam); \
+            ./05_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
     n_samples_after=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples.fam); \
+            ./06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
     lost_samples=$(($n_samples_before - $n_samples_after)); \
     lost_samples_percent=$( \
         awk \
             -v l=$lost_samples \
             -v b=$n_samples_before \
             'BEGIN{print (l/b)*100}'); \
-    if [[ $lost_samples_percent < 2 || $lost_samples_percent -eq 0 ]]; then \
-        printf 'The number of samples lost due to logR SD above illumina expectations: %s' \"$lost_samples\"; \
+    if [[ $lost_samples_percent < 2 && $lost_samples_percent > 0 ]]; then \
+        printf 'The number of samples lost due to logR SD above illumina expectations is: %s; Note that we previously filtered by missingness, so we already removed there some samples with logR dev problems' \"$lost_samples\"; \
     else \
         echo 'ERROR: FALSE! We have lost more than 2% of samples due logR SD above illumina expectations OR just zero samples removed, which would be also strange, maybe you are using the wrong CNMetric file';\
     fi")
@@ -2092,18 +2229,27 @@ print_text("MAF filtering", header=2)
         #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
             #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
         #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
+#MAF level
+    #The PRS tutorial recommends "minor allele frequency (MAF) >1% (MAF >5% if target sample N <1000)".
+    #Ritchie's tutorial says "SNPs with frequency too low to yield reasonable statistical power (e.g., below 1%) may be removed from the analysis to lighten the computational and multiple testing correction burden. However, in studies with very large sample sizes, it may be beneficial to change the threshold to 0.05%."
+    #Augusto's paper says MAF<0.2 pre- and MAF<0.01 post-imputation
+    #If the power calculations are not too bad for MAF between 0.01 and 0.05 I think we should set 0.01 as filter. Using 0.05 removes half of SNPs!! I think this is too much, and it could influence the quality of the imputation. I guess as you have less SNPs, it will be more difficult to impute othe SNP with high confidence.
 
+#hacer power calculation? but for base or target? I guess base gwas..
+
+
+#https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7973508/
 
 run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
+    cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./05_remove_low_maf/; \
+        ./07_remove_high_LogRDev_samples/; \
     plink2 \
-        --bfile ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples \
+        --bfile ./06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples \
         --maf 0.05 \
         --make-bed \
-        --out ./05_remove_low_maf/" + batch_name + "_remove_low_maf")
+        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_low_maf")
             #create a new folder to save filesets after removing related samples
             #apply the MAF filter to the fileset filtered for logR SD
                 #--maf filters out all variants with minor allele frequency below the provided threshold (default 0.01), while --max-maf imposes an upper MAF bound. Similarly, --mac and --max-mac impose lower and upper minor allele count bounds, respectively.
