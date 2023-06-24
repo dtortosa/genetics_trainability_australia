@@ -22,18 +22,22 @@
     #1. Quality Control Procedures for Genome-Wide Association Studies
         #https://github.com/RitchieLab/GWAS-QC
         #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
-    #2. Genome-wide association studies
-        #https://www.nature.com/articles/s43586-021-00056-9
-    #3. Data Management and Summary Statistics with PLINK
-        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-    #4. Genomics Boot Camp
-        #https://genomicsbootcamp.github.io/book/
-    #5. Tutorial: a guide to performing polygenic risk score analyses
+    #2. Tutorial: a guide to performing polygenic risk score analyses
         #https://www.nature.com/articles/s41596-020-0353-1
         #https://choishingwan.github.io/PRS-Tutorial/
-    #6. Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+    #3. A tutorial on conducting genome‐wide association studies: Quality control and statistical analysis
+        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
+    #4. Genome-wide association studies
+        #https://www.nature.com/articles/s43586-021-00056-9
+    #5. A guide to genome-wide association analysis and post-analytic interrogation
+        #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+    #6. Data Management and Summary Statistics with PLINK
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+    #7. Genomics Boot Camp
+        #https://genomicsbootcamp.github.io/book/
+    #8. Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
         #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-    #7. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
+    #9. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
         #https://www.mdpi.com/2073-4425/14/2/248
 
 

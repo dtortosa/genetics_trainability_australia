@@ -22,18 +22,22 @@
     #1. Quality Control Procedures for Genome-Wide Association Studies
         #https://github.com/RitchieLab/GWAS-QC
         #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
-    #2. Genome-wide association studies
-        #https://www.nature.com/articles/s43586-021-00056-9
-    #3. Data Management and Summary Statistics with PLINK
-        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-    #4. Genomics Boot Camp
-        #https://genomicsbootcamp.github.io/book/
-    #5. Tutorial: a guide to performing polygenic risk score analyses
+    #2. Tutorial: a guide to performing polygenic risk score analyses
         #https://www.nature.com/articles/s41596-020-0353-1
         #https://choishingwan.github.io/PRS-Tutorial/
-    #6. Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+    #3. A tutorial on conducting genome‐wide association studies: Quality control and statistical analysis
+        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
+    #4. Genome-wide association studies
+        #https://www.nature.com/articles/s43586-021-00056-9
+    #5. A guide to genome-wide association analysis and post-analytic interrogation
+        #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+    #6. Data Management and Summary Statistics with PLINK
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+    #7. Genomics Boot Camp
+        #https://genomicsbootcamp.github.io/book/
+    #8. Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
         #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-    #7. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
+    #9. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
         #https://www.mdpi.com/2073-4425/14/2/248
 
 
@@ -1782,22 +1786,145 @@ print(sum(bim_remove_non_pos_dup.loc[:,1].duplicated(keep=False)) == 0)
 
 
 
-print_text("missingness", header=2)
-#in Ritchie's tutorial they say that "Note that similarly to heterozygosity rates, both minor allele frequencies and deviations from Hardy-Weinberg will be affected by differ- ences in ancestry and should be considered in a population-specific way."
-#note that in that paragraph they are also talking about missing rate per SNP, and they do not mention it here, so I guess it is ok to do it before the PCA, it should not be affected by the pop differentiation
+
+
+
+
+print_text("MAF filtering", header=2)
+#Typically, SNP-level filtering based on a large amount of missing data and lower variability is performed first. This is followed by sample-level filtering (see step 3 in the succeeding texts), and finally, SNP-level filtering based on possible genotyping errors (see step 4 in the succeeding texts) is performed. The rationale for this is that both sample-level relatedness and substructure (for which we filter in step 3) can influence the Hardy–Weinberg equilibrium (HWE) criterion (step 4) used for filtering SNPs based on genotyping errors. 
+    #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+#It also makes sense to follow this order because we want to remove first low-quality SNPs before removing samples. SNPs with low MAF or low call rate are more likely to have genotyping errors. We should remove them before removing sample based on call rate. In this way, we avoid the removal of samples because they have missing calls in low-quality SNPs.
+#why this is important and what threshold use
+    #SNPs with a low MAF are rare, therefore power is lacking for detecting SNP‐phenotype associations. These SNPs are also more prone to genotyping errors. The MAF threshold should depend on your sample size, larger samples can use lower MAF thresholds.
+    #Ritchie's tutorial says "SNPs with frequency too low to yield reasonable statistical power (e.g., below 1%) may be removed from the analysis to lighten the computational and MULTIPLE TESTING CORRECTION BURDEN. However, in studies with very large sample sizes, it may be beneficial to change the threshold to 0.05%."
+    #This makes sense as Alicia's tutorial says "...low minor allele frequency variants are typically not in linkage disequilibrium with common variants and, therefore, add a greater multiple testing burden". These are variants are independent from others, greatly increasing the number of independent tests.
+    #Alicia's tutorial also says "GWAS’ mostly refers to genome-wide studies of common variants ... Generally, common variants are those with a minor allele frequency above 10%, although as population sizes grow this threshold can be as low as 1% as researchers typically adhere to a minimum minor allele count; for example, at least 100 individuals who carry at least one copy of the minor allele"
+    #In the same vein, Ritchie's tutorial says "However, in studies with very large sample sizes, it may be beneficial to change the threshold to 0.05% (i.e., 0.005). More recently, in larger sample-size studies such as Pan UKBB data analyses, minor allele count (MAC) of 20 is also recommended (W. Zhou et al., 2020)."
+    #The PRS tutorial recommends "minor allele frequency (MAF) >1% (MAF >5% if target sample N <1000)".
+        #As you have more samples, low MAF SNPs will have a higher minor allele count in absolute terms, as we have more samples.
+    #the QC tutorial recommended by the PRS tutorial says "Respectively, for large (N = 100.000) vs. moderate samples (N = 10000), 0.01 and 0.05 are commonly used as MAF threshold."
+        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
+    #In this other tutorial, they apply 0.01 and lose aroudn 200K SNPs, so it is plausible to lose hundreds of thousands of SNPs. They also say that "Here, we remove SNPs for which the MAF is less than 1%. In some instances, particularly small sample settings, a cut point of 5% is applied."
+        #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+    #I have found cases with low sample size and MAF filter of 0.01
+        #Augusto's paper says MAF<0.2 pre- and MAF<0.01 post-imputation and they only have 90 samples
+        #heritage study used maf<0.01 and they had 500 samples
+            #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3098655/
+    #Given than all tutorials say that MAF filter depends on sample size and they only recommend 0.01 for relatively large sample sizes, I am going to use 0.05 as filter. Yes, we lose many SNPs, but this is the data we have....
+#when applying this step:
+    #I wasn't sure whether to remove related samples before or after the MAF filtering:
+        #The VO2 max paper seems to remove related samples before and plink tutorial remove related samples before MAF filtering
+        #In contrast, the Ritche tutorial consider the filter by MAF, SNP and sample call rate as a package called "Standard Quality Control", being explained before sample relatedness.
+        #The most important argument I have found to do MAF before is the following:
+            #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
+                #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
+            #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./04_remove_low_maf_snps/; \
+    plink \
+        --bfile ./03_remove_pos_dups/merged_batches_remove_dup_pos \
+        --maf 0.05 \
+        --make-bed \
+        --out ./04_remove_low_maf_snps/merged_batches_remove_low_maf; \
+    ls -l ./04_remove_low_maf_snps")
+            #create a new folder to save filesets after removing related samples
+            #apply the MAF filter to the fileset filtered for logR SD
+                #--maf filters out all variants with minor allele frequency below the provided threshold (default 0.01), while --max-maf imposes an upper MAF bound. Similarly, --mac and --max-mac impose lower and upper minor allele count bounds, respectively.
+                    #https://www.cog-genomics.org/plink/1.9/filter
+
+
+print_text("see the number of SNPs removed", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    n_snps_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./03_remove_pos_dups/merged_batches_remove_dup_pos.bim); \
+    n_snps_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./04_remove_low_maf_snps/merged_batches_remove_low_maf.bim); \
+    lost_snps=$(($n_snps_before - $n_snps_after)); \
+    lost_snps_percent=$( \
+        awk \
+            -v l=$lost_snps \
+            -v b=$n_snps_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_snps_percent < 60 ]]; then \
+        printf 'The number of SNPs lost due to MAF below 0.05 is: %s' \"$lost_snps\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 60% of SNPs due low-call rate';\
+    fi")
+        #First calculate the number of SNPs, i.e., rows, in the bim files before and after filtering using for that "++" to count cases.
+        #Calculate the difference of snps, i.e., SNPs removed.
+        #calculate the percentage respect to the initial number of SNPs
+            #use the -v flag to load variables into awk, so we can use the number of SNPs removed and those previously present before the filtering. Use awk to calculate the percentage.
+                #https://stackoverflow.com/a/12147154/12772630
+                #https://www.unix.com/unix-for-dummies-questions-and-answers/15651-awk-v.html
+            #bash cannot do operations with floats
+        #if the percentage of lost SNPs is less than 1%, we are fine. So print the number of SNPs using printf, so you can combine string message with a variable, indicated as %s because it is loaded as string.
+            #https://phoenixnap.com/kb/bash-printf
+
+
+print_text("create freq report", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/04_remove_low_maf_snps/; \
+    plink \
+        --bfile merged_batches_remove_low_maf \
+        --freq; \
+    head plink.frq")
+        #--frq produces a frequency report
+            #A text file with a header line, and then one line per variant with the following six fields:
+                #CHR Chromosome code
+                #SNP Variant identifier
+                #A1  Allele 1 (usually minor)
+                #A2  Allele 2 (usually major)
+                #MAF Allele 1 frequency
+                #NCHROBS Number of allele observations
+            #https://www.cog-genomics.org/plink/1.9/formats#frq
+
+
+print_text("check that no SNP has a MAF below the selected threshold", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/04_remove_low_maf_snps/; \
+    total_number_snps=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
+            plink.frq);\
+    n_snps_above_threshold=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($5 >= 0.05)){count++}}END{print count}' \
+            plink.frq); \
+    if [[ $n_snps_above_threshold -eq $total_number_snps ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #count the number of rows of the frequency report, i.e., total number of SNPs
+        #then count the number of SNPs in that file that have a MAF equal or higher than 0.05, which is our selected threshold.
+        #the number of snps meeting this condition should be the same than the total number of SNPs, because we have already applied the filter.
+
+
+
+
+print_text("filter by SNP missingness", header=2)
 print_text("create missing report per SNP and sample", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/03_remove_pos_dups/; \
+    "cd ./data/genetic_data/quality_control/04_remove_low_maf_snps/; \
     plink \
-        --bfile merged_batches_remove_dup_pos \
+        --bfile merged_batches_remove_low_maf \
         --missing; \
     ls -l")
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
             #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
 
-print_text("See the first lines of the lmiss file", header=4)
+
+print_text("See the first lines of the lmiss file", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/03_remove_pos_dups/; \
+    cd ./data/genetic_data/quality_control/04_remove_low_maf_snps/; \
     head plink.lmiss")
     #lmiss: A text file with a header line, and K line(s) per variant with the following 5-7 fields (where K is the number of cluster(s) if --within/--family was specified, or 1 if it wasn't):
         #CHR Chromosome code
@@ -1813,35 +1940,37 @@ run_bash(" \
         #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
         #https://www.cog-genomics.org/plink/1.9/formats#imiss
 
-print_text("remove SNPs with low call rate to avoid their influence when filtering samples", header=4)
+
+print_text("remove SNPs with low call rate to avoid their influence when filtering samples", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./04_remove_missing_snps/;\
+        ./05_remove_missing_snps/;\
     plink \
-        --bfile ./03_remove_pos_dups/merged_batches_remove_dup_pos \
+        --bfile ./04_remove_low_maf_snps/merged_batches_remove_low_maf \
         --geno 0.01 \
         --make-bed \
-        --out ./04_remove_missing_snps/merged_batches_remove_missing_snps; \
-    ls -l ./04_remove_missing_snps/")
+        --out ./05_remove_missing_snps/merged_batches_remove_missing_snps; \
+    ls -l ./05_remove_missing_snps/")
         #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
             #https://www.cog-genomics.org/plink/1.9/filter
         #genotyping rate >0.99 recommended for PRS tutorial, i.e., remove SNPs with more than 1% (0.01) missing. this is more stringent than used by Ritchie tutorial, but it is ok. We lose a few thousand SNPs (see below) and it is important to be conservative given we are going to use this data for PRS.
             #https://www.nature.com/articles/s41596-020-0353-1#Sec4
             #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
 
-print_text("see the number of SNPs removed", header=4)
+
+print_text("see the number of SNPs removed", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/; \
     n_snps_before=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./03_remove_pos_dups/merged_batches_remove_dup_pos.bim); \
+            ./04_remove_low_maf_snps/merged_batches_remove_low_maf.bim); \
     n_snps_after=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./04_remove_missing_snps/merged_batches_remove_missing_snps.bim); \
+            ./05_remove_missing_snps/merged_batches_remove_missing_snps.bim); \
     lost_snps=$(($n_snps_before - $n_snps_after)); \
     lost_snps_percent=$( \
         awk \
@@ -1853,19 +1982,11 @@ run_bash(
     else \
         echo 'ERROR: FALSE! We have lost more than 4% of SNPs due low-call rate';\
     fi")
-        #First calculate the number of SNPs, i.e., rows, in the bim files before and after filtering using for that "++" to count cases.
-        #Calculate the difference of snps, i.e., SNPs removed.
-        #calculate the percentage respect to the initial number of SNPs
-            #use the -v flag to load variables into awk, so we can use the number of SNPs removed and those previously present before the filtering. Use awk to calculate the percentage.
-                #https://stackoverflow.com/a/12147154/12772630
-                #https://www.unix.com/unix-for-dummies-questions-and-answers/15651-awk-v.html
-            #bash cannot do operations with floats
-        #if the percentage of lost SNPs is less than 1%, we are fine. So print the number of SNPs using printf, so you can combine string message with a variable, indicated as %s because it is loaded as string.
-            #https://phoenixnap.com/kb/bash-printf
 
-print_text("create again the missing report", header=4)
+
+print_text("create again the missing report", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
     plink \
         --bfile merged_batches_remove_missing_snps \
         --missing; \
@@ -1873,9 +1994,10 @@ run_bash(
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
             #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
 
-print_text("check that no SNP has a missing % above the selected threshold", header=4)
+
+print_text("check that no SNP has a missing % above the selected threshold", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
     total_number_snps=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
@@ -1889,16 +2011,13 @@ run_bash(
     else \
         echo 'FALSE'; \
     fi")
-        #count the number of rows of the missing report, i.e., total number of SNPs
-        #then count the number of SNPs in that file that have a freq missing equal or lower than 1%, i.e., call rate equal or higher than 99%, which is our selected threshold.
-        #the number of snps meeting this conditions should be the same than the total number of SNPs, because we have already applied the filter.
 
 
-print_text("filter by sample missingness", header=3)
-print_text("see first lines of the sample missing report previously created", header=4)
-run_bash(
-    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
-    head plink.imiss")
+
+
+print_text("filter by sample missingness", header=2)
+print_text("make sample missing report after previous filters", header=3)
+run_bash("head ./data/genetic_data/quality_control/05_remove_missing_snps/plink.imiss")
     #imiss: A text file with a header line, and one line per sample with the following six fields:
         #FID    Family ID
         #IID Within-family ID
@@ -1911,9 +2030,10 @@ run_bash(
         #I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
         #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
 
-print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=4)
+
+print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
     n_samples_freq_file=$( \
         awk \
             'BEGIN{FS=\" \"; OFS=\" \"} \
@@ -1944,9 +2064,10 @@ run_bash(
         #just check we freq miss is the ratio of missing calls respect to the potential number of valid calls per sample.
         #see above in the SNP missing part for explanations about the script
 
-print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=4)
+
+print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/04_remove_missing_snps/; \
+    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
     awk \
         'BEGIN{FS=\" \"; OFS=\"\t\"}{if(NR>0){print $1,$2,$3,$4,$5,$6}}' \
         plink.imiss \
@@ -1954,19 +2075,22 @@ run_bash(
     head plink_awk_processed.imiss")
         #specify the delimiter of the output (OFS="\t") and just print all fields (1 to 6) for all rows, then save as a new file
 
-print_text("load in pandas", header=4)
+
+print_text("load in pandas", header=3)
 sample_missing_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/04_remove_missing_snps/plink_awk_processed.imiss", \
+    "./data/genetic_data/quality_control/05_remove_missing_snps/plink_awk_processed.imiss", \
     sep="\t", \
     header=0, \
     low_memory=False)
 print(sample_missing_report)
 
-print_text("check we have the correct number of samples and columns in the missing sample report", header=4)
+
+print_text("check we have the correct number of samples and columns in the missing sample report", header=3)
 print(sample_missing_report.shape[0]==1458) 
 print(sample_missing_report.shape[1]==6) 
 
-print_text("calculate the proportion of samples retained at different missing thresholds", header=4)
+
+print_text("calculate the proportion of samples retained at different missing thresholds", header=3)
 #calculate the thresholds over 1
 thresholds = [x / 1000 for x in range(980, 1000, 1)]
     #we want from proportion 0.985 to 1. In order to get floats with range, we need to first use integers that include all the numbers we want to include as decimals (e.g., 985 for 0.985) and then divide by 1000 (985/1000=0.985).
@@ -2001,10 +2125,11 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./05_remove_low_call_samples/; \
+        ./06_remove_low_call_samples/; \
     ls -l")
 
-print_text("plot sample missing thresholds against the proportion of samples retained", header=4)
+
+print_text("plot sample missing thresholds against the proportion of samples retained", header=3)
 import matplotlib.pyplot as plt
 plt.plot( \
     pd_tuples_thresholds["threshold"], \
@@ -2014,17 +2139,18 @@ plt.plot( \
 plt.xlabel("Call Rate Threshold")
 plt.ylabel("Proportion Remaining")
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/05_remove_low_call_samples/merged_batches_plot_sample_retention_thresholds.png")
+    fname="./data/genetic_data/quality_control/06_remove_low_call_samples/merged_batches_plot_sample_retention_thresholds.png")
 plt.close()
 
-print_text("remove samples with low call rate", header=4)
+
+print_text("remove samples with low call rate", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./04_remove_missing_snps/merged_batches_remove_missing_snps \
+        --bfile ./05_remove_missing_snps/merged_batches_remove_missing_snps \
         --mind 0.01 \
         --make-bed \
-        --out ./05_remove_low_call_samples/merged_batches_remove_low_call_samples")
+        --out ./06_remove_low_call_samples/merged_batches_remove_low_call_samples")
             #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
                 #https://www.cog-genomics.org/plink/1.9/filter
             #recommended threshold
@@ -2033,17 +2159,18 @@ run_bash(
                 #The illumina report of the first batch says "Four samples are below the illumina expected 99% SNP call rate (values expected for typical projects, excluding tumour samples)".
                 #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is below the expectation of Illunina. Therefore, I think we are ok removing these samples.
 
-print_text("see the number of samples removed", header=4)
+
+print_text("see the number of samples removed", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/; \
     n_samples_before=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./04_remove_missing_snps/merged_batches_remove_missing_snps.fam); \
+            ./05_remove_missing_snps/merged_batches_remove_missing_snps.fam); \
     n_samples_after=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./05_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
+            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
     lost_samples=$(($n_samples_before - $n_samples_after)); \
     lost_samples_percent=$( \
         awk \
@@ -2056,10 +2183,11 @@ run_bash(
         echo 'ERROR: FALSE! We have lost more than 2% of samples due low-call rate';\
     fi")
         #see SNP missing code to details about awk steps
-    
-print_text("create again the missing report", header=4)
+
+
+print_text("create again the missing report", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/05_remove_low_call_samples/; \
+    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
     plink \
         --bfile merged_batches_remove_low_call_samples \
         --missing; \
@@ -2067,9 +2195,10 @@ run_bash(
         #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
             #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
 
-print_text("check that no sample has a missing % above the selected threshold", header=4)
+
+print_text("check that no sample has a missing % above the selected threshold", header=3)
 run_bash(
-    "cd ./data/genetic_data/quality_control/05_remove_low_call_samples/; \
+    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
     total_number_samples=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
@@ -2084,6 +2213,11 @@ run_bash(
         echo 'FALSE'; \
     fi")
         #see SNP missing code to details about awk steps
+
+
+
+###por aquiiii
+
 
 
 
@@ -2170,12 +2304,12 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        06_remove_high_LogRDev_samples; \
+        07_remove_high_LogRDev_samples; \
     plink \
-        --bfile ./05_remove_low_call_samples/merged_batches_remove_low_call_samples \
+        --bfile ./06_remove_low_call_samples/merged_batches_remove_low_call_samples \
         --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
         --make-bed \
-        --out ./06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples")
+        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples")
             #create a new folder to save plink filesets after filtering
             #then use --remove to remove samples included in a file with two columns: family id and within-family id.
                 #this file is in a different parent folder so we have to use "../"
@@ -2185,7 +2319,7 @@ run_bash(" \
 
 print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
 fam_file_after_logRdev_filtering = pd.read_csv( \
-    "./data/genetic_data/quality_control/06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
+    "./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
     sep=" ", \
     header=0, \
     low_memory=False)
@@ -2199,11 +2333,11 @@ run_bash(
     n_samples_before=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./05_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
+            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
     n_samples_after=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
+            ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
     lost_samples=$(($n_samples_before - $n_samples_after)); \
     lost_samples_percent=$( \
         awk \
@@ -2221,49 +2355,14 @@ run_bash(
 
 
 
-print_text("MAF filtering", header=2)
-#I wasn't sure whether to remove related samples before or after the MAF filtering:
-    #The VO2 max paper seems to remove related samples before and plink tutorial remove related samples before MAF filtering
-    #In contrast, the Ritche tutorial consider the filter by MAF, SNP and sample call rate as a package called "Standard Quality Control", being explained before sample relatedness.
-    #The most important argument I have found to do MAF before is the following:
-        #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
-            #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
-        #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
-#MAF level
-    #The PRS tutorial recommends "minor allele frequency (MAF) >1% (MAF >5% if target sample N <1000)".
-    #Ritchie's tutorial says "SNPs with frequency too low to yield reasonable statistical power (e.g., below 1%) may be removed from the analysis to lighten the computational and multiple testing correction burden. However, in studies with very large sample sizes, it may be beneficial to change the threshold to 0.05%."
-    #Augusto's paper says MAF<0.2 pre- and MAF<0.01 post-imputation
-    #If the power calculations are not too bad for MAF between 0.01 and 0.05 I think we should set 0.01 as filter. Using 0.05 removes half of SNPs!! I think this is too much, and it could influence the quality of the imputation. I guess as you have less SNPs, it will be more difficult to impute othe SNP with high confidence.
-
-#hacer power calculation? but for base or target? I guess base gwas..
+#maybe we could repeate in two steps the MAF-missing snps filters and then sample filter to check that first removal of sample did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
+#the other steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
+    #"An iterative procedure that repeats the SNP and sample-level filtering until no additional samples are removed is also common" 
+        #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
 
 
-#https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7973508/
 
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./07_remove_high_LogRDev_samples/; \
-    plink2 \
-        --bfile ./06_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples \
-        --maf 0.05 \
-        --make-bed \
-        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_low_maf")
-            #create a new folder to save filesets after removing related samples
-            #apply the MAF filter to the fileset filtered for logR SD
-                #--maf filters out all variants with minor allele frequency below the provided threshold (default 0.01), while --max-maf imposes an upper MAF bound. Similarly, --mac and --max-mac impose lower and upper minor allele count bounds, respectively.
-                    #https://www.cog-genomics.org/plink/1.9/filter
 
-##por aquii
-
-#too much snps removed, half of them with MAF<0.05!! much less with 0.01
-    #the PRS tutorials recommend to remove SNPs with MAF < 0.05 if the target sample is below 1000 samples, in the rest of cases MAF<0.01. Our target would be then what? the VO2 max study? they have 500... if the target is our study, then we are above 1000
-        #in the VO2 max study they used MAF<0.05
-        #it makes sense, larger sample sizes give less power to detect SNPs between MAF 0.05 - 0.01 
-    #maybe having both batches together would give us more samples and less probability to have low MAF? we could do just check batch effects with PCA
-        #see plink
-            #You will usually want to sanity-check the output at this point, and verify that the top principal components do not correlate too strongly with, e.g., sequencing facility or date. (A full discussion of “batch effects” and how to deal with them could take up an entire chapter; worst case, you may have to analyze your batches separately, or even redo all genotyping/sequencing from scratch. I will be optimistic here and suppose that no major problem was uncovered by PCA, but be aware that this is frequently your best chance to catch data problems that would otherwise sink your entire analysis.)
 
 
 
