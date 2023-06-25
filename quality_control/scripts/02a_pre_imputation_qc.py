@@ -2216,11 +2216,6 @@ run_bash(
 
 
 
-###por aquiiii
-
-
-
-
 
 print_text("remove samples with LogR SD above the illumina expectation", header=2)
 #In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
@@ -2309,7 +2304,8 @@ run_bash(" \
         --bfile ./06_remove_low_call_samples/merged_batches_remove_low_call_samples \
         --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
         --make-bed \
-        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples")
+        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples; \
+    ls -l ./07_remove_high_LogRDev_samples/")
             #create a new folder to save plink filesets after filtering
             #then use --remove to remove samples included in a file with two columns: family id and within-family id.
                 #this file is in a different parent folder so we have to use "../"
@@ -2351,23 +2347,166 @@ run_bash(
     fi")
         #see SNP missing code to details about awk steps
         #just added another condition, if the number of removed samples is zero, get error because we have problematic samples for this in both batches, so maybe you are using the incorrect CNMetric file
-    
 
 
 
-#maybe we could repeate in two steps the MAF-missing snps filters and then sample filter to check that first removal of sample did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
-#the other steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
+
+print_text("apply again the MAF and missing filters", header=2)
+#We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
+#In other words, 
+    #imagine you have already filtered by MAF and missing (SNP and sample). Of course, after the SNP filters, you can be sure that no SNP is below the MAF threshold or above the missing threshold. 
+    #But then, you remove samples. It could be the case that after removing samples, the MAF of a SNP gets below 0.05 because the few minor carriers have been removed. 
+    #This makes snps with MAF close but above of 0.05 actually getting below that thershold. We remove again these SNPs.
+    #This removal of SNPs can in turn influence the missing call percentage of samples because maybe a sample has a call rate of 0.99, but we have removed one SNP for which it had data (i.e., non-missing). Its call rate has decreased being now below the threshold. See the following dummy example:
+        #We only have 5 SNPs, thus 10 potential genotypess
+        #A sample has missing for 2 genotypes, thus its missing rate is 2/10=0.2 and its call rate is 8/10=0.8.
+        #If we remove one of the SNPs, the number of potential genotypes is 8 instead of 10.
+        #Imagine that the removed SNPs was indeed one of the SNPs without missing for this sample, thus the number of genotypes for this sample goes down to 6.
+        #Therefore, its missing rate is now 2/8=0.25 and its call rate is 6/8=0.75.
+        #We have now a higher missing rate and a lower call rate.
+#We have to continue until we remove SNPs by filters and then no additional sample is removed. In that moment, we can be sure that all SNPs and samples meet the filters considered.
     #"An iterative procedure that repeats the SNP and sample-level filtering until no additional samples are removed is also common" 
         #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+#the other steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
+print_text("create missing and freq reports", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    plink \
+        --bfile merged_batches_remove_high_LogRDev_samples \
+        --freq \
+        --missing \
+        --out merged_batches_remove_high_LogRDev_samples; \
+    ls -l")
 
 
+print_text("create a folder to save plink data after new filters", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./08_loop_maf_missing; \
+    ls -l")
 
 
+print_text("check if we have SNPs below the MAF threshold after removing samples", header=3)
+n_snps_below_maf_first_round_raw = run_bash(" \
+    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    awk \
+        'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
+        merged_batches_remove_high_LogRDev_samples.frq", return_value=True).strip()
+n_snps_below_maf_first_round = 0 if n_snps_below_maf_first_round_raw=="" else int(n_snps_below_maf_first_round_raw)
+print(f"We have {n_snps_below_maf_first_round} SNPs below the MAF threshold after the first round of filters")
+
+
+print_text("check if we have SNPs below the MAF threshold after removing samples", header=3)
+n_snps_below_missing_first_round_raw = run_bash(" \
+    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    awk \
+        'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
+        merged_batches_remove_high_LogRDev_samples.lmiss", return_value=True).strip()
+n_snps_below_missing_first_round = 0 if n_snps_below_missing_first_round_raw=="" else int(n_snps_below_missing_first_round_raw)
+print(f"We have {n_snps_below_missing_first_round} SNPs above the missing threshold after the first round of filters")
+
+
+print_text("repeat the filters if these snps exists", header=3)
+if(n_snps_below_maf_first_round>0) | (n_snps_below_missing_first_round>0):
+    print_text("apply MAF and missing SNP filters", header=4)
+    run_bash(" \
+      cd ./data/genetic_data/quality_control/; \
+      plink \
+          --bfile ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples \
+          --maf 0.05 \
+          --geno 0.01 \
+          --make-bed \
+          --out ./08_loop_maf_missing/loop_maf_missing_1; \
+      ls -l ./08_loop_maf_missing/")  
+
+    print_text("apply missing sample filters", header=4)
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/; \
+        plink \
+            --bfile ./08_loop_maf_missing/loop_maf_missing_1 \
+            --mind 0.01 \
+            --make-bed \
+            --out ./08_loop_maf_missing/loop_maf_missing_2; \
+        ls -l ./08_loop_maf_missing/")
+
+    print_text("create MAF and missing reports", header=4)
+    run_bash(
+        "cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        plink \
+            --bfile loop_maf_missing_2 \
+            --freq \
+            --missing \
+            --out loop_maf_missing_2; \
+        ls -l")
+    
+    print_text("check reports again", header=4)
+    n_snps_below_maf_second_round_raw = run_bash(" \
+        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
+            loop_maf_missing_2.frq", return_value=True).strip()
+    n_snps_below_maf_second_round = 0 if n_snps_below_maf_second_round_raw=="" else int(n_snps_below_maf_second_round_raw)
+    print(f"We have {n_snps_below_maf_second_round} SNPs below the MAF threshold after the second round of filters")    
+    n_snps_below_missing_second_round_raw = run_bash(" \
+        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
+            loop_maf_missing_2.lmiss", return_value=True).strip()
+    n_snps_below_missing_second_round = 0 if n_snps_below_missing_second_round_raw=="" else int(n_snps_below_missing_second_round_raw)
+    print(f"We have {n_snps_below_missing_second_round} SNPs above the missing threshold after the second round of filters")
+    n_samples_below_missing_second_round_raw = run_bash(" \
+        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($6 > 0.01)){count++}}END{print count}' \
+            loop_maf_missing_2.imiss", return_value=True).strip()
+    n_samples_below_missing_second_round = 0 if n_samples_below_missing_second_round_raw=="" else int(n_samples_below_missing_second_round_raw)
+    print(f"We have {n_samples_below_missing_second_round} Samples above the missing threshold after the second round of filters")
+
+    if (n_snps_below_maf_second_round>0) | (n_snps_below_missing_second_round>0) | (n_samples_below_missing_second_round>0):
+        raise ValueError("ERROR: FALSE! WE HAVE AN ERROR WITH THE ITERATIONS OF MAF/MISSING FILFERS!, WE STILL HAVE SNPS OR SAMPLES NOT MEETING THE CONDITIONS")
+else:
+    print("Step not required")
+
+
+print_text("just copy plink files if no filter is required", header=3)
+if(n_snps_below_maf_first_round==0) & (n_snps_below_missing_first_round==0):
+    run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    cp \
+        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bim \
+        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bim; \
+    cp \
+        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam \
+        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.fam; \
+    cp \
+        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bed \
+        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bed; \
+    ls -l ./08_loop_maf_missing/")
+    run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mv \
+        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bim \
+        ./08_loop_maf_missing/loop_maf_missing_2.bim; \
+    mv \
+        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.fam \
+        ./08_loop_maf_missing/loop_maf_missing_2.fam; \
+    mv \
+        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bed \
+        ./08_loop_maf_missing/loop_maf_missing_2.bed; \
+    ls -l ./08_loop_maf_missing/")
+else:
+    print("Step not required.")
 
 
 
 
 ###por aqui
+#check the whole loop filter and do NOT change the last part with cp, mv, PARETO
+
+
+
 
 
 print_text("sample relatedness", header=2)
