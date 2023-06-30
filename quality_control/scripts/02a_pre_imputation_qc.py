@@ -2367,7 +2367,7 @@ print_text("apply again the MAF and missing filters", header=2)
 #We have to continue until we remove SNPs by filters and then no additional sample is removed. In that moment, we can be sure that all SNPs and samples meet the filters considered.
     #"An iterative procedure that repeats the SNP and sample-level filtering until no additional samples are removed is also common" 
         #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
-#the other steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
+#the other previous steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
 print_text("create missing and freq reports", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
@@ -2375,7 +2375,7 @@ run_bash(
         --bfile merged_batches_remove_high_LogRDev_samples \
         --freq \
         --missing \
-        --out merged_batches_remove_high_LogRDev_samples; \
+        --out merged_batches_remove_high_LogRDev_samples_reports; \
     ls -l")
 
 
@@ -2393,17 +2393,17 @@ n_snps_below_maf_first_round_raw = run_bash(" \
     cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
     awk \
         'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
-        merged_batches_remove_high_LogRDev_samples.frq", return_value=True).strip()
+        merged_batches_remove_high_LogRDev_samples_reports.frq", return_value=True).strip()
 n_snps_below_maf_first_round = 0 if n_snps_below_maf_first_round_raw=="" else int(n_snps_below_maf_first_round_raw)
 print(f"We have {n_snps_below_maf_first_round} SNPs below the MAF threshold after the first round of filters")
 
 
-print_text("check if we have SNPs below the MAF threshold after removing samples", header=3)
+print_text("check if we have SNPs below the missing threshold after removing samples", header=3)
 n_snps_below_missing_first_round_raw = run_bash(" \
     cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
     awk \
         'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
-        merged_batches_remove_high_LogRDev_samples.lmiss", return_value=True).strip()
+        merged_batches_remove_high_LogRDev_samples_reports.lmiss", return_value=True).strip()
 n_snps_below_missing_first_round = 0 if n_snps_below_missing_first_round_raw=="" else int(n_snps_below_missing_first_round_raw)
 print(f"We have {n_snps_below_missing_first_round} SNPs above the missing threshold after the first round of filters")
 
@@ -2438,7 +2438,7 @@ if(n_snps_below_maf_first_round>0) | (n_snps_below_missing_first_round>0):
             --bfile loop_maf_missing_2 \
             --freq \
             --missing \
-            --out loop_maf_missing_2; \
+            --out loop_maf_missing_2_reports; \
         ls -l")
     
     print_text("check reports again", header=4)
@@ -2446,24 +2446,25 @@ if(n_snps_below_maf_first_round>0) | (n_snps_below_missing_first_round>0):
         cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
         awk \
             'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
-            loop_maf_missing_2.frq", return_value=True).strip()
+            loop_maf_missing_2_reports.frq", return_value=True).strip()
     n_snps_below_maf_second_round = 0 if n_snps_below_maf_second_round_raw=="" else int(n_snps_below_maf_second_round_raw)
     print(f"We have {n_snps_below_maf_second_round} SNPs below the MAF threshold after the second round of filters")    
     n_snps_below_missing_second_round_raw = run_bash(" \
         cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
         awk \
             'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
-            loop_maf_missing_2.lmiss", return_value=True).strip()
+            loop_maf_missing_2_reports.lmiss", return_value=True).strip()
     n_snps_below_missing_second_round = 0 if n_snps_below_missing_second_round_raw=="" else int(n_snps_below_missing_second_round_raw)
     print(f"We have {n_snps_below_missing_second_round} SNPs above the missing threshold after the second round of filters")
     n_samples_below_missing_second_round_raw = run_bash(" \
         cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
         awk \
             'BEGIN{FS=\" \"}{if((NR>1) && ($6 > 0.01)){count++}}END{print count}' \
-            loop_maf_missing_2.imiss", return_value=True).strip()
+            loop_maf_missing_2_reports.imiss", return_value=True).strip()
     n_samples_below_missing_second_round = 0 if n_samples_below_missing_second_round_raw=="" else int(n_samples_below_missing_second_round_raw)
     print(f"We have {n_samples_below_missing_second_round} Samples above the missing threshold after the second round of filters")
 
+    print_text("stop if we still have SNPs/samples not meeting the filters", header=4)
     if (n_snps_below_maf_second_round>0) | (n_snps_below_missing_second_round>0) | (n_samples_below_missing_second_round>0):
         raise ValueError("ERROR: FALSE! WE HAVE AN ERROR WITH THE ITERATIONS OF MAF/MISSING FILFERS!, WE STILL HAVE SNPS OR SAMPLES NOT MEETING THE CONDITIONS")
 else:
@@ -2476,24 +2477,12 @@ if(n_snps_below_maf_first_round==0) & (n_snps_below_missing_first_round==0):
     cd ./data/genetic_data/quality_control/; \
     cp \
         ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bim \
-        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bim; \
+        ./08_loop_maf_missing/loop_maf_missing_2.bim; \
     cp \
         ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam \
-        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.fam; \
+        ./08_loop_maf_missing/loop_maf_missing_2.fam; \
     cp \
         ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bed \
-        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bed; \
-    ls -l ./08_loop_maf_missing/")
-    run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mv \
-        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bim \
-        ./08_loop_maf_missing/loop_maf_missing_2.bim; \
-    mv \
-        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.fam \
-        ./08_loop_maf_missing/loop_maf_missing_2.fam; \
-    mv \
-        ./08_loop_maf_missing/merged_batches_remove_high_LogRDev_samples.bed \
         ./08_loop_maf_missing/loop_maf_missing_2.bed; \
     ls -l ./08_loop_maf_missing/")
 else:
@@ -2502,10 +2491,12 @@ else:
 
 
 
-###por aqui
-#check the whole loop filter and do NOT change the last part with cp, mv, PARETO
+print_text("heterozigosity", header=2)
 
 
+#some tutorial recommend to remove samples with high hetero before relatdness. High hetero can indicate inbreeding or sample contamination
+    #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
 
 
 
@@ -2525,28 +2516,154 @@ print_text("sample relatedness", header=2)
 #READ sample relatedness from Ritche
 #calculate IBD and pi-hat with KING? 
 #you have samples with very high similarity, so we should have enough arugments to remove them? the plots of pi-hat and IBD could be useful, but THINK
+#this tutorial suggest to do it after relatdness
+    #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+#this tutorial after MAF
+    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
+
+
+
+
+
+
+
+##if we do it without the MAF filtering, we lose 3 samples due sibling-sibling/father-sibling, but after the MAF filter we lose 20!! We have to check with other approaches! because KING says that is better not remove SNPs (at least for LD prunning) so maybe we are making it difficult for the approach.
+
+
+run_bash(" \
+    mkdir \
+        --parents \
+        ./09_remove_related_samples/")
+
+
+
+print_text("calculate kinship coefficient", header=3)
+
+
+
+#LD prunning
+    #CHECK R2 AND WINDOW SIZE
+        #removes SNPs so that no pair within 200 kilobases have squared-allele-count-correlation (r2) greater than 0.5, and saves the IDs of the remaining SNPs to ldpruned_snplist.prune.in. (There is nothing magical about the r2 = 0.5 threshold; it is useful to adjust it depending on the number of SNPs you want to keep. The lower the threshold you use, the larger your kilobase window should be.)
+    #you get 180K SNPs, while ritchie used 67,000
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
+        --indep-pairwise 200kb 0.5 \
+        --out ./09_remove_related_samples/ldpruned_snplist; \
+    plink \
+        --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
+        --extract ./09_remove_related_samples/ldpruned_snplist.prune.in \
+        --make-bed \
+        --out ./09_remove_related_samples/loop_maf_missing_2_pruned;\
+    ls -l ./09_remove_related_samples/")
+
+
+        #https://www.cog-genomics.org/plink/1.9/ld#indep
+
+
+##CHECK OPTIONS OF WINDOW SIZE..
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./09_remove_related_samples/loop_maf_missing_2_pruned \
+        --genome gz \
+        --out ./09_remove_related_samples/ibd_report;\
+    ls -l ./09_remove_related_samples/")
+        #https://www.cog-genomics.org/plink/1.9/ibd
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    gunzip \
+        --stdout \
+        ./ibd_report.genome.gz | \
+    awk \
+        'BEGIN{FS=\" \"}{if((NR>1) && ($10 > 0.2)){print $0}}'")
+    #A common measure of relatedness (or duplication) between pairs of samples is based on identity by descent (IBD). An IBD kinship coefficient of greater than 0.10 may suggest relatedness, duplicates, or sample mixture. Typically, the individual of a related pair with lower genotype call rate is removed.
+
+
+#convert delimiter of ibd report
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    gunzip \
+        --stdout \
+        ./ibd_report.genome.gz | \
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14}' > ibd_report.genome.tsv; \
+    gzip \
+        --force \
+        ./ibd_report.genome.tsv; \
+    ls -l")
+
+
+ibd_report = pd.read_csv( \
+    "./data/genetic_data/quality_control/09_remove_related_samples/ibd_report.genome.tsv.gz", \
+    sep="\t", 
+    header=0, 
+    low_memory=False)
+ibd_report
+
+
+
+import matplotlib.pyplot as plt
+plt.plot( \
+    ibd_report["Z0"], \
+    ibd_report["Z1"], \
+    marker="o", \
+    markersize = 1, \
+    linestyle="None")
+plt.xlabel("Call Rate Threshold")
+plt.ylabel("Proportion Remaining")
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/09_remove_related_samples/pairs_relatdness_before_filtering.png")
+plt.close()
+    #maybe not very useful if we cannot see info about siblings... self-reported.
+    
+
+
+
+
+
+
+
 
 
 print_text("run KING-robust with plink2", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "/; \
-    mkdir \
-        --parents \
-        ./06_remove_related/; \
+    cd ./data/genetic_data/quality_control/; \
     plink2 \
-        --bfile ./05_remove_low_maf/" + batch_name + "_remove_low_maf \
+        --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
         --king-cutoff 0.177 \
         --make-bed \
-        --out ./06_remove_related/" + batch_name + "_remove_related")
-            #create a new folder to save filesets after removing related samples
-            #apply the KING-robust method to the fileset filtered for logR SD
-                #
-                #https://www.cog-genomics.org/plink/2.0/distance#make_king
+        --out ./09_remove_related_samples/remove_related_samples; \
+    ls -l ./09_remove_related_samples")
+        #apply the KING-robust method
+            #https://www.cog-genomics.org/plink/2.0/distance#make_king
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    awk \
+        'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
+        ./remove_related_samples.king.cutoff.out.id")
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    cat ./09_remove_related_samples/remove_related_samples.king.cutoff.out.id")
+
+#CHECK THIS REMOVED SAMPLES ARE THOSE WITH PI_HAT>0.2
+    #0.2 WAS USED IN THE VO2 PAPER, BUT NOT SURE, CHECK FIGURE 5 RITCHIE where <0.2 are 3rd degree related or unrelated.
+
+
+#maybe remove the sample with more missing from each related pair
 
 
         #check general usage of plink2 and king
 
-            #it seems this approach tris to balance between getting a subset of unrelated samples and speed. This does not just remove one sample of each related pair
+            #it seems this approach tries to balance between getting a subset of unrelated samples and speed. This does not just remove one sample of each related pair
 
             #Please do not prune or filter any "good" SNPs that pass QC prior to any KING inference, unless the number of variants is too many to fit the computer memory, e.g., > 100,000,000 as in a WGS study, in which case rare variants can be filtered out. LD pruning is not recommended in KING.
                 #https://www.kingrelatedness.com/manual.shtml
@@ -2556,6 +2673,9 @@ run_bash(" \
 
             #The same samples are removed with threshold 0.354 and 4. Maybe these are duplicated samples?
                 #only 3 more samples are removed with 0.177, i.e., when removing first-degree relations (parent–child and sibling–sibling)
+
+
+
 
 
 
@@ -2603,6 +2723,19 @@ run_bash(" \
 #look at the bim file the unique cases
 #bim_no_dups.loc[:, 4].unique()
 #bim_no_dups.loc[:, 5].unique()
+
+
+
+####SEX BEFORE PCA
+    #check-sex has to be used on LD-pruned data, so we can use the previous data
+    #Ritchie do it first this before MAF but I prefer to do all previos steps, then LD prunning so the same data can be used for relatedness, sex and PCA
+    #I will do it before the PCA because Ritchie seems to give priority order to this
+    #This isn't implemented yet in plink2 since there would be little practical difference from the plink 1.9 implementation.  Use "--make-bed --chr X,Y" to export a .bed fileset with only chrX and chrY, and run plink 1.9 --check-sex on that.
+
+
+
+
+
 
 
 
