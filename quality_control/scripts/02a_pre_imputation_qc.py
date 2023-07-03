@@ -2491,15 +2491,6 @@ else:
 
 
 
-print_text("heterozigosity", header=2)
-
-
-#some tutorial recommend to remove samples with high hetero before relatdness. High hetero can indicate inbreeding or sample contamination
-    #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
-    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
-
-
-
 print_text("sample relatedness", header=2)
 #the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
@@ -2507,101 +2498,157 @@ print_text("sample relatedness", header=2)
     #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
 #In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the PCA
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-
-
-#POR AQUII
-
-
-
-#READ sample relatedness from Ritche
-#calculate IBD and pi-hat with KING? 
-#you have samples with very high similarity, so we should have enough arugments to remove them? the plots of pi-hat and IBD could be useful, but THINK
-#this tutorial suggest to do it after relatdness
-    #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
-#this tutorial after MAF
-    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
-
-
-
-
-
-
-
-##if we do it without the MAF filtering, we lose 3 samples due sibling-sibling/father-sibling, but after the MAF filter we lose 20!! We have to check with other approaches! because KING says that is better not remove SNPs (at least for LD prunning) so maybe we are making it difficult for the approach.
-
-
+#we can filter by sample relatdness, select a subset of SNPs based on LD-pruning (for IBD), then filter and use that subset also for PCA and heterozigosity
+print_text("create folder for this step", header=3)
 run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./09_remove_related_samples/")
+        ./09_remove_related_samples/; \
+    ls -l")
 
 
 
 print_text("calculate kinship coefficient", header=3)
-
-
-
-#LD prunning
-    #CHECK R2 AND WINDOW SIZE
-        #removes SNPs so that no pair within 200 kilobases have squared-allele-count-correlation (r2) greater than 0.5, and saves the IDs of the remaining SNPs to ldpruned_snplist.prune.in. (There is nothing magical about the r2 = 0.5 threshold; it is useful to adjust it depending on the number of SNPs you want to keep. The lower the threshold you use, the larger your kilobase window should be.)
-    #you get 180K SNPs, while ritchie used 67,000
-
-
+#Using dense marker data obtained in GWAS, it is easy to pairwise kinship estimates between every individual in the study using the --genome option in PLINK 1.9. This procedure need not be performed on the entire GWAS dataset; using a linkage-disequilibrium (LD) pruned dataset consisting of independent loci yields stable estimates of relationship in the form of kinship coefficient or ˆπ (pi-hat) values.
+    #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
+#This is a common measure of relatedness (or duplication) between pairs of samples is based on identity by descent (IBD). Typically, the individual of a related pair with lower genotype call rate is removed.
+    #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+print_text("LD-pruning", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
         --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
-        --indep-pairwise 200kb 0.5 \
+        --indep-pairwise 500kb 1 0.2 \
         --out ./09_remove_related_samples/ldpruned_snplist; \
+    ls -l ./09_remove_related_samples/")
+        #This command produces a pruned subset of variants that are in approximate linkage equilibrium with each other, writing the IDs to plink2.prune.in (and the IDs of all excluded variants to plink2.prune.out). These files are valid input for --extract/--exclude in a future PLINK run; and, for backward compatibility, they do not affect the set of variants in the current run.
+        #Since the only output of these commands is a pair of variant-ID lists, they now error out when variant IDs are not unique.
+        #--indep-pairwise is the simplest approach, which only considers correlations between unphased-hardcall allele counts. It takes three parameters: 
+            #a required window size in variant count or kilobase (if the 'kb' modifier is present) units, 
+            #an optional variant count to shift the window at the end of each step (default 1, and now required to be 1 when a kilobase window is used).
+                #I guess the window is shifted (moved forward) until the variant count changes in 1 unit?
+            #a required r2 threshold.
+        #At each step, pairs of variants in the current window with squared correlation greater than the threshold are noted, and variants are greedily pruned from the window until no such pairs remain.
+        #For example:
+            #"--indep-pairwise 100kb 1 0.8"
+            #removes SNPs so that no pair within 100 kilobases have squared-allele-count-correlation (r2) greater than 0.8, and saves the IDs of the remaining SNPs.
+        #On human data, some reasonable parameter settings are, in order of increasing strictness:
+            #"--indep-pairwise 100kb 1 0.8"
+            #"--indep-pairwise 200kb 1 0.5"
+            #"--indep-pairwise 500kb 1 0.2"
+        #As we get more strict, the number of selected SNPs is reduced. We will go for the most strict option, i.e., allowing a lower correlation between SNPs in larger windows. This means that we will have much less variants correlated across larger chunks of the genome. In this way, we will have a very clean set in terms of LD. This is important because we are going to do operations that are not LD-aware
+        #https://www.cog-genomics.org/plink/2.0/ld
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+print("Do we have at least 70K SNPs after LD pruning like in Ritchie's tutorial?")
+#In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat.
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    echo 'see first lines of the .prune.in list:'; \
+    head ./ldpruned_snplist.prune.in; \
+    ld_snps_in=$( \
+        awk \
+            'BEGIN{FS=\" \"}END{print NR}' \
+            ./ldpruned_snplist.prune.in); \
+    printf 'The number of included SNPs is %s\n' \"$ld_snps_in\"; \
+    echo 'Is this number greater than 70K?'; \
+    if [[ $ld_snps_in -gt 70000 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
+            #https://phoenixnap.com/kb/bash-printf
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
     plink \
         --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
         --extract ./09_remove_related_samples/ldpruned_snplist.prune.in \
         --make-bed \
         --out ./09_remove_related_samples/loop_maf_missing_2_pruned;\
     ls -l ./09_remove_related_samples/")
+        #from the current fileset, select only those SNPs included in .prune.in
+        #we use extract for that
+            #--extract normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces), and removes all unlisted variants from the current analysis.
+                #https://www.cog-genomics.org/plink/1.9/filter
+        #make a new fileset
 
-
-        #https://www.cog-genomics.org/plink/1.9/ld#indep
-
-
-##CHECK OPTIONS OF WINDOW SIZE..
-
+print_text("calculate the kindship", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
         --bfile ./09_remove_related_samples/loop_maf_missing_2_pruned \
-        --genome gz \
+        --genome \
         --out ./09_remove_related_samples/ibd_report;\
     ls -l ./09_remove_related_samples/")
+        #These calculations ARE NOT LD-aware. It is usually a good idea to perform some form of LD-based pruning before invoking them.
+        #--genome invokes an IBS/IBD computation, and then writes a report plink.genome
+            #Note that there is one entry per pair of samples, so this file can be very large.
+        #This estimator requires fairly accurate minor allele frequencies to work properly. Use --read-freq if you do not think your immediate dataset's empirical MAFs are representative.
+        #modifiers for genome
+            #The 'gz' modifier causes the output to be gzipped
+            #The 'full' modifier causes the following fields to be added:
+                #IBS0    Number of IBS 0 nonmissing variants
+                #IBS1    Number of IBS 1 nonmissing variants
+                #IBS2    Number of IBS 2 nonmissing variants
+                #HOMHOM  Number of IBS 0 SNP pairs used in PPC test
+                #HETHET  Number of IBS 2 het/het SNP pairs used in PPC test
+            #'rel-check' removes pairs of samples with different FIDs
+                #I understand that this avoid comparison between samples of different families (batches in our case). We do NOT want that because we want to calculate relatdness between all samples across both batches.
+                #rel-check in make-king-table does exactly that, so I understand this is the function of this modifier. One asked for using the same modifier 'rel-check' of --genome to make-king-table
+                    #I was just wondering if you would consider adding the rel-check flag from plink1 --genome to plink2 --make-king-table? When working with family data I often find I am interested in two subsets of the full relatedness matrix: all relations within FID, and all relations between FID with kinship above some threshold. The latter can of course be easily produced using --king-table-filter (and then ignoring entries with FID1==FID2). The within-FID table on the other hand, I can currently only get by filtering the full (often huge) king table, or by crafting a dummy .kin0 file listing only pairs within FID and using with --king-table-subset. Both methods are feasible, but somewhat inconvenient. Thus my feature request.
+                        #https://groups.google.com/g/plink2-users/c/aCxpf3j6tXg/m/hACv878gCwAJ
+                    #The 'rel-check' modifier causes only same-FID pairs to be reported
+                        #https://www.cog-genomics.org/plink/2.0/distance#make_king
+            #unbounded and nudge
+                #The underlying P(IBD=0/1/2) estimator sometimes yields numbers outside the range [0,1]; by default, these are clipped. The 'unbounded' modifier turns off this clipping. Then, if PI_HAT^2 < P(IBD=2), nudge adjusts the final estimates to P(IBD=0) := (1-p2), P(IBD=1) := 2p(1-p), and P(IBD=2) := p2, where p is the current PI_HAT.
+                #not fully understood, just use default for this, i.e., not using these modifiers
+        #flags
+            #--min/--max 
+                #removes lines with PI_HAT values below/above the given cutoff(s).
+            #--ppc-gap
+                #By default, the minimum distance between informative pairs of SNPs used in the pairwise population concordance (PPC) test is 500k base pairs; you can change this with the --ppc-gap flag.
         #https://www.cog-genomics.org/plink/1.9/ibd
 
-
+print_text("explore the kindship file looking for pairs with pi_hat > 0.2", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
-    gunzip \
-        --stdout \
-        ./ibd_report.genome.gz | \
+    echo 'See first lines of the IBD report'; \
+    head ibd_report.genome; \
+    echo '\n See now only those rows for which pi_hat > 0.2'; \
     awk \
-        'BEGIN{FS=\" \"}{if((NR>1) && ($10 > 0.2)){print $0}}'")
-    #A common measure of relatedness (or duplication) between pairs of samples is based on identity by descent (IBD). An IBD kinship coefficient of greater than 0.10 may suggest relatedness, duplicates, or sample mixture. Typically, the individual of a related pair with lower genotype call rate is removed.
+        'BEGIN{FS=\" \"}{if((NR>1) && ($10 > 0.2)){print $0}}' \
+        ibd_report.genome")
+        #fields of plink.genome:
+            #FID1    Family ID for first sample
+            #IID1    Individual ID for first sample
+            #FID2    Family ID for second sample
+            #IID2    Individual ID for second sample
+            #RT  Relationship type inferred from .fam/.ped file
+            #EZ  IBD sharing expected value, based on just .fam/.ped relationship
+            #Z0  P(IBD=0)
+            #Z1  P(IBD=1)
+            #Z2  P(IBD=2)
+            #PI_HAT  Proportion IBD, i.e. P(IBD=2) + 0.5*P(IBD=1)
+            #PHE Pairwise phenotypic code (1, 0, -1 = AA, AU, and UU pairs, respectively)
+            #DST IBS distance, i.e. (IBS2 + 0.5*IBS1) / (IBS0 + IBS1 + IBS2)
+            #PPC IBS binomial test
+            #RATIO   HETHET : IBS0 SNP ratio (expected value 2)
 
-
-#convert delimiter of ibd report
+print_text("convert delimiter of ibd report", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
-    gunzip \
-        --stdout \
-        ./ibd_report.genome.gz | \
     awk \
-        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14}' > ibd_report.genome.tsv; \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14}' \
+        ibd_report.genome > ibd_report_awk_processed.genome.tsv; \
     gzip \
         --force \
-        ./ibd_report.genome.tsv; \
+        ./ibd_report_awk_processed.genome.tsv; \
     ls -l")
 
-
+print_text("convert delimiter of ibd report", header=4)
 ibd_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/09_remove_related_samples/ibd_report.genome.tsv.gz", \
+    "./data/genetic_data/quality_control/09_remove_related_samples/ibd_report_awk_processed.genome.tsv.gz", \
     sep="\t", 
     header=0, 
     low_memory=False)
@@ -2616,17 +2663,36 @@ plt.plot( \
     marker="o", \
     markersize = 1, \
     linestyle="None")
-plt.xlabel("Call Rate Threshold")
-plt.ylabel("Proportion Remaining")
+plt.xlabel("proportion of loci where the pair shares zero allele IBD (Z0)")
+plt.ylabel("proportion of loci where the pair shares one allele IBD (Z1)")
 plt.savefig( \
     fname="./data/genetic_data/quality_control/09_remove_related_samples/pairs_relatdness_before_filtering.png")
 plt.close()
-    #maybe not very useful if we cannot see info about siblings... self-reported.
     
 
 
+    #Individuals sharing close to zero alleles IBD at every locus are unrelated (typically 2% to 3%). 
+
+    #Individuals sharing one allele IBD at every locus are parent-child pairs. Therefore, Z1 close 1.
+        #we do not have cases like that (y axis in Z0 vs Z1 plot ends at 0.6)
+
+    #On average, siblings share zero, one, and two alleles IBD at 25%, 50%, and 25% of the genome, respectively. Therefore, Z0=0.25 and Z1=0.5.
+        #we have some pairs like that (upper left part of the plot)
+
+    #Individuals sharing two alleles IBD at nearly every locus are monozygotic twins, or the pair is a single sample processed twice.
+        #there some pairs where Z0 and Z1 are close to zero, thus Z2 should be very high, i.e., twins or duplicated sample
+
+        #add another panel Z0 vs Z2 because we have some pairs with Z2 = 1!!! twins? duplicates!!
 
 
+    #understand how pi_hat is calculated, because it seems to exists a correlation with Z0, Z1 and Z2....
+
+    #define problematic cases, save them and then compare with king
+
+
+
+
+##if we do it without the MAF filtering, we lose 3 samples due sibling-sibling/father-sibling, but after the MAF filter we lose 20!! We have to check with other approaches! because KING says that is better not remove SNPs (at least for LD prunning) so maybe we are making it difficult for the approach.
 
 
 
@@ -2726,11 +2792,9 @@ run_bash(" \
 
 
 
-####SEX BEFORE PCA
-    #check-sex has to be used on LD-pruned data, so we can use the previous data
-    #Ritchie do it first this before MAF but I prefer to do all previos steps, then LD prunning so the same data can be used for relatedness, sex and PCA
-    #I will do it before the PCA because Ritchie seems to give priority order to this
-    #This isn't implemented yet in plink2 since there would be little practical difference from the plink 1.9 implementation.  Use "--make-bed --chr X,Y" to export a .bed fileset with only chrX and chrY, and run plink 1.9 --check-sex on that.
+
+
+
 
 
 
@@ -2835,19 +2899,22 @@ fig.write_html("./data/genetic_data/quality_control/" + batch_name + "/05_pca/pc
 
 
 
-########################################################################
-#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
-########################################################################
+
+
+print_text("heterozigosity", header=2)
+
+
+#Ritchie's tutorial says "while less than expected heterozygosity (mean – 3 SD) suggests possible inbreeding and greater than expected heterozygosity (mean + 3 SD) suggests possible sample contamination. How- ever, these thresholds should take into account the expected heterozygosity rates in the ancestry group under study, as some diverse populations may exhibit different rates of heterozygosity than other populations."
+
+#the heterozygosity of each individual is influenced by the genotypes, and we have already cleaned low-quality calls BUT the problem can be with the threshold we use to remove samples with low/high heterozigosity, because this is influenced by ancestry.
 
 
 
-#you could end this script by creating the missingness-heterogizosity rate plot and the PCA
-#yes, hetero can be influenced by ancestry, but I am going to use the threshold of the tutorial and if this is not ok for other ancestries, we can check if the outlier hetero are from other ancestries
-    #see tutorials
-
-#I guess we can then use PCA to remove outlier samples because of ancestry issues, also by heterogizogisty, maf.... those factors that can be influenced by ancestry
+#I guess we can then use PCA to remove outlier samples because of ancestry issues, also by heterogizogisty those factors that can be influenced by ancestry
 #do plot hetero - missingness
 #use the information of both approaches to remove samples because different ancestry (outlier PCA), contamination (high hetero) or inbreeding (low hetero)
+
+
 
 #####see tutorials
 
@@ -2865,7 +2932,16 @@ print_text("check sex mismatches", header=1)
 
 
     #check sex uses allele frequencies, so you can have problems with different ancestries, yo have to prepare the data... so maybe is bettter to see the PCA for outliers and batch effects, filtering and then go to see sex once we have cleaner data
-    #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+        #"Due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution, you may need to process the rare-ancestry samples separately."
+        #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+
+    #check-sex has to be used on LD-pruned data, so we can use the previous data
+        #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
+    #This isn't implemented yet in plink2 since there would be little practical difference from the plink 1.9 implementation.  Use "--make-bed --chr X,Y" to export a .bed fileset with only chrX and chrY, and run plink 1.9 --check-sex on that.
+
+
+
+
 
 ##THIS IS IMPORTANT, CHECK THIS
 
@@ -2911,6 +2987,13 @@ sample_map_illumina = pd.concat(list_sample_maps)
 
 
 sample_map_illumina.shape[0] == 1248+216
+
+
+
+########################################################################
+#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
+########################################################################
+
 
 #load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
 pheno_data = pd.read_excel(
