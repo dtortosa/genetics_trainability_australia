@@ -2573,6 +2573,29 @@ run_bash(" \
                 #https://www.cog-genomics.org/plink/1.9/filter
         #make a new fileset
 
+print_text("remove sex chromsomes", header=4)
+#According to Marees et al. (2018), we should check for sample relatedness not only using independent SNPs (pruning), but also limiting the analysis to autosomal chromosomes only.
+    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
+#In Ritchie's tutorial (figure 5), they show an histogram for the distribution of pairwise pi-hat. They calculated IBD after "removing sex inconsistent individuals, 95% SNP call rate, 90% sample call rate, 10% MAF, and pruning to 67,000 AUTOSOMAL variants."
+    #we can have minorities within the sample, and as plunk help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
+#In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    plink \
+        --bfile ./loop_maf_missing_2_pruned \
+        --autosome \
+        --make-bed \
+        --out ./loop_maf_missing_2_pruned_autosomals;\
+    ls -l")
+        #--autosome excludes all unplaced and non-autosomal variants, while --autosome-xy does not exclude the pseudo-autosomal region of X. They can be combined with --not-chr, e.g.
+            #https://www.cog-genomics.org/plink/1.9/filter
+
+
+    ###USE "loop_maf_missing_2_pruned_autosomals"
+
+
+
+
 print_text("calculate the kindship", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
@@ -2630,6 +2653,8 @@ run_bash(" \
             #Z1  P(IBD=1)
             #Z2  P(IBD=2)
             #PI_HAT  Proportion IBD, i.e. P(IBD=2) + 0.5*P(IBD=1)
+                #This counts the whole probability of having 2 shared alleles IBD and then half of the probability of having 1 shared allele IBD.
+                #I guess
             #PHE Pairwise phenotypic code (1, 0, -1 = AA, AU, and UU pairs, respectively)
             #DST IBS distance, i.e. (IBS2 + 0.5*IBS1) / (IBS0 + IBS1 + IBS2)
             #PPC IBS binomial test
@@ -2646,13 +2671,13 @@ run_bash(" \
         ./ibd_report_awk_processed.genome.tsv; \
     ls -l")
 
-print_text("convert delimiter of ibd report", header=4)
+print_text("load ibd report as pandas DF", header=4)
 ibd_report = pd.read_csv( \
     "./data/genetic_data/quality_control/09_remove_related_samples/ibd_report_awk_processed.genome.tsv.gz", \
     sep="\t", 
     header=0, 
     low_memory=False)
-ibd_report
+print(ibd_report)
 
 
 
@@ -2668,7 +2693,8 @@ plt.ylabel("proportion of loci where the pair shares one allele IBD (Z1)")
 plt.savefig( \
     fname="./data/genetic_data/quality_control/09_remove_related_samples/pairs_relatdness_before_filtering.png")
 plt.close()
-    
+
+    #Cryptic relatedness can interfere with the association analysis. If you have a family‐based sample (e.g., parent‐offspring), you do not need to remove related pairs but the statistical analysis should take family relatedness into account. However, for a population based sample we suggest to use a pi‐hat threshold of 0.2, which in line with the literature (Anderson et al., 2010; Guo et al., 2014).
 
 
     #Individuals sharing close to zero alleles IBD at every locus are unrelated (typically 2% to 3%). 
@@ -2690,6 +2716,12 @@ plt.close()
     #define problematic cases, save them and then compare with king
 
 
+    #Identical twins, and duplicates, are 100%identical by descent (Pihat 1.0)
+    #First-degree relatives are 50% IBD (Pihat 0.5)
+    #Second-degree relatives are 25% IBD (Pihat 0.25)
+    #Third-degree relatives are 12.5% equal IBD (Pihat 0.125).
+        #https://www.biostars.org/p/58663/
+        #https://www.biostars.org/p/75335/
 
 
 ##if we do it without the MAF filtering, we lose 3 samples due sibling-sibling/father-sibling, but after the MAF filter we lose 20!! We have to check with other approaches! because KING says that is better not remove SNPs (at least for LD prunning) so maybe we are making it difficult for the approach.
@@ -2808,6 +2840,9 @@ run_bash(" \
 
 #do case-control study for batch effects after PCA? or after all pre-QC steps?
 
+#In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
+
+
 print_text("start PCA to detect individuals that are outliers", header=2)
 print_text("prepare folder for PCA", header=3)
 run_bash(" \
@@ -2909,6 +2944,10 @@ print_text("heterozigosity", header=2)
 #the heterozygosity of each individual is influenced by the genotypes, and we have already cleaned low-quality calls BUT the problem can be with the threshold we use to remove samples with low/high heterozigosity, because this is influenced by ancestry.
 
 
+##important
+#check if you need pruned data and if we can use sex chromosomes or not
+#we have two sets of LD pruned data, one with sex and another without sex chromosomes
+
 
 #I guess we can then use PCA to remove outlier samples because of ancestry issues, also by heterogizogisty those factors that can be influenced by ancestry
 #do plot hetero - missingness
@@ -2939,6 +2978,7 @@ print_text("check sex mismatches", header=1)
         #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
     #This isn't implemented yet in plink2 since there would be little practical difference from the plink 1.9 implementation.  Use "--make-bed --chr X,Y" to export a .bed fileset with only chrX and chrY, and run plink 1.9 --check-sex on that.
 
+    #BUT OF COURSE WE NEED DATA OF SEX CHROMOSOMES, select the prunnn ed dataset with sex chromosomes
 
 
 
