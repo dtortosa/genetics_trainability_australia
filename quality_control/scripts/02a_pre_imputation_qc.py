@@ -2512,7 +2512,7 @@ run_bash(" \
 print_text("calculate kinship coefficient", header=3)
 #Using dense marker data obtained in GWAS, it is easy to pairwise kinship estimates between every individual in the study using the --genome option in PLINK 1.9. This procedure need not be performed on the entire GWAS dataset; using a linkage-disequilibrium (LD) pruned dataset consisting of independent loci yields stable estimates of relationship in the form of kinship coefficient or ˆπ (pi-hat) values.
     #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
-#This is a common measure of relatedness (or duplication) between pairs of samples is based on identity by descent (IBD). Typically, the individual of a related pair with lower genotype call rate is removed.
+#This is a common measure of relatedness (or duplication) between pairs of samples and it is based on identity by descent (IBD). Typically, the individual of a related pair with lower genotype call rate is removed.
     #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
 print_text("LD-pruning", header=4)
 run_bash(" \
@@ -2577,7 +2577,7 @@ print_text("remove sex chromsomes", header=4)
 #According to Marees et al. (2018), we should check for sample relatedness not only using independent SNPs (pruning), but also limiting the analysis to autosomal chromosomes only.
     #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
 #In Ritchie's tutorial (figure 5), they show an histogram for the distribution of pairwise pi-hat. They calculated IBD after "removing sex inconsistent individuals, 95% SNP call rate, 90% sample call rate, 10% MAF, and pruning to 67,000 AUTOSOMAL variants."
-    #we can have minorities within the sample, and as plunk help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
+    #we can have minorities within the sample, and as plink help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
 #In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
@@ -2591,7 +2591,16 @@ run_bash(" \
             #https://www.cog-genomics.org/plink/1.9/filter
 
 
-    ###USE "loop_maf_missing_2_pruned_autosomals"
+
+
+
+    ###POR AQUIIII
+    ###FROM HERE USE "loop_maf_missing_2_pruned_autosomals"
+
+
+
+
+
 
 
 

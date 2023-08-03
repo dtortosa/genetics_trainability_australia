@@ -144,6 +144,10 @@ run_bash("ls")
 # approach to calculate the PRS #
 #################################
 
+#beside our interesting alzerhemie paper with neural nets
+    #other option
+        #SNPRS:Stacked Neural network for predicting Polygenic Risk Score
+
 #VO2 max trainibility
     #Make a Polygenic predictor score (PPS) of VO2 max trainibility
         #In order to calculate a PPS, we need effect sizes and p-values for the association between SNPs and the trait obtained from a different study than the one used to train the scores, so we avoid overestimating its predictive power.
