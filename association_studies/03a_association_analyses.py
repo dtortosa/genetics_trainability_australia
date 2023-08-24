@@ -233,7 +233,7 @@ run_bash("ls")
 
 
 
-
+##load pheno data
 #load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
 import pandas as pd
 import numpy as np
@@ -242,9 +242,6 @@ pheno_data = pd.read_excel(
     header=0,
     sheet_name="All DNA samples")
 print(pheno_data)
-
-#there are several phenotypes, see dev version for details about possible errors.
-#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
 
 #beep test 8 has an error, "o" letter instead "0" number in one sample
 print("\n#####################\n#####################")
@@ -263,7 +260,8 @@ pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
 print(pheno_data.iloc[index_problematic_sample,:])
 
 
-#load the fam file
+##load fam file
+#load the fam file of the current steps I am working on for QC (date 08/24/2023)
 fam_file = pd.read_csv( \
     "./quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam", \
     sep=" ", \
@@ -272,22 +270,26 @@ fam_file = pd.read_csv( \
     names=["family_id", "AGRF code", "ID_father", "ID_mother", "sex_code", "phenotype_value"])
 
 
+##merge
 #merge pheno data and fam file
 merged_data = pheno_data.merge(fam_file, on="AGRF code", how="inner")
     #only samples with ID included in both genetic and pheno data
 print(merged_data)
+
 #also remove NANs for samples with ID but not pheno data
 merged_data = merged_data.dropna()
 
+
+##create new variables for the change before and after
 merged_data["weight_change"] = merged_data["Week 8 Body Mass"]-merged_data["Week 1 Body Mass"]
 merged_data["beep_change"] = merged_data["Week 8 beep test"]-merged_data["Week 1 Beep test"]
 merged_data["vo2_change"] = merged_data["Week 8 Pred VO2max"]-merged_data["Week 1 Pred VO2max"]
 
 
-
-#create objects with phenotypes and covariates
+##create objects with phenotypes and covariates
     #ids and phenos to --mpheno
     #ids and covaristes (sex is not needed, used in fam), to use it with --linear
+        #https://www.cog-genomics.org/plink/1.9/input
 multi_pheno_file = merged_data[["family_id", "AGRF code", "weight_change", "beep_change", "vo2_change"]]
 multi_pheno_file.columns=["FID", "IID", "weight_change", "beep_change", "vo2_change"]
     #https://www.cog-genomics.org/plink/1.9/input
@@ -298,25 +300,35 @@ covar_file.columns=["FID", "IID", "age", "week_1_weight", "week_1_beep", "week_1
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
 #add batch as covariate????
     #note sure if this can cause problems because we are already indicating the famliy ID (batch) in both covariates and phenos... In the final analuyses, if you do not see batch effects, I think you can skip completely this.
-multi_pheno_file.to_csv("./association_studies/pheno_file.tsv", sep="\t", index=False)
+multi_pheno_file.to_csv("./association_studies/pheno_file.tsv", sep="\t", index=False, header=True)
 covar_file.to_csv("./association_studies/covar_file.tsv", sep="\t", index=False, header=True)
 
 
-#run the associations
-
+##run the associations
+#make a dict with the covariates for each phenotype
 dict_covs = {
     "weight_change": "age,week_1_weight", \
     "beep_change": "age,week_1_beep", \
     "vo2_change": "age,week_1_vo2"}
+        #SEX is included as an argument in plink
 
+#make dict for title plots
+dict_titles = {
+    "weight_change": "Change of body mass", \
+    "beep_change": "Change in beep test", \
+    "vo2_change": "Change in predicted VO2 max"}
 
-pheno="vo2_change"
+#run associations and plot each pheno
+#pheno="beep_change"
 for pheno in ["weight_change", "beep_change", "vo2_change"]:
 
+    #print the phenotype name
     print(pheno)
 
+    #get the covariate names
     covs = dict_covs[pheno]
 
+    #run plink assoc
     run_bash(" \
         cd ./association_studies; \
         plink \
@@ -328,9 +340,11 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             --covar-name " + covs + " \
             --out " + pheno + "; \
         ls -l")
-            #https://www.cog-genomics.org/plink/1.9/assoc
+            #Given a quantitative phenotype and possibly some covariates (in a --covar file), --linear writes a linear regression report to plink.assoc.linear.
+                #the result is a file with several rows per SNP, having the slope and P for each covariate and the ADD effect of the SNP
+                #https://www.cog-genomics.org/plink/1.9/assoc
 
-
+    #use awk to select only rows for ADD effect of the SNP and the first row, then save as tsv.
     run_bash(" \
         cd ./association_studies; \
         awk \
@@ -338,13 +352,27 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             " + pheno + ".assoc.linear > \
         " + pheno + ".assoc.linear.tsv")
 
-
-import dash_bio
-import pandas as pd
-df = pd.read_fwf("./vo2_change.assoc.linear.tsv", sep="\t")
-df
-    #https://stackoverflow.com/questions/69863821/read-output-model-of-plink
-
-dash_bio.ManhattanPlot(
-    dataframe=df, chrm='CHR', bp='BP', p='P', snp='SNP', gene=None
-)
+    #make plot
+    assoc_results = pd.read_fwf("./association_studies/" + pheno + ".assoc.linear.tsv", sep="\t")
+        #use pheno to avoid problems with the delimiter
+            #https://stackoverflow.com/questions/69863821/read-output-model-of-plink
+    
+    #make manhattan plot with plotly
+    import dash_bio
+    import plotly.graph_objects as go
+    fig = dash_bio.ManhattanPlot(
+            dataframe=assoc_results, \
+            chrm='CHR', \
+            bp='BP', \
+            p='P', \
+            snp='SNP', \
+            gene=None, \
+            logp=True, \
+            suggestiveline_value=-np.log10(0.05), \
+            genomewideline_value=-np.log10(0.05/assoc_results.shape[0]), \
+            title="Manhattan Plot - " + dict_titles[pheno])
+                #the significance line is bonferroni, which is very stringent
+                #https://plotly.com/python/manhattan-plot/
+    fig.write_html("./association_studies/" + pheno + ".html")
+        #you can also save as an interactive html with "fig.write_html("path/to/file.html")"
+            #https://plotly.com/python/interactive-html-export/

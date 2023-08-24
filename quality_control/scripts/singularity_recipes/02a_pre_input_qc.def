@@ -102,13 +102,13 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	#install apache spark, pyspark will connect to spark
 		#https://stackoverflow.com/questions/33887227/how-to-upgrade-spark-to-newer-version/33914992#33914992
 	#download apache spark in usr/local/bin
-	wget -P /usr/local/bin https://dlcdn.apache.org/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
-		#https://www.apache.org/dyn/closer.lua/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz
+	wget -P /usr/local/bin https://dlcdn.apache.org/spark/spark-3.3.3/spark-3.3.3-bin-hadoop3.tgz
+		#https://www.apache.org/dyn/closer.lua/spark/spark-3.3.3/spark-3.3.3-bin-hadoop3.tgz
 	#unzip
-	tar -zxf /usr/local/bin/spark-3.3.2-bin-hadoop3.tgz -C /usr/local/bin
+	tar -zxf /usr/local/bin/spark-3.3.3-bin-hadoop3.tgz -C /usr/local/bin
 	#set the path of spark as environmental variable in our bash profile, so it is always present
 	#echo "#spark setup" >> ~/.bashrc
-	#echo "export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3" >> ~/.bashrc
+	#echo "export SPARK_HOME=/usr/local/bin/spark-3.3.3-bin-hadoop3" >> ~/.bashrc
 		#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
 		#we do this better in env, because singualirty uses its own bashrc file
 
@@ -178,7 +178,7 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
     export SHELL=/bin/bash #set bash as default shell to avoid using sh
 
 	#set the path of spark as environmental variable in our bash profile, so it is always present
-    export SPARK_HOME=/usr/local/bin/spark-3.3.2-bin-hadoop3
+    export SPARK_HOME=/usr/local/bin/spark-3.3.3-bin-hadoop3
     	#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
 
     #set the python version for pyspark
