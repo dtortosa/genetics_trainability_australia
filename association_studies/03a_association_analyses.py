@@ -38,14 +38,6 @@
 
 
 
-##################
-# import modules #
-##################
-
-import pandas as pd
-
-
-
 ########################################
 # define function to print text nicely #
 ########################################
@@ -213,6 +205,13 @@ run_bash("ls")
             #It is less interesting, but it would be easier because we could use the previous GWAS studies to obtain effect sizes, then train in our dataset and even validate in a third dataset, as the UK biobank has VO2 max data along with genetics.
 
 
+
+
+
+
+
+
+
 ###you have 1057 men!! sex imbalance
 
 ###IMPORTANT, THINK WHAT chromosomes include, X, Y, PAR and mito should be analyzed?
@@ -223,3 +222,81 @@ run_bash("ls")
 #### add genotyping batch as a factor in the model???
     #done here:
     #https://academic.oup.com/cardiovascres/article/118/Supplement_1/cvac066.013/6605381
+
+
+
+
+
+
+
+####CODIGO SUCIO, NO REVISADO!!!!
+
+
+
+
+#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
+import pandas as pd
+import numpy as np
+pheno_data = pd.read_excel(
+    "./quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+print(pheno_data)
+
+#there are several phenotypes, see dev version for details about possible errors.
+#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
+
+#beep test 8 has an error, "o" letter instead "0" number in one sample
+print("\n#####################\n#####################")
+print("Week 8 beep test for a sample is 11.1O, i.e., letter O instead number 0")
+print("#####################\n#####################")
+index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
+index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
+print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
+print(pheno_data.iloc[index_problematic_sample,:])
+
+#change 11.1O for 11.10
+print("\n#####################\n#####################")
+print("error solved")
+print("#####################\n#####################")
+pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
+print(pheno_data.iloc[index_problematic_sample,:])
+
+
+
+fam_file = pd.read_csv( \
+    "./quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam", \
+    sep=" ", \
+    header=None, \
+    low_memory=False, \
+    names=["family_id", "AGRF code", "ID_father", "ID_mother", "sex_code", "phenotype_value"])
+
+
+merged_data = pheno_data.merge(fam_file, on="AGRF code", how="outer")
+
+
+multi_pheno_file = merged_data[["family_id", "AGRF code", "Week 8 Body Mass", "Week 8 beep test", "Week 8 Pred VO2max"]]
+    #https://www.cog-genomics.org/plink/1.9/input
+
+covar_file = merged_data[["family_id", "AGRF code", "Age", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Pred VO2max", "family_id"]]
+    #select the baseline for each predictor, so VO2 max base line for 8 week baseline, etc...
+
+    #https://www.cog-genomics.org/plink/1.9/input#covar
+    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+
+    #add batch as covariate????
+
+"/xdisk/denard/dftortosa/march_2023/association_studies/"
+
+
+
+
+
+
+#merge fam file with pheno to hace family ids
+#create file
+    #ids and phenos to --mpheno
+    #ids and covaristes (sex is not needed, used in fam), to use it with --linear
+
+
+#https://www.cog-genomics.org/plink/1.9/assoc

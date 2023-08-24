@@ -2576,9 +2576,11 @@ run_bash(" \
 print_text("remove sex chromsomes", header=4)
 #According to Marees et al. (2018), we should check for sample relatedness not only using independent SNPs (pruning), but also limiting the analysis to autosomal chromosomes only.
     #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
-#In Ritchie's tutorial (figure 5), they show an histogram for the distribution of pairwise pi-hat. They calculated IBD after "removing sex inconsistent individuals, 95% SNP call rate, 90% sample call rate, 10% MAF, and pruning to 67,000 AUTOSOMAL variants."
-    #we can have minorities within the sample, and as plink help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
+#In Ritchie's tutorial (figure 5), they show an histogram for the distribution of pairwise pi-hat. They calculated IBD after "removing sex inconsistent individuals, 95% SNP call rate, 90% sample call rate, 10% MAF, and pruning to 67,000 AUTOSOMAL variants.".
+    #Therefore they do not use SNPs in sex chromosomes!
+    #Respect sex inconsistencies, we can have minorities within the sample, and as plink help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
 #In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
+#Therefore, I think we can use this set of pruned autosomal SNPs for kinship and PCA.
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     plink \
@@ -2595,10 +2597,11 @@ run_bash(" \
 
 
     ###POR AQUIIII
+    ### THINK ABOUT SEX INCOSITENCES AFTER THESE STEPS...
     ###FROM HERE USE "loop_maf_missing_2_pruned_autosomals"
 
 
-
+    #coge the last filter MAF y haz association preliminar asvisando de que no has quitado primos, ancestria...
 
 
 
