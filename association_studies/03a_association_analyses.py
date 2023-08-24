@@ -263,7 +263,7 @@ pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
 print(pheno_data.iloc[index_problematic_sample,:])
 
 
-
+#load the fam file
 fam_file = pd.read_csv( \
     "./quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam", \
     sep=" ", \
@@ -272,31 +272,79 @@ fam_file = pd.read_csv( \
     names=["family_id", "AGRF code", "ID_father", "ID_mother", "sex_code", "phenotype_value"])
 
 
-merged_data = pheno_data.merge(fam_file, on="AGRF code", how="outer")
+#merge pheno data and fam file
+merged_data = pheno_data.merge(fam_file, on="AGRF code", how="inner")
+    #only samples with ID included in both genetic and pheno data
+print(merged_data)
+#also remove NANs for samples with ID but not pheno data
+merged_data = merged_data.dropna()
 
-
-multi_pheno_file = merged_data[["family_id", "AGRF code", "Week 8 Body Mass", "Week 8 beep test", "Week 8 Pred VO2max"]]
-    #https://www.cog-genomics.org/plink/1.9/input
-
-covar_file = merged_data[["family_id", "AGRF code", "Age", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Pred VO2max", "family_id"]]
-    #select the baseline for each predictor, so VO2 max base line for 8 week baseline, etc...
-
-    #https://www.cog-genomics.org/plink/1.9/input#covar
-    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-
-    #add batch as covariate????
-
-"/xdisk/denard/dftortosa/march_2023/association_studies/"
+merged_data["weight_change"] = merged_data["Week 8 Body Mass"]-merged_data["Week 1 Body Mass"]
+merged_data["beep_change"] = merged_data["Week 8 beep test"]-merged_data["Week 1 Beep test"]
+merged_data["vo2_change"] = merged_data["Week 8 Pred VO2max"]-merged_data["Week 1 Pred VO2max"]
 
 
 
-
-
-
-#merge fam file with pheno to hace family ids
-#create file
+#create objects with phenotypes and covariates
     #ids and phenos to --mpheno
     #ids and covaristes (sex is not needed, used in fam), to use it with --linear
+multi_pheno_file = merged_data[["family_id", "AGRF code", "weight_change", "beep_change", "vo2_change"]]
+multi_pheno_file.columns=["FID", "IID", "weight_change", "beep_change", "vo2_change"]
+    #https://www.cog-genomics.org/plink/1.9/input
+covar_file = merged_data[["family_id", "AGRF code", "Age", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Pred VO2max"]]
+covar_file.columns=["FID", "IID", "age", "week_1_weight", "week_1_beep", "week_1_vo2"]
+    #select the baseline for each predictor, so VO2 max base line for 8 week baseline, etc...
+    #https://www.cog-genomics.org/plink/1.9/input#covar
+    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+#add batch as covariate????
+    #note sure if this can cause problems because we are already indicating the famliy ID (batch) in both covariates and phenos... In the final analuyses, if you do not see batch effects, I think you can skip completely this.
+multi_pheno_file.to_csv("./association_studies/pheno_file.tsv", sep="\t", index=False)
+covar_file.to_csv("./association_studies/covar_file.tsv", sep="\t", index=False, header=True)
 
 
-#https://www.cog-genomics.org/plink/1.9/assoc
+#run the associations
+
+dict_covs = {
+    "weight_change": "age,week_1_weight", \
+    "beep_change": "age,week_1_beep", \
+    "vo2_change": "age,week_1_vo2"}
+
+
+pheno="vo2_change"
+for pheno in ["weight_change", "beep_change", "vo2_change"]:
+
+    print(pheno)
+
+    covs = dict_covs[pheno]
+
+    run_bash(" \
+        cd ./association_studies; \
+        plink \
+            --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2 \
+            --linear sex \
+            --pheno ./pheno_file.tsv \
+            --pheno-name " + pheno + "\
+            --covar ./covar_file.tsv \
+            --covar-name " + covs + " \
+            --out " + pheno + "; \
+        ls -l")
+            #https://www.cog-genomics.org/plink/1.9/assoc
+
+
+    run_bash(" \
+        cd ./association_studies; \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\"\t\"}{if($5==\"ADD\" || NR==1){print $0}}'\
+            " + pheno + ".assoc.linear > \
+        " + pheno + ".assoc.linear.tsv")
+
+
+import dash_bio
+import pandas as pd
+df = pd.read_fwf("./vo2_change.assoc.linear.tsv", sep="\t")
+df
+    #https://stackoverflow.com/questions/69863821/read-output-model-of-plink
+
+dash_bio.ManhattanPlot(
+    dataframe=df, chrm='CHR', bp='BP', p='P', snp='SNP', gene=None
+)
