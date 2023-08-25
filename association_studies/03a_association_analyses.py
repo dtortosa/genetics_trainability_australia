@@ -278,6 +278,7 @@ print(merged_data)
 
 #also remove NANs for samples with ID but not pheno data
 merged_data = merged_data.dropna()
+    #we are removing ALL NANs "a lo bruto", in the final analyses you should carefully remove samples phenotype by phenotype, because we have many NANs in weight but much less in the other two phenotypes
 
 
 ##create new variables for the change before and after
