@@ -58,9 +58,9 @@
 
 
 
-#########################################
+##########################################
 # rationale of merging before imputation #
-#########################################
+##########################################
 
 #It is clear that we can do merging after imputation
     #From reading the recent GWAS protocol of the Ritchie lab. I understand that the usual approach is to do the imputation of different sources (e.g., batches) separately and then do the merging. In the section "Batches effect", they say that "Genotype imputation strategies now provide an opportunity to impute genotypes from multiple platforms to a reference genotyping platform. THEREFORE, DATA FROM DIFFERENT SOURCES CAN BE MERGED AFTER IMPUTATION."
@@ -72,7 +72,7 @@
         #https://www.frontiersin.org/articles/10.3389/fgene.2014.00370/full
 
 #but it seems to be done for data from different studies
-    #I understand that specially when you have data from different sources, it is very important to do imputation because many SNPs are NOT going to be shared across sources, you are going to lose them unless you impute them to have the same SNPs across all panels.
+    #I understand that specially relevant when you have data from different sources, it is very important to do imputation because many SNPs are NOT going to be shared across sources, you are going to lose them unless you impute them to have the same SNPs across all panels.
 
     #In our particular case, this should not be very important because the same SNPs are genotyped in both batches, so it is very unlikely that all samples of a batch have missing for a given SNP so that SNP is not present in one batch but it is present in the other one. 
 
@@ -92,7 +92,7 @@
 
 #the three duplicated IDs
     #For 1100JHJM and 1200JPJM, David's postdoc agrees we should remove them as we have the same ID for two different rows in the excel file.
-        #"This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200 JPJM, both male). I agree that we will need to remove these from our analysis."
+        #"This is correct. In session 844, there are two individuals with the same code (1100JHJM, both male), and in session 845, there are two individuals with the same code (1200JPJM, both male). I agree that we will need to remove these from our analysis."
     #For 7800AGSO, David's postdoc asked if I could know which is the sample from the excel file that doesn’t appear to have a DNA sample, but I cannot know that.
         #"There is only one individual (male) with code 7800 from session 878, so there appears to have been a labelling error while preparing the DNA samples. Are you able to tell us which is the sample from the excel file that doesn’t appear to have a DNA sample? That might help us to work this out. If not, I agree that we will need to remove this sample also."
             #We have genetic data for 1464 samples, while in the excel we have 1463 samples. So the problem is the other way around, all samples in excels have genetic data, but 1 sample in illumina does not have phenotypic data.
@@ -307,7 +307,8 @@ print_text("copy the plink files of both batches", header=3)
 run_bash("\
     cd ./data/genetic_data/plink_bed_files; \
     cp ./ILGSA24-17303/03_merged_data/ILGSA24-17303_merged_data* ./merged_batches/data_to_merge/; \
-    cp ./ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data* ./merged_batches/data_to_merge/")
+    cp ./ILGSA24-17873/03_merged_data/ILGSA24-17873_merged_data* ./merged_batches/data_to_merge/; \
+    ls -l ./merged_batches/data_to_merge")
 
 
 
@@ -316,6 +317,7 @@ run_bash("\
     cd ./data/genetic_data/plink_bed_files/merged_batches/data_to_merge/; \
     echo ILGSA24-17303_merged_data > list_files_to_merge.txt; \
     echo ILGSA24-17873_merged_data >> list_files_to_merge.txt; \
+    ls -l; \
     cat list_files_to_merge.txt")
         #for --merge-list
             #If a line contains only one name, it is assumed to be the prefix for a binary fileset
@@ -396,8 +398,8 @@ print_text("remove the second fileset created only for the check", header=3)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     rm merged_batches_2*; \
-    n_files=$(ls | wc -l); \
-    if [[ $n_files -eq 4 ]]; then \
+    n_files=$(ls merged_batches* | wc -l); \
+    if [[ $n_files -eq 7 ]]; then \
         echo 'TRUE'; \
     else \
         echo 'FALSE'; \
@@ -654,7 +656,7 @@ run_bash("\
 
 print_text("do some checks on the plink files of the batch", header=2)
 print_text("perform missing report with the merged data", header=3)
-print_text("create a new folder to calculate missing reports of the plink file sets generated in the previous step", header=4)
+print_text("calculate missing reports of the plink file sets generated in the previous step", header=4)
 run_bash(" \
     cd ./data/genetic_data/plink_bed_files/merged_batches/merged_plink_files; \
     gunzip \
@@ -1072,7 +1074,7 @@ if (n_duplicates_plink/n_snps)*100 < 2:
 else:
     raise ValueError("ERROR: FALSE! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
 
-
+###por aqui
 
 print_text("filter these snps", header=3)
 run_bash(
