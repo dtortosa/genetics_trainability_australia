@@ -1074,7 +1074,7 @@ if (n_duplicates_plink/n_snps)*100 < 2:
 else:
     raise ValueError("ERROR: FALSE! WE HAVE MORE THAN 2% OF SNPS WITH DUPLICATED POSITION")
 
-###por aqui
+
 
 print_text("filter these snps", header=3)
 run_bash(
