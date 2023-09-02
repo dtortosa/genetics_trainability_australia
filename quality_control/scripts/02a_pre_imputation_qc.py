@@ -2503,7 +2503,7 @@ print_text("sample relatedness", header=2)
     #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
 #In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the PCA
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-#we can filter by sample relatdness, select a subset of SNPs based on LD-pruning (for IBD), then filter and use that subset also for PCA and heterozigosity
+#we can filter by sample relatdness, select a subset of SNPs based on LD-pruning (for IBD), then filter by relatedness and use that subset also for PCA and heterozigosity
 print_text("create folder for this step", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
@@ -2529,7 +2529,7 @@ run_bash(" \
     ls -l ./09_remove_related_samples/")
         #This command produces a pruned subset of variants that are in approximate linkage equilibrium with each other, writing the IDs to plink2.prune.in (and the IDs of all excluded variants to plink2.prune.out). These files are valid input for --extract/--exclude in a future PLINK run; and, for backward compatibility, they do not affect the set of variants in the current run.
         #Since the only output of these commands is a pair of variant-ID lists, they now error out when variant IDs are not unique.
-        #--indep-pairwise is the simplest approach, which only considers correlations between unphased-hardcall allele counts. It takes three parameters: 
+        #--indep-pairwise is the simplest approach, which only considers correlations between unphased-hardcall allele counts. We cannot use the alternative, which is --indep-pairphase and requires phased data. --indep-pairwise takes three parameters: 
             #a required window size in variant count or kilobase (if the 'kb' modifier is present) units, 
             #an optional variant count to shift the window at the end of each step (default 1, and now required to be 1 when a kilobase window is used).
                 #I guess the window is shifted (moved forward) until the variant count changes in 1 unit?
@@ -2538,11 +2538,13 @@ run_bash(" \
         #For example:
             #"--indep-pairwise 100kb 1 0.8"
             #removes SNPs so that no pair within 100 kilobases have squared-allele-count-correlation (r2) greater than 0.8, and saves the IDs of the remaining SNPs.
+        #By default, when given a choice, the variant-pruning commands preferentially keep variants with higher nonmajor allele frequencies. However, if you provide a list of variant IDs to --indep-preferred, all variants in that list are prioritized over all variants outside it. (Allele frequencies will still be used for tiebreaking.)
+            #it seems reasonable to select the SNP with the higher MAF within pairs of correlated SNPs.
         #On human data, some reasonable parameter settings are, in order of increasing strictness:
             #"--indep-pairwise 100kb 1 0.8"
             #"--indep-pairwise 200kb 1 0.5"
             #"--indep-pairwise 500kb 1 0.2"
-        #As we get more strict, the number of selected SNPs is reduced. We will go for the most strict option, i.e., allowing a lower correlation between SNPs in larger windows. This means that we will have much less variants correlated across larger chunks of the genome. In this way, we will have a very clean set in terms of LD. This is important because we are going to do operations that are not LD-aware
+        #As we get more strict, the number of selected SNPs is reduced. We will go for the most strict option, i.e., allowing a lower correlation between SNPs in larger windows. This means that we will have much less variants correlated across larger chunks of the genome. In this way, we will have a very clean set in terms of LD. This is important because we are going to do operations that are not LD-aware.
         #https://www.cog-genomics.org/plink/2.0/ld
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 print("Do we have at least 70K SNPs after LD pruning like in Ritchie's tutorial?")
@@ -2570,7 +2572,7 @@ run_bash(" \
         --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
         --extract ./09_remove_related_samples/ldpruned_snplist.prune.in \
         --make-bed \
-        --out ./09_remove_related_samples/loop_maf_missing_2_pruned;\
+        --out ./09_remove_related_samples/loop_maf_missing_2_ld_pruned;\
     ls -l ./09_remove_related_samples/")
         #from the current fileset, select only those SNPs included in .prune.in
         #we use extract for that
@@ -2589,24 +2591,50 @@ print_text("remove sex chromsomes", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     plink \
-        --bfile ./loop_maf_missing_2_pruned \
+        --bfile ./loop_maf_missing_2_ld_pruned \
         --autosome \
         --make-bed \
-        --out ./loop_maf_missing_2_pruned_autosomals;\
+        --out ./loop_maf_missing_2_ld_pruned_autosomals;\
     ls -l")
         #--autosome excludes all unplaced and non-autosomal variants, while --autosome-xy does not exclude the pseudo-autosomal region of X. They can be combined with --not-chr, e.g.
             #https://www.cog-genomics.org/plink/1.9/filter
-
-
+print("Do we have at least 70K autosomal SNPs after LD pruning like in Ritchie's tutorial?")
+#In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat.
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    auto_ld_snps_in=$( \
+        awk \
+            'BEGIN{FS=\" \"}END{print NR}' \
+            ./loop_maf_missing_2_ld_pruned_autosomals.bim); \
+    printf 'The number of included autosomal SNPs in linkage equilibrium is %s\n' \"$auto_ld_snps_in\"; \
+    echo 'Is this number greater than 70K?'; \
+    if [[ $auto_ld_snps_in -gt 70000 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
+            #https://phoenixnap.com/kb/bash-printf
+print("All non-autosomals SNPs have been removed from the LD pruned dataset?")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    n_non_auto_snps=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if($1==0 || $1==23 || $1==24 || $1==25 || $1==26){count++}}END{print count}'\
+            ./loop_maf_missing_2_ld_pruned_autosomals.bim); \
+    if [[ $n_non_auto_snps -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+    #with awk, count rows (i.e., SNPs) having in field 1 (i.e., chromosome) number 0 (unplaced SNP), number 23 (chromosome X), number 24 (chromosome Y), number 25 (XY autosomal) or number 26 (MT).
+    #that count should be zero.
 
 
 
     ###POR AQUIIII
     ### THINK ABOUT SEX INCOSITENCES AFTER THESE STEPS...
-    ###FROM HERE USE "loop_maf_missing_2_pruned_autosomals"
-
-
-    #coge the last filter MAF y haz association preliminar asvisando de que no has quitado primos, ancestria...
+    ###FROM HERE USE "loop_maf_missing_2_ld_pruned_autosomals"
 
 
 
@@ -2617,7 +2645,7 @@ print_text("calculate the kindship", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./09_remove_related_samples/loop_maf_missing_2_pruned \
+        --bfile ./09_remove_related_samples/loop_maf_missing_2_ld_pruned_autosomals \
         --genome \
         --out ./09_remove_related_samples/ibd_report;\
     ls -l ./09_remove_related_samples/")
@@ -2751,7 +2779,7 @@ print_text("run KING-robust with plink2", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
-        --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
+        --bfile ./09_remove_related_samples/loop_maf_missing_2_ld_pruned_autosomals \
         --king-cutoff 0.177 \
         --make-bed \
         --out ./09_remove_related_samples/remove_related_samples; \
