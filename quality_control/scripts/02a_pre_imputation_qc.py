@@ -1788,7 +1788,6 @@ print(sum(bim_remove_non_pos_dup.loc[:,1].duplicated(keep=False)) == 0)
 
 
 
-##por aqui
 
 
 
@@ -2383,7 +2382,7 @@ run_bash(
     ls -l")
 
 
-##por aquii
+
 
 print_text("create a folder to save plink data after new filters", header=3)
 run_bash(" \
