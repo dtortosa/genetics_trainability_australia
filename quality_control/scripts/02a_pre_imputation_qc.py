@@ -1788,7 +1788,7 @@ print(sum(bim_remove_non_pos_dup.loc[:,1].duplicated(keep=False)) == 0)
 
 
 
-
+##por aqui
 
 
 
@@ -2033,6 +2033,8 @@ run_bash("head ./data/genetic_data/quality_control/05_remove_missing_snps/plink.
         #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
 
 
+#por aqui
+
 print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
@@ -2063,7 +2065,7 @@ run_bash(
     else \
         echo 'FALSE'; \
     fi")
-        #just check we freq miss is the ratio of missing calls respect to the potential number of valid calls per sample.
+        #just check if freq miss is the ratio of missing calls respect to the potential number of valid calls per sample. We count the number of samples for which this is the case, N_MISS/N_GENO is equal to F_MISS and then check this is the total number of samples, i.e., all meet the condition.
         #see above in the SNP missing part for explanations about the script
 
 
@@ -2380,6 +2382,8 @@ run_bash(
         --out merged_batches_remove_high_LogRDev_samples_reports; \
     ls -l")
 
+
+##por aquii
 
 print_text("create a folder to save plink data after new filters", header=3)
 run_bash(" \

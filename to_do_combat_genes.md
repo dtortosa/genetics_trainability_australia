@@ -72,6 +72,7 @@ PREGUNTA ESTO A DAVID NEXT TIME
 
 - Machine learning bishop, tneemls miestra sufociente para training eval? Si no cogemos snps previamentr asociados y con eso hacemos el polygenic score en caso de que no tengamos muestra para hacer nuestra propia seleccion y luego testarla.
 
+- repasar en general los pasos? como la perdida de 300K sNPs due to maf filtering?
 
 2. Tutorials
 - Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
