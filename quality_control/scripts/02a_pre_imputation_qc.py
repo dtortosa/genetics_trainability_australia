@@ -2632,9 +2632,96 @@ run_bash(" \
 
 
 
+
+#XY split, it seems we laready have XY autosomals regions separated, check in bim file SNPs between "2781479 and 155701383"
+    #https://www.cog-genomics.org/plink/1.9/data#split_x
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    plink \
+        --bfile loop_maf_missing_2_ld_pruned \
+        --split-x 'hg38' \
+        --make-bed \
+        --out loop_maf_missing_2_ld_pruned_split_x; \
+    ls -l")
+
+ 
+
+#sex inconsistences on ld_pruned?
+    #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    plink \
+        --bfile loop_maf_missing_2_ld_pruned \
+        --check-sex; \
+    ls -l")
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples/; \
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1, $2, $3, $4, $5, $6}'\
+        plink.sexcheck > plink.sexcheck_awk_processed.tsv; \
+    head plink.sexcheck_awk_processed.tsv")
+
+
+sex_check_report = pd.read_csv( \
+    "./data/genetic_data/quality_control/09_remove_related_samples/plink.sexcheck_awk_processed.tsv", \
+    sep="\t", 
+    header=0, 
+    low_memory=False)
+print(sex_check_report)
+
+
+
+
+import matplotlib.pyplot as plt
+
+plt.hist(sex_check_report["F"], 50, density=True, alpha=0.4, label='Observed iHS')
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/09_remove_related_samples/check_sex_f_distribution.png")
+plt.close()
+    
+    #density?
+
+    #from plink doc
+        ##0.66 is, of course, still much larger than 0.2, and in most contexts it still justifies a female call. We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
+    #this is exactly what we have, a tight peak close to 10 and then, below 0.2 we have a wider peak and a small.
+    #therefore, the default F thresholds work for us
+        #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
+
+
+sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] !=0), :]
+
+sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] ==0), :]
+    #42 cases here with unknown sex, but in the excel the number of samples without sex is 41
+    #there are also 42 cases with sex zero in the fam file of the second batch before merging
+    #the origin of the fam file is the map file!
+    #The problem is 2399LDJA/2397LDJA, this mislabeled sample. 2397LDJA is present in the first batch but not in the pheno data so its sex is "0". In contrast, 2399LDJA is present in the pheno data, having sex as M, but not in the first batch. Therefore, when we count the number of NaN sex in pheno data is only 41 (2399LDJA has sex data), while the genetic data has 42 (2397LDJA has no sex data).
+    #we should change the name of this sample. in the genetic data?
+
+#OJO MINORITIES
+    #the results seems to make sense with most females below 0.2, CHECK THAT!
+    #we need to check ancestry? see ritchie
+
+
+#https://groups.google.com/g/plink2-users/c/4bpdLMdH2KA
+    #If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
+
+
+
+#then remove autosomals?
+
     ###POR AQUIIII
     ### THINK ABOUT SEX INCOSITENCES AFTER THESE STEPS...
     ###FROM HERE USE "loop_maf_missing_2_ld_pruned_autosomals"
+
+
 
 
 
