@@ -367,15 +367,76 @@ merged_data.loc[merged_data["phenotype_value"]==-9, "phenotype_value"] = new_nan
 print(merged_data)
 
 
-#we have 1 more row than in the excel
-    #I guess this is the misslabeled sample, it has one ID in genetic and other ID in pheno
-        #I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file"
-    #the rest shoudl be the same, including a row with all NaN (1424 in the excel file)
-
+print_text("do some checks after we have dealt with missing, comparing our data with pheno excel", header=3)
+print_text("check we have the row coming from the pheno excel with missing for all columns", header=4)
 all_missing_row = np.where(merged_data.apply(lambda x: x == new_nan_value, axis=0).apply(np.sum, axis=1) == len(merged_data.columns))[0][0]
+    #look for any value equal to the new missing across rows
+    #then sum all True cases per row
+    #check if any row has a many Trues as columns we have, i.e., a row with missing for all columns
+    #get the index of the row and extract it
+unique_values = np.unique(merged_data.iloc[all_missing_row, :])
+    #get the unique values of that row across all columns
+if (len(merged_data.iloc[all_missing_row, :].shape)==1) & (len(unique_values)==1):
+    if unique_values == new_nan_value:
+        print("We do have the row with ALL missing from the pheno excel")
+        print(merged_data.iloc[all_missing_row, :])
+    else:
+        print("We do not have the row with ALL missing from the pheno excel")
+else:
+    print("We do not have the row with ALL missing from the pheno excel") 
+    #if we only have 1 all missing row and with only 1 unique value and is the new missing, then we have the full missing row
 
-merged_data.iloc[(all_missing_row-1):(all_missing_row+2), np.where(merged_data.columns=="AGRF code")[0][0]]
-    #row 1422 is really all missing because even the AGRF code is -126
+print_text("we have 1 more row than in the excel", header=4)
+print("I guess this is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file")
+mislabelled_sample = merged_data.loc[merged_data["AGRF code"].isin(["2397LDJA", "2399LDJA"]), :]
+if mislabelled_sample.shape[0] == 2:
+    print("We have two entries for the same sample, which is mislabelled")
+    print(mislabelled_sample)
+    print(mislabelled_sample["AGRF code"])
+    print("remove 2397LDJA (genetics but no pheno), and then rename 2399LDJA (pheno but no genetics) to 2397LDJA so we can use the genetic data associated with 2397LDJA in plink")
+    merged_data_clean = merged_data.drop(np.where(merged_data["AGRF code"] == "2397LDJA")[0][0], axis=0) #axis=0 to remove rows
+    merged_data_clean.loc[merged_data_clean["AGRF code"] == "2399LDJA", "AGRF code"] = "2397LDJA"
+    print(merged_data_clean.loc[merged_data_clean["AGRF code"] == "2397LDJA",:])
+else:
+    print("We have not have two entries for the same sample, which is mislabelled")
+
+print_text("we should have now the same number of rows in the merged data cleaned and pheno data ", header=4)
+if merged_data_clean.shape[0] == pheno_data.shape[0]:
+    print("GOOD TO GO: True")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NUMBER OF SAMPLES")
+
+
+##por aquii
+
+##checking the merged cleaned file has the same NANs than pheno
+##also checking in general distribution of pheno variables (0 cases in weight week 8)
+
+
+merged_data_clean[pheno_data.columns].iloc[np.where(merged_data_clean["AGRF code"] != "2397LDJA")].apply(lambda x: x==new_nan_value).reset_index(drop=True).equals(pheno_data.iloc[np.where(pheno_data["AGRF code"] != "2399LDJA")].isna().reset_index(drop=True))
+
+merged_data_clean[pheno_data.columns].iloc[np.where(merged_data_clean["AGRF code"] != "2397LDJA")].apply(lambda x: x==new_nan_value).apply(sum, axis=0)
+
+
+pheno_data.iloc[np.where(pheno_data["AGRF code"] != "2399LDJA")].isna().apply(sum, axis=0)
+
+#NANs in both files (considering pheno columns) should be the following, I have checked in the excel file:
+    #Gender                 42
+    #Age                    42
+    #Week 1 Body Mass      252
+    #Week 8 Body Mass       43
+    #Week 1 Beep test       42
+    #Week 8 beep test       42
+    #Week 1 Pred VO2max     42
+    #Week 8 Pred VO2max     42
+    #AGRF code               1
+
+
+#check the distribution of all phenotype variables
+#111 individuals are zero for week 8 weight, that is not right!!
+
+
+
 
 
 #we may have a problem with the new missing because pandas knows is a number, so it put it as float because the column is float... this could be problematic for plink
@@ -482,5 +543,7 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
 ##CHECK THE GAPS 
 ##CHECK THE OVERLAP BETWEEN CHROMSOME 25 AND 26 IN BEEP CHANGE
 
+#salloc?
+    #https://stackoverflow.com/questions/57584197/how-do-i-get-an-interactive-session-using-slurm
 
 
