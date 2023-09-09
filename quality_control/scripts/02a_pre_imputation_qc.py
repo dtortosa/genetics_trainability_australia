@@ -2032,8 +2032,6 @@ run_bash("head ./data/genetic_data/quality_control/05_remove_missing_snps/plink.
         #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
 
 
-#por aqui
-
 print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=3)
 run_bash(
     "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
