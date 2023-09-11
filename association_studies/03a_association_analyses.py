@@ -336,6 +336,10 @@ merged_data = pheno_data.merge( \
 print(merged_data)
 print(merged_data.describe().T)
 
+print_text("total sum of NaNs or zero cases per column", header=4)
+nan_zeros_1 = merged_data.apply(lambda x: sum((x==0) | (x.isna())), axis=0)
+print(nan_zeros_1)
+
 
 print_text("check and remove cases with zero in phenotypes", header=3)
 print_text("sum the number of Zeros per column", header=4)
@@ -419,8 +423,6 @@ else:
     raise ValueError("ERROR: FALSE! WE DO HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
 
 
-##por aqui just qucik check because this is almost done, we can start with analyis
-
 print_text("create new variables for the change before and after", header=3)
 print_text("make the operations", header=4)
 merged_data["weight_change"] = merged_data["Week 8 Body Mass"]-merged_data["Week 1 Body Mass"]
@@ -488,25 +490,29 @@ if len(all_missing_row)==0:
 else:
     raise ValueError("ERROR: FALSE! We DO have the row with ALL missing from the pheno excel, but we should not have as we used only the keys of the fam file")
 
+print_text("check we have the correct index in order to filter by index and iloc, i.e., no gaps in the indexes", header=4)
+print(np.array_equal(merged_data.index, range(0,merged_data.shape[0])))
+
 print_text("see the characteristics of each column", header=4)
 print("count missing per column")
-print(merged_data.apply(lambda x: sum(x==new_nan_value), axis=0))
+count_missing = merged_data.apply(lambda x: sum(x==new_nan_value), axis=0)
+print(count_missing)
+print("check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset PLUS 1. We have to add 1 because at the begining, the misslabeled sample (2397LDJA/2399LDJA) was not correctly included in our data")
+nan_zeros_1 \
+    [["Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]] == \
+(count_missing \
+    [["Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]+1)
+    #nan_zeros_1 was obtained at the begining after merging using two conditions, isna() and ==0
 print("see summary statistics of each column")
 print(merged_data.describe().T)
-
-
-np.array_equal(merged_data.index, range(0,merged_data.shape[0]))
-    #to be sure we can filter by index and we did not make a mistake
-
-
 
 
 
 
 ##por aquii
 
-##checking the merged cleaned file has the same NANs than pheno
-##also checking in general distribution of pheno variables (0 cases in weight week 8)
+##probably the next lines of code are not needed and we can jsut go to analysis, but check
+
 
 
 merged_data_clean[pheno_data.columns].iloc[np.where(merged_data_clean["AGRF code"] != "2397LDJA")].apply(lambda x: x==new_nan_value).reset_index(drop=True).equals(pheno_data.iloc[np.where(pheno_data["AGRF code"] != "2399LDJA")].isna().reset_index(drop=True))
@@ -690,8 +696,3 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
 ##CHECK THE GAPS 
 ##CHECK THE OVERLAP BETWEEN CHROMSOME 25 AND 26 IN BEEP CHANGE
 ##zeros in VO2 max? ask in the mail? Jonatan was indeed talking about not using VO2 max in the previous email.
-
-#salloc?
-    #https://stackoverflow.com/questions/57584197/how-do-i-get-an-interactive-session-using-slurm
-
-
