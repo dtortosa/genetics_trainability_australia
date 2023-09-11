@@ -331,14 +331,125 @@ merged_data = pheno_data.merge( \
     how="right")
     #how="right":
         #use only keys from right frame, similar to a SQL right outer join
+        #we use right, i.e., fam file (genetic data), for the keys because we only want to retain those samples that remained after the filters done in plink. We want to take advantage of the filtering work already done.
+        #the only sample we need to recover from pheno_data is 2399LDJA, because this sample is 2397LDJA in plink and it is just a mislabel problem so we can recover its phenotypic data.
 print(merged_data)
+print(merged_data.describe().T)
 
+
+print_text("check and remove cases with zero in phenotypes", header=3)
+print_text("sum the number of Zeros per column", header=4)
+print(merged_data.apply(lambda x: sum(x==0), axis=0))
+    #note that the number of zeros does NOT have to match that of the pheno_data because we have already filtered many samples using maf and call rate in plink
+    #for example, ["8502JGMJ", "9601AVJM"] have zero for "Week 1 Pred VO2max", but they are not included in the fam file
+        #merged_data.loc[merged_data["AGRF code"].isin(["8502JGMJ", "9601AVJM"]),:]
+        #fam_file.loc[fam_file["AGRF code"].isin(["8502JGMJ", "9601AVJM"]),:]
+print_text("Weight: we have zeros for weight and VO2 max. Given that weight is going to be used for the rest of variables as covariate, we will set as missing the weight of these samples. Importantly, a weight of zero does not make sense.", header=4)
+merged_data.loc[merged_data["Week 1 Body Mass"]==0, "Week 1 Body Mass"] = np.nan
+merged_data.loc[merged_data["Week 8 Body Mass"]==0, "Week 8 Body Mass"] = np.nan
+
+print_text("VO2 max: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan", header=4)
+print(merged_data.loc[merged_data["Week 1 Pred VO2max"]==0, ["Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max",]])
+merged_data.loc[merged_data["Week 1 Pred VO2max"]==0, "Week 1 Pred VO2max"] = np.nan
+
+print_text("Sex_code: We have missing for 42 samples which are the ones with genetic data that are completely empty in the pheno_data PLUS 2397LDJA, the misslabeled sample with different Id geno and pheno data just by 1 number (see below). These are samples without phenotypic data, thus we cannot know the self-reported sex. Zero is ok here, so we do not do anything", header=4)
+print("Do we have exactly 42 samples with sex_code=0?")
+print(merged_data.loc[merged_data["sex_code"]==0, :].shape[0]==41+1)
+print("has 2397LDJA zero as sex code?")
+print(merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"]==0)
+
+print_text("Parents ID: We do not have any parent in the cohort, so they all should be zero", header=4)
+print(merged_data.loc[(merged_data["ID_father"]==0) & (merged_data["ID_mother"]==0), :].shape[0] == merged_data.shape[0])
+
+print_text("sum again the number of Zeros per column", header=4)
+print(merged_data.apply(lambda x: sum(x==0), axis=0))
+print("We only have zeros in sex_code and parents IDs, which is ok, see above")
+
+
+print_text("deal with 2397LDJA/2399LDJA", header=3)
+print("I guess this is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file")
+mislabelled_sample = merged_data.loc[merged_data["AGRF code"].isin(["2397LDJA", "2399LDJA"]), :]
+print("If we have 2397LDJA and is all missing")
+if mislabelled_sample.shape[0] == 1:
+    mislabel_all_na =  \
+        sum( \
+            mislabelled_sample.loc[:, ~mislabelled_sample.columns.isin(["AGRF code", "family_id", "ID_father", "ID_mother", "sex_code", "phenotype_value"])].isna() \
+            .values[0]) == \
+        sum( \
+            ~mislabelled_sample \
+                .columns \
+                .isin(["AGRF code", "family_id", "ID_father", "ID_mother", "sex_code", "phenotype_value"]))
+        #make the sum of phenotypic entries (not fam fields) of the mislabeled row that are missing
+        #make the sum of the columns that are not phenotypic entries (not fam fields)
+        #both sums should be same, meaning that all phenotypic entries (not fam fields) are missing
+    if (mislabelled_sample["AGRF code"]=="2397LDJA").values[0] & (mislabel_all_na):
+        print("change phenotypic values of 2397LDJA from missing to the values of 2399LDJA")
+        merged_data \
+            .iloc[ \
+                np.where(merged_data["AGRF code"] == "2397LDJA")[0], \
+                np.where(merged_data.columns.isin(pheno_data.columns))[0]] = \
+        pheno_data \
+            .loc[pheno_data["AGRF code"] == "2399LDJA", :] \
+            .squeeze(axis=0)
+            #in merged data
+                #select the row of 2397LDJA
+                #and the phenoypic columns. 
+                    #we need to use iloc to select the row to be changed, we get an error with loc
+                    #https://stackoverflow.com/questions/45241992/updating-a-row-in-a-dataframe-with-values-from-a-numpy-array-or-list
+            #as new values use the row of 2399LDJA in pheno_data and the squeeze to pandas series
+            #IMPORTANT: The pheno columns are in the same order in merged data and in pheno_data because the source DF is pheno_data, as we did pheno_data.merge(fam) We need to maintain this and not do 
+        #extract the modified row
+        modified_row = merged_data \
+            .loc[ \
+                merged_data["AGRF code"] == "2399LDJA", \
+                merged_data.columns.isin(pheno_data.columns)] \
+            .squeeze()
+        print("Check the new rows is identical to 2399LDJA in pheno_data")
+        print(modified_row.equals( \
+            pheno_data \
+                .loc[pheno_data["AGRF code"] == "2399LDJA", :] \
+                .squeeze(axis=0)))
+        print("Check NO NaN is in the new row")
+        print(True not in modified_row.isna().values)
+        print("Print the new row")
+        print(modified_row)
+    else:
+        raise ValueError("ERROR: FALSE! WE DO HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
+else:
+    raise ValueError("ERROR: FALSE! WE DO HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
+
+
+##por aqui just qucik check because this is almost done, we can start with analyis
 
 print_text("create new variables for the change before and after", header=3)
+print_text("make the operations", header=4)
 merged_data["weight_change"] = merged_data["Week 8 Body Mass"]-merged_data["Week 1 Body Mass"]
 merged_data["beep_change"] = merged_data["Week 8 beep test"]-merged_data["Week 1 Beep test"]
 merged_data["vo2_change"] = merged_data["Week 8 Pred VO2max"]-merged_data["Week 1 Pred VO2max"]
     #NA remains as NA
+
+print_text("check we have the correct NANs", header=4)
+print(merged_data.isna().apply(lambda x: sum(x), axis=0))
+print("Weight change")
+print( \
+    sum(merged_data["weight_change"].isna()) == \
+    sum( \
+        (merged_data["Week 1 Body Mass"].isna()) | \
+        (merged_data["Week 8 Body Mass"].isna())))
+print("beep change")
+print( \
+    sum(merged_data["beep_change"].isna()) == \
+    sum( \
+        (merged_data["Week 1 Beep test"].isna()) | \
+        (merged_data["Week 8 beep test"].isna())))
+print("VO2 max change")
+print( \
+    sum(merged_data["vo2_change"].isna()) == \
+    sum( \
+        (merged_data["Week 1 Pred VO2max"].isna()) | \
+        (merged_data["Week 8 Pred VO2max"].isna())))
+    #the total number of NAN for the change variables should be the same than the sum of cases that are NAN for week 1 or week 2 of the corresponding variable.
+
 
 print_text("Change the default NaN value to a negative value that is smaller than the maximum value in absolute value of the new change variables", header=3)
 print("Note that plink considers -9 as missing, but we can have -9 as a real value because we are calculating differences between week 1 and 8. We have to deal with that and select a suitable missing value, probably a large negative number. Larger than the maximum value for the difference phenotypes")
@@ -348,17 +459,16 @@ print_text("calculate absolute value and then get the max value skipping NaNs fo
 max_weight_change = merged_data["weight_change"].abs().max(skipna=True)
 max_beep_change = merged_data["beep_change"].abs().max(skipna=True)
 max_vo2_change = merged_data["vo2_change"].abs().max(skipna=True)
-print(max_weight_change)
-print(max_beep_change)
-print(max_vo2_change)
+print("Maximum different in weight of " + str(max_weight_change))
+print("Maximum different in beep test of " + str(max_beep_change))
+print("Maximum different in VO2 of " + str(max_vo2_change))
 
 print_text("select the max value from all three variables, sum 20 and then convert to negative. This is the new missing value", header=4)
-new_nan_value = -(np.max([max_weight_change, max_beep_change, max_vo2_change])+20)
+new_nan_value = -(np.round(np.max([max_weight_change, max_beep_change, max_vo2_change]))+20)
 print(new_nan_value)
 
 print_text("fill NaN cases with the new missing value using 'fillna' of pandas", header=4)
 merged_data = merged_data.fillna(new_nan_value)
-    #fi
 print(merged_data)
 
 print_text("fill -9 cases of phenotype_value with the new missing value", header=4)
@@ -378,52 +488,19 @@ if len(all_missing_row)==0:
 else:
     raise ValueError("ERROR: FALSE! We DO have the row with ALL missing from the pheno excel, but we should not have as we used only the keys of the fam file")
 
+print_text("see the characteristics of each column", header=4)
+print("count missing per column")
+print(merged_data.apply(lambda x: sum(x==new_nan_value), axis=0))
+print("see summary statistics of each column")
+print(merged_data.describe().T)
 
 
-##por aqui
-#after "right" key
-
-print_text("deal with 2397LDJA/2399LDJA", header=4)
-print("I guess this is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file")
-mislabelled_sample = merged_data.loc[merged_data["AGRF code"].isin(["2397LDJA", "2399LDJA"]), :]
+np.array_equal(merged_data.index, range(0,merged_data.shape[0]))
+    #to be sure we can filter by index and we did not make a mistake
 
 
-mislabel_all_na = sum((mislabelled_sample.loc[:,~mislabelled_sample.columns.isin(["AGRF code", "family_id", "ID_father", "ID_mother", "sex_code"])] == new_nan_value).values[0]) == sum(~mislabelled_sample.columns.isin(["AGRF code", "family_id", "ID_father", "ID_mother", "sex_code"]))
 
 
-print("If we have 2397LDJA and is all missing")
-if (mislabelled_sample.shape[0] == 1) & (mislabel_all_na):
-    print("change phenotypic values of 2397LDJA from missing to the values of 2399LDJA")
-    merged_data \
-        .iloc[ \
-            np.where(merged_data["AGRF code"] == "2397LDJA")[0], \
-            np.where(merged_data.columns.isin(pheno_data.columns))[0]] = \
-    pheno_data \
-        .loc[pheno_data["AGRF code"] == "2399LDJA", :] \
-        .squeeze(axis=0)
-        #in merged data
-            #select the row of 2397LDJA
-            #and the phenoypic columns. 
-                #we need to use iloc to select the row to be changed, we get an error with loc
-                #https://stackoverflow.com/questions/45241992/updating-a-row-in-a-dataframe-with-values-from-a-numpy-array-or-list
-        #as new values use the row of 2399LDJA in pheno_data and the squeeze to pandas series
-    #extract the modified row
-    modified_row = merged_data.loc[merged_data["AGRF code"] == "2399LDJA", merged_data.columns.isin(pheno_data.columns)].squeeze()
-        #IMPORTANT: The pheno columns are in the same order in merged data and in pheno_data because the source DF is pheno_data, as we did pheno_data.merge(fam) We need to maintain this and not do 
-    print("Check if new missing type in the new row")
-    print(modified_row.isin([new_nan_value]))
-    print("Check if NaN in the new row")
-    print(modified_row.isna())
-    print("Print the new row")
-    print(modified_row)
-else:
-    print("We have not have two entries for the same sample, which is mislabelled")
-
-print_text("we should have now the same number of rows in the merged data cleaned and pheno data ", header=4)
-if merged_data_clean.shape[0] == pheno_data.shape[0]:
-    print("GOOD TO GO: True")
-else:
-    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NUMBER OF SAMPLES")
 
 
 ##por aquii
@@ -607,8 +684,12 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             #https://plotly.com/python/interactive-html-export/
 
 
+#271 people had missing value(s), and 1 person was not seen in the covariate file.
+#???
+
 ##CHECK THE GAPS 
 ##CHECK THE OVERLAP BETWEEN CHROMSOME 25 AND 26 IN BEEP CHANGE
+##zeros in VO2 max? ask in the mail? Jonatan was indeed talking about not using VO2 max in the previous email.
 
 #salloc?
     #https://stackoverflow.com/questions/57584197/how-do-i-get-an-interactive-session-using-slurm
