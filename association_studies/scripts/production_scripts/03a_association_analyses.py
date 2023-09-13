@@ -139,7 +139,7 @@ run_bash("ls")
 run_bash(" \
     mkdir -p ./data/pheno_data; \
     mkdir -p ./data/plink_inputs; \
-    mkdir -p ./results/prelim_results; \
+    mkdir -p ./results/prelim_results/distribution_hist; \
     ls -l")
 
 
@@ -390,6 +390,10 @@ print(merged_data.apply(lambda x: sum(x==0), axis=0))
 print("We only have zeros in sex_code and parents IDs, which is ok, see above")
 
 
+###por aquii
+#change ID of 2399LDJA, we need the one of plink!
+
+
 print_text("deal with 2397LDJA/2399LDJA", header=3)
 print("I guess this is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file")
 mislabelled_sample = merged_data.loc[merged_data["AGRF code"].isin(["2397LDJA", "2399LDJA"]), :]
@@ -421,34 +425,47 @@ if mislabelled_sample.shape[0] == 1:
                     #we need to use iloc to select the row to be changed, we get an error with loc
                     #https://stackoverflow.com/questions/45241992/updating-a-row-in-a-dataframe-with-values-from-a-numpy-array-or-list
             #as new values use the row of 2399LDJA in pheno_data and the squeeze to pandas series
-            #IMPORTANT: The pheno columns are in the same order in merged data and in pheno_data because the source DF is pheno_data, as we did pheno_data.merge(fam) We need to maintain this and not do 
+            #IMPORTANT: The pheno columns are in the same order in merged data and in pheno_data because the source DF is pheno_data, as we did pheno_data.merge(fam) We need to maintain this and not do
+        #change back the ID to have that included in plink inputs
+        merged_data.loc[merged_data["AGRF code"] == "2399LDJA", "AGRF code"] = "2397LDJA"
         #extract the modified row
         modified_row = merged_data \
             .loc[ \
-                merged_data["AGRF code"] == "2399LDJA", \
+                merged_data["AGRF code"] == "2397LDJA", \
                 merged_data.columns.isin(pheno_data.columns)] \
             .squeeze()
         #sex_code is not in pheno_data as it comes from plink, we need to update that field using the Gender info from the modified row
         if modified_row["Gender"]=="M":  
-            merged_data.loc[merged_data["AGRF code"] == "2399LDJA", "sex_code"] = 1
+            merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"] = 1
         elif modified_row["Gender"]=="F":
-            merged_data.loc[merged_data["AGRF code"] == "2399LDJA", "sex_code"] = 2
+            merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"] = 2
         else:
-            merged_data.loc[merged_data["AGRF code"] == "2399LDJA", "sex_code"] = 0      
+            merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"] = 0      
             #The sex code in plink is 1 for male, 2 for female and 0 for unknown
                 #https://www.cog-genomics.org/plink/1.9/formats#fam
 
         print("Check the new rows is identical to 2399LDJA in pheno_data")
-        print(modified_row.equals( \
-            pheno_data \
-                .loc[pheno_data["AGRF code"] == "2399LDJA", :] \
-                .squeeze(axis=0)))
+        print(merged_data \
+            .iloc[ \
+                np.where(merged_data["AGRF code"] == "2397LDJA")[0], \
+                np.where( \
+                    (merged_data.columns.isin(pheno_data.columns) & \
+                    (merged_data.columns != "AGRF code")))[0]] \
+            .squeeze() \
+            .equals( \
+                pheno_data \
+                    .iloc[ \
+                        np.where(pheno_data["AGRF code"]=="2399LDJA")[0], \
+                        np.where(pheno_data.columns!="AGRF code")[0]] \
+                    .squeeze()))
+            #from merged data, select the row of the mislabeled sample and all columns present in pheno_data except the sample IDs, then squeeze to a pandas series.
+            #This should be equal to the row of pheno_data for the mislabeled sample and considering all columns except the sample ID
         print("Check NO NaN is in the new row")
         print(True not in modified_row.isna().values)
         print("Print the new row")
         print(modified_row)
         print("check the sex_code of the modified row is correct")
-        sex_code_check = merged_data.loc[merged_data["AGRF code"] == "2399LDJA", "sex_code"]
+        sex_code_check = merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"]
         if (sex_code_check == 1).values:
             print(pheno_data.loc[pheno_data["AGRF code"] == "2399LDJA", "Gender"] == "M")
         elif (sex_code_check == 2).values:
@@ -618,7 +635,7 @@ print(merged_data_raw \
         .equals( \
             merged_data \
                 .loc[ \
-                    merged_data["AGRF code"]!="2399LDJA", \
+                    merged_data["AGRF code"]!="2397LDJA", \
                     ["family_id", "ID_father", "ID_mother", "sex_code"]]))
 
 print_text("check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset PLUS 1. We have to add 1 because at the begining, the misslabeled sample (2397LDJA/2399LDJA) was not correctly included in our data", header=4)
@@ -711,8 +728,11 @@ run_bash(" \
         'BEGIN{FS=\"\t\"}{if(NR<=10){print $0}}' \
         covar_file.tsv")
 
-print_text("create a dict the covariate for each phenotype based on their association", header=3)
-print_text("create a dict with correct names for the covariates", header=4)
+
+print_text("perform covariate selection based on association levels", header=3)
+print("In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'")
+        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+print_text("create a dict with correct, simplified names for the covariates", header=4)
 dict_names_covs = {
     "Age": "age", \
     "sex_code": "sex_code", \
@@ -721,19 +741,80 @@ dict_names_covs = {
     "Week 1 Pred VO2max": "week_1_vo2"}
 print(dict_names_covs)
 
-print_text("perform covariate selection based on association levels", header=4)
-print("In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'")
-        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+print_text("plot distribution of each change phenotype to visually check normality", header=4)
+import matplotlib.pyplot as plt
+from scipy.stats import shapiro
+from sklearn.preprocessing import quantile_transform
+#change_pheno="weight_change"
+for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
+    print("\n \n Plotting the distribution of " + change_pheno)
 
-print_text("run the associations", header=4)
+    #remove rows with missing for the phenotype of interest
+    modeling_data = merged_data \
+        .loc[:,[change_pheno]] \
+        .apply(lambda x: np.nan if (x[change_pheno]==-51) else x, axis=1) \
+        .dropna()
+        #select the interest column
+        #for each row
+            #set NA if the column is -51, i.e., missing in plink.
+            #else do not change anything of the row
+        #drop rows with NaN
+
+    print("The number of missing removed is correct?")
+    check_na = merged_data.shape[0] - modeling_data.shape[0] == count_missing[change_pheno]
+        #the number of rows lost in modeling_data should be the same than the number of missing for the selected pheno
+    if check_na:
+        print("YES! GOOD TO GO!")
+    else:
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NAN IN " + change_pheno)
+
+    print("performing quantile transformation")
+    pheno_transformed = quantile_transform( \
+        X=modeling_data[change_pheno].values.reshape(-1, 1), \
+        n_quantiles=500, 
+        output_distribution="normal")
+        #This method transforms the features to follow a uniform or a normal distribution. Therefore, for a given feature, this transformation tends to spread out the most frequent values. It ALSO REDUCES THE IMPACT OF (MARGINAL) OUTLIERS: this is therefore a robust preprocessing scheme. Note that this transform is non-linear. IT MAY DISTORT LINEAR CORRELATIONS BETWEEN VARIABLES MEASURED AT THE SAME SCALE BUT RENDERS VARIABLES MEASURED AT DIFFERENT SCALES MORE DIRECTLY COMPARABLE.
+            #This should not be a problem because our phenotypes and covariates are not in the same scale, some are close to zero, other closer to 10, 100... so we have different scales.
+        #this would be another cause of data leak
+            #n_quantiles
+                #Number of quantiles to be computed. It corresponds to the number of landmarks used to discretize the cumulative distribution function. If n_quantiles is larger than the number of samples, n_quantiles is set to the number of samples as a larger number of quantiles does not give a better approximation of the cumulative distribution function estimator.
+            #output_distribution
+                #Marginal distribution for the transformed data. The choices are ‘uniform’ (default) or ‘normal’.
+            #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.quantile_transform.html
+
+    print("perform shapiro test: statistic close 1 and p-value>0.05 indicates normality")
+    print(shapiro(pheno_transformed))
+        #The Shapiro-Wilk test tests the null hypothesis that the data was drawn from a normal distribution.
+            #https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.shapiro.html
+
+    print("plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype")
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+    #make more vertical space between subplots
+    fig.subplots_adjust(hspace=0.4)
+            #https://stackoverflow.com/a/5159405/12772630
+    #correlate the phenotype vs transformed phenotype
+    ax1.scatter(x=modeling_data[change_pheno], y=pheno_transformed, s=0.5)
+    ax1.set_ylabel(change_pheno + " - quantile trans")
+    ax1.set_xlabel(change_pheno + " - raw")
+    #plot histogram of the transformed phenotype
+    ax2.hist(pheno_transformed, 50, density=True, alpha=0.4, label="Distribution of " + change_pheno)
+    ax2.set_xlabel("Histrogram of " + change_pheno + " after the trasformation")
+    plt.savefig( \
+        fname="./results/prelim_results/distribution_hist/" + change_pheno + "_trans_hist.png")
+    plt.close()
+print("IMPORTANT: \
+    Our phenotypes are in general more or less normal, but in order to make them more normal, we have performed a quantile transformation. The W statistic of shapiro is almost 1, and the p-value is below 0.05 but not veery small. The HIIT study used the p-value of shapiro test as indication of normality. \
+    Given these results, we are not to pre-process phenotypes and covariates directly in plink. It is interesting to apply his preprocesing to the covariates also so we have all variables in the same scale? \
+    THINK MORE ABOUT THIS IN TEH FUTURE")
+
+print_text("run the associations between phenotypes and covariates", header=4)
 #empty dict to save covariates per phenotype
 dict_pvalue_covar = { 
     "weight_change": [], \
     "beep_change": [], \
     "vo2_change": []}
-#for each phenotype and covariate
+#define a function to calculate the association between a pair of phenotype and covariate
 from scipy.stats import linregress
-
 #change_pheno="weight_change"; covar="Age"
 def fun_assoc(change_pheno, covar):
 
@@ -762,113 +843,183 @@ def fun_assoc(change_pheno, covar):
     if model_results.pvalue < 0.1:
         dict_pvalue_covar[change_pheno].append(dict_names_covs[covar])
 
-#apply the function
-#quciki check normality of the three phenotypes?
-
+#for each phenotype
 #change_pheno="weight_change"; covar="Age"
 for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
     print("\n \n #" + change_pheno + "#")
+    #test the association with each covariate
     for covar in ["Age", "sex_code", "Week 1 Body Mass"]:
         print("\n" + covar)
-        #function here!!
+        fun_assoc(change_pheno=change_pheno, covar=covar)
+    #if the phenotype is beep_change, we also want to check the association with baseline beep
     if change_pheno == "beep_change":
         covar="Week 1 Beep test"
         print("\n " + covar)
-        modeling_data = merged_data[[change_pheno, covar]].apply(lambda x: np.nan if (x[0]==-51) | (x[1]==-51) else x, axis=1).dropna()
-        model_results = linregress(x=modeling_data[covar], y=modeling_data[change_pheno], alternative='two-sided')
-        print(model_results)
-        if model_results.pvalue < 0.1:
-            dict_pvalue_covar[change_pheno].append(dict_names_covs[covar])
+        fun_assoc(change_pheno=change_pheno, covar=covar)
+    #if the phenotype is vo2_change, we also want to check the association with baseline vo2_change
     elif change_pheno == "vo2_change":
         covar = "Week 1 Pred VO2max"
         print("\n " + covar)
-        modeling_data = merged_data[[change_pheno, covar]].apply(lambda x: np.nan if (x[0]==-51) | (x[1]==-51) else x, axis=1).dropna()
-        model_results=linregress(x=modeling_data[covar], y=modeling_data[change_pheno], alternative='two-sided')
-        print(model_results)
-        if model_results.pvalue < 0.1:
-            dict_pvalue_covar[change_pheno].append(dict_names_covs[covar])
-print("All covariates except Age for beep_test which is marginally significant (p=0.06)")
+        fun_assoc(change_pheno=change_pheno, covar=covar)
+print("All covariates except Age for beep_test which is marginally significant (p=0.06). See dict with covariates")
+print(dict_pvalue_covar)
 
-
-
-#add batch as covariate????
-    #note sure if this can cause problems because we are already indicating the family ID (batch) in both covariates and phenos... In the final analyses, if you do not see batch effects, I think you can skip completely this.
-    #maybe in the future...
-
-
-
-##run the associations
-#make a dict with the covariates for each phenotype
+print_text("add to the dict of covariates a new entry to indicate to plink if sex is going to be used or not as covariate", header=4)
+#make deep copy of the previous dict (no conection between source and new copy)
 import copy
 dict_pvalue_covar_final = copy.deepcopy(dict_pvalue_covar)
-
-#key="weight_change"
+#for each phenotype
+#key="beep_change"
 for key in dict_pvalue_covar_final:
-    print(key)
+    #join all covariates of the selected phenotype in a single string and save as a list of one item
     dict_pvalue_covar_final[key] = [",".join(dict_pvalue_covar_final[key])]
+    
+    #remove sex and add it as a separate string if it is present
     if "sex_code" in dict_pvalue_covar_final[key][0]:
         dict_pvalue_covar_final[key][0] = dict_pvalue_covar_final[key][0].replace("sex_code,", "")
             #SEX is included as an argument in plink!!
         dict_pvalue_covar_final[key].append("sex")
     else:
         dict_pvalue_covar_final[key].append("")
+print("See the new dict")
+print(dict_pvalue_covar_final)
+
+print("IMPORTANT: \
+    Think if add the Batch as covariate \
+    Note sure if this can cause problems because we are already indicating the family ID (batch) in both covariates and phenos... In the final analyses, if you do not see batch effects, I think you can skip completely this")
 
 
-dict_pvalue_covar_final
-
-#make dict for title plots
+print_text("run the associations between SNPs and phenotypes", header=3)
+print_text("make dict for title plots", header=4)
 dict_titles = {
     "weight_change": "Change of body mass", \
     "beep_change": "Change in beep test", \
     "vo2_change": "Change in predicted VO2 max"}
+print(dict_titles)
 
-#create folder to have results of each pheno separated
-
-#run associations and plot each pheno
+print_text("run the associations and make the Manhattan plots", header=4)
 #pheno="beep_change"
 for pheno in ["weight_change", "beep_change", "vo2_change"]:
-
-    #print the phenotype name
-    print(pheno)
+    print("\n \n" + pheno)
 
     #get the covariate names
     covs = dict_pvalue_covar_final[pheno][0]
     sex_cov = dict_pvalue_covar_final[pheno][1]
 
-    #run plink assoc
+    print("run plink2 assoc")
+    #we use plink2 because it can directly preprocess phenotypes and covaraites using the quantile transformation (see above for results of the transformation in the phenotypes)
     run_bash(" \
-        mkdir ./results/prelim_results/" + pheno + "/; \
-        plink \
+        mkdir -p ./results/prelim_results/" + pheno + "/; \
+        plink2 \
             --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2 \
             --linear " + sex_cov + " \
-            --missing-phenotype " + str(new_nan_value) + " \
-            --pheno ./pheno_file.tsv \
+            --quantile-normalize \
+            --input-missing-phenotype " + str(new_nan_value) + " \
+            --pheno ./data/plink_inputs/pheno_file.tsv \
             --pheno-name " + pheno + "\
-            --covar ./covar_file.tsv \
+            --covar ./data/plink_inputs/covar_file.tsv \
             --covar-name " + covs + " \
-            --out ./results/prelim_results/" + pheno + "/" + pheno + "; \
-        ls -l")
+            --out ./results/prelim_results/" + pheno + "/first_assoc; \
+        ls -l ./results/prelim_results/" + pheno + "/")
             #Given a quantitative phenotype and possibly some covariates (in a --covar file), --linear writes a linear regression report to plink.assoc.linear.
-                #the result is a file with several rows per SNP, having the slope and P for each covariate and the ADD effect of the SNP
-                #https://www.cog-genomics.org/plink/1.9/assoc
-            #By default, when at least one male and one female is present, sex (male = 1, female = 0) is automatically added as a covariate on X chromosome SNPs, and nowhere else. The 'sex' modifier causes it to be added everywhere, while 'no-x-sex' excludes it.
-                #https://www.cog-genomics.org/plink/1.9/assoc
+                #sex
+                    #First, sex (as defined in the .fam/.psam input file) is normally included as an additional covariate. If you don't want this, add the 'no-x-sex' modifier. Or you can add the 'sex' modifier to include .fam/.psam sex as a covariate everywhere. WHATEVER YOU DO, DON'T INCLUDE SEX FROM THE .FAM/.PSAM FILE AND THE --COVAR FILE AT THE SAME TIME; OTHERWISE THE DUPLICATED COLUMN WILL CAUSE THE REGRESSION TO FAIL
+                #quantile-normalize
+                    #--quantile-normalize forces named quantitative phenotypes and covariates to a N(0, 1) distribution, PRESERVING ONLY THE ORIGINAL RANK ORDERS; if no parameters are provided, all quantitative phenotypes and covariates are affected. --pheno-quantile-normalize does the same for just quantitative phenotypes, while --covar-quantile-normalize does this for just quantitative covariates.
+                #input--missing-phenotype
+                    #Missing case/control or quantitative phenotypes are expected to be encoded as 'NA'/'nan' (any capitalization) or -9. By default, other strings which don't start with a number are now interpreted as categorical phenotype/covariate values; to force them to be interpreted as missing numeric values instead, use --no-categorical.
+                    #You can change the numeric missing phenotype code to another integer with --input-missing-phenotype, or just disable -9 with --no-input-missing-phenotype.
+                #See above for details about --pheno/--covar and the corresponding names
+                #https://www.cog-genomics.org/plink/2.0/assoc
+                #https://www.cog-genomics.org/plink/2.0/assoc#sex
+                #https://www.cog-genomics.org/plink/2.0/data#quantile_normalize
+                #https://www.cog-genomics.org/plink/2.0/input
 
-    #use awk to select only rows for ADD effect of the SNP and the first row, then save as tsv.
+    print("use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv")
     run_bash(" \
         cd ./results/prelim_results/" + pheno + "/; \
+        echo 'See 7 first columns of the original assoc file'; \
         awk \
-            'BEGIN{FS=\" \"; OFS=\"\t\"}{if($5==\"ADD\" || NR==1){print $1, $2, $3, $4, $5, $6, $7, $8, $9}}'\
-            " + pheno + ".assoc.linear > \
-        " + pheno + ".assoc.linear.tsv")
+            'BEGIN{FS=\" \"}{if(NR<=10){print $1, $2, $3, $4, $5, $6, $7}}END{print \"The number of columns is \"; print NF}' \
+            first_assoc." + pheno + ".glm.linear; \
+        echo '\nProcess with awk to specify the delimiter and then take a look to the file'; \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\"\t\"}{if($7==\"ADD\" || NR==1){print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13}}'\
+            first_assoc." + pheno + ".glm.linear | \
+        gzip \
+            --stdout > first_assoc." + pheno + ".glm.linear.tsv.gz; \
+        gunzip \
+            --stdout \
+            first_assoc." + pheno + ".glm.linear.tsv.gz | \
+        awk \
+            'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4, $5, $6, $7}}'")
 
-    #make plot
-    assoc_results = pd.read_csv("./results/prelim_results/" + pheno + "/" + pheno + ".assoc.linear.tsv", sep="\t")
-        #use pheno to avoid problems with the delimiter
-            #https://stackoverflow.com/questions/69863821/read-output-model-of-plink
-    
-    print("check we do not have duplicates by position")
-    print(sum(assoc_results.duplicated(subset=["CHR", "BP"], keep=False))==0)
+    #extract the unique cases in the TEST column in order to check if we have selected only ADD
+    unique_test = run_bash(" \
+        cd ./results/prelim_results/" + pheno + "/; \
+        gunzip \
+            --stdout \
+            first_assoc." + pheno + ".glm.linear.tsv.gz | \
+        awk \
+            'BEGIN{FS=\"\t\"}{if(NR>1 && !a[$7]++){print $7}}'", return_value=True).strip()
+        #this is the way to get uniq cases from a colum in awk
+            #if the value in $7 has not been previously included in "a" before, get True (without the "!" you would get false). Then, print the value of $7 in those cases, i.e., the unique value of the TEST column (7th column)
+            #https://stackoverflow.com/questions/1915636/is-there-a-way-to-uniq-by-column
+    print("Do we have correctly selected the ADD rows only (i.e., additive effect of SNPs)?")
+    if (type(unique_test)==str) & (unique_test=="ADD"):
+        print("YES! GOOD TO GO!")
+    else:
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM FILTERING THE ROWS WITH THE ADDITIVE EFFECT OF THE SNPS")
+
+    print("load assoc results to pandas")
+    assoc_results = pd.read_csv( \
+        "./results/prelim_results/" + pheno + "/first_assoc." + pheno + ".glm.linear.tsv.gz", \
+        sep="\t", \
+        header=0, \
+        low_memory=False)
+    print(assoc_results)
+        #the result is a file with several rows per SNP, having the slope and P for each covariate and the ADD effect of the SNP.
+            #Header: Contents
+            #CHROM: Chromosome code
+            #POS: Base-pair coordinate
+            #ID: Variant ID
+            #REF: Reference allele
+            #ALT1: Alternate allele 1
+            #TEST: Test identifier
+            #OBS_CT: Number of samples in regression
+            #BETA: Regression coefficient (for A1 allele)
+            #SE: Standard error of log-odds (i.e. beta)
+            #T_STAT: t-statistic for linear regression
+            #P: Asymptotic p-value
+            #ERRCODE: When result is 'NA', an error code describing the reason
+            #https://www.cog-genomics.org/plink/2.0/formats#glm_logistic
+    print("you could use this file to filter by the number of observations or other criteria")
+
+    print("check we do not have duplicates by position or by SNP id")
+    print(sum(assoc_results.duplicated(subset=["#CHROM", "POS"], keep=False))==0)
+    print(sum(assoc_results["ID"].duplicated(keep=False))==0)
+
+    print("check we have only ACGT in the allele columns")
+    print(sum(assoc_results["REF"].isin(["A", "C", "T", "G"])) == assoc_results.shape[0])
+    print(sum(assoc_results["ALT"].isin(["A", "C", "T", "G"])) == assoc_results.shape[0])
+    print(sum(assoc_results["A1"].isin(["A", "C", "T", "G"])) == assoc_results.shape[0])
+
+    print("See the percentiles of the number of observations")
+    print("Percentile 2.5: " + str(np.percentile(assoc_results["OBS_CT"], 2.5)))
+    print("Percentile 25: " + str(np.percentile(assoc_results["OBS_CT"], 25)))
+    print("Percentile 50: " + str(np.percentile(assoc_results["OBS_CT"], 50)))
+    print("Percentile 75: " + str(np.percentile(assoc_results["OBS_CT"], 75)))
+    print("Percentile 97.5: " + str(np.percentile(assoc_results["OBS_CT"], 97.5)))
+
+    print("We should not have any ERROR code from plink")
+    error_codes = assoc_results["ERRCODE"].unique()
+    if len(error_codes)==1 & (error_codes==".")[0]:
+        print("YES! GOOD TO GO!")
+    else:
+        raise ValueError("ERROR: FALSE! WE HAVE A ERROR CODES DIFFERENTE FROM '.' IN THE ASSOC FILE")
+
+    #por aqui, think more possible checks on the results
+    #if you want, you can qucily check the script when you processed the glm.linear file
 
     #make manhattan plot with plotly
     import dash_bio
@@ -894,7 +1045,10 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
 #271 people had missing value(s), and 1 person was not seen in the covariate file.
 #???
 
-##CHECK THE GAPS 
+##CHECK THE GAPS
 ##CHECK THE OVERLAP BETWEEN CHROMSOME 25 AND 26 IN BEEP CHANGE
 ##very low p-values in chromosome 25 for beep change, maybe remove non-autosomal chromosomes?
 ##zeros in VO2 max? ask in the mail? Jonatan was indeed talking about not using VO2 max in the previous email.
+
+
+#for the future, plink2 considers now NaN as missing!!! so we can remove -51 and avoid problems!!
