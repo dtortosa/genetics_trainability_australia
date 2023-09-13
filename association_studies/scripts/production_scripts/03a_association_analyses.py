@@ -137,7 +137,10 @@ run_bash("ls")
 # folder preparation #
 ######################
 run_bash(" \
-    ")
+    mkdir -p ./data/pheno_data; \
+    mkdir -p ./data/plink_inputs; \
+    mkdir -p ./results/prelim_results; \
+    ls -l")
 
 
 
@@ -275,10 +278,16 @@ print_text("prepare covariates", header=1)
 
 print_text("load pheno data", header=2)
 print_text("This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv", header=3)
+run_bash(" \
+    cp \
+        ../quality_control/data/pheno_data/'combact gene DNA GWAS 23062022.xlsx' \
+        ./data/pheno_data/pheno_data.xlsx; \
+    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx, which is the raw excel and got from D. Bishop' > ./data/pheno_data/README.txt; \
+    ls -l ./data/pheno_data/")
 import pandas as pd
 import numpy as np
 pheno_data = pd.read_excel(
-    "./quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
+    "./data/pheno_data/pheno_data.xlsx",
     header=0,
     sheet_name="All DNA samples")
 
@@ -311,7 +320,7 @@ print(pheno_data)
 print_text("load fam file", header=2)
 print_text("load the fam file of the current steps I am working on for QC (date 08/24/2023", header=3)
 fam_file = pd.read_csv( \
-    "./quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam", \
+    "../quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam", \
     sep=" ", \
     header=None, \
     low_memory=False, \
@@ -330,7 +339,7 @@ print(fam_file)
 
 
 
-print_text("merge", header=2)
+print_text("merge and create file with the final set of samples and phenotypes", header=2)
 print_text("merge pheno data and fam file", header=3)
 merged_data_raw = pheno_data.merge( \
     fam_file, \
@@ -647,16 +656,16 @@ print("A tendency of increase of beep test and VO2 max in all percentiles at wee
 
 
 print_text("save the data", header=3)
-merged_data.to_csv("./quality_control/data/pheno_data/pheno_data_cleaned_missing_minus_as_"+str(np.abs(new_nan_value))+".tsv",
+merged_data.to_csv("./data/pheno_data/pheno_data_cleaned_missing_as_minus_as_"+str(np.abs(new_nan_value))+".tsv",
     sep="\t",
     header=True,
     index=False)
 print("see some columns of the file")
 run_bash(" \
-    cd ./quality_control/data/pheno_data/; \
+    cd ./data/pheno_data/; \
     awk \
         'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4}}' \
-        pheno_data_cleaned_missing_minus_as_51.tsv; \
+        pheno_data_cleaned_missing_as_minus_51.tsv; \
     ls -l")
 
 
@@ -672,15 +681,18 @@ multi_pheno_file = merged_data[["family_id", "AGRF code", "weight_change", "beep
 multi_pheno_file.columns=["FID", "IID", "weight_change", "beep_change", "vo2_change"]
     #select the interest columns and set the required column names
 multi_pheno_file.to_csv( \
-    "./association_studies/pheno_file.tsv", \
+    "./data/plink_inputs/pheno_file.tsv", \
     sep="\t", \
     index=False, \
     header=True)
 run_bash(" \
-    ")
+    cd ./data/plink_inputs/; \
+    awk \
+        'BEGIN{FS=\"\t\"}{if(NR<=10){print $0}}' \
+        pheno_file.tsv")
 
 
-print_text("create covariate files", header=3)
+print_text("create pheno/covariate files", header=3)
 print("Plink man: ' \
     --covar designates the file to load covariates from. The file format is the same as for --pheno (optional header line, FID and IID in first two columns, covariates in remaining columns). BY DEFAULT, THE MAIN PHENOTYPE IS SET TO MISSING IF ANY COVARIATE IS MISSING; you can disable this with the 'keep-pheno-on-missing-cov' modifier. \
     --covar-name lets you specify a subset of covariates to load, by column name; separate multiple column names with spaces or commas, and use dashes to designate ranges. (Spaces are not permitted immediately before or after a range-denoting dash.) --covar-number lets you use column numbers instead.'")
@@ -689,46 +701,76 @@ covar_file = merged_data[["family_id", "AGRF code", "Age", "Week 1 Body Mass", "
 covar_file.columns=["FID", "IID", "age", "week_1_weight", "week_1_beep", "week_1_vo2"]
     #select the baseline for each predictor, so VO2 max base line for 8 week baseline, etc... plus age and set the correct column names
 covar_file.to_csv( \
-    "./association_studies/covar_file.tsv", \
+    "./data/plink_inputs/covar_file.tsv", \
     sep="\t", \
     index=False, \
     header=True)
+run_bash(" \
+    cd ./data/plink_inputs/; \
+    awk \
+        'BEGIN{FS=\"\t\"}{if(NR<=10){print $0}}' \
+        covar_file.tsv")
 
-
-
-
-
-
+print_text("create a dict the covariate for each phenotype based on their association", header=3)
+print_text("create a dict with correct names for the covariates", header=4)
 dict_names_covs = {
     "Age": "age", \
     "sex_code": "sex_code", \
     "Week 1 Body Mass": "week_1_weight", \
     "Week 1 Beep test": "week_1_beep", \
     "Week 1 Pred VO2max": "week_1_vo2"}
+print(dict_names_covs)
 
-print_text("take a quick look the association between covariates and phenotypes", header=3)
+print_text("perform covariate selection based on association levels", header=4)
+print("In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'")
+        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
 
-##covariate selection
-#Baseline V̇O2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with V̇O2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge.
-    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-
-
+print_text("run the associations", header=4)
+#empty dict to save covariates per phenotype
 dict_pvalue_covar = { 
     "weight_change": [], \
     "beep_change": [], \
     "vo2_change": []}
-
+#for each phenotype and covariate
 from scipy.stats import linregress
+
+#change_pheno="weight_change"; covar="Age"
+def fun_assoc(change_pheno, covar):
+
+    #remove rows with missing for any of the interest columns
+    modeling_data = merged_data \
+        .loc[:,[change_pheno, covar]] \
+        .apply(lambda x: np.nan if (x[change_pheno]==-51) | (x[covar]==-51) else x, axis=1) \
+        .dropna()
+        #select the interest columns
+        #for each row
+            #set NA if any of the two columns is -51, i.e., missing in plink. The np.nan goes to all columns in that row
+            #else do not change anything of the row
+        #drop rows with NaN
+
+    #model
+    model_results = linregress( \
+        x=modeling_data[covar], \
+        y=modeling_data[change_pheno], \
+        alternative='two-sided')
+        #the phenotype is the response
+        #alternative
+            #'two-sided': the slope of the regression line is nonzero (greater or lower than zero, i.e., negative or positive association)
+    print(model_results)
+
+    #add the covariate to the list of covariates of the selected pheno if the p_value is below 0.1. We use the correct, simplified name of the covariate
+    if model_results.pvalue < 0.1:
+        dict_pvalue_covar[change_pheno].append(dict_names_covs[covar])
+
+#apply the function
+#quciki check normality of the three phenotypes?
+
 #change_pheno="weight_change"; covar="Age"
 for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
     print("\n \n #" + change_pheno + "#")
     for covar in ["Age", "sex_code", "Week 1 Body Mass"]:
         print("\n" + covar)
-        modeling_data = merged_data[[change_pheno, covar]].apply(lambda x: np.nan if (x[0]==-51) | (x[1]==-51) else x, axis=1).dropna()
-        model_results = linregress(x=modeling_data[covar], y=modeling_data[change_pheno], alternative='two-sided')
-        print(model_results)
-        if model_results.pvalue < 0.1:
-            dict_pvalue_covar[change_pheno].append(dict_names_covs[covar])
+        #function here!!
     if change_pheno == "beep_change":
         covar="Week 1 Beep test"
         print("\n " + covar)
@@ -795,7 +837,7 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
 
     #run plink assoc
     run_bash(" \
-        cd ./association_studies; \
+        mkdir ./results/prelim_results/" + pheno + "/; \
         plink \
             --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2 \
             --linear " + sex_cov + " \
@@ -804,7 +846,7 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             --pheno-name " + pheno + "\
             --covar ./covar_file.tsv \
             --covar-name " + covs + " \
-            --out " + pheno + "; \
+            --out ./results/prelim_results/" + pheno + "/" + pheno + "; \
         ls -l")
             #Given a quantitative phenotype and possibly some covariates (in a --covar file), --linear writes a linear regression report to plink.assoc.linear.
                 #the result is a file with several rows per SNP, having the slope and P for each covariate and the ADD effect of the SNP
@@ -814,14 +856,14 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
 
     #use awk to select only rows for ADD effect of the SNP and the first row, then save as tsv.
     run_bash(" \
-        cd ./association_studies; \
+        cd ./results/prelim_results/" + pheno + "/; \
         awk \
             'BEGIN{FS=\" \"; OFS=\"\t\"}{if($5==\"ADD\" || NR==1){print $1, $2, $3, $4, $5, $6, $7, $8, $9}}'\
             " + pheno + ".assoc.linear > \
         " + pheno + ".assoc.linear.tsv")
 
     #make plot
-    assoc_results = pd.read_csv("./association_studies/" + pheno + ".assoc.linear.tsv", sep="\t")
+    assoc_results = pd.read_csv("./results/prelim_results/" + pheno + "/" + pheno + ".assoc.linear.tsv", sep="\t")
         #use pheno to avoid problems with the delimiter
             #https://stackoverflow.com/questions/69863821/read-output-model-of-plink
     
@@ -844,7 +886,7 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             title="Manhattan Plot - " + dict_titles[pheno])
                 #the significance line is bonferroni, which is very stringent
                 #https://plotly.com/python/manhattan-plot/
-    fig.write_html("./association_studies/" + pheno + ".html")
+    fig.write_html("./results/prelim_results/" + pheno + "/" + pheno + ".html")
         #you can also save as an interactive html with "fig.write_html("path/to/file.html")"
             #https://plotly.com/python/interactive-html-export/
 

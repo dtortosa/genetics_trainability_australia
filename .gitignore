@@ -1,6 +1,8 @@
 *.sif
 *.ipynb_checkpoints
 
+/association_studies/results/
+/association_studies/data/
 /association_studies/literature/
 /quality_control/data
 /quality_control/literature
