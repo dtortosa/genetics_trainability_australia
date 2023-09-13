@@ -133,6 +133,13 @@ run_bash("ls")
 
 
 
+######################
+# folder preparation #
+######################
+run_bash(" \
+    ")
+
+
 
 #################################
 # approach to calculate the PRS #
@@ -654,9 +661,6 @@ run_bash(" \
 
 
 
-###por aqui, selecting covariates based on association with the phenotype
-
-
 print_text("create objects with phenotypes and covariates", header=2)
 print_text("create multi pheno files", header=3)
 print("According to plink man: \
@@ -672,6 +676,9 @@ multi_pheno_file.to_csv( \
     sep="\t", \
     index=False, \
     header=True)
+run_bash(" \
+    ")
+
 
 print_text("create covariate files", header=3)
 print("Plink man: ' \
@@ -772,6 +779,8 @@ dict_titles = {
     "weight_change": "Change of body mass", \
     "beep_change": "Change in beep test", \
     "vo2_change": "Change in predicted VO2 max"}
+
+#create folder to have results of each pheno separated
 
 #run associations and plot each pheno
 #pheno="beep_change"
