@@ -509,6 +509,7 @@ print( \
 print_text("Change the default NaN value to a negative value that is smaller than the maximum value in absolute value of the new change variables", header=3)
 print("Note that plink considers -9 as missing, but we can have -9 as a real value because we are calculating differences between week 1 and 8. We have to deal with that and select a suitable missing value, probably a large negative number. Larger than the maximum value for the difference phenotypes")
         #https://www.cog-genomics.org/plink/1.9/input#pheno_encoding
+print("IMPORTANT: I did this because I was initially using plink1.9, but now I am using plink2, which considers now NaN as missing!!! So you could avoid using a integer as missing and avoid problems when working with other programs!!")
 
 print_text("calculate absolute value and then get the max value skipping NaNs for each variable", header=4)
 max_weight_change = merged_data["weight_change"].abs().max(skipna=True)
@@ -935,6 +936,11 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
                 #https://www.cog-genomics.org/plink/2.0/data#quantile_normalize
                 #https://www.cog-genomics.org/plink/2.0/input
 
+    print("IMPORTANT: \
+        There are multiple disclamers in the --glm info page, like problems with low minor allele count or how to prune by relatedness, include PCAs for population stratification, etc... \
+        TAKE A LOOK AT THIS!!")
+        #https://www.cog-genomics.org/plink/2.0/assoc
+
     print("use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv")
     run_bash(" \
         cd ./results/prelim_results/" + pheno + "/; \
@@ -952,7 +958,7 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             --stdout \
             first_assoc." + pheno + ".glm.linear.tsv.gz | \
         awk \
-            'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4, $5, $6, $7}}'")
+            'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13}}'")
 
     #extract the unique cases in the TEST column in order to check if we have selected only ADD
     unique_test = run_bash(" \
@@ -985,6 +991,10 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             #ID: Variant ID
             #REF: Reference allele
             #ALT1: Alternate allele 1
+            #A1: The allele that was counted allele in regression
+                #If all checks below are true, then 
+                    #REF/ALT come from the bim file
+                    #A1 is the minor allele
             #TEST: Test identifier
             #OBS_CT: Number of samples in regression
             #BETA: Regression coefficient (for A1 allele)
@@ -994,6 +1004,122 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             #ERRCODE: When result is 'NA', an error code describing the reason
             #https://www.cog-genomics.org/plink/2.0/formats#glm_logistic
     print("you could use this file to filter by the number of observations or other criteria")
+
+    print("load bim file used as input to do some check. If the SNPs and their characterstics are the same in the bim and assoc file, it means that my processing of the assoc file has not messed with the data.")
+    bim_file = pd.read_csv( \
+        ".././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.bim", \
+        sep="\t", \
+        header=None, \
+        low_memory=False)
+    print(bim_file)
+        #the last two columns are the alleles: A1 (usually minor) and A2 (usually major)
+            #Chromosome code (either an integer, or 'X'/'Y'/'XY'/'MT'; '0' indicates unknown) or name
+            #Variant identifier
+            #Position in morgans or centimorgans (safe to use dummy value of '0')
+            #Base-pair coordinate (1-based; limited to 231-2)
+            #Allele 1 (corresponding to clear bits in .bed; usually minor)
+            #Allele 2 (corresponding to set bits in .bed; usually major)
+            #https://www.cog-genomics.org/plink/1.9/formats#bim
+
+    print("load freq report file loop_maf_missing_2 to do some check, but first, process it with awk")
+    run_bash(" \
+        cd .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/; \
+        echo 'see first lines of freq report and then process it'; \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR<=10){print $0}}END{print \"The number of fields is \"; print NF}'\
+                loop_maf_missing_2_reports.frq; \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1, $2, $3, $4, $5, $6}'\
+                loop_maf_missing_2_reports.frq | \
+        gzip \
+            --stdout > loop_maf_missing_2_reports.frq.tsv.gz; \
+        gunzip \
+            --stdout \
+            loop_maf_missing_2_reports.frq.tsv.gz | \
+        awk \
+            'BEGIN{FS=\"\t\"}{if(NR<=10){print $0}}'")
+        #we need to load the file in awk, then select all columns for each row and save indicating "\t" as field delimiter. In this way, we avoid problems with the delimiter when loading into python.
+    print("load to pandas")
+    freq_report = pd.read_csv( \
+        ".././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2_reports.frq.tsv.gz", \
+        sep="\t", \
+        header=0, \
+        low_memory=False)
+    print(freq_report)
+
+    print("the position and ID of all SNPs is the same in bim and assoc files?")
+    print(bim_file.iloc[:,3].equals(assoc_results["POS"]))
+    print(bim_file.iloc[:,1].equals(assoc_results["ID"]))
+    
+    print("the chromosomes are the same between bim and assoc files?")
+    print("make dict to convert non-autosomal snps to numeric because in assoc they are string")
+    dict_non_autosomal_conversion = { \
+        "X": 23, \
+        "Y": 24, \
+        "XY": 25, \
+        "MT": 26}
+        #Unless you specify otherwise, PLINK interprets chromosome codes as if you were working with human data: 1–22 (or “chr1”–“chr22”) refer to the respective autosomes, 23 refers to the X chromosome, 24 refers to the Y chromosome, 25 refers to pseudoautosomal regions, and 26 refers to mitochondria.
+    print(dict_non_autosomal_conversion)
+    print("convert original chromosome variable in assoc file to numeric")
+    #x=assoc_results.iloc[0,:]
+    #x=assoc_results.iloc[assoc_results.shape[0]-1,:]
+    chrom_assoc_numeric = assoc_results \
+        .apply(lambda x: dict_non_autosomal_conversion[x["#CHROM"]] if x["#CHROM"] in dict_non_autosomal_conversion.keys() else int(x["#CHROM"]), axis=1)
+        #in each row, if the chromosome is a non-autosomal, i.e., it is included as a key in the dict for the conversion, get the numeric (integer) version of that chromosome from the dict
+    print(chrom_assoc_numeric.equals(bim_file.iloc[:, 0]))
+
+    print("Check that the A1 allele is the minor")
+    print("first check that the SNP and A1/A2 columns are the same in the bim file and the frequency report")
+    print(np.array_equal(freq_report.loc[:,["CHR", "SNP", "A1", "A2"]].values, bim_file.iloc[:,[0,1,4,5]].values))
+    print("the frequency file doc says that the A1 is USUALLY the minor, but also gives the frequency of the Allele 1 (called MAF). Therefore, we can check whether the MAF is below 0.5 and hence the A1 is actually the minor")
+        #CHR Chromosome code
+        #SNP Variant identifier
+        #A1  Allele 1 (usually minor)
+        #A2  Allele 2 (usually major)
+        #MAF Allele 1 frequency
+        #NCHROBS Number of allele observations
+        #https://www.cog-genomics.org/plink/1.9/formats#frq
+    if sum(freq_report["MAF"] <= 0.5) == freq_report.shape[0]:
+        print("YES! GOOD TO GO! We can say that the A1 allele in the frequency file and in the bim file is the minor. Remember that we have just checked that the A1/A2 columns are identical in the bim and the frequency files")
+    else:
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM, A1 alleles are not always the minor in the frequency report")
+    
+    print("Also check that the A1 (minor) / A2 (major) of the freq report and the bim file are exactly the ALT and REF, respectively, in the assoc file")
+    print(np.array_equal(assoc_results[["ALT", "REF"]].values, bim_file.iloc[:,[4,5]].values))
+    print(np.array_equal(assoc_results[["ALT", "REF"]].values, freq_report.loc[:,["A1", "A2"]].values))
+
+    print("We assume then that A1 is the minor allele and should in general ALT, except in those cases where the frequency is close to 0.5 and a small changes in samples (due to missing phenotypes) could convert the minor to major, becoming REF in the minor and A1. Therefore, if A1==ALT, the REF is the major. In contrast, if A1!=ALT, then ALT is the major")
+    major_alleles_assoc = assoc_results.apply(lambda x: x["REF"] if x["A1"] == x["ALT"] else x["ALT"], axis=1)
+    print("get the IDs of those SNPs for which minor and major alleles are not the same between the bim and assoc files")
+    cases_mismatch_minor = bim_file \
+        .loc[bim_file.iloc[:,4] != assoc_results["A1"], 1]
+    cases_mismatch_major = bim_file \
+        .loc[bim_file.iloc[:, 5] != major_alleles_assoc, 1]
+
+    print("the cases of mismatch should be the same for minor and major alleles, if not, we have a problem. If the number of mismatches is higher than zero, then we have to do several operations to compare alleles between bim and assoc")
+    if cases_mismatch_major.equals(cases_mismatch_minor):
+        if cases_mismatch_minor.shape[0] > 0:
+
+            print("check whether the SNPs with mismatch have a MAF=0.5 in the frequency report. Remember that major and minor mismatches should be the same")
+            mismatch_minors = freq_report.loc[freq_report["SNP"].isin(cases_mismatch_minor), :]
+            check_change_minors = mismatch_minors["MAF"] == 0.5
+            print(check_change_minors)
+
+            print("SNPs where minor/major changes between the bim file and the assoc file are those with a frequency of 0.5? That would make sense, because a small change in the number of sample due to missing phenotype values would change the minor/major")
+            if sum(check_change_minors) == len(check_change_minors):
+                print("YES! GOOD TO GO!")
+            else:
+                raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM, SOME MINOR/MAJOR PAIRS CHANGE BETWEEN BIM AND ASSOC FILE AND DO NOT HAVE A FREQUENCY OF 0.5")
+
+            print("check whether the SNPs with mismatch have indeed the REF as minor. This should be the case. If the REF is the minor in assoc (i.e., A1), then A1 should not be ALT")
+            assoc_results_mismatch = assoc_results.loc[assoc_results["ID"].isin(mismatch_minors["SNP"]), :]
+            print(sum(assoc_results_mismatch["REF"] == assoc_results_mismatch["A1"]) == assoc_results_mismatch.shape[0])
+        else:
+            print("if there is no change of MAJOR/MINOR, we can just compare the columns between BIM and ASSOC files directly")
+            print(bim_file.iloc[:,4].equals(assoc_results["A1"]))
+            print(bim_file.iloc[:,5].equals(major_alleles_assoc))
+    else: 
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM, THE CASES OF CHANGE MINOR/MAJOR BETWEEN BIM AND ASSOC ARE DIFFERENT BETWEEN REF AND ALT COLUMNS!")
 
     print("check we do not have duplicates by position or by SNP id")
     print(sum(assoc_results.duplicated(subset=["#CHROM", "POS"], keep=False))==0)
@@ -1018,37 +1144,65 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
     else:
         raise ValueError("ERROR: FALSE! WE HAVE A ERROR CODES DIFFERENTE FROM '.' IN THE ASSOC FILE")
 
-    #por aqui, think more possible checks on the results
-    #if you want, you can qucily check the script when you processed the glm.linear file
+    print("convert chromosome column to numeric")
+    assoc_results["#CHROM"] = assoc_results.apply(lambda x: dict_non_autosomal_conversion[x["#CHROM"]] if x["#CHROM"] in dict_non_autosomal_conversion.keys() else int(x["#CHROM"]), axis=1)
+        #for each row, if the chromosome name is in the dict for chromosome name conversion, i.e., it is X, Y, XY or MT, then use that very dict to convert to numeric. If not, then we just have a number, so be sure it is integer.
 
-    #make manhattan plot with plotly
+    print("At the end we are going to remove the non-autosomals because I get strange overlap in the plots, even knowing we do not have any overlap in the coordinates")
+    assoc_results = assoc_results.loc[~assoc_results["#CHROM"].isin(dict_non_autosomal_conversion.values()),:]
+        #dict_non_autosomal_conversion is a dict the string names for non-autosomal chromosomes as key and the integer name for that same chromosomes as values
+    print(assoc_results)
+
+    print("check we have the correct dtypes for dash_bio.ManhattanPlot (see code below)")
+    print(assoc_results["#CHROM"].dtype == "int64")
+    print(assoc_results["POS"].dtype == "int64")
+    print(assoc_results["P"].dtype == "float64")
+    print(assoc_results["ID"].dtype == "O")
+
+    print("make manhattan plot with plotly")
     import dash_bio
     import plotly.graph_objects as go
     fig = dash_bio.ManhattanPlot(
-            dataframe=assoc_results, \
-            chrm='CHR', \
-            bp='BP', \
-            p='P', \
-            snp='SNP', \
-            gene=None, \
-            logp=True, \
-            suggestiveline_value=-np.log10(0.05), \
-            genomewideline_value=-np.log10(0.05/assoc_results.shape[0]), \
-            title="Manhattan Plot - " + dict_titles[pheno])
-                #the significance line is bonferroni, which is very stringent
-                #https://plotly.com/python/manhattan-plot/
+        dataframe=assoc_results, \
+        chrm="#CHROM", \
+        bp="POS", \
+        p="P", \
+        snp="ID", \
+        gene=None, \
+        logp=True, \
+        title="Manhattan Plot - " + dict_titles[pheno], \
+        suggestiveline_value=-np.log10(0.05), \
+        genomewideline_value=-np.log10(0.05/assoc_results.shape[0]))
+        #dataframe (dataframe; required): A pandas dataframe which must contain at least the following three columns:
+                #the chromosome number
+                #genomic base-pair position
+                #a numeric quantity to plot such as a p-value or zscore
+        #chrm (string; default 'CHR'): A string denoting the column name for the chromosome. This column must be float or integer. Minimum number of chromosomes required is 1. IF YOU HAVE X, Y, OR MT CHROMOSOMES, BE SURE TO RENUMBER THESE 23, 24, 25, ETC. The string is the name of the column!
+        #bp (string; default 'BP'): A string denoting the column name for the chromosomal position. The string is the name of the column!
+        #p (string; default 'P'): A string denoting the column name for the float quantity to be plotted on the y-axis. This column must be numeric. It does not have to be a p-value. It can be any numeric quantity such as peak heights, Bayes factors, test statistics. IF IT IS NOT A P-VALUE, MAKE SURE TO SET LOGP = FALSE.
+        #snp (string; default 'SNP'): A string denoting the column name for the SNP names (e.g., rs number). More generally, this column could be anything that identifies each point being plotted. For example, in an Epigenomewide association study (EWAS), this could be the probe name or cg number. This column should be a character. This argument is optional, however it is necessary to specify it if you want to highlight points on the plot, using the highlight argument in the figure method.
+        #gene (string; default 'GENE'): A string denoting the column name for the GENE names. This column could be a string or a float. More generally, it could be any annotation information that you want to include in the plot.
+        #annotation (string; optional): A string denoting the column to use as annotations. This column could be a string or a float. It could be any annotation information that you want to include in the plot (e.g., zscore, effect size, minor allele frequency).
+        #logp (bool; optional): If True, the -log10 of the p-value is plotted. It isn't very useful to plot raw p-values; however, plotting the raw value could be useful for other genome-wide plots (e.g., peak heights, Bayes factors, test statistics, other "scores", etc.)
+        #title (string; default 'Manhattan Plot'): The title of the graph.
+        #showgrid (bool; default true): Boolean indicating whether gridlines should be shown.
+        #xlabel (string; optional): Label of the x axis.
+        #ylabel (string; default '-log10(p)'): Label of the y axis.
+        #point_size (number; default 5): Size of the points of the Scatter plot.
+        #showlegend (bool; default true): Boolean indicating whether legends should be shown.
+        #col (string; optional): A string representing the color of the points of the scatter plot. Can be in any color format accepted by plotly.graph_objects.
+        #suggestiveline_value (bool | float; default 8): A value which must be either False to deactivate the option, or a numerical value corresponding to the p-value at which the line should be drawn. The line has no influence on the data points.
+        #suggestiveline_color (string; default 'grey'): Color of the suggestive line.
+        #suggestiveline_width (number; default 2): Width of the suggestive line.
+        #genomewideline_value (bool | float; default -log10(5e-8)): A boolean which must be either False to deactivate the option, or a numerical value corresponding to the p-value above which the data points are considered significant.
+            #the significance line is bonferroni in our case, which is very stringent
+        #genomewideline_color (string; default 'red'): Color of the genome-wide line. Can be in any color format accepted by plotly.graph_objects.
+        #genomewideline_width (number; default 1): Width of the genome-wide line.
+        #highlight (bool; default True): turning on/off the highlighting of data points considered significant.
+        #highlight_color (string; default 'red'): Color of the data points highlighted because they are significant. Can be in any color format accepted by plotly.graph_objects.
+            #https://plotly.com/python/manhattan-plot/
+
+    #save the figure
     fig.write_html("./results/prelim_results/" + pheno + "/" + pheno + ".html")
-        #you can also save as an interactive html with "fig.write_html("path/to/file.html")"
-            #https://plotly.com/python/interactive-html-export/
-
-
-#271 people had missing value(s), and 1 person was not seen in the covariate file.
-#???
-
-##CHECK THE GAPS
-##CHECK THE OVERLAP BETWEEN CHROMSOME 25 AND 26 IN BEEP CHANGE
-##very low p-values in chromosome 25 for beep change, maybe remove non-autosomal chromosomes?
-##zeros in VO2 max? ask in the mail? Jonatan was indeed talking about not using VO2 max in the previous email.
-
-
-#for the future, plink2 considers now NaN as missing!!! so we can remove -51 and avoid problems!!
+        #we can see a gap in chromosome 1, 9 and 16. This seems to be pretty common in other Manhattan plots, so it should be something related to the physical characteristics of these chromosomes. I have not found information, but maybe this is caused by the centromeres, because the gap is around the center of these chromosomes.
+            #Split on Manhattan plots for chromosomes 1, 9, 16 (GWAS)
