@@ -282,7 +282,7 @@ run_bash(" \
     cp \
         ../quality_control/data/pheno_data/'combact gene DNA GWAS 23062022.xlsx' \
         ./data/pheno_data/pheno_data.xlsx; \
-    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx, which is the raw excel and got from D. Bishop' > ./data/pheno_data/README.txt; \
+    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx, which is the raw excel I got from D. Bishop' > ./data/pheno_data/README.txt; \
     ls -l ./data/pheno_data/")
 import pandas as pd
 import numpy as np
@@ -290,6 +290,7 @@ pheno_data = pd.read_excel(
     "./data/pheno_data/pheno_data.xlsx",
     header=0,
     sheet_name="All DNA samples")
+print(pheno_data)
 
 
 print_text("Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0", header=3)
@@ -311,9 +312,6 @@ if(pheno_data["Week 8 beep test"].dtype == "float64"):
     print("GOOD TO GO: we have correctly change the dtype of the column with beep test data week 8")
 else:
     raise ValueError("ERROR: FALSE! The dtype of the beep test week 8 column is not correct")
-
-print_text("look the pheno data", header=4)
-print(pheno_data)
 
 
 
@@ -368,15 +366,15 @@ print(merged_data.apply(lambda x: sum(x==0), axis=0))
     #for example, ["8502JGMJ", "9601AVJM"] have zero for "Week 1 Pred VO2max", but they are not included in the fam file
         #merged_data.loc[merged_data["AGRF code"].isin(["8502JGMJ", "9601AVJM"]),:]
         #fam_file.loc[fam_file["AGRF code"].isin(["8502JGMJ", "9601AVJM"]),:]
-print_text("Weight: we have zeros for weight and VO2 max. Given that weight is going to be used for the rest of variables as covariate, we will set as missing the weight of these samples. Importantly, a weight of zero does not make sense.", header=4)
+print_text("Weight: Given that weight is going to be used for the rest of variables as covariate, we will set as missing the weight of these samples. Importantly, a weight of zero does not make sense.", header=4)
 merged_data.loc[merged_data["Week 1 Body Mass"]==0, "Week 1 Body Mass"] = np.nan
 merged_data.loc[merged_data["Week 8 Body Mass"]==0, "Week 8 Body Mass"] = np.nan
 
-print_text("VO2 max: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan", header=4)
+print_text("VO2 max week 1: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan", header=4)
 print(merged_data.loc[merged_data["Week 1 Pred VO2max"]==0, ["Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max",]])
 merged_data.loc[merged_data["Week 1 Pred VO2max"]==0, "Week 1 Pred VO2max"] = np.nan
 
-print_text("Sex_code: We have missing for 42 samples which are the ones with genetic data that are completely empty in the pheno_data PLUS 2397LDJA, the misslabeled sample with different Id geno and pheno data just by 1 number (see below). These are samples without phenotypic data, thus we cannot know the self-reported sex. Zero is ok here, so we do not do anything", header=4)
+print_text("Sex_code: We have missing for 42 samples which are the ones with genetic data that are completely empty in the pheno_data (41) PLUS 2397LDJA, the misslabeled sample with different ID in geno and pheno data just by 1 number (see below). These are samples without phenotypic data, thus we cannot know the self-reported sex. Zero is ok here, so we do not do anything", header=4)
 print("Do we have exactly 42 samples with sex_code=0?")
 print(merged_data.loc[merged_data["sex_code"]==0, :].shape[0]==41+1)
 print("has 2397LDJA zero as sex code?")
@@ -387,15 +385,12 @@ print(merged_data.loc[(merged_data["ID_father"]==0) & (merged_data["ID_mother"]=
 
 print_text("sum again the number of Zeros per column", header=4)
 print(merged_data.apply(lambda x: sum(x==0), axis=0))
-print("We only have zeros in sex_code and parents IDs, which is ok, see above")
+print("We only have now zeros in sex_code and parents IDs, which is ok, see above")
 
-
-###por aquii
-#change ID of 2399LDJA, we need the one of plink!
 
 
 print_text("deal with 2397LDJA/2399LDJA", header=3)
-print("I guess this is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file")
+print("This is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file")
 mislabelled_sample = merged_data.loc[merged_data["AGRF code"].isin(["2397LDJA", "2399LDJA"]), :]
 print("If we have 2397LDJA and is all missing")
 if mislabelled_sample.shape[0] == 1:
@@ -449,8 +444,8 @@ if mislabelled_sample.shape[0] == 1:
             .iloc[ \
                 np.where(merged_data["AGRF code"] == "2397LDJA")[0], \
                 np.where( \
-                    (merged_data.columns.isin(pheno_data.columns) & \
-                    (merged_data.columns != "AGRF code")))[0]] \
+                    (merged_data.columns.isin(pheno_data.columns)) & \
+                    (merged_data.columns != "AGRF code"))[0]] \
             .squeeze() \
             .equals( \
                 pheno_data \
@@ -527,6 +522,8 @@ print(new_nan_value)
 print_text("fill NaN cases with the new missing value using 'fillna' of pandas", header=4)
 merged_data = merged_data.fillna(new_nan_value)
 print(merged_data)
+
+##por aquii
 
 print_text("fill -9 cases of phenotype_value with the new missing value", header=4)
 merged_data.loc[merged_data["phenotype_value"]==-9, "phenotype_value"] = new_nan_value
@@ -674,7 +671,7 @@ print("A tendency of increase of beep test and VO2 max in all percentiles at wee
 
 
 print_text("save the data", header=3)
-merged_data.to_csv("./data/pheno_data/pheno_data_cleaned_missing_as_minus_as_"+str(np.abs(new_nan_value))+".tsv",
+merged_data.to_csv("./data/pheno_data/pheno_data_cleaned_missing_as_minus_" + str(np.abs(new_nan_value)) + ".tsv",
     sep="\t",
     header=True,
     index=False)
@@ -683,7 +680,7 @@ run_bash(" \
     cd ./data/pheno_data/; \
     awk \
         'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4}}' \
-        pheno_data_cleaned_missing_as_minus_51.tsv; \
+        pheno_data_cleaned_missing_as_minus_" + str(np.abs(new_nan_value)) + ".tsv; \
     ls -l")
 
 
