@@ -280,9 +280,9 @@ print_text("load pheno data", header=2)
 print_text("This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv", header=3)
 run_bash(" \
     cp \
-        ../quality_control/data/pheno_data/'combact gene DNA GWAS 23062022.xlsx' \
+        ../quality_control/data/pheno_data/'Combat gene DNA GWAS 23062022_v2.xlsx' \
         ./data/pheno_data/pheno_data.xlsx; \
-    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx, which is the raw excel I got from D. Bishop' > ./data/pheno_data/README.txt; \
+    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/Combat gene DNA GWAS 23062022_v2.xlsx, which is the second raw excel I got from D. Bishop after they add beep distance' > ./data/pheno_data/README.txt; \
     ls -l ./data/pheno_data/")
 import pandas as pd
 import numpy as np
@@ -291,6 +291,37 @@ pheno_data = pd.read_excel(
     header=0,
     sheet_name="All DNA samples")
 print(pheno_data)
+
+
+print_text("Check that the dtype of the new beep distance columns is float64", header=3)
+if (pheno_data["Week 1 Distance (m)"].dtype == "float64") & (pheno_data["Week 8 Distance (m)"].dtype == "float64"):
+    print("YES! GOOD TO GO!!")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DTYPE OF THE NEW BEEP DISTANCE COLUMNS")
+
+
+
+
+print_text("Check that the new version of the pheno_data is exactly the same than the previous one if we remove the new beep distance variables", header=3)
+print_text("load the original phenotype data", header=4)
+pheno_data_no_beep_distance = pd.read_excel(
+    "../quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+print(pheno_data_no_beep_distance)
+
+print_text("make the check", header=4)
+check_pheno_versions = \
+    pheno_data \
+        .loc[ \
+            :, \
+            ~pheno_data.columns \
+                .isin(["Week 1 Distance (m)", "Week 8 Distance (m)"])] \
+        .equals(pheno_data_no_beep_distance)
+if check_pheno_versions:
+    print("YES! GOOD TO GO!!")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NEW VERSION OF THE PHENO DATA")
 
 
 print_text("Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0", header=3)
@@ -475,6 +506,7 @@ print_text("create new variables for the change before and after", header=3)
 print_text("make the operations", header=4)
 merged_data["weight_change"] = merged_data["Week 8 Body Mass"]-merged_data["Week 1 Body Mass"]
 merged_data["beep_change"] = merged_data["Week 8 beep test"]-merged_data["Week 1 Beep test"]
+merged_data["distance_change"] = merged_data["Week 1 Distance (m)"]-merged_data["Week 8 Distance (m)"]
 merged_data["vo2_change"] = merged_data["Week 8 Pred VO2max"]-merged_data["Week 1 Pred VO2max"]
     #NA remains as NA
 
@@ -492,6 +524,12 @@ print( \
     sum( \
         (merged_data["Week 1 Beep test"].isna()) | \
         (merged_data["Week 8 beep test"].isna())))
+print("distance change")
+print( \
+    sum(merged_data["distance_change"].isna()) == \
+    sum( \
+        (merged_data["Week 1 Distance (m)"].isna()) | \
+        (merged_data["Week 8 Distance (m)"].isna())))
 print("VO2 max change")
 print( \
     sum(merged_data["vo2_change"].isna()) == \
@@ -509,21 +547,21 @@ print("IMPORTANT: I did this because I was initially using plink1.9, but now I a
 print_text("calculate absolute value and then get the max value skipping NaNs for each variable", header=4)
 max_weight_change = merged_data["weight_change"].abs().max(skipna=True)
 max_beep_change = merged_data["beep_change"].abs().max(skipna=True)
+max_distance_change = merged_data["distance_change"].abs().max(skipna=True)
 max_vo2_change = merged_data["vo2_change"].abs().max(skipna=True)
 print("Maximum different in weight of " + str(max_weight_change))
 print("Maximum different in beep test of " + str(max_beep_change))
+print("Maximum different in distance of " + str(max_distance_change))
 print("Maximum different in VO2 of " + str(max_vo2_change))
 
 print_text("select the max value from all three variables, sum 20 and then convert to negative. This is the new missing value", header=4)
-new_nan_value = int(-(np.round(np.max([max_weight_change, max_beep_change, max_vo2_change]))+20))
+new_nan_value = int(-(np.round(np.max([max_weight_change, max_beep_change, max_distance_change, max_vo2_change]))+20))
 print(new_nan_value)
     #we save it as integer, although pandas will change it to float (adding .0), we will change back that using "new_nan_value" as integer.
 
 print_text("fill NaN cases with the new missing value using 'fillna' of pandas", header=4)
 merged_data = merged_data.fillna(new_nan_value)
 print(merged_data)
-
-##por aquii
 
 print_text("fill -9 cases of phenotype_value with the new missing value", header=4)
 merged_data.loc[merged_data["phenotype_value"]==-9, "phenotype_value"] = new_nan_value
@@ -590,6 +628,7 @@ merged_data = merged_data.iloc[:, col_index_ordered]
     #reorder the columns
     #https://stackoverflow.com/questions/13148429/how-to-change-the-order-of-dataframe-columns
 
+
 print_text("final exploration of the data", header=3)
 print_text("count missing per column", header=4)
 count_missing = merged_data.apply(lambda x: sum(x==new_nan_value), axis=0)
@@ -601,8 +640,12 @@ count_missing["Gender"] == sum(merged_data_raw["Gender"].isna())-1
 count_missing["Age"] == sum(merged_data_raw["Age"].isna())-1
 #selected_phenotype="Week 1 Body Mass"
 print("In the case of phenotypes, we converted to missing no only NaN, but also zero values and -9, so we have to consider samples with these values in the raw dataset")
+
+#por aquii
+
+#selected_phenotype="Week 1 Distance (m)"
 for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass",
-       "Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max",
+       "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max",
        "Week 8 Pred VO2max", "phenotype_value"]:
     print(selected_phenotype)
     if selected_phenotype != "phenotype_value":
@@ -619,7 +662,7 @@ for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass",
                 (merged_data_raw[selected_phenotype]==0) | \
                 (merged_data_raw[selected_phenotype].isna()) | \
                 (merged_data_raw[selected_phenotype]==-9)))
-            #the mislabeled sample always has missing, before and after the corrections, so we do not need to subtract 1.
+            #the mislabeled sample always has missing here, before and after the corrections, so we do not need to subtract 1.
 print("In the case of family/parents Ids and sex code, we should not have any missing, but 0 for unknown, so we do not need to subtract 1 for the mislabelled sample (2397LDJA/2399LDJA)")   
 count_missing["family_id"] == sum(merged_data_raw["family_id"].isna())
 count_missing["ID_father"] == sum(merged_data_raw["ID_father"].isna())
@@ -750,11 +793,11 @@ for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
     #remove rows with missing for the phenotype of interest
     modeling_data = merged_data \
         .loc[:,[change_pheno]] \
-        .apply(lambda x: np.nan if (x[change_pheno]==-51) else x, axis=1) \
+        .apply(lambda x: np.nan if (x[change_pheno]==new_nan_value) else x, axis=1) \
         .dropna()
         #select the interest column
         #for each row
-            #set NA if the column is -51, i.e., missing in plink.
+            #set NA if the column is the new_nan_value, i.e., missing in plink.
             #else do not change anything of the row
         #drop rows with NaN
 
@@ -819,11 +862,11 @@ def fun_assoc(change_pheno, covar):
     #remove rows with missing for any of the interest columns
     modeling_data = merged_data \
         .loc[:,[change_pheno, covar]] \
-        .apply(lambda x: np.nan if (x[change_pheno]==-51) | (x[covar]==-51) else x, axis=1) \
+        .apply(lambda x: np.nan if (x[change_pheno]==new_nan_value) | (x[covar]==new_nan_value) else x, axis=1) \
         .dropna()
         #select the interest columns
         #for each row
-            #set NA if any of the two columns is -51, i.e., missing in plink. The np.nan goes to all columns in that row
+            #set NA if any of the two columns is new_nan_value, i.e., missing in plink. The np.nan goes to all columns in that row
             #else do not change anything of the row
         #drop rows with NaN
 
@@ -1203,3 +1246,6 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
     fig.write_html("./results/prelim_results/" + pheno + "/" + pheno + ".html")
         #we can see a gap in chromosome 1, 9 and 16. This seems to be pretty common in other Manhattan plots, so it should be something related to the physical characteristics of these chromosomes. I have not found information, but maybe this is caused by the centromeres, because the gap is around the center of these chromosomes.
             #Split on Manhattan plots for chromosomes 1, 9, 16 (GWAS)
+
+
+#8244FGNJ has NA for "Week 8 Distance (m)". I detected a typo in the "Week 8 beep test" for that same sample, having "11.1O" instead of "11.10", i.e., there is letter O instead of the zero number. This could be related with the missing value in that sample for week 8 distancce?
