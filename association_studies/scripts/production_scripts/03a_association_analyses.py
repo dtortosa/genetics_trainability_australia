@@ -300,8 +300,6 @@ else:
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DTYPE OF THE NEW BEEP DISTANCE COLUMNS")
 
 
-
-
 print_text("Check that the new version of the pheno_data is exactly the same than the previous one if we remove the new beep distance variables", header=3)
 print_text("load the original phenotype data", header=4)
 pheno_data_no_beep_distance = pd.read_excel(
@@ -343,7 +341,7 @@ if(pheno_data["Week 8 beep test"].dtype == "float64"):
     print("GOOD TO GO: we have correctly change the dtype of the column with beep test data week 8")
 else:
     raise ValueError("ERROR: FALSE! The dtype of the beep test week 8 column is not correct")
-
+print("Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number. This could be related with the missing value in that sample for week 8 distancce?")
 
 
 print_text("load fam file", header=2)
@@ -506,7 +504,7 @@ print_text("create new variables for the change before and after", header=3)
 print_text("make the operations", header=4)
 merged_data["weight_change"] = merged_data["Week 8 Body Mass"]-merged_data["Week 1 Body Mass"]
 merged_data["beep_change"] = merged_data["Week 8 beep test"]-merged_data["Week 1 Beep test"]
-merged_data["distance_change"] = merged_data["Week 1 Distance (m)"]-merged_data["Week 8 Distance (m)"]
+merged_data["distance_change"] = merged_data["Week 8 Distance (m)"]-merged_data["Week 1 Distance (m)"]
 merged_data["vo2_change"] = merged_data["Week 8 Pred VO2max"]-merged_data["Week 1 Pred VO2max"]
     #NA remains as NA
 
@@ -582,7 +580,8 @@ print_text("check we have the correct index in order to filter by index and iloc
 print(np.array_equal(merged_data.index, range(0,merged_data.shape[0])))
 
 print_text("check the problematic samples are NOT included", header=4)
-print(sum(merged_data["AGRF code"].isin(["1100JHJM", "1200JPJM", "7800AGSO", "2397LDJA"]))==0)
+print(sum(merged_data["AGRF code"].isin(["1100JHJM", "1200JPJM", "7800AGSO"]))==0)
+    #2397LDJA will remain in the dataset because this is the ID used in plink input files instead of 2399LDJA
 
 print_text("check we do not have duplicated samples and no sample with NaN", header=4)
 print(sum(merged_data["AGRF code"].duplicated(keep=False)) == 0)
@@ -597,7 +596,8 @@ print("According to plink man: 'Missing phenotypes are normally expected to be e
 print("Therefore, we need to change our missing value from float to integer. We originally created the new missing value as integer but pandas converts it to float when included in a float column by just adding '.0'.")
 print("For each phenotype, we are to convert the column to 'object', which is a type that can be strings and floats. Then convert the cases of missing to integer effectively removing the float point.")
     #https://stackoverflow.com/a/34524168/12772630
-#selected_phenotype="Week 1 Body Mass"
+#selected_phenotype="Week 1 Distance (m)"
+#selected_phenotype="Week 8 Distance (m)"
 for selected_phenotype in merged_data.columns:
 
     #if the dtype of the selected phenotype starts with "float"
@@ -636,14 +636,11 @@ print(count_missing)
 
 print_text("check we have the correct number of missing based on the raw merged data", header=4)
 print("In general, we have to subtract 1 from the number of missing in the raw dataset because the misslabeled sample (2397LDJA/2399LDJA) was missing in that file but not in the new one, where we did the required corrections")
-count_missing["Gender"] == sum(merged_data_raw["Gender"].isna())-1
-count_missing["Age"] == sum(merged_data_raw["Age"].isna())-1
+print(count_missing["Gender"] == sum(merged_data_raw["Gender"].isna())-1)
+print(count_missing["Age"] == sum(merged_data_raw["Age"].isna())-1)
 #selected_phenotype="Week 1 Body Mass"
 print("In the case of phenotypes, we converted to missing no only NaN, but also zero values and -9, so we have to consider samples with these values in the raw dataset")
-
-#por aquii
-
-#selected_phenotype="Week 1 Distance (m)"
+#selected_phenotype="Week 8 Distance (m)"
 for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass",
        "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max",
        "Week 8 Pred VO2max", "phenotype_value"]:
@@ -664,11 +661,11 @@ for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass",
                 (merged_data_raw[selected_phenotype]==-9)))
             #the mislabeled sample always has missing here, before and after the corrections, so we do not need to subtract 1.
 print("In the case of family/parents Ids and sex code, we should not have any missing, but 0 for unknown, so we do not need to subtract 1 for the mislabelled sample (2397LDJA/2399LDJA)")   
-count_missing["family_id"] == sum(merged_data_raw["family_id"].isna())
-count_missing["ID_father"] == sum(merged_data_raw["ID_father"].isna())
-count_missing["ID_mother"] == sum(merged_data_raw["ID_mother"].isna())
-count_missing["sex_code"] == sum(merged_data_raw["sex_code"].isna())
-print("check also that the family/parents IDs and the sex code are exactly the same if we do not consider the mislabelled sample (2397LDJA/2399LDJA), before and after the corrections we have non-missing for that sample in these variables. Unknown is zero in these variables")
+print(count_missing["family_id"] == sum(merged_data_raw["family_id"].isna()))
+print(count_missing["ID_father"] == sum(merged_data_raw["ID_father"].isna()))
+print(count_missing["ID_mother"] == sum(merged_data_raw["ID_mother"].isna()))
+print(count_missing["sex_code"] == sum(merged_data_raw["sex_code"].isna()))
+print("check also that the family/parents IDs and the sex code are exactly the same if we do not consider the mislabelled sample (2397LDJA/2399LDJA), before and after the corrections we have non-missing for that sample in these variables. Unknown is zero in these variables. The only difference should be sex_code, for which we have data now for 2397LDJA, but we did not in the raw data, as sex_code comes from pheno_data and in that file 2397LDJA is named as 2399LDJA")
 print(merged_data_raw \
         .loc[ \
             merged_data_raw["AGRF code"]!="2397LDJA", \
@@ -682,9 +679,9 @@ print(merged_data_raw \
 print_text("check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset PLUS 1. We have to add 1 because at the begining, the misslabeled sample (2397LDJA/2399LDJA) was not correctly included in our data", header=4)
 print( \
     nan_zeros_1 \
-        [["Gender", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]] == \
+        [["Gender", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]] == \
     (count_missing \
-        [["Gender", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]+1))
+        [["Gender", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]+1))
     #nan_zeros_1 was obtained at the begining after merging using two conditions, isna() and ==0
 
 print_text("see the final data", header=4)
@@ -694,11 +691,8 @@ print_text("see summary statistics of non_pheno columns", header=4)
 print(merged_data.describe().T)
 
 print_text("see summary statistics of pheno columns", header=4)
-#selected_phenotype="Week 1 Body Mass"
-for selected_phenotype in ["Age", "Week 1 Body Mass", "Week 8 Body Mass",
-       "Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max",
-       "Week 8 Pred VO2max", "weight_change",
-       "beep_change", "vo2_change"]:
+#selected_phenotype="Week 8 Distance (m)"
+for selected_phenotype in ["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max", "weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n" + selected_phenotype)
     non_missing_subset = merged_data.loc[merged_data[selected_phenotype] != new_nan_value, selected_phenotype]
         #select values of the selected phenotype that are NOT missing
@@ -710,7 +704,7 @@ for selected_phenotype in ["Age", "Week 1 Body Mass", "Week 8 Body Mass",
     print("percentile 97.5: " + str(np.percentile(non_missing_subset, 97.5)))
 print("The values of the phenotypes make sense: ")
 print("A tendency for lower values in the highest percentiles of weight at week 8, i.e., more decrease for people starting with more weight. There is a tendency of increased weight for lower percentile. The median change of weight is 0, meaning that half of sample did not lose weight. The distribution is centered around zero.")
-print("A tendency of increase of beep test and VO2 max in all percentiles at week 8. The higher percentiles of changes tend to be more separated from zero than the lower percentile, i.e., the distribution is displaced to positive values, meaning increase of cardiorespiratory fitness.")
+print("A tendency of increase of beep test, distance and VO2 max in all percentiles at week 8. The higher percentiles of changes tend to be more separated from zero than the lower percentile, i.e., the distribution is displaced to positive values, meaning increase of cardiorespiratory fitness.")
 
 
 print_text("save the data", header=3)
@@ -735,8 +729,8 @@ print("According to plink man: \
     In combination with --pheno, --mpheno lets you use the (n+2)th column instead of the 3rd column, while --PHENO-NAME LETS YOU SELECT A COLUMN BY TITLE. (In order to use --pheno-name, there must be a header row with first two entries 'FID' and 'IID'.) The new --pheno-merge flag tells PLINK to use the phenotype value in the .fam/.ped file when no value is present in the --pheno file; without it, the phenotype is always treated as missing in this case.'")
     #https://www.cog-genomics.org/plink/1.9/input
 print("Therefore, we need family and within family ID and then the phenotypes in a tab-delimited file with a header, including FID and IID as the two first columns.")
-multi_pheno_file = merged_data[["family_id", "AGRF code", "weight_change", "beep_change", "vo2_change"]]
-multi_pheno_file.columns=["FID", "IID", "weight_change", "beep_change", "vo2_change"]
+multi_pheno_file = merged_data[["family_id", "AGRF code", "weight_change", "beep_change", "distance_change", "vo2_change"]]
+multi_pheno_file.columns=["FID", "IID", "weight_change", "beep_change", "distance_change", "vo2_change"]
     #select the interest columns and set the required column names
 multi_pheno_file.to_csv( \
     "./data/plink_inputs/pheno_file.tsv", \
@@ -755,8 +749,8 @@ print("Plink man: ' \
     --covar designates the file to load covariates from. The file format is the same as for --pheno (optional header line, FID and IID in first two columns, covariates in remaining columns). BY DEFAULT, THE MAIN PHENOTYPE IS SET TO MISSING IF ANY COVARIATE IS MISSING; you can disable this with the 'keep-pheno-on-missing-cov' modifier. \
     --covar-name lets you specify a subset of covariates to load, by column name; separate multiple column names with spaces or commas, and use dashes to designate ranges. (Spaces are not permitted immediately before or after a range-denoting dash.) --covar-number lets you use column numbers instead.'")
     #https://www.cog-genomics.org/plink/1.9/input
-covar_file = merged_data[["family_id", "AGRF code", "Age", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Pred VO2max"]]
-covar_file.columns=["FID", "IID", "age", "week_1_weight", "week_1_beep", "week_1_vo2"]
+covar_file = merged_data[["family_id", "AGRF code", "Age", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Distance (m)", "Week 1 Pred VO2max"]]
+covar_file.columns=["FID", "IID", "age", "week_1_weight", "week_1_beep", "week_1_distance", "week_1_vo2"]
     #select the baseline for each predictor, so VO2 max base line for 8 week baseline, etc... plus age and set the correct column names
 covar_file.to_csv( \
     "./data/plink_inputs/covar_file.tsv", \
@@ -779,6 +773,7 @@ dict_names_covs = {
     "sex_code": "sex_code", \
     "Week 1 Body Mass": "week_1_weight", \
     "Week 1 Beep test": "week_1_beep", \
+    "Week 1 Distance (m)": "week_1_distance", \
     "Week 1 Pred VO2max": "week_1_vo2"}
 print(dict_names_covs)
 
@@ -786,8 +781,8 @@ print_text("plot distribution of each change phenotype to visually check normali
 import matplotlib.pyplot as plt
 from scipy.stats import shapiro
 from sklearn.preprocessing import quantile_transform
-#change_pheno="weight_change"
-for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
+#change_pheno="distance_change"
+for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n \n Plotting the distribution of " + change_pheno)
 
     #remove rows with missing for the phenotype of interest
@@ -815,7 +810,7 @@ for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
         n_quantiles=500, 
         output_distribution="normal")
         #This method transforms the features to follow a uniform or a normal distribution. Therefore, for a given feature, this transformation tends to spread out the most frequent values. It ALSO REDUCES THE IMPACT OF (MARGINAL) OUTLIERS: this is therefore a robust preprocessing scheme. Note that this transform is non-linear. IT MAY DISTORT LINEAR CORRELATIONS BETWEEN VARIABLES MEASURED AT THE SAME SCALE BUT RENDERS VARIABLES MEASURED AT DIFFERENT SCALES MORE DIRECTLY COMPARABLE.
-            #This should not be a problem because our phenotypes and covariates are not in the same scale, some are close to zero, other closer to 10, 100... so we have different scales.
+            #This should not be a problem because our phenotypes and covariates are not in the same scale, some are close to zero, other closer to 10, 100, 1000... so we have different scales.
         #this would be another cause of data leak
             #n_quantiles
                 #Number of quantiles to be computed. It corresponds to the number of landmarks used to discretize the cumulative distribution function. If n_quantiles is larger than the number of samples, n_quantiles is set to the number of samples as a larger number of quantiles does not give a better approximation of the cumulative distribution function estimator.
@@ -845,18 +840,19 @@ for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
     plt.close()
 print("IMPORTANT: \
     Our phenotypes are in general more or less normal, but in order to make them more normal, we have performed a quantile transformation. The W statistic of shapiro is almost 1, and the p-value is below 0.05 but not veery small. The HIIT study used the p-value of shapiro test as indication of normality. \
-    Given these results, we are not to pre-process phenotypes and covariates directly in plink. It is interesting to apply his preprocesing to the covariates also so we have all variables in the same scale? \
-    THINK MORE ABOUT THIS IN TEH FUTURE")
+    Given these results, we are going to pre-process phenotypes and covariates directly in plink. It is interesting to apply his preprocesing to the covariates also so we have all variables in the same scale? \
+    THINK MORE ABOUT THIS IN THE FUTURE")
 
 print_text("run the associations between phenotypes and covariates", header=4)
 #empty dict to save covariates per phenotype
 dict_pvalue_covar = { 
     "weight_change": [], \
     "beep_change": [], \
+    "distance_change": [], \
     "vo2_change": []}
 #define a function to calculate the association between a pair of phenotype and covariate
 from scipy.stats import linregress
-#change_pheno="weight_change"; covar="Age"
+#change_pheno="distance_change"; covar="Age"
 def fun_assoc(change_pheno, covar):
 
     #remove rows with missing for any of the interest columns
@@ -883,10 +879,15 @@ def fun_assoc(change_pheno, covar):
     #add the covariate to the list of covariates of the selected pheno if the p_value is below 0.1. We use the correct, simplified name of the covariate
     if model_results.pvalue < 0.1:
         dict_pvalue_covar[change_pheno].append(dict_names_covs[covar])
+print("IMPORTANT: \
+    We are analyzing here sex_code (0,1,2) as a continuous variable, but we should use a logistic regression. \
+    This is not a big deal because we are using these associations just to include or not a covariate, and sex is likely very important in all the phenotypes studied. \
+    In the future use statsmodels module to perform logistic regression.")
+    #https://www.statsmodels.org/stable/discretemod.html
 
 #for each phenotype
-#change_pheno="weight_change"; covar="Age"
-for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
+#change_pheno="distance_change"; covar="Age"
+for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n \n #" + change_pheno + "#")
     #test the association with each covariate
     for covar in ["Age", "sex_code", "Week 1 Body Mass"]:
@@ -897,12 +898,17 @@ for change_pheno in ["weight_change", "beep_change", "vo2_change"]:
         covar="Week 1 Beep test"
         print("\n " + covar)
         fun_assoc(change_pheno=change_pheno, covar=covar)
-    #if the phenotype is vo2_change, we also want to check the association with baseline vo2_change
+    #if the phenotype is distance_change, we also want to check the association with baseline distance
+    elif change_pheno == "distance_change":
+        covar = "Week 1 Distance (m)"
+        print("\n " + covar)
+        fun_assoc(change_pheno=change_pheno, covar=covar)
+    #if the phenotype is vo2_change, we also want to check the association with baseline vo2 max
     elif change_pheno == "vo2_change":
         covar = "Week 1 Pred VO2max"
         print("\n " + covar)
         fun_assoc(change_pheno=change_pheno, covar=covar)
-print("All covariates except Age for beep_test which is marginally significant (p=0.06). See dict with covariates")
+print("All covariates except Age for beep_test and distance which is marginally significant (p=0.06). See dict with covariates")
 print(dict_pvalue_covar)
 
 print_text("add to the dict of covariates a new entry to indicate to plink if sex is going to be used or not as covariate", header=4)
@@ -910,7 +916,7 @@ print_text("add to the dict of covariates a new entry to indicate to plink if se
 import copy
 dict_pvalue_covar_final = copy.deepcopy(dict_pvalue_covar)
 #for each phenotype
-#key="beep_change"
+#key="distance_change"
 for key in dict_pvalue_covar_final:
     #join all covariates of the selected phenotype in a single string and save as a list of one item
     dict_pvalue_covar_final[key] = [",".join(dict_pvalue_covar_final[key])]
@@ -927,7 +933,8 @@ print(dict_pvalue_covar_final)
 
 print("IMPORTANT: \
     Think if add the Batch as covariate \
-    Note sure if this can cause problems because we are already indicating the family ID (batch) in both covariates and phenos... In the final analyses, if you do not see batch effects, I think you can skip completely this")
+    Note sure if this can cause problems because we are already indicating the family ID (batch) in both covariates and phenos... In the final analyses, if you do not see batch effects, I think you can skip completely this. \
+    If you add this be careful because you are using quantile transformation in all covaraites loaded from covar file in plink2, and you cannot obviously do that for a discrete variable")
 
 
 print_text("run the associations between SNPs and phenotypes", header=3)
@@ -935,12 +942,13 @@ print_text("make dict for title plots", header=4)
 dict_titles = {
     "weight_change": "Change of body mass", \
     "beep_change": "Change in beep test", \
+    "distance_change": "Change in distance", \
     "vo2_change": "Change in predicted VO2 max"}
 print(dict_titles)
 
 print_text("run the associations and make the Manhattan plots", header=4)
-#pheno="beep_change"
-for pheno in ["weight_change", "beep_change", "vo2_change"]:
+#pheno="distance_change"
+for pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n \n" + pheno)
 
     #get the covariate names
@@ -962,7 +970,7 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
             --covar-name " + covs + " \
             --out ./results/prelim_results/" + pheno + "/first_assoc; \
         ls -l ./results/prelim_results/" + pheno + "/")
-            #Given a quantitative phenotype and possibly some covariates (in a --covar file), --linear writes a linear regression report to plink.assoc.linear.
+            #Given a quantitative phenotype and possibly some covariates (in a --covar file), --linear writes a linear regression report to pheno_name.glm.linear.
                 #sex
                     #First, sex (as defined in the .fam/.psam input file) is normally included as an additional covariate. If you don't want this, add the 'no-x-sex' modifier. Or you can add the 'sex' modifier to include .fam/.psam sex as a covariate everywhere. WHATEVER YOU DO, DON'T INCLUDE SEX FROM THE .FAM/.PSAM FILE AND THE --COVAR FILE AT THE SAME TIME; OTHERWISE THE DUPLICATED COLUMN WILL CAUSE THE REGRESSION TO FAIL
                 #quantile-normalize
@@ -980,6 +988,10 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
         There are multiple disclamers in the --glm info page, like problems with low minor allele count or how to prune by relatedness, include PCAs for population stratification, etc... \
         TAKE A LOOK AT THIS!!")
         #https://www.cog-genomics.org/plink/2.0/assoc
+
+    print("IMPORTANT: \
+        It seems that SEX is not subjected to quantile transformation, only the covariates included in the covar file. \
+        Be careful in the future if you add discrete covariates in the covar file, like batch")
 
     print("use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv")
     run_bash(" \
@@ -1128,7 +1140,7 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
     print(np.array_equal(assoc_results[["ALT", "REF"]].values, bim_file.iloc[:,[4,5]].values))
     print(np.array_equal(assoc_results[["ALT", "REF"]].values, freq_report.loc[:,["A1", "A2"]].values))
 
-    print("We assume then that A1 is the minor allele and should in general ALT, except in those cases where the frequency is close to 0.5 and a small changes in samples (due to missing phenotypes) could convert the minor to major, becoming REF in the minor and A1. Therefore, if A1==ALT, the REF is the major. In contrast, if A1!=ALT, then ALT is the major")
+    print("We assume then that A1 is the minor allele and should be in general ALT, except in those cases where the frequency is close to 0.5 and a small changes in samples (due to missing phenotypes) could convert the minor to major, becoming REF into the minor and A1 into the major. Therefore, if A1==ALT, the REF is the major. In contrast, if A1!=ALT, then ALT is the major")
     major_alleles_assoc = assoc_results.apply(lambda x: x["REF"] if x["A1"] == x["ALT"] else x["ALT"], axis=1)
     print("get the IDs of those SNPs for which minor and major alleles are not the same between the bim and assoc files")
     cases_mismatch_minor = bim_file \
@@ -1185,6 +1197,8 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
         raise ValueError("ERROR: FALSE! WE HAVE A ERROR CODES DIFFERENTE FROM '.' IN THE ASSOC FILE")
 
     print("convert chromosome column to numeric")
+    #x=assoc_results.iloc[1, :]
+    #x=assoc_results.iloc[-1, :]
     assoc_results["#CHROM"] = assoc_results.apply(lambda x: dict_non_autosomal_conversion[x["#CHROM"]] if x["#CHROM"] in dict_non_autosomal_conversion.keys() else int(x["#CHROM"]), axis=1)
         #for each row, if the chromosome name is in the dict for chromosome name conversion, i.e., it is X, Y, XY or MT, then use that very dict to convert to numeric. If not, then we just have a number, so be sure it is integer.
 
@@ -1198,6 +1212,13 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
     print(assoc_results["POS"].dtype == "int64")
     print(assoc_results["P"].dtype == "float64")
     print(assoc_results["ID"].dtype == "O")
+
+    print("save the results after removing non-autosomal chromosomes and just before plotting")
+    assoc_results.to_csv("./results/prelim_results/" + pheno + "/first_assoc_autosomals." + pheno + ".glm.linear.tsv.gz",
+        sep="\t",
+        header=True,
+        index=False, 
+        compression="gzip")
 
     print("make manhattan plot with plotly")
     import dash_bio
@@ -1246,6 +1267,3 @@ for pheno in ["weight_change", "beep_change", "vo2_change"]:
     fig.write_html("./results/prelim_results/" + pheno + "/" + pheno + ".html")
         #we can see a gap in chromosome 1, 9 and 16. This seems to be pretty common in other Manhattan plots, so it should be something related to the physical characteristics of these chromosomes. I have not found information, but maybe this is caused by the centromeres, because the gap is around the center of these chromosomes.
             #Split on Manhattan plots for chromosomes 1, 9, 16 (GWAS)
-
-
-#8244FGNJ has NA for "Week 8 Distance (m)". I detected a typo in the "Week 8 beep test" for that same sample, having "11.1O" instead of "11.10", i.e., there is letter O instead of the zero number. This could be related with the missing value in that sample for week 8 distancce?
