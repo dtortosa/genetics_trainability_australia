@@ -1,0 +1,1637 @@
+
+#######################################
+#######################################
+checking function to print nicely: header 1
+#######################################
+#######################################
+
+###### checking function to print nicely: header 2 ######
+
+## checking function to print nicely: header 3 ##
+
+# checking function to print nicely: header 4 #
+
+#######################################
+#######################################
+check behaviour run_bash
+#######################################
+#######################################
+
+###### see working directory ######
+/xdisk/denard/dftortosa/march_2023/association_studies
+
+
+###### list files/folders there ######
+03a_association_analyses.out
+03a_association_analyses.sif
+
+total 473576
+-rw-r--r-- 1 dftortosa denard         0 Sep 15 15:10 03a_association_analyses.out
+-rw-r--r-- 1 dftortosa denard 484888576 Sep 15 13:00 03a_association_analyses.sif
+drwxr-sr-x 4 dftortosa denard      1024 Sep 15 15:10 data
+drwxr-sr-x 3 dftortosa denard       512 Sep 15 15:10 results
+
+
+#######################################
+#######################################
+prepare covariates
+#######################################
+#######################################
+
+###### load pheno data ######
+
+## This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv ##
+total 160
+-rw-r--r-- 1 dftortosa denard    181 Sep 15 15:10 README.txt
+-rw-r--r-- 1 dftortosa denard 154414 Sep 15 15:10 pheno_data.xlsx
+
+     Gender        Age  ...  Week 8 Pred VO2max  AGRF code
+0         M  25.000000  ...                47.7   8244TCOJ
+1         M  43.720548  ...                43.6   6976MCJS
+2         M  35.049315  ...                49.0   3484JSJJ
+3         F  23.561644  ...                43.6   1389HSNM
+4         M  26.164384  ...                54.0   7593DBAO
+...     ...        ...  ...                 ...        ...
+1459    NaN        NaN  ...                 NaN   2471AWMA
+1460    NaN        NaN  ...                 NaN   6897TSSS
+1461    NaN        NaN  ...                 NaN   6899DWOS
+1462    NaN        NaN  ...                 NaN   6296TONJ
+1463    NaN        NaN  ...                 NaN   7799BTDO
+
+[1464 rows x 11 columns]
+
+## Check that the dtype of the new beep distance columns is float64 ##
+YES! GOOD TO GO!!
+
+## Check that the new version of the pheno_data is exactly the same than the previous one if we remove the new beep distance variables ##
+
+# load the original phenotype data #
+     Gender        Age  ...  Week 8 Pred VO2max  AGRF code
+0         M  25.000000  ...                47.7   8244TCOJ
+1         M  43.720548  ...                43.6   6976MCJS
+2         M  35.049315  ...                49.0   3484JSJJ
+3         F  23.561644  ...                43.6   1389HSNM
+4         M  26.164384  ...                54.0   7593DBAO
+...     ...        ...  ...                 ...        ...
+1459    NaN        NaN  ...                 NaN   2471AWMA
+1460    NaN        NaN  ...                 NaN   6897TSSS
+1461    NaN        NaN  ...                 NaN   6899DWOS
+1462    NaN        NaN  ...                 NaN   6296TONJ
+1463    NaN        NaN  ...                 NaN   7799BTDO
+
+[1464 rows x 9 columns]
+
+# make the check #
+YES! GOOD TO GO!!
+
+## Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0 ##
+
+# see the problem #
+11.1O
+Gender                        M
+Age                        18.0
+Week 1 Body Mass            NaN
+Week 8 Body Mass           62.2
+Week 1 Beep test           11.7
+Week 8 beep test          11.1O
+Week 1 Distance (m)      2120.0
+Week 8 Distance (m)         NaN
+Week 1 Pred VO2max         52.2
+Week 8 Pred VO2max         53.1
+AGRF code              8244FGNJ
+Name: 1193, dtype: object
+
+# change 11.1O for 11.10 #
+Gender                        M
+Age                        18.0
+Week 1 Body Mass            NaN
+Week 8 Body Mass           62.2
+Week 1 Beep test           11.7
+Week 8 beep test           11.1
+Week 1 Distance (m)      2120.0
+Week 8 Distance (m)         NaN
+Week 1 Pred VO2max         52.2
+Week 8 Pred VO2max         53.1
+AGRF code              8244FGNJ
+Name: 1193, dtype: object
+
+# convert the dtype of this column from string to float #
+old dtype: object
+new dtype: float64
+GOOD TO GO: we have correctly change the dtype of the column with beep test data week 8
+Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number. This could be related with the missing value in that sample for week 8 distancce?
+
+###### load fam file ######
+
+## load the fam file of the current steps I am working on for QC (date 08/24/2023 ##
+
+## see the fam file ##
+                 family_id AGRF code  ...  sex_code  phenotype_value
+0     combat_ILGSA24-17303  0200ADMM  ...         1               -9
+1     combat_ILGSA24-17303  0200ASJM  ...         2               -9
+2     combat_ILGSA24-17303  0200BHNM  ...         2               -9
+3     combat_ILGSA24-17303  0200CBOM  ...         1               -9
+4     combat_ILGSA24-17303  0200CDFM  ...         2               -9
+...                    ...       ...  ...       ...              ...
+1441  combat_ILGSA24-17873  9693JMNM  ...         1               -9
+1442  combat_ILGSA24-17873  9696DWFM  ...         1               -9
+1443  combat_ILGSA24-17873  9697STJM  ...         1               -9
+1444  combat_ILGSA24-17873  9699DNOM  ...         1               -9
+1445  combat_ILGSA24-17873  9699ISMM  ...         1               -9
+
+[1446 rows x 6 columns]
+
+###### merge and create file with the final set of samples and phenotypes ######
+
+## merge pheno data and fam file ##
+     Gender        Age  Week 1 Body Mass  ...  ID_mother  sex_code  phenotype_value
+0         M  19.024658              76.7  ...          0         1               -9
+1         F  18.679452              57.4  ...          0         2               -9
+2         F  18.369863              72.5  ...          0         2               -9
+3         M  18.556164              54.5  ...          0         1               -9
+4         F  19.216438              58.5  ...          0         2               -9
+...     ...        ...               ...  ...        ...       ...              ...
+1441      M  26.000000               NaN  ...          0         1               -9
+1442      M  24.000000               NaN  ...          0         1               -9
+1443      M  23.000000               NaN  ...          0         1               -9
+1444      M  20.000000               NaN  ...          0         1               -9
+1445      M  20.000000               NaN  ...          0         1               -9
+
+[1446 rows x 16 columns]
+                      count         mean  ...         75%          max
+Age                  1404.0    21.980307  ...    23.19589    56.254237
+Week 1 Body Mass     1198.0    76.148314  ...    85.60000   116.200000
+Week 8 Body Mass     1404.0    71.271011  ...    83.50000   111.000000
+Week 1 Beep test     1404.0     8.951047  ...     9.92500    13.900000
+Week 8 beep test     1404.0     9.789452  ...    10.60000    14.100000
+Week 1 Distance (m)  1404.0  1435.185185  ...  1660.00000  3900.000000
+Week 8 Distance (m)  1403.0  1621.168924  ...  1780.00000  3900.000000
+Week 1 Pred VO2max   1404.0    42.999501  ...    46.80000    60.100000
+Week 8 Pred VO2max   1404.0    46.023647  ...    48.70000    60.900000
+ID_father            1446.0     0.000000  ...     0.00000     0.000000
+ID_mother            1446.0     0.000000  ...     0.00000     0.000000
+sex_code             1446.0     1.105118  ...     1.00000     2.000000
+phenotype_value      1446.0    -9.000000  ...    -9.00000    -9.000000
+
+[13 rows x 8 columns]
+
+# total sum of NaNs or zero cases per column #
+Gender                   42
+Age                      42
+Week 1 Body Mass        272
+Week 8 Body Mass        150
+Week 1 Beep test         42
+Week 8 beep test         42
+Week 1 Distance (m)      42
+Week 8 Distance (m)      43
+Week 1 Pred VO2max       46
+Week 8 Pred VO2max       42
+AGRF code                 0
+family_id                 0
+ID_father              1446
+ID_mother              1446
+sex_code                 42
+phenotype_value           0
+dtype: int64
+
+## check and remove cases with zero in phenotypes ##
+
+# sum the number of Zeros per column #
+Gender                    0
+Age                       0
+Week 1 Body Mass         24
+Week 8 Body Mass        108
+Week 1 Beep test          0
+Week 8 beep test          0
+Week 1 Distance (m)       0
+Week 8 Distance (m)       0
+Week 1 Pred VO2max        4
+Week 8 Pred VO2max        0
+AGRF code                 0
+family_id                 0
+ID_father              1446
+ID_mother              1446
+sex_code                 42
+phenotype_value           0
+dtype: int64
+
+# Weight: Given that weight is going to be used for the rest of variables as covariate, we will set as missing the weight of these samples. Importantly, a weight of zero does not make sense. #
+
+# VO2 max week 1: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan #
+      Week 1 Beep test  ...  Week 8 Pred VO2max
+1285               9.3  ...                47.2
+1293              12.0  ...                55.4
+1294               9.1  ...                47.2
+1316               9.8  ...                51.1
+
+[4 rows x 4 columns]
+
+# Sex_code: We have missing for 42 samples which are the ones with genetic data that are completely empty in the pheno_data (41) PLUS 2397LDJA, the misslabeled sample with different ID in geno and pheno data just by 1 number (see below). These are samples without phenotypic data, thus we cannot know the self-reported sex. Zero is ok here, so we do not do anything #
+Do we have exactly 42 samples with sex_code=0?
+True
+has 2397LDJA zero as sex code?
+56    True
+Name: sex_code, dtype: bool
+
+# Parents ID: We do not have any parent in the cohort, so they all should be zero #
+True
+
+# sum again the number of Zeros per column #
+Gender                    0
+Age                       0
+Week 1 Body Mass          0
+Week 8 Body Mass          0
+Week 1 Beep test          0
+Week 8 beep test          0
+Week 1 Distance (m)       0
+Week 8 Distance (m)       0
+Week 1 Pred VO2max        0
+Week 8 Pred VO2max        0
+AGRF code                 0
+family_id                 0
+ID_father              1446
+ID_mother              1446
+sex_code                 42
+phenotype_value           0
+dtype: int64
+We only have now zeros in sex_code and parents IDs, which is ok, see above
+
+## deal with 2397LDJA/2399LDJA ##
+This is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file
+If we have 2397LDJA and is all missing
+change phenotypic values of 2397LDJA from missing to the values of 2399LDJA
+Check the new rows is identical to 2399LDJA in pheno_data
+True
+Check NO NaN is in the new row
+True
+Print the new row
+Gender                        M
+Age                    20.29863
+Week 1 Body Mass           72.0
+Week 8 Body Mass           73.3
+Week 1 Beep test           12.3
+Week 8 beep test           10.5
+Week 1 Distance (m)      2180.0
+Week 8 Distance (m)      1760.0
+Week 1 Pred VO2max         54.6
+Week 8 Pred VO2max         48.4
+AGRF code              2397LDJA
+Name: 56, dtype: object
+check the sex_code of the modified row is correct
+205    True
+Name: Gender, dtype: bool
+
+## create new variables for the change before and after ##
+
+# make the operations #
+
+# check we have the correct NANs #
+Gender                  41
+Age                     41
+Week 1 Body Mass       271
+Week 8 Body Mass       149
+Week 1 Beep test        41
+Week 8 beep test        41
+Week 1 Distance (m)     41
+Week 8 Distance (m)     42
+Week 1 Pred VO2max      45
+Week 8 Pred VO2max      41
+AGRF code                0
+family_id                0
+ID_father                0
+ID_mother                0
+sex_code                 0
+phenotype_value          0
+weight_change          336
+beep_change             41
+distance_change         42
+vo2_change              45
+dtype: int64
+Weight change
+True
+beep change
+True
+distance change
+True
+VO2 max change
+True
+
+## Change the default NaN value to a negative value that is smaller than the maximum value in absolute value of the new change variables ##
+Note that plink considers -9 as missing, but we can have -9 as a real value because we are calculating differences between week 1 and 8. We have to deal with that and select a suitable missing value, probably a large negative number. Larger than the maximum value for the difference phenotypes
+IMPORTANT: I did this because I was initially using plink1.9, but now I am using plink2, which considers now NaN as missing!!! So you could avoid using a integer as missing and avoid problems when working with other programs!!
+
+# calculate absolute value and then get the max value skipping NaNs for each variable #
+Maximum different in weight of 31.400000000000006
+Maximum different in beep test of 5.199999999999999
+Maximum different in distance of 2780.0
+Maximum different in VO2 of 17.799999999999997
+
+# select the max value from all three variables, sum 20 and then convert to negative. This is the new missing value #
+-2800
+
+# fill NaN cases with the new missing value using 'fillna' of pandas #
+     Gender        Age  ...  distance_change  vo2_change
+0         M  19.024658  ...            200.0         1.9
+1         F  18.679452  ...           -480.0        -4.7
+2         F  18.369863  ...             20.0         0.3
+3         M  18.556164  ...             40.0         0.7
+4         F  19.216438  ...             20.0         0.3
+...     ...        ...  ...              ...         ...
+1441      M  26.000000  ...            -40.0        -0.6
+1442      M  24.000000  ...            480.0         7.5
+1443      M  23.000000  ...            180.0         2.8
+1444      M  20.000000  ...            540.0         8.5
+1445      M  20.000000  ...            260.0         2.9
+
+[1446 rows x 20 columns]
+
+# fill -9 cases of phenotype_value with the new missing value #
+     Gender        Age  ...  distance_change  vo2_change
+0         M  19.024658  ...            200.0         1.9
+1         F  18.679452  ...           -480.0        -4.7
+2         F  18.369863  ...             20.0         0.3
+3         M  18.556164  ...             40.0         0.7
+4         F  19.216438  ...             20.0         0.3
+...     ...        ...  ...              ...         ...
+1441      M  26.000000  ...            -40.0        -0.6
+1442      M  24.000000  ...            480.0         7.5
+1443      M  23.000000  ...            180.0         2.8
+1444      M  20.000000  ...            540.0         8.5
+1445      M  20.000000  ...            260.0         2.9
+
+[1446 rows x 20 columns]
+
+# check we do NOT have the row coming from the pheno excel with missing for all columns #
+We do not have the row with ALL missing from the pheno excel
+
+# check we have the correct index in order to filter by index and iloc, i.e., no gaps in the indexes #
+True
+
+# check the problematic samples are NOT included #
+True
+
+# check we do not have duplicated samples and no sample with NaN #
+True
+True
+
+## Removing the float point of the new missing ##
+According to plink man: 'Missing phenotypes are normally expected to be encoded as -9. You can change this to another integer with --missing-phenotype. IMPORTANTLY, floating point values are now disallowed due to rounding issues, and nonnumeric values such as 'NA' are rejected since they're treated as missing phenotypes no matter what.)'.
+Therefore, we need to change our missing value from float to integer. We originally created the new missing value as integer but pandas converts it to float when included in a float column by just adding '.0'.
+For each phenotype, we are to convert the column to 'object', which is a type that can be strings and floats. Then convert the cases of missing to integer effectively removing the float point.
+Age
+the new missing is now an integer?
+TRUE 
+
+Week 1 Body Mass
+the new missing is now an integer?
+TRUE 
+
+Week 8 Body Mass
+the new missing is now an integer?
+TRUE 
+
+Week 1 Beep test
+the new missing is now an integer?
+TRUE 
+
+Week 8 beep test
+the new missing is now an integer?
+TRUE 
+
+Week 1 Distance (m)
+the new missing is now an integer?
+TRUE 
+
+Week 8 Distance (m)
+the new missing is now an integer?
+TRUE 
+
+Week 1 Pred VO2max
+the new missing is now an integer?
+TRUE 
+
+Week 8 Pred VO2max
+the new missing is now an integer?
+TRUE 
+
+weight_change
+the new missing is now an integer?
+TRUE 
+
+beep_change
+the new missing is now an integer?
+TRUE 
+
+distance_change
+the new missing is now an integer?
+TRUE 
+
+vo2_change
+the new missing is now an integer?
+TRUE 
+
+
+# reorder columns #
+
+## final exploration of the data ##
+
+# count missing per column #
+AGRF code                 0
+Gender                   41
+Age                      41
+Week 1 Body Mass        271
+Week 8 Body Mass        149
+Week 1 Beep test         41
+Week 8 beep test         41
+Week 1 Distance (m)      41
+Week 8 Distance (m)      42
+Week 1 Pred VO2max       45
+Week 8 Pred VO2max       41
+family_id                 0
+ID_father                 0
+ID_mother                 0
+sex_code                  0
+phenotype_value        1446
+weight_change           336
+beep_change              41
+distance_change          42
+vo2_change               45
+dtype: int64
+
+# check we have the correct number of missing based on the raw merged data #
+In general, we have to subtract 1 from the number of missing in the raw dataset because the misslabeled sample (2397LDJA/2399LDJA) was missing in that file but not in the new one, where we did the required corrections
+True
+True
+In the case of phenotypes, we converted to missing no only NaN, but also zero values and -9, so we have to consider samples with these values in the raw dataset
+Week 1 Body Mass
+True
+Week 8 Body Mass
+True
+Week 1 Beep test
+True
+Week 8 beep test
+True
+Week 1 Distance (m)
+True
+Week 8 Distance (m)
+True
+Week 1 Pred VO2max
+True
+Week 8 Pred VO2max
+True
+phenotype_value
+True
+In the case of family/parents Ids and sex code, we should not have any missing, but 0 for unknown, so we do not need to subtract 1 for the mislabelled sample (2397LDJA/2399LDJA)
+True
+True
+True
+True
+check also that the family/parents IDs and the sex code are exactly the same if we do not consider the mislabelled sample (2397LDJA/2399LDJA), before and after the corrections we have non-missing for that sample in these variables. Unknown is zero in these variables. The only difference should be sex_code, for which we have data now for 2397LDJA, but we did not in the raw data, as sex_code comes from pheno_data and in that file 2397LDJA is named as 2399LDJA
+True
+
+# check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset PLUS 1. We have to add 1 because at the begining, the misslabeled sample (2397LDJA/2399LDJA) was not correctly included in our data #
+Gender                 True
+Age                    True
+Week 1 Body Mass       True
+Week 8 Body Mass       True
+Week 1 Beep test       True
+Week 8 beep test       True
+Week 1 Distance (m)    True
+Week 8 Distance (m)    True
+Week 1 Pred VO2max     True
+Week 8 Pred VO2max     True
+dtype: bool
+
+# see the final data #
+     AGRF code Gender        Age  ... beep_change distance_change vo2_change
+0     0200ADMM      M  19.024658  ...         0.6           200.0        1.9
+1     0200ASJM      F  18.679452  ...        -2.2          -480.0       -4.7
+2     0200BHNM      F  18.369863  ...         0.1            20.0        0.3
+3     0200CBOM      M  18.556164  ...         0.2            40.0        0.7
+4     0200CDFM      F  19.216438  ...         0.1            20.0        0.3
+...        ...    ...        ...  ...         ...             ...        ...
+1441  9693JMNM      M       26.0  ...        -0.2           -40.0       -0.6
+1442  9696DWFM      M       24.0  ...         2.2           480.0        7.5
+1443  9697STJM      M       23.0  ...         0.8           180.0        2.8
+1444  9699DNOM      M       20.0  ...         2.5           540.0        8.5
+1445  9699ISMM      M       20.0  ...         0.9           260.0        2.9
+
+[1446 rows x 20 columns]
+
+# see summary statistics of non_pheno columns #
+                  count         mean       std  ...     50%     75%     max
+ID_father        1446.0     0.000000  0.000000  ...     0.0     0.0     0.0
+ID_mother        1446.0     0.000000  0.000000  ...     0.0     0.0     0.0
+sex_code         1446.0     1.105809  0.389136  ...     1.0     1.0     2.0
+phenotype_value  1446.0 -2800.000000  0.000000  ... -2800.0 -2800.0 -2800.0
+
+[4 rows x 8 columns]
+
+# see summary statistics of pheno columns #
+
+Age
+mean: 21.9791098548227
+percentile 2.5: 17.246849315068495
+percentile 25: 18.764383561643836
+percentile 50: 20.167123287671235
+percentile 75: 23.19178082191781
+percentile 97.5: 36.59369863013699
+
+Week 1 Body Mass
+mean: 77.7001531914894
+percentile 2.5: 56.57
+percentile 25: 68.9
+percentile 50: 77.4
+percentile 75: 85.8
+percentile 97.5: 102.12999999999998
+
+Week 8 Body Mass
+mean: 77.20724749421751
+percentile 2.5: 57.64
+percentile 25: 69.4
+percentile 50: 76.5
+percentile 75: 84.4
+percentile 97.5: 99.11999999999999
+
+Week 1 Beep test
+mean: 8.953430604982271
+percentile 2.5: 7.5
+percentile 25: 7.8
+percentile 50: 8.5
+percentile 75: 10.0
+percentile 97.5: 12.1
+
+Week 8 beep test
+mean: 9.789957295373712
+percentile 2.5: 7.6
+percentile 25: 8.7
+percentile 50: 9.7
+percentile 75: 10.6
+percentile 97.5: 12.7
+
+Week 1 Distance (m)
+mean: 1435.715302491103
+percentile 2.5: 1120.0
+percentile 25: 1180.0
+percentile 50: 1320.0
+percentile 75: 1660.0
+percentile 97.5: 2140.0
+
+Week 8 Distance (m)
+mean: 1621.2678062678062
+percentile 2.5: 1140.0
+percentile 25: 1440.0
+percentile 50: 1660.0
+percentile 75: 1780.0
+percentile 97.5: 2360.0
+
+Week 1 Pred VO2max
+mean: 43.13054960742299
+percentile 2.5: 38.2
+percentile 25: 39.2
+percentile 50: 41.5
+percentile 75: 47.2
+percentile 97.5: 54.0
+
+Week 8 Pred VO2max
+mean: 46.025338078291625
+percentile 2.5: 38.5
+percentile 25: 42.7
+percentile 50: 45.5
+percentile 75: 48.7
+percentile 97.5: 55.7
+
+weight_change
+mean: -0.12565765765765782
+percentile 2.5: -7.799999999999997
+percentile 25: -2.3999999999999915
+percentile 50: 0.0
+percentile 75: 2.1000000000000014
+percentile 97.5: 7.654999999999967
+
+beep_change
+mean: 0.8365266903914589
+percentile 2.5: -1.0999999999999996
+percentile 25: 0.2999999999999998
+percentile 50: 0.8000000000000007
+percentile 75: 1.4000000000000004
+percentile 97.5: 2.5999999999999996
+
+distance_change
+mean: 186.03988603988603
+percentile 2.5: -240.0
+percentile 25: 55.0
+percentile 50: 200.0
+percentile 75: 300.0
+percentile 97.5: 598.4999999999991
+
+vo2_change
+mean: 2.8827980014275583
+percentile 2.5: -3.5999999999999943
+percentile 25: 1.0
+percentile 50: 2.8999999999999986
+percentile 75: 4.700000000000003
+percentile 97.5: 8.800000000000004
+The values of the phenotypes make sense: 
+A tendency for lower values in the highest percentiles of weight at week 8, i.e., more decrease for people starting with more weight. There is a tendency of increased weight for lower percentile. The median change of weight is 0, meaning that half of sample did not lose weight. The distribution is centered around zero.
+A tendency of increase of beep test, distance and VO2 max in all percentiles at week 8. The higher percentiles of changes tend to be more separated from zero than the lower percentile, i.e., the distribution is displaced to positive values, meaning increase of cardiorespiratory fitness.
+
+## save the data ##
+see some columns of the file
+AGRF code Gender Age Week 1 Body Mass
+0200ADMM M 19.024657534246575 76.7
+0200ASJM F 18.67945205479452 57.4
+0200BHNM F 18.36986301369863 72.5
+0200CBOM M 18.556164383561644 54.5
+0200CDFM F 19.216438356164385 58.5
+0200CDJM F 19.18904109589041 61.4
+0200JCJM M 18.843835616438355 68.9
+0200JCMM M 19.041095890410958 78.7
+0200JEJM M 19.30958904109589 71.9
+total 384
+-rw-r--r-- 1 dftortosa denard    181 Sep 15 15:10 README.txt
+-rw-r--r-- 1 dftortosa denard 154414 Sep 15 15:10 pheno_data.xlsx
+-rw-r--r-- 1 dftortosa denard 222330 Sep 15 15:10 pheno_data_cleaned_missing_as_minus_2800.tsv
+
+
+###### create objects with phenotypes and covariates ######
+
+## create multi pheno files ##
+According to plink man:     '--pheno causes phenotype values to be read from the 3rd column of the specified space- or tab-delimited file, instead of the .fam or .ped file. The FIRST AND SECOND COLUMNS OF THAT FILE MUST CONTAIN FAMILY AND WITHIN-FAMILY IDS, respectively.     In combination with --pheno, --mpheno lets you use the (n+2)th column instead of the 3rd column, while --PHENO-NAME LETS YOU SELECT A COLUMN BY TITLE. (In order to use --pheno-name, there must be a header row with first two entries 'FID' and 'IID'.) The new --pheno-merge flag tells PLINK to use the phenotype value in the .fam/.ped file when no value is present in the --pheno file; without it, the phenotype is always treated as missing in this case.'
+Therefore, we need family and within family ID and then the phenotypes in a tab-delimited file with a header, including FID and IID as the two first columns.
+FID	IID	weight_change	beep_change	distance_change	vo2_change
+combat_ILGSA24-17303	0200ADMM	-0.7000000000000028	0.5999999999999996	200.0	1.8999999999999986
+combat_ILGSA24-17303	0200ASJM	2.1000000000000014	-2.200000000000001	-480.0	-4.700000000000003
+combat_ILGSA24-17303	0200BHNM	1.5999999999999943	0.09999999999999964	20.0	0.29999999999999716
+combat_ILGSA24-17303	0200CBOM	6.0	0.20000000000000018	40.0	0.7000000000000028
+combat_ILGSA24-17303	0200CDFM	0.10000000000000142	0.09999999999999964	20.0	0.30000000000000426
+combat_ILGSA24-17303	0200CDJM	4.000000000000007	0.09999999999999964	20.0	0.29999999999999716
+combat_ILGSA24-17303	0200JCJM	-2.0	1.7800000000000011	460.0	2.5999999999999943
+combat_ILGSA24-17303	0200JCMM	0.7999999999999972	1.0	220.0	3.299999999999997
+combat_ILGSA24-17303	0200JEJM	2.0999999999999943	0.6999999999999993	160.0	2.5
+
+
+## create pheno/covariate files ##
+Plink man: '     --covar designates the file to load covariates from. The file format is the same as for --pheno (optional header line, FID and IID in first two columns, covariates in remaining columns). BY DEFAULT, THE MAIN PHENOTYPE IS SET TO MISSING IF ANY COVARIATE IS MISSING; you can disable this with the 'keep-pheno-on-missing-cov' modifier.     --covar-name lets you specify a subset of covariates to load, by column name; separate multiple column names with spaces or commas, and use dashes to designate ranges. (Spaces are not permitted immediately before or after a range-denoting dash.) --covar-number lets you use column numbers instead.'
+FID	IID	age	week_1_weight	week_1_beep	week_1_distance	week_1_vo2
+combat_ILGSA24-17303	0200ADMM	19.024657534246575	76.7	9.1	1460.0	43.6
+combat_ILGSA24-17303	0200ASJM	18.67945205479452	57.4	11.3	1940.0	51.1
+combat_ILGSA24-17303	0200BHNM	18.36986301369863	72.5	7.5	1120.0	38.2
+combat_ILGSA24-17303	0200CBOM	18.556164383561644	54.5	7.7	1160.0	38.9
+combat_ILGSA24-17303	0200CDFM	19.216438356164385	58.5	8.3	1280.0	40.8
+combat_ILGSA24-17303	0200CDJM	19.18904109589041	61.4	7.5	1120.0	38.2
+combat_ILGSA24-17303	0200JCJM	18.843835616438355	68.9	11.12	1900.0	53.7
+combat_ILGSA24-17303	0200JCMM	19.041095890410958	78.7	10.1	1680.0	47.2
+combat_ILGSA24-17303	0200JEJM	19.30958904109589	71.9	9.5	1540.0	44.9
+
+
+## perform covariate selection based on association levels ##
+In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'
+
+# create a dict with correct, simplified names for the covariates #
+{'Age': 'age', 'sex_code': 'sex_code', 'Week 1 Body Mass': 'week_1_weight', 'Week 1 Beep test': 'week_1_beep', 'Week 1 Distance (m)': 'week_1_distance', 'Week 1 Pred VO2max': 'week_1_vo2'}
+
+# plot distribution of each change phenotype to visually check normality #
+
+ 
+ Plotting the distribution of weight_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+perform shapiro test: statistic close 1 and p-value>0.05 indicates normality
+ShapiroResult(statistic=0.9948978424072266, pvalue=0.0008362780208699405)
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+
+ 
+ Plotting the distribution of beep_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+perform shapiro test: statistic close 1 and p-value>0.05 indicates normality
+ShapiroResult(statistic=0.9956374764442444, pvalue=0.00045254940050654113)
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+
+ 
+ Plotting the distribution of distance_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+perform shapiro test: statistic close 1 and p-value>0.05 indicates normality
+ShapiroResult(statistic=0.9950273036956787, pvalue=0.00013351283269003034)
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+
+ 
+ Plotting the distribution of vo2_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+perform shapiro test: statistic close 1 and p-value>0.05 indicates normality
+ShapiroResult(statistic=0.9960496425628662, pvalue=0.0010975077748298645)
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+IMPORTANT:     Our phenotypes are in general more or less normal, but in order to make them more normal, we have performed a quantile transformation. The W statistic of shapiro is almost 1, and the p-value is below 0.05 but not veery small. The HIIT study used the p-value of shapiro test as indication of normality.     Given these results, we are going to pre-process phenotypes and covariates directly in plink. It is interesting to apply his preprocesing to the covariates also so we have all variables in the same scale?     THINK MORE ABOUT THIS IN THE FUTURE
+
+# run the associations between phenotypes and covariates #
+IMPORTANT:     We are analyzing here sex_code (0,1,2) as a continuous variable, but we should use a logistic regression.     This is not a big deal because we are using these associations just to include or not a covariate, and sex is likely very important in all the phenotypes studied.     In the future use statsmodels module to perform logistic regression.
+
+ 
+ #weight_change#
+
+Age
+LinregressResult(slope=-0.09141859765651193, intercept=1.9115835115828717, rvalue=-0.11218564972522196, pvalue=0.00018020076604782526, stderr=0.024326357853120602, intercept_stderr=0.5561322386590404)
+
+sex_code
+LinregressResult(slope=0.8718387995225365, intercept=-1.1121707497300055, rvalue=0.07087673849299839, pvalue=0.018192025826496486, stderr=0.36861159894605056, intercept_stderr=0.4353043285025262)
+
+Week 1 Body Mass
+LinregressResult(slope=-0.16229996879931252, intercept=12.494697262140257, rvalue=-0.4709628701058851, pvalue=2.332921668824437e-62, stderr=0.009132839358163834, intercept_stderr=0.7186605540723292)
+
+ 
+ #beep_change#
+
+Age
+LinregressResult(slope=-0.009155264832044303, intercept=1.0377512618849554, rvalue=-0.04955386682245674, pvalue=0.06332089086955674, stderr=0.004926411068158398, intercept_stderr=0.11112898163371566)
+
+sex_code
+LinregressResult(slope=-0.4445603020422742, intercept=1.342471119548467, rvalue=-0.1635128628365017, pvalue=7.044390940500706e-10, stderr=0.07160859437761193, intercept_stderr=0.08515809161446239)
+
+Week 1 Body Mass
+LinregressResult(slope=0.006310543172419221, intercept=0.3281294032496045, rvalue=0.07897919485053313, pvalue=0.00675635055569157, stderr=0.0023256603558507974, intercept_stderr=0.1828670016335399)
+
+ Week 1 Beep test
+LinregressResult(slope=-0.23771356586981687, intercept=2.964878606269731, rvalue=-0.34570892688000315, pvalue=1.0231707206165601e-40, stderr=0.017225649314322505, intercept_stderr=0.15600825302981733)
+
+ 
+ #distance_change#
+
+Age
+LinregressResult(slope=-2.2002038261763004, intercept=234.4046432885068, rvalue=-0.04844523740834407, pvalue=0.0695713776683782, stderr=1.2115116354717077, intercept_stderr=27.332569109219886)
+
+sex_code
+LinregressResult(slope=-104.73920081792669, intercept=305.25159751214164, rvalue=-0.15674088434115444, pvalue=3.53980172250845e-09, stderr=17.62590891240401, intercept_stderr=20.963200572736266)
+
+Week 1 Body Mass
+LinregressResult(slope=1.4973263284958314, intercept=65.9383659620534, rvalue=0.08324127555762997, pvalue=0.004299799184359641, stderr=0.5233820866334112, intercept_stderr=41.153607254204644)
+
+ Week 1 Distance (m)
+LinregressResult(slope=-0.26304917182928245, intercept=563.5754018421039, rvalue=-0.35203396429223965, pvalue=3.1635495867067874e-42, stderr=0.018678770563970958, intercept_stderr=27.42101656875686)
+
+ 
+ #vo2_change#
+
+Age
+LinregressResult(slope=-0.0358163694000916, intercept=3.6704168206246623, rvalue=-0.057253680946612505, pvalue=0.03212542147752588, stderr=0.016697686982945457, intercept_stderr=0.37685779275740455)
+
+sex_code
+LinregressResult(slope=-1.5087253051358454, intercept=4.600440300993343, rvalue=-0.1639987420782541, pvalue=6.623260656657678e-10, stderr=0.2426277782759199, intercept_stderr=0.2886574766841482)
+
+Week 1 Body Mass
+LinregressResult(slope=0.018106582213840733, intercept=1.4180519584230444, rvalue=0.06676904452281777, pvalue=0.022088300960808636, stderr=0.007900272725615425, intercept_stderr=0.6211995581323876)
+
+ Week 1 Pred VO2max
+LinregressResult(slope=-0.2344997319384983, intercept=12.996900322728411, rvalue=-0.3450859630939358, pvalue=1.8635157118249236e-40, stderr=0.01705192324083937, intercept_stderr=0.7397683498397435)
+All covariates except Age for beep_test and distance which is marginally significant (p=0.06). See dict with covariates
+{'weight_change': ['age', 'sex_code', 'week_1_weight'], 'beep_change': ['age', 'sex_code', 'week_1_weight', 'week_1_beep'], 'distance_change': ['age', 'sex_code', 'week_1_weight', 'week_1_distance'], 'vo2_change': ['age', 'sex_code', 'week_1_weight', 'week_1_vo2']}
+
+# add to the dict of covariates a new entry to indicate to plink if sex is going to be used or not as covariate #
+See the new dict
+{'weight_change': ['age,week_1_weight', 'sex'], 'beep_change': ['age,week_1_weight,week_1_beep', 'sex'], 'distance_change': ['age,week_1_weight,week_1_distance', 'sex'], 'vo2_change': ['age,week_1_weight,week_1_vo2', 'sex']}
+IMPORTANT:     Think if add the Batch as covariate     Note sure if this can cause problems because we are already indicating the family ID (batch) in both covariates and phenos... In the final analyses, if you do not see batch effects, I think you can skip completely this.     If you add this be careful because you are using quantile transformation in all covaraites loaded from covar file in plink2, and you cannot obviously do that for a discrete variable
+
+## run the associations between SNPs and phenotypes ##
+
+# make dict for title plots #
+{'weight_change': 'Change of body mass', 'beep_change': 'Change in beep test', 'distance_change': 'Change in distance', 'vo2_change': 'Change in predicted VO2 max'}
+
+# run the associations and make the Manhattan plots #
+
+ 
+weight_change
+run plink2 assoc
+PLINK v2.00a4.2LM 64-bit Intel (31 May 2023)   www.cog-genomics.org/plink/2.0/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./results/prelim_results/weight_change/first_assoc.log.
+Options in effect:
+  --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2
+  --covar ./data/plink_inputs/covar_file.tsv
+  --covar-name age,week_1_weight
+  --glm sex
+  --input-missing-phenotype -2800
+  --out ./results/prelim_results/weight_change/first_assoc
+  --pheno ./data/plink_inputs/pheno_file.tsv
+  --pheno-name weight_change
+  --quantile-normalize
+
+Start time: Fri Sep 15 15:10:41 2023
+64398 MiB RAM detected, ~61833 available; reserving 32199 MiB for main
+workspace.
+Using up to 4 compute threads.
+1446 samples (194 females, 1210 males, 42 ambiguous; 1446 founders) loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam.
+289190 variants loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.bim.
+1 quantitative phenotype loaded (1110 values).
+2 covariates loaded from ./data/plink_inputs/covar_file.tsv.
+--quantile-normalize: 1 phenotype transformed.
+--quantile-normalize: 2 covariates transformed.
+Calculating allele frequencies... 0%22%45%67%90%done.
+--glm linear regression on phenotype 'weight_change': 0%22%45%67%90%done.
+Results written to ./results/prelim_results/weight_change/first_assoc.weight_change.glm.linear .
+End time: Fri Sep 15 15:10:42 2023
+total 92484
+-rw-r--r-- 1 dftortosa denard     1486 Sep 15 15:10 first_assoc.log
+-rw-r--r-- 1 dftortosa denard 94690610 Sep 15 15:10 first_assoc.weight_change.glm.linear
+
+IMPORTANT:         There are multiple disclamers in the --glm info page, like problems with low minor allele count or how to prune by relatedness, include PCAs for population stratification, etc...         TAKE A LOOK AT THIS!!
+IMPORTANT:         It seems that SEX is not subjected to quantile transformation, only the covariates included in the covar file.         Be careful in the future if you add discrete covariates in the covar file, like batch
+use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv
+See 7 first columns of the original assoc file
+#CHROM POS ID REF ALT A1 TEST
+1 792461 GSA-rs116587930 G A A ADD
+1 792461 GSA-rs116587930 G A A age
+1 792461 GSA-rs116587930 G A A week_1_weight
+1 792461 GSA-rs116587930 G A A SEX
+1 817341 rs3131972 C T T ADD
+1 817341 rs3131972 C T T age
+1 817341 rs3131972 C T T week_1_weight
+1 817341 rs3131972 C T T SEX
+1 858952 rs12127425 G A A ADD
+The number of columns is 
+13
+
+Process with awk to specify the delimiter and then take a look to the file
+#CHROM POS ID REF ALT A1 TEST OBS_CT BETA SE T_STAT P ERRCODE
+1 792461 GSA-rs116587930 G A A ADD 1107 0.0863051 0.0791652 1.09019 0.275867 .
+1 817341 rs3131972 C T T ADD 1107 -0.0265679 0.0474333 -0.560111 0.575517 .
+1 858952 rs12127425 G A A ADD 1108 0.112729 0.0640728 1.75938 0.0787896 .
+1 905373 rs4970382 A G G ADD 1109 0.0585201 0.0370336 1.58019 0.11435 .
+1 911428 GSA-rs4475691 C T T ADD 1109 -0.0167827 0.0454802 -0.369012 0.712189 .
+1 918870 rs7537756 A G G ADD 1109 -0.0316101 0.0445808 -0.709053 0.478441 .
+1 926428 rs13302982 G A A ADD 1109 -0.203745 0.0738834 -2.75765 0.00591791 .
+1 931513 rs2880024 G A A ADD 1106 -0.0193035 0.0376873 -0.512203 0.608612 .
+1 953279 rs3748597 C T T ADD 1109 0.065263 0.0816578 0.799225 0.424332 .
+
+ADD
+
+Do we have correctly selected the ADD rows only (i.e., additive effect of SNPs)?
+YES! GOOD TO GO!
+load assoc results to pandas
+       #CHROM     POS               ID  ...    T_STAT         P ERRCODE
+0           1  792461  GSA-rs116587930  ...  1.090190  0.275867       .
+1           1  817341        rs3131972  ... -0.560111  0.575517       .
+2           1  858952       rs12127425  ...  1.759380  0.078790       .
+3           1  905373        rs4970382  ...  1.580190  0.114350       .
+4           1  911428    GSA-rs4475691  ... -0.369012  0.712189       .
+...       ...     ...              ...  ...       ...       ...     ...
+289185     MT   15924      MitoA15925G  ...  0.774563  0.438764       .
+289186     MT   15928      MitoG15929A  ...  0.203163  0.839045       .
+289187     MT   16126      rs147029798  ... -0.263181  0.792460       .
+289188     MT   16362       rs62581341  ...  0.574765  0.565568       .
+289189     MT   16519        rs3937033  ... -1.652830  0.098649       .
+
+[289190 rows x 13 columns]
+you could use this file to filter by the number of observations or other criteria
+load bim file used as input to do some check. If the SNPs and their characterstics are the same in the bim and assoc file, it means that my processing of the assoc file has not messed with the data.
+         0                1  2       3  4  5
+0        1  GSA-rs116587930  0  792461  A  G
+1        1        rs3131972  0  817341  T  C
+2        1       rs12127425  0  858952  A  G
+3        1        rs4970382  0  905373  G  A
+4        1    GSA-rs4475691  0  911428  T  C
+...     ..              ... ..     ... .. ..
+289185  26      MitoA15925G  0   15924  G  A
+289186  26      MitoG15929A  0   15928  A  G
+289187  26      rs147029798  0   16126  C  T
+289188  26       rs62581341  0   16362  C  T
+289189  26        rs3937033  0   16519  T  C
+
+[289190 rows x 6 columns]
+load freq report file loop_maf_missing_2 to do some check, but first, process it with awk
+see first lines of freq report and then process it
+ CHR                            SNP   A1   A2          MAF  NCHROBS
+   1                GSA-rs116587930    A    G      0.05644     2888
+   1                      rs3131972    T    C       0.1828     2888
+   1                     rs12127425    A    G      0.08795     2888
+   1                      rs4970382    G    A       0.4084     2892
+   1                  GSA-rs4475691    T    C       0.2019     2892
+   1                      rs7537756    G    A         0.21     2890
+   1                     rs13302982    A    G      0.06051     2892
+   1                      rs2880024    A    G       0.4234     2886
+   1                      rs3748597    T    C       0.0536     2892
+The number of fields is 
+6
+CHR	SNP	A1	A2	MAF	NCHROBS
+1	GSA-rs116587930	A	G	0.05644	2888
+1	rs3131972	T	C	0.1828	2888
+1	rs12127425	A	G	0.08795	2888
+1	rs4970382	G	A	0.4084	2892
+1	GSA-rs4475691	T	C	0.2019	2892
+1	rs7537756	G	A	0.21	2890
+1	rs13302982	A	G	0.06051	2892
+1	rs2880024	A	G	0.4234	2886
+1	rs3748597	T	C	0.0536	2892
+
+load to pandas
+        CHR              SNP A1 A2      MAF  NCHROBS
+0         1  GSA-rs116587930  A  G  0.05644     2888
+1         1        rs3131972  T  C  0.18280     2888
+2         1       rs12127425  A  G  0.08795     2888
+3         1        rs4970382  G  A  0.40840     2892
+4         1    GSA-rs4475691  T  C  0.20190     2892
+...     ...              ... .. ..      ...      ...
+289185   26      MitoA15925G  G  A  0.06678     2890
+289186   26      MitoG15929A  A  G  0.08651     2890
+289187   26      rs147029798  C  T  0.18810     2892
+289188   26       rs62581341  C  T  0.08554     2876
+289189   26        rs3937033  T  C  0.35090     2890
+
+[289190 rows x 6 columns]
+the position and ID of all SNPs is the same in bim and assoc files?
+True
+True
+the chromosomes are the same between bim and assoc files?
+make dict to convert non-autosomal snps to numeric because in assoc they are string
+{'X': 23, 'Y': 24, 'XY': 25, 'MT': 26}
+convert original chromosome variable in assoc file to numeric
+True
+Check that the A1 allele is the minor
+first check that the SNP and A1/A2 columns are the same in the bim file and the frequency report
+True
+the frequency file doc says that the A1 is USUALLY the minor, but also gives the frequency of the Allele 1 (called MAF). Therefore, we can check whether the MAF is below 0.5 and hence the A1 is actually the minor
+YES! GOOD TO GO! We can say that the A1 allele in the frequency file and in the bim file is the minor. Remember that we have just checked that the A1/A2 columns are identical in the bim and the frequency files
+Also check that the A1 (minor) / A2 (major) of the freq report and the bim file are exactly the ALT and REF, respectively, in the assoc file
+True
+True
+We assume then that A1 is the minor allele and should be in general ALT, except in those cases where the frequency is close to 0.5 and a small changes in samples (due to missing phenotypes) could convert the minor to major, becoming REF into the minor and A1 into the major. Therefore, if A1==ALT, the REF is the major. In contrast, if A1!=ALT, then ALT is the major
+get the IDs of those SNPs for which minor and major alleles are not the same between the bim and assoc files
+the cases of mismatch should be the same for minor and major alleles, if not, we have a problem. If the number of mismatches is higher than zero, then we have to do several operations to compare alleles between bim and assoc
+check whether the SNPs with mismatch have a MAF=0.5 in the frequency report. Remember that major and minor mismatches should be the same
+276912    True
+277070    True
+277308    True
+Name: MAF, dtype: bool
+SNPs where minor/major changes between the bim file and the assoc file are those with a frequency of 0.5? That would make sense, because a small change in the number of sample due to missing phenotype values would change the minor/major
+YES! GOOD TO GO!
+check whether the SNPs with mismatch have indeed the REF as minor. This should be the case. If the REF is the minor in assoc (i.e., A1), then A1 should not be ALT
+True
+check we do not have duplicates by position or by SNP id
+True
+True
+check we have only ACGT in the allele columns
+True
+True
+True
+See the percentiles of the number of observations
+Percentile 2.5: 1104.0
+Percentile 25: 1108.0
+Percentile 50: 1109.0
+Percentile 75: 1109.0
+Percentile 97.5: 1109.0
+We should not have any ERROR code from plink
+YES! GOOD TO GO!
+convert chromosome column to numeric
+At the end we are going to remove the non-autosomals because I get strange overlap in the plots, even knowing we do not have any overlap in the coordinates
+        #CHROM       POS               ID  ...    T_STAT         P ERRCODE
+0            1    792461  GSA-rs116587930  ...  1.090190  0.275867       .
+1            1    817341        rs3131972  ... -0.560111  0.575517       .
+2            1    858952       rs12127425  ...  1.759380  0.078790       .
+3            1    905373        rs4970382  ...  1.580190  0.114350       .
+4            1    911428    GSA-rs4475691  ... -0.369012  0.712189       .
+...        ...       ...              ...  ...       ...       ...     ...
+270789      22  50718505    GSA-rs6010063  ... -0.345358  0.729891       .
+270790      22  50723631          rs10451  ... -0.733235  0.463571       .
+270791      22  50743331       exm2268446  ...  1.342710  0.179642       .
+270792      22  50747848    GSA-rs8135434  ... -0.043141  0.965597       .
+270793      22  50749012      rs113391741  ...  0.328556  0.742554       .
+
+[270794 rows x 13 columns]
+check we have the correct dtypes for dash_bio.ManhattanPlot (see code below)
+True
+True
+True
+True
+save the results after removing non-autosomal chromosomes and just before plotting
+make manhattan plot with plotly
+
+ 
+beep_change
+run plink2 assoc
+PLINK v2.00a4.2LM 64-bit Intel (31 May 2023)   www.cog-genomics.org/plink/2.0/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./results/prelim_results/beep_change/first_assoc.log.
+Options in effect:
+  --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2
+  --covar ./data/plink_inputs/covar_file.tsv
+  --covar-name age,week_1_weight,week_1_beep
+  --glm sex
+  --input-missing-phenotype -2800
+  --out ./results/prelim_results/beep_change/first_assoc
+  --pheno ./data/plink_inputs/pheno_file.tsv
+  --pheno-name beep_change
+  --quantile-normalize
+
+Start time: Fri Sep 15 15:11:12 2023
+64398 MiB RAM detected, ~61039 available; reserving 32199 MiB for main
+workspace.
+Using up to 4 compute threads.
+1446 samples (194 females, 1210 males, 42 ambiguous; 1446 founders) loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam.
+289190 variants loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.bim.
+1 quantitative phenotype loaded (1405 values).
+3 covariates loaded from ./data/plink_inputs/covar_file.tsv.
+--quantile-normalize: 1 phenotype transformed.
+--quantile-normalize: 3 covariates transformed.
+Calculating allele frequencies... 0%22%45%67%90%done.
+--glm linear regression on phenotype 'beep_change': 0%22%45%67%90%done.
+Results written to ./results/prelim_results/beep_change/first_assoc.beep_change.glm.linear .
+End time: Fri Sep 15 15:11:14 2023
+total 116348
+-rw-r--r-- 1 dftortosa denard 119124876 Sep 15 15:11 first_assoc.beep_change.glm.linear
+-rw-r--r-- 1 dftortosa denard      1488 Sep 15 15:11 first_assoc.log
+
+IMPORTANT:         There are multiple disclamers in the --glm info page, like problems with low minor allele count or how to prune by relatedness, include PCAs for population stratification, etc...         TAKE A LOOK AT THIS!!
+IMPORTANT:         It seems that SEX is not subjected to quantile transformation, only the covariates included in the covar file.         Be careful in the future if you add discrete covariates in the covar file, like batch
+use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv
+See 7 first columns of the original assoc file
+#CHROM POS ID REF ALT A1 TEST
+1 792461 GSA-rs116587930 G A A ADD
+1 792461 GSA-rs116587930 G A A age
+1 792461 GSA-rs116587930 G A A week_1_weight
+1 792461 GSA-rs116587930 G A A week_1_beep
+1 792461 GSA-rs116587930 G A A SEX
+1 817341 rs3131972 C T T ADD
+1 817341 rs3131972 C T T age
+1 817341 rs3131972 C T T week_1_weight
+1 817341 rs3131972 C T T week_1_beep
+The number of columns is 
+13
+
+Process with awk to specify the delimiter and then take a look to the file
+#CHROM POS ID REF ALT A1 TEST OBS_CT BETA SE T_STAT P ERRCODE
+1 792461 GSA-rs116587930 G A A ADD 1172 -0.108649 0.0815877 -1.33168 0.183225 .
+1 817341 rs3131972 C T T ADD 1172 0.00711302 0.0487835 0.145808 0.884098 .
+1 858952 rs12127425 G A A ADD 1172 -0.00989776 0.0650513 -0.152153 0.879093 .
+1 905373 rs4970382 A G G ADD 1174 0.0372967 0.0380216 0.980935 0.326828 .
+1 911428 GSA-rs4475691 C T T ADD 1174 -0.0809516 0.0464158 -1.74405 0.0814127 .
+1 918870 rs7537756 A G G ADD 1173 -0.0873629 0.0455699 -1.91712 0.0554668 .
+1 926428 rs13302982 G A A ADD 1174 0.0106137 0.0740602 0.143312 0.886069 .
+1 931513 rs2880024 G A A ADD 1171 -0.0144616 0.0383281 -0.377309 0.706013 .
+1 953279 rs3748597 C T T ADD 1174 -0.116848 0.0835243 -1.39897 0.162087 .
+
+ADD
+
+Do we have correctly selected the ADD rows only (i.e., additive effect of SNPs)?
+YES! GOOD TO GO!
+load assoc results to pandas
+       #CHROM     POS               ID  ...    T_STAT         P ERRCODE
+0           1  792461  GSA-rs116587930  ... -1.331680  0.183225       .
+1           1  817341        rs3131972  ...  0.145808  0.884098       .
+2           1  858952       rs12127425  ... -0.152153  0.879093       .
+3           1  905373        rs4970382  ...  0.980935  0.326828       .
+4           1  911428    GSA-rs4475691  ... -1.744050  0.081413       .
+...       ...     ...              ...  ...       ...       ...     ...
+289185     MT   15924      MitoA15925G  ... -0.371862  0.710063       .
+289186     MT   15928      MitoG15929A  ... -0.409189  0.682476       .
+289187     MT   16126      rs147029798  ...  0.389206  0.697195       .
+289188     MT   16362       rs62581341  ...  1.364360  0.172720       .
+289189     MT   16519        rs3937033  ...  1.568560  0.117022       .
+
+[289190 rows x 13 columns]
+you could use this file to filter by the number of observations or other criteria
+load bim file used as input to do some check. If the SNPs and their characterstics are the same in the bim and assoc file, it means that my processing of the assoc file has not messed with the data.
+         0                1  2       3  4  5
+0        1  GSA-rs116587930  0  792461  A  G
+1        1        rs3131972  0  817341  T  C
+2        1       rs12127425  0  858952  A  G
+3        1        rs4970382  0  905373  G  A
+4        1    GSA-rs4475691  0  911428  T  C
+...     ..              ... ..     ... .. ..
+289185  26      MitoA15925G  0   15924  G  A
+289186  26      MitoG15929A  0   15928  A  G
+289187  26      rs147029798  0   16126  C  T
+289188  26       rs62581341  0   16362  C  T
+289189  26        rs3937033  0   16519  T  C
+
+[289190 rows x 6 columns]
+load freq report file loop_maf_missing_2 to do some check, but first, process it with awk
+see first lines of freq report and then process it
+ CHR                            SNP   A1   A2          MAF  NCHROBS
+   1                GSA-rs116587930    A    G      0.05644     2888
+   1                      rs3131972    T    C       0.1828     2888
+   1                     rs12127425    A    G      0.08795     2888
+   1                      rs4970382    G    A       0.4084     2892
+   1                  GSA-rs4475691    T    C       0.2019     2892
+   1                      rs7537756    G    A         0.21     2890
+   1                     rs13302982    A    G      0.06051     2892
+   1                      rs2880024    A    G       0.4234     2886
+   1                      rs3748597    T    C       0.0536     2892
+The number of fields is 
+6
+CHR	SNP	A1	A2	MAF	NCHROBS
+1	GSA-rs116587930	A	G	0.05644	2888
+1	rs3131972	T	C	0.1828	2888
+1	rs12127425	A	G	0.08795	2888
+1	rs4970382	G	A	0.4084	2892
+1	GSA-rs4475691	T	C	0.2019	2892
+1	rs7537756	G	A	0.21	2890
+1	rs13302982	A	G	0.06051	2892
+1	rs2880024	A	G	0.4234	2886
+1	rs3748597	T	C	0.0536	2892
+
+load to pandas
+        CHR              SNP A1 A2      MAF  NCHROBS
+0         1  GSA-rs116587930  A  G  0.05644     2888
+1         1        rs3131972  T  C  0.18280     2888
+2         1       rs12127425  A  G  0.08795     2888
+3         1        rs4970382  G  A  0.40840     2892
+4         1    GSA-rs4475691  T  C  0.20190     2892
+...     ...              ... .. ..      ...      ...
+289185   26      MitoA15925G  G  A  0.06678     2890
+289186   26      MitoG15929A  A  G  0.08651     2890
+289187   26      rs147029798  C  T  0.18810     2892
+289188   26       rs62581341  C  T  0.08554     2876
+289189   26        rs3937033  T  C  0.35090     2890
+
+[289190 rows x 6 columns]
+the position and ID of all SNPs is the same in bim and assoc files?
+True
+True
+the chromosomes are the same between bim and assoc files?
+make dict to convert non-autosomal snps to numeric because in assoc they are string
+{'X': 23, 'Y': 24, 'XY': 25, 'MT': 26}
+convert original chromosome variable in assoc file to numeric
+True
+Check that the A1 allele is the minor
+first check that the SNP and A1/A2 columns are the same in the bim file and the frequency report
+True
+the frequency file doc says that the A1 is USUALLY the minor, but also gives the frequency of the Allele 1 (called MAF). Therefore, we can check whether the MAF is below 0.5 and hence the A1 is actually the minor
+YES! GOOD TO GO! We can say that the A1 allele in the frequency file and in the bim file is the minor. Remember that we have just checked that the A1/A2 columns are identical in the bim and the frequency files
+Also check that the A1 (minor) / A2 (major) of the freq report and the bim file are exactly the ALT and REF, respectively, in the assoc file
+True
+True
+We assume then that A1 is the minor allele and should be in general ALT, except in those cases where the frequency is close to 0.5 and a small changes in samples (due to missing phenotypes) could convert the minor to major, becoming REF into the minor and A1 into the major. Therefore, if A1==ALT, the REF is the major. In contrast, if A1!=ALT, then ALT is the major
+get the IDs of those SNPs for which minor and major alleles are not the same between the bim and assoc files
+the cases of mismatch should be the same for minor and major alleles, if not, we have a problem. If the number of mismatches is higher than zero, then we have to do several operations to compare alleles between bim and assoc
+check whether the SNPs with mismatch have a MAF=0.5 in the frequency report. Remember that major and minor mismatches should be the same
+276912    True
+277070    True
+277308    True
+Name: MAF, dtype: bool
+SNPs where minor/major changes between the bim file and the assoc file are those with a frequency of 0.5? That would make sense, because a small change in the number of sample due to missing phenotype values would change the minor/major
+YES! GOOD TO GO!
+check whether the SNPs with mismatch have indeed the REF as minor. This should be the case. If the REF is the minor in assoc (i.e., A1), then A1 should not be ALT
+True
+check we do not have duplicates by position or by SNP id
+True
+True
+check we have only ACGT in the allele columns
+True
+True
+True
+See the percentiles of the number of observations
+Percentile 2.5: 1169.0
+Percentile 25: 1173.0
+Percentile 50: 1174.0
+Percentile 75: 1174.0
+Percentile 97.5: 1174.0
+We should not have any ERROR code from plink
+YES! GOOD TO GO!
+convert chromosome column to numeric
+At the end we are going to remove the non-autosomals because I get strange overlap in the plots, even knowing we do not have any overlap in the coordinates
+        #CHROM       POS               ID  ...    T_STAT         P ERRCODE
+0            1    792461  GSA-rs116587930  ... -1.331680  0.183225       .
+1            1    817341        rs3131972  ...  0.145808  0.884098       .
+2            1    858952       rs12127425  ... -0.152153  0.879093       .
+3            1    905373        rs4970382  ...  0.980935  0.326828       .
+4            1    911428    GSA-rs4475691  ... -1.744050  0.081413       .
+...        ...       ...              ...  ...       ...       ...     ...
+270789      22  50718505    GSA-rs6010063  ... -0.912155  0.361875       .
+270790      22  50723631          rs10451  ...  0.327784  0.743134       .
+270791      22  50743331       exm2268446  ...  0.472758  0.636474       .
+270792      22  50747848    GSA-rs8135434  ...  0.835444  0.403639       .
+270793      22  50749012      rs113391741  ... -1.305360  0.192028       .
+
+[270794 rows x 13 columns]
+check we have the correct dtypes for dash_bio.ManhattanPlot (see code below)
+True
+True
+True
+True
+save the results after removing non-autosomal chromosomes and just before plotting
+make manhattan plot with plotly
+
+ 
+distance_change
+run plink2 assoc
+PLINK v2.00a4.2LM 64-bit Intel (31 May 2023)   www.cog-genomics.org/plink/2.0/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./results/prelim_results/distance_change/first_assoc.log.
+Options in effect:
+  --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2
+  --covar ./data/plink_inputs/covar_file.tsv
+  --covar-name age,week_1_weight,week_1_distance
+  --glm sex
+  --input-missing-phenotype -2800
+  --out ./results/prelim_results/distance_change/first_assoc
+  --pheno ./data/plink_inputs/pheno_file.tsv
+  --pheno-name distance_change
+  --quantile-normalize
+
+Start time: Fri Sep 15 15:11:45 2023
+64398 MiB RAM detected, ~60552 available; reserving 32199 MiB for main
+workspace.
+Using up to 4 compute threads.
+1446 samples (194 females, 1210 males, 42 ambiguous; 1446 founders) loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam.
+289190 variants loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.bim.
+1 quantitative phenotype loaded (1404 values).
+3 covariates loaded from ./data/plink_inputs/covar_file.tsv.
+--quantile-normalize: 1 phenotype transformed.
+--quantile-normalize: 3 covariates transformed.
+Calculating allele frequencies... 0%22%45%67%90%done.
+--glm linear regression on phenotype 'distance_change': 0%22%45%67%90%done.
+Results written to ./results/prelim_results/distance_change/first_assoc.distance_change.glm.linear .
+End time: Fri Sep 15 15:11:47 2023
+total 117396
+-rw-r--r-- 1 dftortosa denard 120190212 Sep 15 15:11 first_assoc.distance_change.glm.linear
+-rw-r--r-- 1 dftortosa denard      1512 Sep 15 15:11 first_assoc.log
+
+IMPORTANT:         There are multiple disclamers in the --glm info page, like problems with low minor allele count or how to prune by relatedness, include PCAs for population stratification, etc...         TAKE A LOOK AT THIS!!
+IMPORTANT:         It seems that SEX is not subjected to quantile transformation, only the covariates included in the covar file.         Be careful in the future if you add discrete covariates in the covar file, like batch
+use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv
+See 7 first columns of the original assoc file
+#CHROM POS ID REF ALT A1 TEST
+1 792461 GSA-rs116587930 G A A ADD
+1 792461 GSA-rs116587930 G A A age
+1 792461 GSA-rs116587930 G A A week_1_weight
+1 792461 GSA-rs116587930 G A A week_1_distance
+1 792461 GSA-rs116587930 G A A SEX
+1 817341 rs3131972 C T T ADD
+1 817341 rs3131972 C T T age
+1 817341 rs3131972 C T T week_1_weight
+1 817341 rs3131972 C T T week_1_distance
+The number of columns is 
+13
+
+Process with awk to specify the delimiter and then take a look to the file
+#CHROM POS ID REF ALT A1 TEST OBS_CT BETA SE T_STAT P ERRCODE
+1 792461 GSA-rs116587930 G A A ADD 1172 -0.114066 0.0819585 -1.39175 0.164263 .
+1 817341 rs3131972 C T T ADD 1172 0.00935083 0.0490112 0.190789 0.848724 .
+1 858952 rs12127425 G A A ADD 1172 -0.00788302 0.0653329 -0.120659 0.903982 .
+1 905373 rs4970382 A G G ADD 1174 0.0434955 0.0381932 1.13883 0.255008 .
+1 911428 GSA-rs4475691 C T T ADD 1174 -0.0795845 0.0466329 -1.70662 0.0881594 .
+1 918870 rs7537756 A G G ADD 1173 -0.0853765 0.0457847 -1.86474 0.0624689 .
+1 926428 rs13302982 G A A ADD 1174 0.0170305 0.0744023 0.228898 0.818988 .
+1 931513 rs2880024 G A A ADD 1171 -0.0125019 0.0385189 -0.324566 0.745568 .
+1 953279 rs3748597 C T T ADD 1174 -0.102461 0.0839292 -1.22081 0.222405 .
+
+ADD
+
+Do we have correctly selected the ADD rows only (i.e., additive effect of SNPs)?
+YES! GOOD TO GO!
+load assoc results to pandas
+       #CHROM     POS               ID  ...    T_STAT         P ERRCODE
+0           1  792461  GSA-rs116587930  ... -1.391750  0.164263       .
+1           1  817341        rs3131972  ...  0.190789  0.848724       .
+2           1  858952       rs12127425  ... -0.120659  0.903982       .
+3           1  905373        rs4970382  ...  1.138830  0.255008       .
+4           1  911428    GSA-rs4475691  ... -1.706620  0.088159       .
+...       ...     ...              ...  ...       ...       ...     ...
+289185     MT   15924      MitoA15925G  ... -0.707287  0.479529       .
+289186     MT   15928      MitoG15929A  ... -0.313428  0.754012       .
+289187     MT   16126      rs147029798  ...  0.492396  0.622532       .
+289188     MT   16362       rs62581341  ...  1.492420  0.135861       .
+289189     MT   16519        rs3937033  ...  1.740440  0.082045       .
+
+[289190 rows x 13 columns]
+you could use this file to filter by the number of observations or other criteria
+load bim file used as input to do some check. If the SNPs and their characterstics are the same in the bim and assoc file, it means that my processing of the assoc file has not messed with the data.
+         0                1  2       3  4  5
+0        1  GSA-rs116587930  0  792461  A  G
+1        1        rs3131972  0  817341  T  C
+2        1       rs12127425  0  858952  A  G
+3        1        rs4970382  0  905373  G  A
+4        1    GSA-rs4475691  0  911428  T  C
+...     ..              ... ..     ... .. ..
+289185  26      MitoA15925G  0   15924  G  A
+289186  26      MitoG15929A  0   15928  A  G
+289187  26      rs147029798  0   16126  C  T
+289188  26       rs62581341  0   16362  C  T
+289189  26        rs3937033  0   16519  T  C
+
+[289190 rows x 6 columns]
+load freq report file loop_maf_missing_2 to do some check, but first, process it with awk
+see first lines of freq report and then process it
+ CHR                            SNP   A1   A2          MAF  NCHROBS
+   1                GSA-rs116587930    A    G      0.05644     2888
+   1                      rs3131972    T    C       0.1828     2888
+   1                     rs12127425    A    G      0.08795     2888
+   1                      rs4970382    G    A       0.4084     2892
+   1                  GSA-rs4475691    T    C       0.2019     2892
+   1                      rs7537756    G    A         0.21     2890
+   1                     rs13302982    A    G      0.06051     2892
+   1                      rs2880024    A    G       0.4234     2886
+   1                      rs3748597    T    C       0.0536     2892
+The number of fields is 
+6
+CHR	SNP	A1	A2	MAF	NCHROBS
+1	GSA-rs116587930	A	G	0.05644	2888
+1	rs3131972	T	C	0.1828	2888
+1	rs12127425	A	G	0.08795	2888
+1	rs4970382	G	A	0.4084	2892
+1	GSA-rs4475691	T	C	0.2019	2892
+1	rs7537756	G	A	0.21	2890
+1	rs13302982	A	G	0.06051	2892
+1	rs2880024	A	G	0.4234	2886
+1	rs3748597	T	C	0.0536	2892
+
+load to pandas
+        CHR              SNP A1 A2      MAF  NCHROBS
+0         1  GSA-rs116587930  A  G  0.05644     2888
+1         1        rs3131972  T  C  0.18280     2888
+2         1       rs12127425  A  G  0.08795     2888
+3         1        rs4970382  G  A  0.40840     2892
+4         1    GSA-rs4475691  T  C  0.20190     2892
+...     ...              ... .. ..      ...      ...
+289185   26      MitoA15925G  G  A  0.06678     2890
+289186   26      MitoG15929A  A  G  0.08651     2890
+289187   26      rs147029798  C  T  0.18810     2892
+289188   26       rs62581341  C  T  0.08554     2876
+289189   26        rs3937033  T  C  0.35090     2890
+
+[289190 rows x 6 columns]
+the position and ID of all SNPs is the same in bim and assoc files?
+True
+True
+the chromosomes are the same between bim and assoc files?
+make dict to convert non-autosomal snps to numeric because in assoc they are string
+{'X': 23, 'Y': 24, 'XY': 25, 'MT': 26}
+convert original chromosome variable in assoc file to numeric
+True
+Check that the A1 allele is the minor
+first check that the SNP and A1/A2 columns are the same in the bim file and the frequency report
+True
+the frequency file doc says that the A1 is USUALLY the minor, but also gives the frequency of the Allele 1 (called MAF). Therefore, we can check whether the MAF is below 0.5 and hence the A1 is actually the minor
+YES! GOOD TO GO! We can say that the A1 allele in the frequency file and in the bim file is the minor. Remember that we have just checked that the A1/A2 columns are identical in the bim and the frequency files
+Also check that the A1 (minor) / A2 (major) of the freq report and the bim file are exactly the ALT and REF, respectively, in the assoc file
+True
+True
+We assume then that A1 is the minor allele and should be in general ALT, except in those cases where the frequency is close to 0.5 and a small changes in samples (due to missing phenotypes) could convert the minor to major, becoming REF into the minor and A1 into the major. Therefore, if A1==ALT, the REF is the major. In contrast, if A1!=ALT, then ALT is the major
+get the IDs of those SNPs for which minor and major alleles are not the same between the bim and assoc files
+the cases of mismatch should be the same for minor and major alleles, if not, we have a problem. If the number of mismatches is higher than zero, then we have to do several operations to compare alleles between bim and assoc
+check whether the SNPs with mismatch have a MAF=0.5 in the frequency report. Remember that major and minor mismatches should be the same
+276912    True
+277070    True
+277308    True
+Name: MAF, dtype: bool
+SNPs where minor/major changes between the bim file and the assoc file are those with a frequency of 0.5? That would make sense, because a small change in the number of sample due to missing phenotype values would change the minor/major
+YES! GOOD TO GO!
+check whether the SNPs with mismatch have indeed the REF as minor. This should be the case. If the REF is the minor in assoc (i.e., A1), then A1 should not be ALT
+True
+check we do not have duplicates by position or by SNP id
+True
+True
+check we have only ACGT in the allele columns
+True
+True
+True
+See the percentiles of the number of observations
+Percentile 2.5: 1169.0
+Percentile 25: 1173.0
+Percentile 50: 1174.0
+Percentile 75: 1174.0
+Percentile 97.5: 1174.0
+We should not have any ERROR code from plink
+YES! GOOD TO GO!
+convert chromosome column to numeric
+At the end we are going to remove the non-autosomals because I get strange overlap in the plots, even knowing we do not have any overlap in the coordinates
+        #CHROM       POS               ID  ...    T_STAT         P ERRCODE
+0            1    792461  GSA-rs116587930  ... -1.391750  0.164263       .
+1            1    817341        rs3131972  ...  0.190789  0.848724       .
+2            1    858952       rs12127425  ... -0.120659  0.903982       .
+3            1    905373        rs4970382  ...  1.138830  0.255008       .
+4            1    911428    GSA-rs4475691  ... -1.706620  0.088159       .
+...        ...       ...              ...  ...       ...       ...     ...
+270789      22  50718505    GSA-rs6010063  ... -1.004740  0.315229       .
+270790      22  50723631          rs10451  ...  0.161554  0.871685       .
+270791      22  50743331       exm2268446  ...  0.548046  0.583765       .
+270792      22  50747848    GSA-rs8135434  ...  0.707017  0.479697       .
+270793      22  50749012      rs113391741  ... -1.271400  0.203841       .
+
+[270794 rows x 13 columns]
+check we have the correct dtypes for dash_bio.ManhattanPlot (see code below)
+True
+True
+True
+True
+save the results after removing non-autosomal chromosomes and just before plotting
+make manhattan plot with plotly
+
+ 
+vo2_change
+run plink2 assoc
+PLINK v2.00a4.2LM 64-bit Intel (31 May 2023)   www.cog-genomics.org/plink/2.0/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./results/prelim_results/vo2_change/first_assoc.log.
+Options in effect:
+  --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2
+  --covar ./data/plink_inputs/covar_file.tsv
+  --covar-name age,week_1_weight,week_1_vo2
+  --glm sex
+  --input-missing-phenotype -2800
+  --out ./results/prelim_results/vo2_change/first_assoc
+  --pheno ./data/plink_inputs/pheno_file.tsv
+  --pheno-name vo2_change
+  --quantile-normalize
+
+Start time: Fri Sep 15 15:12:15 2023
+64398 MiB RAM detected, ~60114 available; reserving 32199 MiB for main
+workspace.
+Using up to 4 compute threads.
+1446 samples (194 females, 1210 males, 42 ambiguous; 1446 founders) loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam.
+289190 variants loaded from
+.././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.bim.
+1 quantitative phenotype loaded (1401 values).
+3 covariates loaded from ./data/plink_inputs/covar_file.tsv.
+--quantile-normalize: 1 phenotype transformed.
+--quantile-normalize: 3 covariates transformed.
+Calculating allele frequencies... 0%22%45%67%90%done.
+--glm linear regression on phenotype 'vo2_change': 0%22%45%67%90%done.
+Results written to ./results/prelim_results/vo2_change/first_assoc.vo2_change.glm.linear .
+End time: Fri Sep 15 15:12:17 2023
+total 116320
+-rw-r--r-- 1 dftortosa denard      1482 Sep 15 15:12 first_assoc.log
+-rw-r--r-- 1 dftortosa denard 119099088 Sep 15 15:12 first_assoc.vo2_change.glm.linear
+
+IMPORTANT:         There are multiple disclamers in the --glm info page, like problems with low minor allele count or how to prune by relatedness, include PCAs for population stratification, etc...         TAKE A LOOK AT THIS!!
+IMPORTANT:         It seems that SEX is not subjected to quantile transformation, only the covariates included in the covar file.         Be careful in the future if you add discrete covariates in the covar file, like batch
+use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv
+See 7 first columns of the original assoc file
+#CHROM POS ID REF ALT A1 TEST
+1 792461 GSA-rs116587930 G A A ADD
+1 792461 GSA-rs116587930 G A A age
+1 792461 GSA-rs116587930 G A A week_1_weight
+1 792461 GSA-rs116587930 G A A week_1_vo2
+1 792461 GSA-rs116587930 G A A SEX
+1 817341 rs3131972 C T T ADD
+1 817341 rs3131972 C T T age
+1 817341 rs3131972 C T T week_1_weight
+1 817341 rs3131972 C T T week_1_vo2
+The number of columns is 
+13
+
+Process with awk to specify the delimiter and then take a look to the file
+#CHROM POS ID REF ALT A1 TEST OBS_CT BETA SE T_STAT P ERRCODE
+1 792461 GSA-rs116587930 G A A ADD 1172 -0.142897 0.0816949 -1.74915 0.0805276 .
+1 817341 rs3131972 C T T ADD 1172 -0.0173731 0.0488747 -0.355462 0.722307 .
+1 858952 rs12127425 G A A ADD 1172 -0.0162157 0.0651789 -0.248788 0.803569 .
+1 905373 rs4970382 A G G ADD 1174 0.0219911 0.0381057 0.577108 0.563978 .
+1 911428 GSA-rs4475691 C T T ADD 1174 -0.0766574 0.0465173 -1.64793 0.0996354 .
+1 918870 rs7537756 A G G ADD 1173 -0.0861491 0.0456699 -1.88634 0.0594969 .
+1 926428 rs13302982 G A A ADD 1174 0.00184752 0.0742025 0.0248984 0.98014 .
+1 931513 rs2880024 G A A ADD 1171 -0.0312408 0.0383952 -0.813664 0.416004 .
+1 953279 rs3748597 C T T ADD 1174 -0.105839 0.0836998 -1.26451 0.206299 .
+
+ADD
+
+Do we have correctly selected the ADD rows only (i.e., additive effect of SNPs)?
+YES! GOOD TO GO!
+load assoc results to pandas
+       #CHROM     POS               ID  ...    T_STAT         P ERRCODE
+0           1  792461  GSA-rs116587930  ... -1.749150  0.080528       .
+1           1  817341        rs3131972  ... -0.355462  0.722307       .
+2           1  858952       rs12127425  ... -0.248788  0.803569       .
+3           1  905373        rs4970382  ...  0.577108  0.563978       .
+4           1  911428    GSA-rs4475691  ... -1.647930  0.099635       .
+...       ...     ...              ...  ...       ...       ...     ...
+289185     MT   15924      MitoA15925G  ... -0.277740  0.781261       .
+289186     MT   15928      MitoG15929A  ... -0.394188  0.693514       .
+289187     MT   16126      rs147029798  ...  0.347001  0.728653       .
+289188     MT   16362       rs62581341  ...  1.417050  0.156738       .
+289189     MT   16519        rs3937033  ...  2.020800  0.043528       .
+
+[289190 rows x 13 columns]
+you could use this file to filter by the number of observations or other criteria
+load bim file used as input to do some check. If the SNPs and their characterstics are the same in the bim and assoc file, it means that my processing of the assoc file has not messed with the data.
+         0                1  2       3  4  5
+0        1  GSA-rs116587930  0  792461  A  G
+1        1        rs3131972  0  817341  T  C
+2        1       rs12127425  0  858952  A  G
+3        1        rs4970382  0  905373  G  A
+4        1    GSA-rs4475691  0  911428  T  C
+...     ..              ... ..     ... .. ..
+289185  26      MitoA15925G  0   15924  G  A
+289186  26      MitoG15929A  0   15928  A  G
+289187  26      rs147029798  0   16126  C  T
+289188  26       rs62581341  0   16362  C  T
+289189  26        rs3937033  0   16519  T  C
+
+[289190 rows x 6 columns]
+load freq report file loop_maf_missing_2 to do some check, but first, process it with awk
+see first lines of freq report and then process it
+ CHR                            SNP   A1   A2          MAF  NCHROBS
+   1                GSA-rs116587930    A    G      0.05644     2888
+   1                      rs3131972    T    C       0.1828     2888
+   1                     rs12127425    A    G      0.08795     2888
+   1                      rs4970382    G    A       0.4084     2892
+   1                  GSA-rs4475691    T    C       0.2019     2892
+   1                      rs7537756    G    A         0.21     2890
+   1                     rs13302982    A    G      0.06051     2892
+   1                      rs2880024    A    G       0.4234     2886
+   1                      rs3748597    T    C       0.0536     2892
+The number of fields is 
+6
+CHR	SNP	A1	A2	MAF	NCHROBS
+1	GSA-rs116587930	A	G	0.05644	2888
+1	rs3131972	T	C	0.1828	2888
+1	rs12127425	A	G	0.08795	2888
+1	rs4970382	G	A	0.4084	2892
+1	GSA-rs4475691	T	C	0.2019	2892
+1	rs7537756	G	A	0.21	2890
+1	rs13302982	A	G	0.06051	2892
+1	rs2880024	A	G	0.4234	2886
+1	rs3748597	T	C	0.0536	2892
+
+load to pandas
+        CHR              SNP A1 A2      MAF  NCHROBS
+0         1  GSA-rs116587930  A  G  0.05644     2888
+1         1        rs3131972  T  C  0.18280     2888
+2         1       rs12127425  A  G  0.08795     2888
+3         1        rs4970382  G  A  0.40840     2892
+4         1    GSA-rs4475691  T  C  0.20190     2892
+...     ...              ... .. ..      ...      ...
+289185   26      MitoA15925G  G  A  0.06678     2890
+289186   26      MitoG15929A  A  G  0.08651     2890
+289187   26      rs147029798  C  T  0.18810     2892
+289188   26       rs62581341  C  T  0.08554     2876
+289189   26        rs3937033  T  C  0.35090     2890
+
+[289190 rows x 6 columns]
+the position and ID of all SNPs is the same in bim and assoc files?
+True
+True
+the chromosomes are the same between bim and assoc files?
+make dict to convert non-autosomal snps to numeric because in assoc they are string
+{'X': 23, 'Y': 24, 'XY': 25, 'MT': 26}
+convert original chromosome variable in assoc file to numeric
+True
+Check that the A1 allele is the minor
+first check that the SNP and A1/A2 columns are the same in the bim file and the frequency report
+True
+the frequency file doc says that the A1 is USUALLY the minor, but also gives the frequency of the Allele 1 (called MAF). Therefore, we can check whether the MAF is below 0.5 and hence the A1 is actually the minor
+YES! GOOD TO GO! We can say that the A1 allele in the frequency file and in the bim file is the minor. Remember that we have just checked that the A1/A2 columns are identical in the bim and the frequency files
+Also check that the A1 (minor) / A2 (major) of the freq report and the bim file are exactly the ALT and REF, respectively, in the assoc file
+True
+True
+We assume then that A1 is the minor allele and should be in general ALT, except in those cases where the frequency is close to 0.5 and a small changes in samples (due to missing phenotypes) could convert the minor to major, becoming REF into the minor and A1 into the major. Therefore, if A1==ALT, the REF is the major. In contrast, if A1!=ALT, then ALT is the major
+get the IDs of those SNPs for which minor and major alleles are not the same between the bim and assoc files
+the cases of mismatch should be the same for minor and major alleles, if not, we have a problem. If the number of mismatches is higher than zero, then we have to do several operations to compare alleles between bim and assoc
+check whether the SNPs with mismatch have a MAF=0.5 in the frequency report. Remember that major and minor mismatches should be the same
+276912    True
+277070    True
+277308    True
+Name: MAF, dtype: bool
+SNPs where minor/major changes between the bim file and the assoc file are those with a frequency of 0.5? That would make sense, because a small change in the number of sample due to missing phenotype values would change the minor/major
+YES! GOOD TO GO!
+check whether the SNPs with mismatch have indeed the REF as minor. This should be the case. If the REF is the minor in assoc (i.e., A1), then A1 should not be ALT
+True
+check we do not have duplicates by position or by SNP id
+True
+True
+check we have only ACGT in the allele columns
+True
+True
+True
+See the percentiles of the number of observations
+Percentile 2.5: 1169.0
+Percentile 25: 1173.0
+Percentile 50: 1174.0
+Percentile 75: 1174.0
+Percentile 97.5: 1174.0
+We should not have any ERROR code from plink
+YES! GOOD TO GO!
+convert chromosome column to numeric
+At the end we are going to remove the non-autosomals because I get strange overlap in the plots, even knowing we do not have any overlap in the coordinates
+        #CHROM       POS               ID  ...    T_STAT         P ERRCODE
+0            1    792461  GSA-rs116587930  ... -1.749150  0.080528       .
+1            1    817341        rs3131972  ... -0.355462  0.722307       .
+2            1    858952       rs12127425  ... -0.248788  0.803569       .
+3            1    905373        rs4970382  ...  0.577108  0.563978       .
+4            1    911428    GSA-rs4475691  ... -1.647930  0.099635       .
+...        ...       ...              ...  ...       ...       ...     ...
+270789      22  50718505    GSA-rs6010063  ... -0.994552  0.320160       .
+270790      22  50723631          rs10451  ...  0.486671  0.626583       .
+270791      22  50743331       exm2268446  ...  0.513148  0.607945       .
+270792      22  50747848    GSA-rs8135434  ...  0.911317  0.362316       .
+270793      22  50749012      rs113391741  ... -1.073060  0.283466       .
+
+[270794 rows x 13 columns]
+check we have the correct dtypes for dash_bio.ManhattanPlot (see code below)
+True
+True
+True
+True
+save the results after removing non-autosomal chromosomes and just before plotting
+make manhattan plot with plotly

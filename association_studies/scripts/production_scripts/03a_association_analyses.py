@@ -343,6 +343,9 @@ else:
     raise ValueError("ERROR: FALSE! The dtype of the beep test week 8 column is not correct")
 print("Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number. This could be related with the missing value in that sample for week 8 distancce?")
 
+print("IMPORTANT: \
+    In the future, check the errors you initially detected in the pheno file, they are explained at to_do_combat_genes.md")
+
 
 print_text("load fam file", header=2)
 print_text("load the fam file of the current steps I am working on for QC (date 08/24/2023", header=3)
@@ -991,7 +994,8 @@ for pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
 
     print("IMPORTANT: \
         It seems that SEX is not subjected to quantile transformation, only the covariates included in the covar file. \
-        Be careful in the future if you add discrete covariates in the covar file, like batch")
+        Be careful in the future if you add discrete covariates in the covar file, like batch. \
+        Also you should check how the distribution of the covariates change with the quantile normal transformation, you only did it for phenotypes.")
 
     print("use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv")
     run_bash(" \
