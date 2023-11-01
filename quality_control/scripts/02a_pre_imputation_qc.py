@@ -2720,7 +2720,9 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
     ###FROM HERE USE "loop_maf_missing_2_ld_pruned_autosomals"
     ### paper about correlation between test and discovery in PRS
         ###Overestimated prediction using polygenic prediction derived from summary statistics
- 
+    ###more interesting papers
+        ###Polygenic risk score prediction accuracy convergence
+        ###15 years of GWAS discovery: Realizing the promise
 
 
 
