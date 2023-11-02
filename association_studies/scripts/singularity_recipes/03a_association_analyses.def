@@ -39,14 +39,14 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 
 	#copy the binary of plink (2023_01_16) and save it in /bin so we can use the command "plink"
 	#https://www.cog-genomics.org/plink/
-	/home/dftortosa/singularity/australian_army_bishop/plink_versions/plink_linux_x86_64_20230116/plink /bin/plink
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/plink_versions/plink_linux_x86_64_20230116/plink /bin/plink
 
 	#copy the binary of plink2 (Alpha 4.2 final (31 May)) and save it in /bin so we can use the command "plink"
 	#https://www.cog-genomics.org/plink/2.0/
-	/home/dftortosa/singularity/australian_army_bishop/plink_versions/plink2_linux_x86_64_20230531/plink2 /bin/plink2
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/plink_versions/plink2_linux_x86_64_20230531/plink2 /bin/plink2
 
 	#copy script
-	/home/dftortosa/singularity/australian_army_bishop/association_studies/scripts/production_scripts/03a_association_analyses.py /opt/scripts/03a_association_analyses.py
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/scripts/production_scripts/03a_association_analyses.py /opt/scripts/03a_association_analyses.py
 
     #From the original folder in the host, we copy a R script to a new folder in the container called scripts. NEVER PUT ANYTHING ELSE IN THE LINE WITH SOURCE AND DESTINATION, GIVES ERROR.
     #https://groups.google.com/a/lbl.gov/forum/#!topic/singularity/4NFDsohnxgg
@@ -215,14 +215,14 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 
 #Command to build, enter interactively or run
 	#now apply the definition file final_test_def for creating a container
-		#sudo singularity build /home/dftortosa/singularity/australian_army_bishop/association_studies/03a_association_analyses.sif /home/dftortosa/singularity/australian_army_bishop/association_studies/scripts/singularity_recipes/03a_association_analyses.def
+		#sudo singularity build /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/03a_association_analyses.sif /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/scripts/singularity_recipes/03a_association_analyses.def
 			#In the definition file is indicate that we will take an Ubuntu 20.04 container from the Singularity library. We do not need anything else. We do not need a previous image in the host system! The definition file has the instructions to get the required container from the library.
 	#you can run this image interactively with shell. For that you have to be in a specific folder in order to have the scripts workingnter in the container
-		#cd /home/dftortosa/singularity/australian_army_bishop/association_studies
-		#sudo singularity shell /home/dftortosa/singularity/australian_army_bishop/association_studies/03a_association_analyses.sif
+		#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+		#sudo singularity shell /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/03a_association_analyses.sif
 	#to run the container. For that you have to be in a specific folder in order to have the scripts workingnter in the container
-		#cd /home/dftortosa/singularity/australian_army_bishop/association_studies
-		#sudo singularity run /home/dftortosa/singularity/australian_army_bishop/association_studies/03a_association_analyses.sif
+		#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+		#sudo singularity run /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/03a_association_analyses.sif
 
 %labels
     Author dftortosa
