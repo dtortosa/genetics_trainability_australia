@@ -149,6 +149,11 @@ run_bash(" \
 #################################
 
 #Data and validation scheme
+    #Integration of risk factor polygenic risk score with disease polygenic risk score for disease prediction
+    #Estimating Disorder Probability Based on Polygenic Prediction Using the BPC Approach
+    #Exploring the application of deep learning methods for polygenic risk score estimation
+    #Machine Learning Models of Polygenic Risk for Enhanced Prediction of Alzheimer Disease Endophenotypes
+    #Genome-wide association studies and polygenic risk score phenome-wide association studies across complex phenotypes in the human phenotype project
     #Make a Polygenic predictor score (PPS) of VO2 max trainibility
         #In order to calculate a PPS, we need effect sizes and p-values for the association between SNPs and the trait obtained from a different study than the one used to train the scores, so we avoid overestimating its predictive power.
             #"Accuracy measurements can be inflated if the discovery GWAS and the target cohort share individuals"

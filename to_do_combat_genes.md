@@ -1,6 +1,8 @@
 1. urgent stuff
 
 
+- checking line 23!! "In ILGSA24-17303.zip, we have the final"
+
 PREGUNTA ESTO A DAVID NEXT TIME
 
 - pheno_data
@@ -19,17 +21,6 @@ PREGUNTA ESTO A DAVID NEXT TIME
 
 
 - Things to check when QC:
-    - batch data
-        - There are two batches (ILGSA24-17303 and ILGSA24-17873), being the data separated for these. 
-         
-        - In ILGSA24-17303.zip, we have the final reports for each 216 samples, along with the sample and snp maps.
-            - In the initial_stuff folder there is a zip called "ILGSA24-17303.zip" that I may downloaded from the initial location where this data was stored in summer 2022. There are Plink files, but I am not sure this is the correct data and I cannot find the final_report files.
-            - In 17873, we have the IDAT files with probs intensity from the microarrays used to genotype (first zips), the final reports (CAGRF20093767.zip) and a inputs for plink. But all of this only for 1248 individuals, not the whole cohort.
-            - CAGRF20093767.zip includes the final reports of 1248 individuals, along with the sample and snp maps.
-                warning [CAGRF20093767.zip]:  32332459452 extra bytes at beginning or within zipfile (attempting to process anyway)
-                error [CAGRF20093767.zip]:  start of central directory not found; zipfile corrupt. (please check that you have transferred or created the zipfile in the appropriate BINARY mode and that you have compiled UnZip properly)
-                - CHECK WARNING
-                    - solution for the error: https://askubuntu.com/questions/54904/unzip-error-end-of-central-directory-signature-not-found
     - Check the genome build. I have manually checked some SNPs and they have the position of hg38.
     - YOU ARE NOT ADDED CENTIMORGANS, SO BE CAREFUL WITH WHAT PLINK DO ABOUT LD.
     - Remove zero chromosomes
@@ -69,6 +60,10 @@ PREGUNTA ESTO A DAVID NEXT TIME
 - PRS
     - We need a base cohort and a target cohort
     - See explanations in "03a_association_analyses.py"
+    - Exploring the application of deep learning methods for polygenic risk score estimation
+    - AI-enabled evaluation of genome-wide association relevance and polygenic risk score prediction in Alzheimer’s disease
+    - Leveraging Machine Learning and Genetic Risk Scores for the Prediction of Metabolic Syndrome in Children with Obesit
+    - Genome-Wide Polygenic Score for Muscle Strength Predicts Risk for Common Diseases and Lifespan: A Prospective Cohort Study
 
 - Machine learning bishop, tneemls miestra sufociente para training eval? Si no cogemos snps previamentr asociados y con eso hacemos el polygenic score en caso de que no tengamos muestra para hacer nuestra propia seleccion y luego testarla.
 

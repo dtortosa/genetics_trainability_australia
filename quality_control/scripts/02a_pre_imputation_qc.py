@@ -2723,7 +2723,7 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
     ###more interesting papers
         ###Polygenic risk score prediction accuracy convergence
         ###15 years of GWAS discovery: Realizing the promise
-
+        ### PGS-Depot: a comprehensive resource for polygenic scores constructed by summary statistics based methods 
 
 
 
