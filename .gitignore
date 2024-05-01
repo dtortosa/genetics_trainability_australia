@@ -1,6 +1,7 @@
 *.sif
 *.ipynb_checkpoints
 
+/.vscode/
 /association_studies/results/
 /association_studies/data/
 /association_studies/literature/

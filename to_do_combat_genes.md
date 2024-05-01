@@ -22,6 +22,7 @@ PREGUNTA ESTO A DAVID NEXT TIME
 
 - Things to check when QC:
     - Check the genome build. I have manually checked some SNPs and they have the position of hg38.
+        - randomly select 10K snps and checks these automatically?
     - YOU ARE NOT ADDED CENTIMORGANS, SO BE CAREFUL WITH WHAT PLINK DO ABOUT LD.
     - Remove zero chromosomes
         - also MT, X, Y and XY?
@@ -64,6 +65,7 @@ PREGUNTA ESTO A DAVID NEXT TIME
     - AI-enabled evaluation of genome-wide association relevance and polygenic risk score prediction in Alzheimer’s disease
     - Leveraging Machine Learning and Genetic Risk Scores for the Prediction of Metabolic Syndrome in Children with Obesit
     - Genome-Wide Polygenic Score for Muscle Strength Predicts Risk for Common Diseases and Lifespan: A Prospective Cohort Study
+    - Delphi: A Deep-learning Framework for Polygenic Risk Prediction
 
 - Machine learning bishop, tneemls miestra sufociente para training eval? Si no cogemos snps previamentr asociados y con eso hacemos el polygenic score en caso de que no tengamos muestra para hacer nuestra propia seleccion y luego testarla.
 
