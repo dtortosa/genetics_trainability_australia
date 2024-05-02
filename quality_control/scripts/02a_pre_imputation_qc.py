@@ -2494,6 +2494,83 @@ else:
 
 
 
+print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=2)
+##XY chromosome in final reports (chromosome 25 in bim file)
+#General info about XY regions
+#In an Illumina Final Report, SNPs in the XY chromosome refer to genetic variations that occur in the pseudoautosomal regions (PARs) of the X and Y chromosomes[1]. 
+#These regions are present on both X and Y chromosomes and are capable of undergoing recombination during meiosis, similar to autosomal chromosomes[1]. Therefore, these SNPs may show male heterozygotes[1].
+#The Illumina genotyping arrays, such as the ones used in the GenomeStudio software, identify these SNPs using pre-defined oligonucleotide probes designed to hybridize specific regions of genomic DNA[1]. The identity of alleles is determined by automated clustering of samples based on the similarity of fluorescent intensity[1].
+#It's important to note that the XY chromosome should be treated as an autosomal chromosome when analyzing these SNPs[1]. This is because the PARs behave more like autosomal regions rather than sex-determining regions. Because of this, SNPs in these regions have a different code (XY or 25).
+#Source: Conversation with Bing, 5/1/2024
+#(1) GenomeStudio Genotyping QC SOP v.1.6 - GitHub Pages. https://khp-informatics.github.io/COPILOT/GenomeStudio_genotyping_SOP.html.
+#(2) How to interpret DNA strand and allele information ... - Illumina Knowledge. https://knowledge.illumina.com/microarray/general/microarray-general-reference_material-list/000001489.
+#(3) tutorials:population-diversity:snp-chips [ILRI Research Computing] - CGIAR. https://hpc.ilri.cgiar.org/tutorials/population-diversity/snp-chips.
+#(4) Infinium Genotyping Data Analysis - Illumina. https://www.illumina.com/documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf.
+
+#Specific details about our data
+#It seems that the SNPs marked as XY in the illumina report (and as 25 in the bim files of plink) have the physical position in the chromosome X. Sometimes, the position is the same in both X and Y, but if the are not, then the position showed in the illumina report is the X position. See examples:
+#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 57057008, i.e., chrX.
+#rs5946743 has code XY in the final report and position 733497. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946743/#variant_details) this SNP is in position 733497 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 733497.
+#rs28416357 has code XY in the final report and position 1308288. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs28416357/#variant_details) this SNP is in position 1308288 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 1308288.
+#kgp22824102 has code XY in the final report and position 825992. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946480#variant_details) this SNP is in position 825992 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 825992. Note, SNPs that start with “kgp” are also genetic variations, similar to those that start with “rs”. The “kgp” prefix is used by the 1000 Genomes Project. The number following “kgp” is a unique identifier for that specific SNP. Please note that not all “kgp” SNPs may have a corresponding “rs” identifier. The “rs” identifiers are assigned by the dbSNP database when a SNP is submitted to them, and not all SNPs identified by the 1000 Genomes Project may have been submitted to dbSNP.
+
+#Comparison of the PAR region in our data and the PAR region defined for hg38 by plink
+#According to plink, in GRCh38/UCSC human genome 38, the boundaries are 2781479 and 155701383 (https://www.cog-genomics.org/plink/1.9/data#split_x). It seems these are the limits of the two PAR regions in the X chromosome. 
+#Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. This region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink.
+#Therefore, we can assume these are the correct coordinates of pseudo-autosomal regions in the X chromosome. Note that I have previously check in several cases that coordinates of XY SNPs in illumina reports are chrX coordinates.
+
+#in the last BIM file after MAF filters, inspect in python those SNPs with code 25 that are outside the PAR regions previously indicated.
+print_text("see SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1 == 25){ \
+                if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
+                    print $0 \
+                    count ++ \
+                } \
+            } \
+        }END{print count}' \
+        ./loop_maf_missing_2.bim"
+)
+#load bim file after MAF filtering to awk using tabs as delimiter (checked this is the delimiter in the file)
+#select those SNPs in pseudo autosomal regions (code 25) that
+#are located: 1) before the start of the first PAR region;
+#2) After the first PAR region and before the second one;
+#3) After the second PAR region
+#print these cases and count them
+#at the END, print the count
+
+#POR AQUII
+
+
+#remove these SNPs
+print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1 == 25){ \
+                if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
+                    print $0 \
+                } \
+            } else { \
+                print $0 \
+            } \
+        }' \
+        ./loop_maf_missing_2.bim"
+)
+
+
+
+##questions AGRF: hg38 sure? coordinates of XY are in X?
+
+
+
+
+###CHENGE SOURCE FOLDER FOR THE NEXT STEP
+
 print_text("sample relatedness", header=2)
 #the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
@@ -2645,37 +2722,7 @@ run_bash(" \
 
 
 
-##XY chromosome in final reports (chromosome 25 in bim file)
-#General info about XY regions
-#In an Illumina Final Report, SNPs in the XY chromosome refer to genetic variations that occur in the pseudoautosomal regions (PARs) of the X and Y chromosomes[1]. 
-#These regions are present on both X and Y chromosomes and are capable of undergoing recombination during meiosis, similar to autosomal chromosomes[1]. Therefore, these SNPs may show male heterozygotes[1].
-#The Illumina genotyping arrays, such as the ones used in the GenomeStudio software, identify these SNPs using pre-defined oligonucleotide probes designed to hybridize specific regions of genomic DNA[1]. The identity of alleles is determined by automated clustering of samples based on the similarity of fluorescent intensity[1].
-#It's important to note that the XY chromosome should be treated as an autosomal chromosome when analyzing these SNPs[1]. This is because the PARs behave more like autosomal regions rather than sex-determining regions. Because of this, SNPs in these regions have a different code (XY or 25).
-#Source: Conversation with Bing, 5/1/2024
-#(1) GenomeStudio Genotyping QC SOP v.1.6 - GitHub Pages. https://khp-informatics.github.io/COPILOT/GenomeStudio_genotyping_SOP.html.
-#(2) How to interpret DNA strand and allele information ... - Illumina Knowledge. https://knowledge.illumina.com/microarray/general/microarray-general-reference_material-list/000001489.
-#(3) tutorials:population-diversity:snp-chips [ILRI Research Computing] - CGIAR. https://hpc.ilri.cgiar.org/tutorials/population-diversity/snp-chips.
-#(4) Infinium Genotyping Data Analysis - Illumina. https://www.illumina.com/documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf.
 
-#Specific details about our data
-#It seems that the SNPs marked as XY in the illumina report (and as 25 in the bim files of plink) have the physical position in the chromosome X. Sometimes, the position is the same in both X and Y, but if the are not, then the position showed in the illumina report is the X position. See examples:
-#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 57057008, i.e., chrX.
-#rs5946743 has code XY in the final report and position 733497. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946743/#variant_details) this SNP is in position 733497 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 733497.
-#rs28416357 has code XY in the final report and position 1308288. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs28416357/#variant_details) this SNP is in position 1308288 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 1308288.
-#kgp22824102 has code XY in the final report and position 825992. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946480#variant_details) this SNP is in position 825992 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 825992. Note, SNPs that start with “kgp” are also genetic variations, similar to those that start with “rs”. The “kgp” prefix is used by the 1000 Genomes Project. The number following “kgp” is a unique identifier for that specific SNP. Please note that not all “kgp” SNPs may have a corresponding “rs” identifier. The “rs” identifiers are assigned by the dbSNP database when a SNP is submitted to them, and not all SNPs identified by the 1000 Genomes Project may have been submitted to dbSNP.
-
-#Comparison of the PAR region in our data and the PAR region defined for hg38 by plink
-#According to plink, in GRCh38/UCSC human genome 38, the boundaries are 2781479 and 155701383 (https://www.cog-genomics.org/plink/1.9/data#split_x). It seems these are the limits of the two PAR regions in the X chromosome. Accoring to MS copilot (based on wiki; https://en.wikipedia.org/wiki/Pseudoautosomal_region), the first region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. This region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink.
-
-
-
-#POR AQUII
-
-
-#We have SNPs considered as PAR in non-PAR regions (i.e., SNPs with only X or Y coordinate in NCBI that are 25 in our data). Most of them are removed (likely due to MAF filters) but some remain.
-
-
-#in the last BIM file after maf filters, inspect in python those SNPs with code 25 that are outside the PAR regions previously indicated.
 
 
 
