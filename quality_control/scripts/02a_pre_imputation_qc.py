@@ -364,6 +364,7 @@ run_bash(" \
         --bmerge ILGSA24-17873_merged_data \
         --out ../merged_plink_files/merged_batches_2")
         #we can also call first one of the batches with "--bfile" and use it as reference without using --merge-list, then add the second batch with --bmerge. We can directly use the prefix of the fileset, because the three files (bed, bim and fam) should be named the same way except for the extension.
+        #we get a warning about SNPs with the same position, but this is ok because later we will remove duplicates by position and allele code.
 
 
 

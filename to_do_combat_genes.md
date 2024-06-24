@@ -1,6 +1,8 @@
 1. urgent stuff
 
 
+- Stacked neural network for predicting polygenic risk score
+
 - checking line 23!! "In ILGSA24-17303.zip, we have the final"
 
 PREGUNTA ESTO A DAVID NEXT TIME
@@ -70,6 +72,8 @@ PREGUNTA ESTO A DAVID NEXT TIME
 - Machine learning bishop, tneemls miestra sufociente para training eval? Si no cogemos snps previamentr asociados y con eso hacemos el polygenic score en caso de que no tengamos muestra para hacer nuestra propia seleccion y luego testarla.
 
 - repasar en general los pasos? como la perdida de 300K sNPs due to maf filtering?
+
+- https://academic.oup.com/bib/article/25/4/bbae272/7690346
 
 2. Tutorials
 - Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
