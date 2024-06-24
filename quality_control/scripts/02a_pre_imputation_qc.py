@@ -2732,29 +2732,18 @@ print_text("remove sex chromsomes", header=4)
     #Therefore they do not use SNPs in sex chromosomes!
     #Respect sex inconsistencies, we can have minorities within the sample, and as plink help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
 #In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
-
-
-###por aquii
-#richei quita solo X e Y, pero no PAR
-#--not-chr X, Y
-#but if we use not-chr, we should also exlcude MT SNPs right? I do not think we can consider MT as autosomal
-#https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-8----exclude-data
-
-
-
-#not-chr instead --autosomals!!!
-
+#They are talking specifically about autosomals, so we are going to consider ONLY autosomals, no X, Y, MT nor PAR regions. The case I was doubting more was PAR regions because these behave like autosomal chromosomes, but they are sexual chromosomes. They are just 500 in total, so we are going to remove them.
 
 #Therefore, I think we can use this set of pruned autosomal SNPs for kinship and PCA.
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     plink \
         --bfile ./loop_maf_missing_3_ld_pruned \
-        --not-chr X, Y, MT \
+        --autosome \
         --make-bed \
         --out ./loop_maf_missing_3_ld_pruned_autosomals;\
     ls -l")
-        #--autosome excludes all unplaced and non-autosomal variants, while --autosome-xy does not exclude the pseudo-autosomal region of X. They can be combined with --not-chr, e.g.
+        #--autosome excludes all unplaced and non-autosomal variants, while --autosome-xy does not exclude the pseudo-autosomal region of X
             #https://www.cog-genomics.org/plink/1.9/filter
 print("Do we have at least 70K autosomal SNPs after LD pruning like in Ritchie's tutorial?")
 #In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat.
@@ -2791,18 +2780,6 @@ run_bash(" \
 
 
 
-#XY split, it seems we already have XY autosomals regions separated, check in bim file SNPs between "2781479 and 155701383"
-    #https://www.cog-genomics.org/plink/1.9/data#split_x
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
-    plink \
-        --bfile loop_maf_missing_3_ld_pruned \
-        --split-x 'hg38' \
-        --make-bed \
-        --out loop_maf_missing_3_ld_pruned_split_x; \
-    ls -l")
-
 
 
 
@@ -2819,7 +2796,8 @@ run_bash(" \
     #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
 
 
-
+#the point here is to decide whether to check here sex inconsistences despite having potential ancestry imbalances or do it later. It depends for what we are going to use the set of LD pruned snps.
+#Ritchie explain sex imbalance first! but plink says do not use allele frequencies if a lot of ancestry imbalance
 
 
 run_bash(" \
@@ -2870,7 +2848,7 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
     #42 cases here with unknown sex, but in the excel the number of samples without sex is 41
     #there are also 42 cases with sex zero in the fam file of the second batch before merging
     #the origin of the fam file is the map file!
-    #The problem is 2399LDJA/2397LDJA, this mislabeled sample. 2397LDJA is present in the first batch but not in the pheno data so its sex is "0". In contrast, 2399LDJA is present in the pheno data, having sex as M, but not in the first batch. Therefore, when we count the number of NaN sex in pheno data is only 41 (2399LDJA has sex data), while the genetic data has 42 (2397LDJA has no sex data).
+    #The problem is 2399LDJA/2397LDJA, this mislabeled sample. 2397LDJA is present in the first batch but not in the pheno data so it is sex is "0". In contrast, 2399LDJA is present in the pheno data, having sex as M, but not in the first batch. Therefore, when we count the number of NaN sex in pheno data is only 41 (2399LDJA has sex data), while the genetic data has 42 (2397LDJA has no sex data).
     #we should change the name of this sample. in the genetic data?
 
 #OJO MINORITIES
@@ -3163,23 +3141,23 @@ run_bash(" \
 print_text("start PCA to detect individuals that are outliers", header=2)
 print_text("prepare folder for PCA", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/" + batch_name + "; \
+    cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./05_pca; \
+        ./XX_pca; \
     ls -l")
 
 
 
 print_text("run PCA to detect clusters of samples", header=3)
 run_bash("\
-    cd ./data/genetic_data/quality_control/" + batch_name + "; \
+    cd ./data/genetic_data/quality_control/; \
     plink \
         --pca \
             'tabs' \
             'header' \
-        --bfile ./04_remove_high_LogRDev_samples/" + batch_name + "_remove_high_LogRDev_samples \
-        --out ./05_pca/pca_after_logR_filter")
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
+        --out ./XX_pca/pca_after_logR_filter")
         #dimensionality reduction
             #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
             #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
@@ -3191,7 +3169,7 @@ run_bash("\
 
 print_text("load the eigenvec file generated", header=3)
 pca_after_logR_filter=pd.read_csv(\
-    "./data/genetic_data/quality_control/" + batch_name + "/05_pca/pca_after_logR_filter.eigenvec", \
+    "./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter.eigenvec", \
     sep="\t", \
     header=0, \
     low_memory=False)
@@ -3218,13 +3196,32 @@ fig = px.scatter(\
         #https://plotly.com/python/line-and-scatter/
         #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
 #fig.show()
-fig.write_html("./data/genetic_data/quality_control/" + batch_name + "/05_pca/pca_after_logR_filter_plot.html")
+fig.write_html("./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter_plot.html")
     #https://plotly.com/python/interactive-html-export/
 
 
+#but how much is this? we should check in the conext of 1000 KGP....
 
 
 
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./XX_cluster; \
+    ls -l")
+
+
+run_bash("\
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --cluster \
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
+        --out ./XX_cluster/cluster_after_logR_filter")
+
+#parece que solo hay un cluster! prubena con los otros argumentos!!!
+#lo mismo podemos hacer lo de sex incosistence y hablar con Bishop
 
 
 
