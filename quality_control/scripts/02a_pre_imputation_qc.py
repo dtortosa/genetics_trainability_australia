@@ -2510,30 +2510,31 @@ print_text("remove SNPs that are considered to be pseudoautosomals but in realit
 
 #Specific details about our data
 #It seems that the SNPs marked as XY in the illumina report (and as 25 in the bim files of plink) have the physical position in the chromosome X. Sometimes, the position is the same in both X and Y, but if the are not, then the position showed in the illumina report is the X position. See examples:
-#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 57057008, i.e., chrX.
+#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 155870488, i.e., chrX.
 #rs5946743 has code XY in the final report and position 733497. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946743/#variant_details) this SNP is in position 733497 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 733497.
 #rs28416357 has code XY in the final report and position 1308288. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs28416357/#variant_details) this SNP is in position 1308288 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 1308288.
 #kgp22824102 has code XY in the final report and position 825992. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946480#variant_details) this SNP is in position 825992 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 825992. Note, SNPs that start with “kgp” are also genetic variations, similar to those that start with “rs”. The “kgp” prefix is used by the 1000 Genomes Project. The number following “kgp” is a unique identifier for that specific SNP. Please note that not all “kgp” SNPs may have a corresponding “rs” identifier. The “rs” identifiers are assigned by the dbSNP database when a SNP is submitted to them, and not all SNPs identified by the 1000 Genomes Project may have been submitted to dbSNP.
 
 #Comparison of the PAR region in our data and the PAR region defined for hg38 by plink
 #According to plink, in GRCh38/UCSC human genome 38, the boundaries are 2781479 and 155701383 (https://www.cog-genomics.org/plink/1.9/data#split_x). It seems these are the limits of the two PAR regions in the X chromosome. 
-#Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. This region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink.
+#Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
 #Therefore, we can assume these are the correct coordinates of pseudo-autosomal regions in the X chromosome. Note that I have previously check in several cases that coordinates of XY SNPs in illumina reports are chrX coordinates.
 
-#in the last BIM file after MAF filters, inspect in python those SNPs with code 25 that are outside the PAR regions previously indicated.
-print_text("see SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
+
+
+#in the last BIM file after MAF filters, select ID of those SNPs with code 25 that are outside the PAR regions previously indicated.
+print_text("see SNPs that are considered to be pseudoautosomals (chr=25) but in reality are not in pseudo-autosomal regions of XY", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
     awk \
         'BEGIN{FS=\"\t\"}{ \
             if($1 == 25){ \
                 if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
-                    print $0 \
-                    count ++ \
+                    print $2 \
                 } \
             } \
-        }END{print count}' \
-        ./loop_maf_missing_2.bim"
+        }' \
+        ./loop_maf_missing_2.bim > snps_par_problem.txt"
 )
 #load bim file after MAF filtering to awk using tabs as delimiter (checked this is the delimiter in the file)
 #select those SNPs in pseudo autosomal regions (code 25) that
@@ -2543,34 +2544,102 @@ run_bash(" \
 #print these cases and count them
 #at the END, print the count
 
-#POR AQUII
 
 
-#remove these SNPs
-print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
+#check we only have 36 problematic cases
+print_text("check we ONLY have 36 of these problematic cases", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    n_par_problem=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./snps_par_problem.txt); \
+    if [[ $n_par_problem -eq 36 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi"
+)
+
+
+
+#make a file with ID of NON problematic SNPs
+print_text("create a list WITHOUT SNPs that are problematic for PAR: We discard SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
     awk \
         'BEGIN{FS=\"\t\"}{ \
             if($1 == 25){ \
                 if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
-                    print $0 \
+                    print $2 \
                 } \
             } else { \
-                print $0 \
+                print $2 \
             } \
         }' \
-        ./loop_maf_missing_2.bim"
+        ./loop_maf_missing_2.bim > snps_par_no_problem.txt"
+)
+#if the chromosome is 25 (PAR)
+    #if the SNPs is within the PAR limits accoridng to NCBI print the ID (second column)
+    #if not, then it is a SNP considered pseudo-autosomal but being outside of the PAR
+        #region, so out.
+#if the SNP is not considered PAR, then we can print the ID
+
+
+
+
+#retain only these SNPs without the problem
+#We cannot be sure if there is something wrong with these SNPs
+#They are in PAr regions or not? should they be treated as PAR o like
+#sex chromosomes? so we are going to check the number is not very high
+#and then remove all of them. We should be ok with the remaining PAR SNPs
+#as they are considered separately from autosomals and sex chromosomes
+print_text("retain only these SNPs without the problem", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    plink \
+        --bfile ./loop_maf_missing_2 \
+        --extract ./snps_par_no_problem.txt \
+        --make-bed \
+        --out ./loop_maf_missing_3; \
+    ls -l ")
+        #--bfile: 
+            #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
+            #https://www.cog-genomics.org/plink/1.9/input#bed
+        #--extract:
+            #normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces) and removes all unlisted variants from the current analysis
+            #https://www.cog-genomics.org/plink/1.9/filter#snp
+        #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
+            #https://www.cog-genomics.org/plink/1.9/data#make_bed
+
+
+
+#quick check
+print_text("quick check", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    n_snps_before_par=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./loop_maf_missing_2.bim); \
+    n_snps_after_par=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./loop_maf_missing_3.bim); \
+    n_snps_par_problem=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./snps_par_problem.txt); \
+    sum_snps=$(($n_snps_after_par + $n_snps_par_problem)); \
+    if [[ $n_snps_before_par -eq $sum_snps ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi"
 )
 
 
 
-##questions AGRF: hg38 sure? coordinates of XY are in X?
-
-
-
-
-###CHENGE SOURCE FOLDER FOR THE NEXT STEP
 
 print_text("sample relatedness", header=2)
 #the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
@@ -2599,7 +2668,7 @@ print_text("LD-pruning", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
-        --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
+        --bfile ./08_loop_maf_missing/loop_maf_missing_3 \
         --indep-pairwise 500kb 1 0.2 \
         --out ./09_remove_related_samples/ldpruned_snplist; \
     ls -l ./09_remove_related_samples/")
@@ -2645,10 +2714,10 @@ run_bash(" \
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./08_loop_maf_missing/loop_maf_missing_2 \
+        --bfile ./08_loop_maf_missing/loop_maf_missing_3 \
         --extract ./09_remove_related_samples/ldpruned_snplist.prune.in \
         --make-bed \
-        --out ./09_remove_related_samples/loop_maf_missing_2_ld_pruned;\
+        --out ./09_remove_related_samples/loop_maf_missing_3_ld_pruned;\
     ls -l ./09_remove_related_samples/")
         #from the current fileset, select only those SNPs included in .prune.in
         #we use extract for that
@@ -2663,14 +2732,24 @@ print_text("remove sex chromsomes", header=4)
     #Therefore they do not use SNPs in sex chromosomes!
     #Respect sex inconsistencies, we can have minorities within the sample, and as plink help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
 #In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
+
+
+###por aquii
+#richei quita solo X e Y, pero no PAR
+#--not-chr X, Y
+#https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-8----exclude-data
+
+
+
+
 #Therefore, I think we can use this set of pruned autosomal SNPs for kinship and PCA.
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     plink \
-        --bfile ./loop_maf_missing_2_ld_pruned \
+        --bfile ./loop_maf_missing_3_ld_pruned \
         --autosome \
         --make-bed \
-        --out ./loop_maf_missing_2_ld_pruned_autosomals;\
+        --out ./loop_maf_missing_3_ld_pruned_autosomals;\
     ls -l")
         #--autosome excludes all unplaced and non-autosomal variants, while --autosome-xy does not exclude the pseudo-autosomal region of X. They can be combined with --not-chr, e.g.
             #https://www.cog-genomics.org/plink/1.9/filter
@@ -2681,7 +2760,7 @@ run_bash(" \
     auto_ld_snps_in=$( \
         awk \
             'BEGIN{FS=\" \"}END{print NR}' \
-            ./loop_maf_missing_2_ld_pruned_autosomals.bim); \
+            ./loop_maf_missing_3_ld_pruned_autosomals.bim); \
     printf 'The number of included autosomal SNPs in linkage equilibrium is %s\n' \"$auto_ld_snps_in\"; \
     echo 'Is this number greater than 70K?'; \
     if [[ $auto_ld_snps_in -gt 70000 ]]; then \
@@ -2697,7 +2776,7 @@ run_bash(" \
     n_non_auto_snps=$( \
         awk \
             'BEGIN{FS=\" \"}{if($1==0 || $1==23 || $1==24 || $1==25 || $1==26){count++}}END{print count}'\
-            ./loop_maf_missing_2_ld_pruned_autosomals.bim); \
+            ./loop_maf_missing_3_ld_pruned_autosomals.bim); \
     if [[ $n_non_auto_snps -eq 0 ]]; then \
         echo 'TRUE'; \
     else \
@@ -2715,10 +2794,10 @@ run_bash(" \
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     plink \
-        --bfile loop_maf_missing_2_ld_pruned \
+        --bfile loop_maf_missing_3_ld_pruned \
         --split-x 'hg38' \
         --make-bed \
-        --out loop_maf_missing_2_ld_pruned_split_x; \
+        --out loop_maf_missing_3_ld_pruned_split_x; \
     ls -l")
 
 
@@ -2743,7 +2822,7 @@ run_bash(" \
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     plink \
-        --bfile loop_maf_missing_2_ld_pruned \
+        --bfile loop_maf_missing_3_ld_pruned \
         --check-sex; \
     ls -l")
 
@@ -2805,7 +2884,7 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 
     ###POR AQUIIII
     ### THINK ABOUT SEX INCOSITENCES AFTER THESE STEPS...
-    ###FROM HERE USE "loop_maf_missing_2_ld_pruned_autosomals"
+    ###FROM HERE USE "loop_maf_missing_3_ld_pruned_autosomals"
     
     
     
@@ -2826,7 +2905,7 @@ print_text("calculate the kindship", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./09_remove_related_samples/loop_maf_missing_2_ld_pruned_autosomals \
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
         --genome \
         --out ./09_remove_related_samples/ibd_report;\
     ls -l ./09_remove_related_samples/")
@@ -2960,7 +3039,7 @@ print_text("run KING-robust with plink2", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
-        --bfile ./09_remove_related_samples/loop_maf_missing_2_ld_pruned_autosomals \
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
         --king-cutoff 0.177 \
         --make-bed \
         --out ./09_remove_related_samples/remove_related_samples; \
