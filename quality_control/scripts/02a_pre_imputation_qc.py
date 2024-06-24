@@ -2737,9 +2737,12 @@ print_text("remove sex chromsomes", header=4)
 ###por aquii
 #richei quita solo X e Y, pero no PAR
 #--not-chr X, Y
+#but if we use not-chr, we should also exlcude MT SNPs right? I do not think we can consider MT as autosomal
 #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-8----exclude-data
 
 
+
+#not-chr instead --autosomals!!!
 
 
 #Therefore, I think we can use this set of pruned autosomal SNPs for kinship and PCA.
@@ -2747,7 +2750,7 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     plink \
         --bfile ./loop_maf_missing_3_ld_pruned \
-        --autosome \
+        --not-chr X, Y, MT \
         --make-bed \
         --out ./loop_maf_missing_3_ld_pruned_autosomals;\
     ls -l")
