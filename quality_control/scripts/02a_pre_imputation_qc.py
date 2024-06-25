@@ -2649,6 +2649,10 @@ print_text("sample relatedness", header=2)
 #In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the PCA
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
 #we can filter by sample relatdness, select a subset of SNPs based on LD-pruning (for IBD), then filter by relatedness and use that subset also for PCA and heterozigosity
+#Summary:
+    #1. Sample relatedness: it is usually done as one of the first steps in many of the tutorials checked
+    #2. Population stratification: It is strongly recommended by Plink´s author to check subgroups and then perform checks like sex-imbalances inside each group. Besides this, we will use the PCAs as covariates in the analyses.
+    #3. Sex imbalances. The differences in allele frequencies between ancestry groups can influence the check for sex imbalances, so we have to do it after population stratification analyses. This should be ok, because the problem with sex imbalances could be that the phenotype of one sample is ineed the phenotype or other sample, i.e., they are swapped, but it should influence if we just do analyses with only genotypes like the PCA.
 print_text("create folder for this step", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
@@ -2656,6 +2660,12 @@ run_bash(" \
         --parents \
         ./09_remove_related_samples/; \
     ls -l")
+
+
+####POR AQUIII
+#mira plink tutorial
+#https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
+####FROM HERE USE "loop_maf_missing_3_ld_pruned_autosomals"
 
 
 
@@ -2779,6 +2789,8 @@ run_bash(" \
 
 
 
+#talk with Bishop once we have results of sample relatdness
+#in the meantime work on teaching
 
 
 
@@ -2791,91 +2803,11 @@ run_bash(" \
 
 
 
-
-#sex inconsistences on ld_pruned?
-    #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
-
-
-#the point here is to decide whether to check here sex inconsistences despite having potential ancestry imbalances or do it later. It depends for what we are going to use the set of LD pruned snps.
-#Ritchie explain sex imbalance first! but plink says do not use allele frequencies if a lot of ancestry imbalance
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
-    plink \
-        --bfile loop_maf_missing_3_ld_pruned \
-        --check-sex; \
-    ls -l")
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples/; \
-    awk \
-        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1, $2, $3, $4, $5, $6}'\
-        plink.sexcheck > plink.sexcheck_awk_processed.tsv; \
-    head plink.sexcheck_awk_processed.tsv")
-
-
-sex_check_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/09_remove_related_samples/plink.sexcheck_awk_processed.tsv", \
-    sep="\t", 
-    header=0, 
-    low_memory=False)
-print(sex_check_report)
-
-
-
-
-import matplotlib.pyplot as plt
-
-plt.hist(sex_check_report["F"], 50, density=True, alpha=0.4, label='Observed iHS')
-plt.savefig( \
-    fname="./data/genetic_data/quality_control/09_remove_related_samples/check_sex_f_distribution.png")
-plt.close()
-    
-    #density?
-
-    #from plink doc
-        ##0.66 is, of course, still much larger than 0.2, and in most contexts it still justifies a female call. We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
-    #this is exactly what we have, a tight peak close to 10 and then, below 0.2 we have a wider peak and a small.
-    #therefore, the default F thresholds work for us
-        #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
-
-
-sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] !=0), :]
-
-sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] ==0), :]
-    #42 cases here with unknown sex, but in the excel the number of samples without sex is 41
-    #there are also 42 cases with sex zero in the fam file of the second batch before merging
-    #the origin of the fam file is the map file!
-    #The problem is 2399LDJA/2397LDJA, this mislabeled sample. 2397LDJA is present in the first batch but not in the pheno data so it is sex is "0". In contrast, 2399LDJA is present in the pheno data, having sex as M, but not in the first batch. Therefore, when we count the number of NaN sex in pheno data is only 41 (2399LDJA has sex data), while the genetic data has 42 (2397LDJA has no sex data).
-    #we should change the name of this sample. in the genetic data?
-
-#OJO MINORITIES
-    #the results seems to make sense with most females below 0.2, CHECK THAT!
-    #we need to check ancestry? see ritchie
-
-
-#https://groups.google.com/g/plink2-users/c/4bpdLMdH2KA
-    #If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
-
-
-
-#then remove autosomals?
-
-    ###POR AQUIIII
-    ### THINK ABOUT SEX INCOSITENCES AFTER THESE STEPS...
     ###FROM HERE USE "loop_maf_missing_3_ld_pruned_autosomals"
     
     
     
     
-    ### paper about correlation between test and discovery in PRS
-        ###Overestimated prediction using polygenic prediction derived from summary statistics
-    ###more interesting papers
-        ###Polygenic risk score prediction accuracy convergence
-        ###15 years of GWAS discovery: Realizing the promise
-        ### PGS-Depot: a comprehensive resource for polygenic scores constructed by summary statistics based methods 
 
 
 
@@ -3138,6 +3070,155 @@ run_bash(" \
 #In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
 
 
+
+
+
+
+##clustering
+#https://www.cog-genomics.org/plink/1.9/strat#clustering
+
+
+##clustering is IMCOMPLETE, there are clusterions otpions that change a lot and create different clusters
+#https://www.cog-genomics.org/plink2/strat
+#https://zzz.bwh.harvard.edu/plink/strat.shtml#options
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./XX_cluster; \
+    ls -l")
+
+
+run_bash("\
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --cluster \
+        --family \
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
+        --out ./XX_cluster/cluster_after_logR_filter")
+    #--cluster uses IBS values calculated via "--distance ibs"/--ibs-matrix/--genome to perform complete linkage clustering. The clustering process can be customized in a variety of ways.
+        #IBD calculations are not LD-aware! It is usually a good idea to perform some form of LD-based pruning before invoking them
+            #https://www.cog-genomics.org/plink/1.9/ibd
+    #In the context of population stratification, the `--cluster` function in PLINK is used to identify and account for population structure in genetic data (1). This is important in genetic association studies because population structure can lead to false positive results if not properly accounted for.
+    #PLINK uses a method called **complete-linkage hierarchical clustering** to assess population stratification³. This method starts by considering every individual as a separate cluster of size 1, then repeatedly merges the two closest clusters³. 
+    #By default, the distance between two clusters is defined as the maximum pairwise distance between a member of the first cluster and a member of the second cluster. The 'group-avg' modifier causes average pairwise distance to be used instead, i.e., we took the distance between earch pair of samples (sample form cluster 1 and sample from cluster 2) and calculate the average across all pairs.
+    #The distance between clusters is calculated based on pairwise identity-by-state (IBS) distance¹. Identity-by-state (IBS) refers to the genetic similarity between two individuals. Two individuals are said to be identical by state at a particular genetic locus if they have the same alleles at that locus, regardless of whether those alleles were inherited from a common ancestor¹.
+    #By clustering individuals based on IBS distance, PLINK can identify groups of individuals that are genetically similar to each other. These groups can then be used to account for population structure in genetic association analyses¹.
+    #The 'missing' modifier causes clustering to be based on identity-by-missingness instead of identity-by-state. In other words, samples are clustered based on their missing data so we create groups of samples with the same pattern of missing genotypes, instead of obtaining groups of similar genotypes.
+    #"cc" and "within/family" flags
+        #By default, in PLINK, each individual starts in their own cluster. However, if the `--within` or `--family` flag is present, that cluster assignment is used as the starting point instead. For example, all samples of the batch 1 start together while samples of batch 2 start together.
+        #the `cc` modifier in the `--cluster` function of PLINK is used to control how clusters are merged during the clustering process.
+        #When the `cc` modifier is used with `--cluster`, it prevents two all-case or two all-control clusters from being merged². This means that each cluster will contain at least one case and one control. This can be particularly useful in case-control studies, where you want to ensure that each cluster contains a mix of cases and controls. For consistency with --mcc, missing-phenotype samples are treated as controls (this is a change from PLINK 1.07).
+        #This approach can help to account for population stratification in genetic association studies, by ensuring that the genetic similarities identified by the clustering process are not simply due to similarities in case or control status. In our case, this would mean that the cluster are not just caused by the batch.
+    #(1) PLINK: Whole genome data analysis toolset - Harvard University. https://zzz.bwh.harvard.edu/plink/strat.shtml.
+    #(2) PLINK: a tool set for whole-genome association and population-based .... https://europepmc.org/article/MED/17701901.
+    #(3) Using PLINK for Genome-Wide Association Studies (GWAS) and ... - Springer. https://link.springer.com/protocol/10.1007/978-1-62703-447-0_8.
+    #(4) https://www.cog-genomics.org/plink/1.9/strat#clustering
+
+#results clustering after exploring the different flags and modifiers
+    #Default mode puts all samples in the same cluster
+    #Adding the "--family" (i.e., batch) flag makes no difference
+    #Also adding the "cc" modifier force the separation between batches, but this seems to be an artifact. If we just use "cc" without "--family", every sample is put in a diferent cluster, i.e., we get 1446 clusters. Also note that when looking the PCA (see above), there is no clear grouping based on the batch, and the clustering without "cc" suggests that. Therefore, I do not think we have reasons to think we have batch effects.
+    #group-avg does not change anything.
+    #clustering by missing genotypes does not create new groups.
+    #In summary, it seems we do not have clusters of samples with similar genotypes/missing genotypes.
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./XX_mds; \
+    ls -l")
+
+
+run_bash("\
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --cluster \
+        --ppc 0.0005 \
+        --mds-plot 4 \
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
+        --out ./XX_mds/cluster_after_logR_filter")
+
+    #ppc=0.0005 makes very difficult to decided NOT to merge two clusters, so if the clusters are still not merged, it means that there is a lot of difference. For example, ppc=0.0005 makes no difference between han chinese and japenese, as we increase to 0.05, now the threshold is stringent enough to make difficult to combine japanese and chinese. 
+        #you have to study the ppc test
+            #https://zzz.bwh.harvard.edu/plink/strat.shtml#options
+            #https://zzz.bwh.harvard.edu/plink/strat.shtml#outlier
+    #in our case, ppc=0.0005 already is able to detect differences and create clusters, so it means we have samples with more difference than chinese and japanese.
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/XX_mds/; \
+    awk \
+        'BEGIN{ \
+            FS=\" \"; \
+            OFS=\"\t\"};\
+        { \
+            if(NR>1){ \
+                print $1, $2, $3, $4, $5, $6, $7 \
+            } \
+        }' \
+        ./cluster_after_logR_filter.mds > cluster_after_logR_filter_tab.mds"
+)
+
+
+
+
+mds_results = pd.read_csv("./data/genetic_data/quality_control/XX_mds/cluster_after_logR_filter_tab.mds", sep="\t", header=None)
+mds_results
+
+import plotly.express as px
+fig = px.scatter(\
+    data_frame=mds_results, \
+    x=3, \
+    y=4, \
+    color=2, #the family/batch (0) or the cluster (2)
+    hover_data=[\
+        0,1,2,3])
+        #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
+        #https://plotly.com/python/line-and-scatter/
+        #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
+#fig.show()
+fig.write_html("./data/genetic_data/quality_control/XX_mds/mds_after_logR_filter_plot.html")
+    #https://plotly.com/python/interactive-html-export/
+
+#it is like the PCA
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./XX_neighbour; \
+    ls -l")
+
+
+run_bash("\
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --neighbour 1 5 \
+        --cluster \
+        --ppc 0.0005 \
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
+        --out ./XX_neighbour/cluster_after_logR_filter")
+
+    #https://www.cog-genomics.org/plink/1.9/strat#neighbour
+    #https://www.cog-genomics.org/plink/1.9/formats#nearest
+    #https://zzz.bwh.harvard.edu/plink/strat.shtml#outlier
+
+    #check --ppc in cluster above! explore this in the future?
+        #for ppc we need LD pruned? if this is using IBD, then it shoudl be LD prunned
+        #we get hudnreds of cluster with --ppc of 0.0005 or 0.05
+
+
+
+
 print_text("start PCA to detect individuals that are outliers", header=2)
 print_text("prepare folder for PCA", header=3)
 run_bash(" \
@@ -3205,29 +3286,6 @@ fig.write_html("./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter
 
 
 
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./XX_cluster; \
-    ls -l")
-
-
-run_bash("\
-    cd ./data/genetic_data/quality_control/; \
-    plink \
-        --cluster \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
-        --out ./XX_cluster/cluster_after_logR_filter")
-
-#parece que solo hay un cluster! prubena con los otros argumentos!!!
-#lo mismo podemos hacer lo de sex incosistence y hablar con Bishop
-
-
-
-
-
-
 
 ##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
     #look tutorials
@@ -3235,6 +3293,91 @@ run_bash("\
 
 
 #check differences in pheno between batches?
+
+
+
+
+
+
+
+#####SEX INCONSISTENCES ######
+
+#sex inconsistences on ld_pruned
+    #In the tutorial of plink Chirstopher checks sex on the prunned dataset
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec18
+    #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+
+
+#Plink says that, due to the use of allele frequencies we may need to check sex within ancestry groups, and he did that in the tutorial, so we are doing this after pop structure analysis
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec19
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    plink \
+        --bfile loop_maf_missing_3_ld_pruned \
+        --check-sex; \
+    ls -l")
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/09_remove_related_samples/; \
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1, $2, $3, $4, $5, $6}'\
+        plink.sexcheck > plink.sexcheck_awk_processed.tsv; \
+    head plink.sexcheck_awk_processed.tsv")
+
+
+sex_check_report = pd.read_csv( \
+    "./data/genetic_data/quality_control/09_remove_related_samples/plink.sexcheck_awk_processed.tsv", \
+    sep="\t", 
+    header=0, 
+    low_memory=False)
+print(sex_check_report)
+
+
+
+
+import matplotlib.pyplot as plt
+
+plt.hist(sex_check_report["F"], 50, density=True, alpha=0.4, label='Observed iHS')
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/09_remove_related_samples/check_sex_f_distribution.png")
+plt.close()
+    
+    #density?
+
+    #from plink doc
+        ##0.66 is, of course, still much larger than 0.2, and in most contexts it still justifies a female call. We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
+    #this is exactly what we have, a tight peak close to 10 and then, below 0.2 we have a wider peak and a small.
+    #therefore, the default F thresholds work for us
+        #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
+
+
+sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] !=0), :]
+
+sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] ==0), :]
+    #42 cases here with unknown sex, but in the excel the number of samples without sex is 41
+    #there are also 42 cases with sex zero in the fam file of the second batch before merging
+    #the origin of the fam file is the map file!
+    #The problem is 2399LDJA/2397LDJA, this mislabeled sample. 2397LDJA is present in the first batch but not in the pheno data so it is sex is "0". In contrast, 2399LDJA is present in the pheno data, having sex as M, but not in the first batch. Therefore, when we count the number of NaN sex in pheno data is only 41 (2399LDJA has sex data), while the genetic data has 42 (2397LDJA has no sex data).
+    #we should change the name of this sample. in the genetic data?
+
+#OJO MINORITIES
+    #the results seems to make sense with most females below 0.2, CHECK THAT!
+    #we need to check ancestry? see ritchie
+
+
+#https://groups.google.com/g/plink2-users/c/4bpdLMdH2KA
+    #If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
+
+
+
+
+
+
+
+
 
 
 ###when finished this script, you should check missing threholds, hetero and PCA plots

@@ -1,7 +1,6 @@
 1. urgent stuff
 
 
-- Stacked neural network for predicting polygenic risk score
 
 - checking line 23!! "In ILGSA24-17303.zip, we have the final"
 
@@ -68,6 +67,13 @@ PREGUNTA ESTO A DAVID NEXT TIME
     - Leveraging Machine Learning and Genetic Risk Scores for the Prediction of Metabolic Syndrome in Children with Obesit
     - Genome-Wide Polygenic Score for Muscle Strength Predicts Risk for Common Diseases and Lifespan: A Prospective Cohort Study
     - Delphi: A Deep-learning Framework for Polygenic Risk Prediction
+    - Stacked neural network for predicting polygenic risk score
+    - paper about correlation between test and discovery in PRS
+    - Overestimated prediction using polygenic prediction derived from summary statistics
+    - more interesting papers
+        - Polygenic risk score prediction accuracy convergence
+        - 15 years of GWAS discovery: Realizing the promise
+        -  PGS-Depot: a comprehensive resource for polygenic scores constructed by summary statistics based methods 
 
 - Machine learning bishop, tneemls miestra sufociente para training eval? Si no cogemos snps previamentr asociados y con eso hacemos el polygenic score en caso de que no tengamos muestra para hacer nuestra propia seleccion y luego testarla.
 
