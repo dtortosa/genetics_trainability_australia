@@ -2653,6 +2653,15 @@ print_text("sample relatedness", header=2)
     #1. Sample relatedness: it is usually done as one of the first steps in many of the tutorials checked
     #2. Population stratification: It is strongly recommended by Plink´s author to check subgroups and then perform checks like sex-imbalances inside each group. Besides this, we will use the PCAs as covariates in the analyses.
     #3. Sex imbalances. The differences in allele frequencies between ancestry groups can influence the check for sex imbalances, so we have to do it after population stratification analyses. This should be ok, because the problem with sex imbalances could be that the phenotype of one sample is ineed the phenotype or other sample, i.e., they are swapped, but it should influence if we just do analyses with only genotypes like the PCA.
+
+#Rationale:
+    #Many population-genomic statistics (such as the allele frequencies) and analyses are distorted when there are lots of very close relatives in the dataset; you are generally trying to make inferences about the population as a whole, rather than a few families that you oversampled. For example, PLINK 2 includes an implementation of the KING-robust [5] pairwise relatedness estimator, which can be used to prune all related pairs. This does not mean that both samples in each related pair are thrown out. Instead, –king-cutoff tries to keep as much data as possible, and as a consequence it usually keeps one sample out of each pair (see below).
+    #These related samples, if treated as independent samples in the downstream analyses, having many related samples in the dataset would result in increased type I and type II errors. The options are tu use of mixed-regression models while considering in place of simple linear or logistic regression.
+    #Retaining a maximal set of unrelated individuals is computationally expensive (NP-hard), but an efficient greedy approximation is available in PLINK 2.0 using the --king-cutoff flag (as opposed to just removing one of each pair of related individuals)
+        #see below about KING
+    #Cryptic relatedness can interfere with the association analysis. If you have a family‐based sample (e.g., parent‐offspring), you do not need to remove related pairs but the statistical analysis should take family relatedness into account. However, for a population based sample we suggest to use a pi‐hat threshold of 0.2, which in line with the literature (Anderson et al., 2010; Guo et al., 2014).
+        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
+
 print_text("create folder for this step", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
@@ -2660,12 +2669,6 @@ run_bash(" \
         --parents \
         ./09_remove_related_samples/; \
     ls -l")
-
-
-####POR AQUIII
-#mira plink tutorial
-#https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
-####FROM HERE USE "loop_maf_missing_3_ld_pruned_autosomals"
 
 
 
@@ -2787,33 +2790,6 @@ run_bash(" \
     #with awk, count rows (i.e., SNPs) having in field 1 (i.e., chromosome) number 0 (unplaced SNP), number 23 (chromosome X), number 24 (chromosome Y), number 25 (XY autosomal) or number 26 (MT).
     #that count should be zero.
 
-
-
-#talk with Bishop once we have results of sample relatdness
-#in the meantime work on teaching
-
-
-
-
-
-
-
-
-
-
-
-
-    ###FROM HERE USE "loop_maf_missing_3_ld_pruned_autosomals"
-    
-    
-    
-    
-
-
-
-
-
-
 print_text("calculate the kindship", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
@@ -2849,6 +2825,7 @@ run_bash(" \
                 #removes lines with PI_HAT values below/above the given cutoff(s).
             #--ppc-gap
                 #By default, the minimum distance between informative pairs of SNPs used in the pairwise population concordance (PPC) test is 500k base pairs; you can change this with the --ppc-gap flag.
+                #see cluster analyses in stratificaction section for detailes about PPC
         #https://www.cog-genomics.org/plink/1.9/ibd
 
 print_text("explore the kindship file looking for pairs with pi_hat > 0.2", header=4)
@@ -2866,13 +2843,35 @@ run_bash(" \
             #FID2    Family ID for second sample
             #IID2    Individual ID for second sample
             #RT  Relationship type inferred from .fam/.ped file
-            #EZ  IBD sharing expected value, based on just .fam/.ped relationship
+                #FS = full sibling
+                #HS = half-sibling
+                #PO = parent-offspring
+                #OT = other
+                #https://groups.google.com/g/plink2-users/c/ckrUIamlxeE/m/RC0r8CXiBQAJ
+            #EZ: IBD sharing expected value, based on just .fam/.ped relationship
             #Z0  P(IBD=0)
+                #Individuals sharing close to zero alleles IBD at every locus (Z0~1) are unrelated.
             #Z1  P(IBD=1)
+                #Individuals sharing one allele IBD at every locus (Z1~1) are parent-child pairs. On average, siblings share zero, one, and two alleles IBD at 25%, 50%, and 25% of the genome, respectively. Therefore, Z0=0.25, Z1=0.5 and Z2=0.25.
             #Z2  P(IBD=2)
+                #(IBD). Individuals sharing two alleles IBD at nearly every locus (Z2~1) are monozygotic twins, or the pair is a single sample processed twice.
             #PI_HAT  Proportion IBD, i.e. P(IBD=2) + 0.5*P(IBD=1)
                 #This counts the whole probability of having 2 shared alleles IBD and then half of the probability of having 1 shared allele IBD.
-                #I guess
+                #I guess this is the whole probability of have a shared allele at all.
+
+    ##POR AQUII
+
+    #particular cases
+        #Identical twins, and duplicates, are 100% identical by descent (Pihat 1.0)
+            #P(IBD=2)=1, i.e., Z2=1
+        #First-degree relatives are 50% IBD (Pihat 0.5)
+            #P(IBD=1)=1, i.e., Z1=1. Therefore, 0.5*1=0.5
+        #Second-degree relatives are 25% IBD (Pihat 0.25)
+        #Third-degree relatives are 12.5% equal IBD (Pihat 0.125).
+            #https://www.biostars.org/p/58663/
+            #https://www.biostars.org/p/75335/
+
+            
             #PHE Pairwise phenotypic code (1, 0, -1 = AA, AU, and UU pairs, respectively)
             #DST IBS distance, i.e. (IBS2 + 0.5*IBS1) / (IBS0 + IBS1 + IBS2)
             #PPC IBS binomial test
@@ -2897,54 +2896,57 @@ ibd_report = pd.read_csv( \
     low_memory=False)
 print(ibd_report)
 
-
-
+print_text("plot Z0 vs Z1 and Z2", header=4)
 import matplotlib.pyplot as plt
-plt.plot( \
+fig, axs = plt.subplots(2)
+axs[0].scatter( \
     ibd_report["Z0"], \
     ibd_report["Z1"], \
-    marker="o", \
-    markersize = 1, \
-    linestyle="None")
-plt.xlabel("proportion of loci where the pair shares zero allele IBD (Z0)")
-plt.ylabel("proportion of loci where the pair shares one allele IBD (Z1)")
+    s=1)
+axs[0].set_ylabel("Z1")
+axs[1].scatter( \
+    ibd_report["Z0"], \
+    ibd_report["Z2"], \
+    s=1)
+axs[1].set_xlabel("Z0")
+axs[1].set_ylabel("Z2")
 plt.savefig( \
     fname="./data/genetic_data/quality_control/09_remove_related_samples/pairs_relatdness_before_filtering.png")
+plt.tight_layout()
 plt.close()
+    #Our results:
+        #We have many samples with Z0~1, i.e., unrelated individuals.
+        #We do not have cases with Z1 close to 1, so to parent-child pairs, but we have cases with Z1=0.5, thus potential siblings. 
+        #We have one pair with Z2=1, thus we have twins or the same sample duplicated.
 
-    #Cryptic relatedness can interfere with the association analysis. If you have a family‐based sample (e.g., parent‐offspring), you do not need to remove related pairs but the statistical analysis should take family relatedness into account. However, for a population based sample we suggest to use a pi‐hat threshold of 0.2, which in line with the literature (Anderson et al., 2010; Guo et al., 2014).
-
-
-    #Individuals sharing close to zero alleles IBD at every locus are unrelated (typically 2% to 3%). 
-
-    #Individuals sharing one allele IBD at every locus are parent-child pairs. Therefore, Z1 close 1.
-        #we do not have cases like that (y axis in Z0 vs Z1 plot ends at 0.6)
-
-    #On average, siblings share zero, one, and two alleles IBD at 25%, 50%, and 25% of the genome, respectively. Therefore, Z0=0.25 and Z1=0.5.
-        #we have some pairs like that (upper left part of the plot)
-
-    #Individuals sharing two alleles IBD at nearly every locus are monozygotic twins, or the pair is a single sample processed twice.
-        #there some pairs where Z0 and Z1 are close to zero, thus Z2 should be very high, i.e., twins or duplicated sample
-
-        #add another panel Z0 vs Z2 because we have some pairs with Z2 = 1!!! twins? duplicates!!
-
-
-    #understand how pi_hat is calculated, because it seems to exists a correlation with Z0, Z1 and Z2....
-
-    #define problematic cases, save them and then compare with king
+print_text("plot histogram of pi_hat", header=4)
+ibd_report["PI_HAT"].hist(bins=100)
+    #PI_HAT  Proportion IBD, i.e. P(IBD=2) + 0.5*P(IBD=1)
+        #This counts the whole probability of having 2 shared alleles IBD and then half of the probability of having 1 shared allele IBD.
+        #It sums Z2 plus half Z1.W
+plt.yscale('log') 
+    #to gain visibility, like in Ritche tutorial
+        #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/09_remove_related_samples/pi_hat_hist.png")
+plt.close()
+    #we have several cases above pi_hat of 0.2
 
 
-    #Identical twins, and duplicates, are 100%identical by descent (Pihat 1.0)
-    #First-degree relatives are 50% IBD (Pihat 0.5)
-    #Second-degree relatives are 25% IBD (Pihat 0.25)
-    #Third-degree relatives are 12.5% equal IBD (Pihat 0.125).
-        #https://www.biostars.org/p/58663/
-        #https://www.biostars.org/p/75335/
+
+
+
+
+
 
 
 ##if we do it without the MAF filtering, we lose 3 samples due sibling-sibling/father-sibling, but after the MAF filter we lose 20!! We have to check with other approaches! because KING says that is better not remove SNPs (at least for LD prunning) so maybe we are making it difficult for the approach.
 
 
+
+
+#As long as you're just concerned with finding/pruning close relations (1st-2nd degree, maybe third degree), you can think of KING kinship as half of PI_HAT.
+    #https://groups.google.com/g/plink2-users/c/z2HRffl-6k8/m/ndOZIjpMBQAJ
 
 
 
@@ -2957,6 +2959,7 @@ run_bash(" \
         --make-bed \
         --out ./09_remove_related_samples/remove_related_samples; \
     ls -l ./09_remove_related_samples")
+    #PLINK 2 includes an implementation of the KING-robust [5] pairwise relatedness estimator, which can be used to prune all related pairs. This does not mean that both samples in each related pair are thrown out. Instead, –king-cutoff tries to keep as much data as possible, and as a consequence it usually keeps one sample out of each pair.
         #apply the KING-robust method
             #https://www.cog-genomics.org/plink/2.0/distance#make_king
 
@@ -2994,6 +2997,15 @@ run_bash(" \
 
             #The same samples are removed with threshold 0.354 and 4. Maybe these are duplicated samples?
                 #only 3 more samples are removed with 0.177, i.e., when removing first-degree relations (parent–child and sibling–sibling)
+
+
+
+#talk with Bishop once we have results of sample relatdness
+#in the meantime work on teaching
+
+
+
+
 
 
 
@@ -3081,6 +3093,20 @@ run_bash(" \
 ##clustering is IMCOMPLETE, there are clusterions otpions that change a lot and create different clusters
 #https://www.cog-genomics.org/plink2/strat
 #https://zzz.bwh.harvard.edu/plink/strat.shtml#options
+
+
+##one of the options is PPC
+#Pairwise Population Concordance (PPC) in PLINK is a method used to determine whether two individuals belong to the same random-mating population. It's a significance test used during the clustering process in population stratification analysis¹.
+#The PPC test is applied as a restriction during the clustering process. The clustering process is based on pairwise identity-by-state (IBS) distance and uses complete linkage agglomerative clustering¹. The PPC test ensures that clusters are not merged if they contain individuals that significantly differ, implying they belong to different populations¹.
+#The PPC test is invoked with a p-value threshold. For example, to only merge clusters that do not contain individuals differing at a p-value of 0.0001, you would use the command --ppc 0.0001¹.
+#This approach helps ensure that the subsequent association tests are valid, as they would implicitly match every case with its nearest control, as long as the case and control do not show evidence of belonging to different populations¹.
+#Please note that this explanation is a high-level overview of the PPC test in PLINK. For a more detailed understanding, you may want to refer to the official PLINK documentation or relevant genetic analysis textbooks.
+#Source: Conversation with Copilot, 6/25/2024
+#(1) PLINK: Whole genome data analysis toolset - Harvard University. https://zzz.bwh.harvard.edu/plink/strat.shtml.
+#(2) Second-generation PLINK: rising to the challenge of larger and richer .... https://gigascience.biomedcentral.com/articles/10.1186/s13742-015-0047-8.
+#(3) How to study runs of homozygosity using PLINK? A guide for analyzing .... https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-020-6463-x.
+
+
 
 
 run_bash(" \
