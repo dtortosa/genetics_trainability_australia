@@ -16,6 +16,11 @@
 ######## PRE-IMPUTATION QUALITY CONTROL ########
 ################################################
 
+############################################
+# region INITIAL ANOTATIONS ################
+############################################
+
+
 #This script will perform pre-imputation QC. 
 
 #This and next scripts are based on the following tutorials:
@@ -243,6 +248,36 @@ n_cores = args.n_cores
 # starting with the script #
 ############################
 print_text("starting with the pre-imputation QC using " + str(n_cores) + " cores ", header=1)
+
+# endregion
+
+
+
+############################################
+# region summary steps #####################
+############################################
+
+#0. Removal of duplicated SNPs:
+#1. MAF, missingnes and initial HWE filtering
+    #The most important argument I have found to do MAF before sample relatedenss is the following:
+        #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
+            #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
+        #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
+    #So we are going to make an initial clean of SNPs and then do sample removals. If we clean by MAF and then clean by HWE there is no change in the MAF, because we are removing SNPs, not samples.
+#2. Sample relatedness and sample geno rate:
+    #We related samples after we have decent MAF data and done some SNP cleaning and then we can remove samples with low genotyping rate. The previous removal of samples is not going to influenec the genotypiing rate of a sample because we removed samples, not SNPs...
+#3. MAF loop to ensure we have OK MAF and genotyping rate
+    #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
+#2. Population stratification: It is strongly recommended by Plink´s author to check subgroups and then perform checks like sex-imbalances inside each group. Besides this, we will use the PCAs as covariates in the analyses.
+#4. HWE
+    #This is recommnded to be done also withjing ancestry groups
+        #After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+#5. Sex determination. The differences in allele frequencies between ancestry groups can influence the check for sex imbalances, so we have to do it after population stratification analyses. This should be ok, because the problem with sex imbalances could be that the phenotype of one sample is ineed the phenotype or other sample, i.e., they are swapped, but it should influence if we just do analyses with only genotypes like the PCA.
+#6. MAF-Missing loop
+    #We ahve removed SNPs (HWE) and samples (sex problems), this MAFs and genotyping rates can be changed, so we have to ensure again that MAF and geno rates are ok
+
+# endregion
 
 
 
@@ -1650,6 +1685,7 @@ print_text("We are not going to use GeneCall and GeneTrain scores. See script fo
 
 
 
+
 ######################################################################
 # region check no genetic position in map and select only snps #######
 ######################################################################
@@ -1814,6 +1850,7 @@ print(sum(bim_remove_non_pos_dup.loc[:,1].duplicated(keep=False)) == 0)
 
 
 
+
 ##############################
 # region MAF filtering #######
 ##############################
@@ -1938,6 +1975,7 @@ run_bash(
 
 
 
+
 ################################
 # region SNP missingness #######
 ################################
@@ -2048,26 +2086,64 @@ run_bash(
 
 
 
-##############################
+############################
 # region INITIAL HWE #######
-##############################
+############################
 
 #If there are far more heterozygous calls than would be expected under Hardy–Weinberg equilibrium, that is usually due to a systematic variant calling error. Any such variants should be removed from the dataset.
 
-# the following PLINK 2 command line is appropriate during initial quality control:
+#Plink tutorial does this after MAF filtering
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
-# plink2 --bfile maf_filtered_data \
-# --hwe 1e-25 keep-fewhet \      
-# --make-bed \      
-# --out hwe_filtered_data
+print_text("Initial HWE filter", header=2)
+print_text("create folder for this step", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./06_first_hwe_filter/; \
+    ls -l")
 
-#The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner (so the fewer-hets-than-expected variants that one would expect from population stratification would not be filtered out by this command), and the 1e-25 threshold is extreme enough that we are unlikely to remove anything legitimate. (Unless the dataset is primarily composed of F1 hybrids from an artificial breeding program.). After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
+print_text("apply HWE filter", header=3)
+#According to the plink tutorial, the following PLINK 2 command line is appropriate during initial quality control:
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./05_remove_missing_snps/merged_batches_remove_missing_snps \
+        --hwe 1e-25 keep-fewhet midp \
+        --make-bed \
+        --out ./06_first_hwe_filter/merged_batches_hwe_filtered"
+)
+    #--hwe filters out all variants which have Hardy-Weinberg equilibrium exact test p-value below the provided threshold. 
+        #https://www.cog-genomics.org/plink/1.9/filter#hwe
+        #We recommend setting a low threshold. Serious genotyping errors often yield extreme p-values like 1e-50 which are detected by any reasonable configuration of this test, while genuine SNP-trait associations can be expected to deviate slightly from Hardy-Weinberg equilibrium (so it's dangerous to choose a threshold that filters out too many variants).
+        #Therefore, using a very low p-value would only remove SNPs extremely deviates from HWE and hence, being potential genotpying errors.
+        #According to the plink tutorial: The 1e-25 threshold is extreme enough that we are unlikely to remove anything legitimate. (Unless the dataset is primarily composed of F1 hybrids from an artificial breeding program.). 
+    #The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner. Therefore, the variants with fewer heterozygotes than expected under HWE possibly caused by population stratification WOULD NOT be filtered out by this command. We are only filtering SNPs with higher heterozygotes than expected under HWE.
+        #Later, after you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
+    #--hwe's 'midp' modifier applies the mid-p adjustment described in Graffelman J, Moreno V (2013) The mid p-value in exact tests for Hardy-Weinberg equilibrium. The mid-p adjustment tends to bring the null rejection rate in line with the nominal p-value, and also reduces the filter's tendency to favor retention of variants with missing data. We recommend its use.
+        #We are using it, but it seems it does not change anything using it or not.
+    #Because of the missing data issue, you should not apply a single p-value threshold across a batch of variants with highly variable missing call rates. A warning is now given whenever observation counts vary by more than 10%.
+        #we should not have this problem because we have already clean the SNPs based on missingness
 
-#they do this after MAF filtering
-
-#https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-
-#Now we can remove samples after we have applied multiple filters to SNPs, and then we will do the MAF filter to ensure both MAF and sample genotyping rate are OK
+print_text("Less than 22 SNPs have been removed by the initial HWE filter", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    n_snps_before_hwe=$( \
+        awk \
+            'BEGIN{FS=\" \"}END{print NR}' \
+            ./05_remove_missing_snps/merged_batches_remove_missing_snps.bim); \
+    n_snps_after_hwe=$( \
+        awk \
+            'BEGIN{FS=\" \"}END{print NR}' \
+            ./06_first_hwe_filter/merged_batches_hwe_filtered.bim); \
+    n_snp_diff=$(($n_snps_before_hwe - $n_snps_after_hwe)); \
+    if [[ $n_snp_diff -lt 22 ]]; then \
+        echo \"TRUE\"; \
+    else \
+        echo \"FALSE! ERROR!\"; \
+    fi" \
+)
 
 # endregion
 
@@ -2081,6 +2157,8 @@ run_bash(
 #Rithce take a look before sampling checks
 
 #see page 6 to make the plot
+
+"./06_first_hwe_filter/merged_batches_hwe_filtered"
 
 '''
 het <- read.table("R_check.het", head=TRUE)
@@ -2096,6 +2174,7 @@ dev.off()
 
 
 
+
 ###################################
 # region sample relatedness #######
 ###################################
@@ -2107,25 +2186,6 @@ print_text("sample relatedness", header=2)
 #In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the PCA
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
 #we can filter by sample relatdness, select a subset of SNPs based on LD-pruning (for IBD), then filter by relatedness and use that subset also for PCA and heterozigosity
-#Summary:
-    #1. MAF, missingnes and initial HWE filtering
-        #The most important argument I have found to do MAF before sample relatedenss is the following:
-            #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
-                #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
-            #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
-        #So we are going to make an initial clean of SNPs and then do sample removals. If we clean by MAF and then clean by HWE there is no change in the MAF, because we are removing SNPs, not samples.
-    #2. Sample relatedness and sample geno rate:
-        #We related samples after we have decent MAF data and then we can remove samples with low genotyping rate. The previous removal of samples is not going to influenec the genotypiing rate of a sample because we removed samples, not SNPs...
-    #3. MAF loop to ensure we have OK MAF and genotyping rate
-        #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
-    #2. Population stratification: It is strongly recommended by Plink´s author to check subgroups and then perform checks like sex-imbalances inside each group. Besides this, we will use the PCAs as covariates in the analyses.
-    #4. HWE
-        #This is recommnded to be done also withjing ancestry groups
-            #After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
-            #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-    #5. Sex determination. The differences in allele frequencies between ancestry groups can influence the check for sex imbalances, so we have to do it after population stratification analyses. This should be ok, because the problem with sex imbalances could be that the phenotype of one sample is ineed the phenotype or other sample, i.e., they are swapped, but it should influence if we just do analyses with only genotypes like the PCA.
-    #6. MAF-Missing loop
-        #We ahve removed SNPs (HWE) and samples (sex problems), this MAFs and genotyping rates can be changed, so we have to ensure again that MAF and geno rates are ok
 
 #Rationale:
     #Many population-genomic statistics (such as the allele frequencies) and analyses are distorted when there are lots of very close relatives in the dataset; you are generally trying to make inferences about the population as a whole, rather than a few families that you oversampled. For example, PLINK 2 includes an implementation of the KING-robust [5] pairwise relatedness estimator, which can be used to prune all related pairs. This does not mean that both samples in each related pair are thrown out. Instead, –king-cutoff tries to keep as much data as possible, and as a consequence it usually keeps one sample out of each pair (see below).
@@ -2568,7 +2628,6 @@ run_bash(" \
 
 
 
-
 ################################
 # region sample missingness #######
 ################################
@@ -2772,6 +2831,7 @@ run_bash(
         #see SNP missing code to details about awk steps
 
 # endregion
+
 
 
 
@@ -3060,6 +3120,7 @@ else:
 
 
 
+
 ###############################
 # region PROBLEM PAR XY #######
 ###############################
@@ -3211,7 +3272,6 @@ run_bash(" \
 #endregion
 
 # endregion
-
 
 
 
@@ -3603,7 +3663,6 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 
 #do it within each ancestry group?
 
-# endregion
 
 
 
@@ -3624,17 +3683,14 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 ###imputation separated between ancestry groups?
 
 
+# endregion
 
 
 
 
-
-
-
-
-
-
-
+#############################
+# region CODE TO CHECK ######
+#############################
 
 
 
@@ -3907,3 +3963,6 @@ print("It is ok to have False in this check, because we already knew that some s
 
 ############run case-control study to check for batch effects once you have pre-imputation QC done
     #Another method involves coding case/control status by batch followed by running the GWAS analysis testing each batch against all other batches. For example, the status of all samples on batch 1 will be coded as case, while the status of every other sample is to be coded control. A GWAS analysis is performed (e.g., using the --assoc option in PLINK), and both the average p-value and the number of results significant at a given threshold (e.g., p <1 × 10-4) can be recorded. SNPs with low minor allele frequency (i.e., <5%) should be removed before this analysis is performed to improve the stability of test statistics. This procedure should be repeated for each batch in the study. If any single batch has many more or many fewer significant results or has an average p-value <0.5 (under the null, the average p-value will be 0.5 over many tests), then this batch should be further inves tigated for genotyping, imputation, or compo sition problems. If batch effects are present, methods like those employed for population stratification (e.g., genomic control) may be used to mitigate the confounding effects.
+
+# endregion
+
