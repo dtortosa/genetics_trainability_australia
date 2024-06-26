@@ -247,9 +247,9 @@ print_text("starting with the pre-imputation QC using " + str(n_cores) + " cores
 
 
 
-#############################
-###### merging batches ######
-#############################
+##############################################
+# region MERGING BATCHES #####################
+##############################################
 print_text("merging batches", header=2)
 print_text("check we have 216 and 1242 samples for batch 1 and 2 (batch 2 lost 6 samples that were duplicated), respectively looking at the merged fam file of each batch and the list of samples to be merged", header=3)
 run_bash(" \
@@ -917,9 +917,14 @@ run_bash("\
         #second calculate the number of rows of the whole fam file
         #if both numbers are the same, then number of rows without the duplicated samples is exactly the same than the total number of rows, i.e., we do NOT have duplicated samples.
 
+# endregion
 
 
 
+
+##############################################
+# region REMOVE DUPLICATED SNPS ##############
+##############################################
 print_text("Remove SNPs duplicated. We are going to remove first duplicates because this should not be affected by population structure", header=2)
 #Remember that plink considers duplicates by POSITION and ALLELES CODES. By default, this ignores A1/A2 allele assignments, since PLINK 1 normally does not preserve them. Therefore, two variants with identical positions and reversed allele assignments are considered duplicates. In our case, I am not sure what information uses Illumina to set the Allele 1 and 2 in the forward strand, but likely it is not REF/ANCESTRAL and plink 1 does not preserve A1/A2 allele assignments anyway. Therefore, we should not use this information and just consider as duplicates two SNPs with the same position and allele codes irrespectively of the allele1/allele2 assignment.
 #if two SNPs have the positions and allele codes, this is going to be irrespectively from the ancestry, this is in the SNP map of the whole batch, so all samples share the same information for these two SNPs in the map, except the genotype values, of course, and what allele is minor/major, but as I said, we are only using the position of the SNP the and the names of the alleles, not their assignment, so we should be fine.
@@ -1170,9 +1175,14 @@ if sum(bim_no_dups.loc[:, 1].isna()) == 0:
 else:
     raise ValueError("ERROR: FALSE! WE DO HAVE NA IN SNP IDS")
 
+# endregion
 
 
 
+
+##############################################
+# region FILTER SNPS BY CHROMOSOME TYPE ######
+##############################################
 print_text("filter SNPs by chromosome type", header=2)
 print_text("create folder to do operations", header=3)
 run_bash(" \
@@ -1603,9 +1613,14 @@ print( \
             #Mark all duplicates as ``True``, not only the second occurrence
     #no true should be present, so the sum should be zero
 
+# endregion
 
 
 
+
+##############################################
+# region GeneCall and GeneTrain scores #######
+##############################################
 print_text("GeneCall and GeneTrain scores", header=2)
 print_text("We are not going to use GeneCall and GeneTrain scores. See script for further details", header=3)
 #The GenCall score (GC) is a confidence measure assigned to each call which can be used to filter poor quality calls, SNPs or samples. Illumina generally recommend that calls with GC ≤ 0.15 represent failed genotypes. Averaged GC scores over all SNPs from a given sample, or across all samples for a given SNP can be used as sample or SNP quality metrics. A more commonly used sample quality metric is the 'no call rate'. For GenCall, genotypes with GC score less than a given threshold (0.15 in our analyses) are declared as missing. The proportion of missing values, or 'no calls' in each sample gives the no call rate; samples with higher rates are deemed less reliable than samples with lower rates. No call rates less than 1% should be expected for good quality samples which have been properly processed (Illumina Technical Support, personal communication).
@@ -1631,9 +1646,13 @@ print_text("We are not going to use GeneCall and GeneTrain scores. See script fo
     #Indeed, I have checked that those samples with call rate < 0.99 in the DNA report of the first batch are indeed those with call rate < 0.99 in the PDF report.
     #Therefore, I understand that AGFR has applied the filter of GC score < 0.15 to set as no call a given genotype and now we can use this to calculate the call rate per sample and per snp in order to filter by missingness.
     
+# endregion
 
 
 
+######################################################################
+# region check no genetic position in map and select only snps #######
+######################################################################
 print_text("check no genetic position in map and select only snps", header=2)
 print_text("check no genetic position in the map, it should be 0 always", header=3)
 print(bim_chrom_filter.loc[:,2].unique() == 0)
@@ -1690,9 +1709,14 @@ if (n_indels/bim_chrom_filter.shape[0])*100 < 5:
 else:
     raise ValueError("ERROR: FALSE! We have more than 5% of indels!!")
 
+# endregion
 
 
 
+
+################################################################################
+# region remove again duplicates but this time only considering position #######
+################################################################################
 print_text("remove again duplicates but this time only considering position", header=2)
 #plink1.9 removes duplicates considering position AND alleles. Therefore, SNPs with the same position but different allele names are not removed. For example, rs387907306 and rs387907306.1 have the exact same position, but different alleles, AG and TG, respectively. Remember that plink1.9 does not consider the order (A1-A2) for duplicates, so AG and GA are considered duplicates. However, in this case, we have AG and TG, A is not present in the second SNP.  
 #We are going to retain only the first instance of each duplicate group, removing the rest of instances.
@@ -1786,12 +1810,13 @@ print(sum(bim_remove_non_pos_dup.duplicated(subset=[0,3], keep=False)) == 0)
 print_text("check also for duplicates in ID", header=3)
 print(sum(bim_remove_non_pos_dup.loc[:,1].duplicated(keep=False)) == 0)
 
+# endregion
 
 
 
-
-
-
+##############################
+# region MAF filtering #######
+##############################
 print_text("MAF filtering", header=2)
 #Typically, SNP-level filtering based on a large amount of missing data and lower variability is performed first. This is followed by sample-level filtering (see step 3 in the succeeding texts), and finally, SNP-level filtering based on possible genotyping errors (see step 4 in the succeeding texts) is performed. The rationale for this is that both sample-level relatedness and substructure (for which we filter in step 3) can influence the Hardy–Weinberg equilibrium (HWE) criterion (step 4) used for filtering SNPs based on genotyping errors. 
     #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
@@ -1909,9 +1934,13 @@ run_bash(
         #then count the number of SNPs in that file that have a MAF equal or higher than 0.05, which is our selected threshold.
         #the number of snps meeting this condition should be the same than the total number of SNPs, because we have already applied the filter.
 
+# endregion
 
 
 
+################################
+# region SNP missingness #######
+################################
 print_text("filter by SNP missingness", header=2)
 print_text("create missing report per SNP and sample", header=3)
 run_bash(
@@ -2014,633 +2043,62 @@ run_bash(
         echo 'FALSE'; \
     fi")
 
+# endregion
 
 
 
-print_text("filter by sample missingness", header=2)
-print_text("make sample missing report after previous filters", header=3)
-run_bash("head ./data/genetic_data/quality_control/05_remove_missing_snps/plink.imiss")
-    #imiss: A text file with a header line, and one line per sample with the following six fields:
-        #FID    Family ID
-        #IID Within-family ID
-        #MISS_PHENO  Phenotype missing? (Y/N)
-        #N_MISS  Number of missing genotype call(s), not including obligatory missings or het. haploids
-        #N_GENO  Number of potentially valid call(s)
-        #F_MISS  Missing call rate
-            #https://www.cog-genomics.org/plink/1.9/formats#imiss
-    #IMPORTANT: 
-        #I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
-        #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
 
+##############################
+# region INITIAL HWE #######
+##############################
 
-print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
-    n_samples_freq_file=$( \
-        awk \
-            'BEGIN{FS=\" \"; OFS=\" \"} \
-            {if(NR>1)(count++)}\
-            END{print count}'\
-            plink.imiss \
-    ); \
-    n_correct_freq_miss=$( \
-        awk \
-            'BEGIN{ \
-                FS=\" \"; OFS=\" \" \
-            } \
-            { \
-                if((int(($4/$5)*100+0.5)/100==int($6*100+0.5)/100) && (NR>1)){ \
-                    count++ \
-                } \
-            } \
-            END { \
-                print count \
-            }' \
-            plink.imiss \
-    ); \
-    if [[ $n_correct_freq_miss -eq $n_samples_freq_file ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #just check if freq miss is the ratio of missing calls respect to the potential number of valid calls per sample. We count the number of samples for which this is the case, N_MISS/N_GENO is equal to F_MISS and then check this is the total number of samples, i.e., all meet the condition.
-        #see above in the SNP missing part for explanations about the script
+#If there are far more heterozygous calls than would be expected under Hardy–Weinberg equilibrium, that is usually due to a systematic variant calling error. Any such variants should be removed from the dataset.
 
+# the following PLINK 2 command line is appropriate during initial quality control:
 
-print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
-    awk \
-        'BEGIN{FS=\" \"; OFS=\"\t\"}{if(NR>0){print $1,$2,$3,$4,$5,$6}}' \
-        plink.imiss \
-    > plink_awk_processed.imiss; \
-    head plink_awk_processed.imiss")
-        #specify the delimiter of the output (OFS="\t") and just print all fields (1 to 6) for all rows, then save as a new file
+# plink2 --bfile maf_filtered_data \
+# --hwe 1e-25 keep-fewhet \      
+# --make-bed \      
+# --out hwe_filtered_data
 
+#The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner (so the fewer-hets-than-expected variants that one would expect from population stratification would not be filtered out by this command), and the 1e-25 threshold is extreme enough that we are unlikely to remove anything legitimate. (Unless the dataset is primarily composed of F1 hybrids from an artificial breeding program.). After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
 
-print_text("load in pandas", header=3)
-sample_missing_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/05_remove_missing_snps/plink_awk_processed.imiss", \
-    sep="\t", \
-    header=0, \
-    low_memory=False)
-print(sample_missing_report)
+#they do this after MAF filtering
 
+#https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
-print_text("check we have the correct number of samples and columns in the missing sample report", header=3)
-print(sample_missing_report.shape[0]==1458) 
-print(sample_missing_report.shape[1]==6) 
+#Now we can remove samples after we have applied multiple filters to SNPs, and then we will do the MAF filter to ensure both MAF and sample genotyping rate are OK
 
+# endregion
 
-print_text("calculate the proportion of samples retained at different missing thresholds", header=3)
-#calculate the thresholds over 1
-thresholds = [x / 1000 for x in range(980, 1000, 1)]
-    #we want from proportion 0.985 to 1. In order to get floats with range, we need to first use integers that include all the numbers we want to include as decimals (e.g., 985 for 0.985) and then divide by 1000 (985/1000=0.985).
-        #https://stackoverflow.com/a/7267287/12772630
-print("see the thresholds selected")
-print(thresholds)
 
-#calculate the proportion of retained samples
-list_tuples_thresholds = [] #empty list to save results
-#threshold=thresholds[0]
-for threshold in thresholds:
-    
-    #get the number of samples above the missing threshold    
-    n_retained_samples = sample_missing_report \
-        .loc[(1-sample_missing_report["F_MISS"]) >= threshold,:]\
-        .shape[0]
-            #1 minus F_MISS gives the call rate over 1
-    
-    #calculate proportion of retained samples dividing retained samples by the total number of samples
-    proportion_remaining = n_retained_samples/sample_missing_report.shape[0]
-    
-    #append to the result list a tuple with threshold and proportion
-    list_tuples_thresholds.append((threshold, proportion_remaining))
 
-#convert the list to DF
-pd_tuples_thresholds = pd.DataFrame(list_tuples_thresholds, columns=["threshold", "proportion_remaining"])
-print("see thresholds and proportion of retained samples")
-print(pd_tuples_thresholds)
 
-#create a new folder for doing operations about missing in samples
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./06_remove_low_call_samples/; \
-    ls -l")
+##############################################
+# region INITIAL CHECK HETERO ##############
+##############################################
 
+#Rithce take a look before sampling checks
 
-print_text("plot sample missing thresholds against the proportion of samples retained", header=3)
-import matplotlib.pyplot as plt
-plt.plot( \
-    pd_tuples_thresholds["threshold"], \
-    pd_tuples_thresholds["proportion_remaining"], \
-    marker="o", \
-    linestyle="dashed")
-plt.xlabel("Call Rate Threshold")
-plt.ylabel("Proportion Remaining")
-plt.savefig( \
-    fname="./data/genetic_data/quality_control/06_remove_low_call_samples/merged_batches_plot_sample_retention_thresholds.png")
-plt.close()
+#see page 6 to make the plot
 
+'''
+het <- read.table("R_check.het", head=TRUE)
+pdf("heterozygosity.pdf")
+het$HET_RATE = (het$"N.NM." - het$"O.HOM.")/het$"N.NM."
+hist(het$HET_RATE, xlab="Heterozygosity Rate", ylab="Frequency", main= "Heterozygosity Rate")
+dev.off()
+'''
+    #code from maares
 
-print_text("remove samples with low call rate", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/; \
-    plink \
-        --bfile ./05_remove_missing_snps/merged_batches_remove_missing_snps \
-        --mind 0.01 \
-        --make-bed \
-        --out ./06_remove_low_call_samples/merged_batches_remove_low_call_samples")
-            #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
-                #https://www.cog-genomics.org/plink/1.9/filter
-            #recommended threshold
-                #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. 
-                #The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
-                #The illumina report of the first batch says "Four samples are below the illumina expected 99% SNP call rate (values expected for typical projects, excluding tumour samples)".
-                #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is below the expectation of Illunina. Therefore, I think we are ok removing these samples.
 
+# endregion
 
-print_text("see the number of samples removed", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/; \
-    n_samples_before=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./05_remove_missing_snps/merged_batches_remove_missing_snps.fam); \
-    n_samples_after=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
-    lost_samples=$(($n_samples_before - $n_samples_after)); \
-    lost_samples_percent=$( \
-        awk \
-            -v l=$lost_samples \
-            -v b=$n_samples_before \
-            'BEGIN{print (l/b)*100}'); \
-    if [[ $lost_samples_percent < 2 ]]; then \
-        printf 'The number of samples lost due to call rate below 0.99 is: %s' \"$lost_samples\"; \
-    else \
-        echo 'ERROR: FALSE! We have lost more than 2% of samples due low-call rate';\
-    fi")
-        #see SNP missing code to details about awk steps
 
 
-print_text("create again the missing report", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
-    plink \
-        --bfile merged_batches_remove_low_call_samples \
-        --missing; \
-    ls -lh")
-        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
-            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
-
-
-print_text("check that no sample has a missing % above the selected threshold", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
-    total_number_samples=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
-            plink.imiss);\
-    n_samples_below_threshold=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if((NR>1) && ($6 <= 0.01)){count++}}END{print count}' \
-            plink.imiss); \
-    if [[ $n_samples_below_threshold -eq $total_number_samples ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #see SNP missing code to details about awk steps
-
-
-
-
-print_text("remove samples with LogR SD above the illumina expectation", header=2)
-#In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
-#Some the samples above the expectation have also a call rate below 0.99, but not others, thus a specific filter is needed for this. Given that Illumina says that level of LogR SD is not normal, we should remove these individuals.
-
-
-print_text("obtain the samples above the expectation for logR dev in each batch", header=3)
-#batch_name = "ILGSA24-17873"
-for batch_name in ["ILGSA24-17873", "ILGSA24-17303"]:
-    
-    print_text(batch_name + ": process the file with the logR deviation", header=4)
-    if(batch_name == "ILGSA24-17873"):
-        cnmetricts_file_name="CAGRF20093767_CNMetrics"
-    elif(batch_name == "ILGSA24-17303"):
-        cnmetricts_file_name="ILGSA24-17303_CNMetrics"
-    print(cnmetricts_file_name)
-    
-    print_text(batch_name + ": get the ID of samples above the illumina expectation for logR SD", header=3)
-    removed_samples_logRdev = run_bash(" \
-        cd ./data/genetic_data/cn_metrics/; \
-        awk \
-            'BEGIN{ \
-                FS=\",\"; \
-                OFS=\"\t\"} \
-            { \
-                if((NR>2) && ($9 >= 0.3)){ \
-                    print \"combat_" + batch_name + "\", $1 \
-                }\
-            }' \
-            " + cnmetricts_file_name + ".csv > " + batch_name + "_samples_filter_out_LogRDev.tsv; \
-        awk \
-            'BEGIN{FS=\"\t\"}{print $2}' \
-            " + batch_name + "_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
-            #load the CNMetrics CSV file into awk indicating that sep is ",", but the output should be tab
-            #print only from the third row (the two first have complicated headers) and only those rows for which the 9th column (the one with logR SD) is above the expectation (i.e., 0.3).
-                #from that rows, only print the first column, which is the ID.
-                #also print the name of the family first, because plink --remove needs a file with two columns, the family ID and the within-family ID
-                    #in our case, the family ID is the batch name, which is "combat_" + batch_name
-                    #this can be add as another column just with print and ""
-                        #https://stackoverflow.com/questions/7551991/add-a-new-column-to-the-file
-            #the resulting IDs of samples above the expectation can be saved as a TSV file
-            #also get the output in python
-                #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
-    print(removed_samples_logRdev)
-
-
-print_text("combine the IDs from both batched into one single file", header=3)
-run_bash(" \
-    cd ./data/genetic_data/cn_metrics/; \
-    cat \
-        ILGSA24-17303_samples_filter_out_LogRDev.tsv  \
-        ILGSA24-17873_samples_filter_out_LogRDev.tsv > \
-    merged_batches_samples_filter_out_LogRDev.tsv; \
-    cat merged_batches_samples_filter_out_LogRDev.tsv")
-        #https://stackoverflow.com/a/2150794/12772630
-
-
-print_text("check we have the correct IDs in the merged file", header=3)
-print_text("get IDs from the merged file", header=4)
-total_removed_samples_logRdev = run_bash(" \
-    awk \
-        'BEGIN{FS=\"\t\"}{print $2}' \
-        ./data/genetic_data/cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
-
-print_text("combine the list of ID samples from both batches and check it is identical than the merged list", header=4)
-print( \
-    run_bash(" \
-        awk \
-            'BEGIN{FS=\"\t\"}{print $2}' \
-            ./data/genetic_data/cn_metrics/ILGSA24-17303_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") + \
-    run_bash(" \
-        awk \
-            'BEGIN{FS=\"\t\"}{print $2}' \
-            ./data/genetic_data/cn_metrics/ILGSA24-17873_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") == \
-    total_removed_samples_logRdev)
-
-
-
-print_text("remove these samples", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        07_remove_high_LogRDev_samples; \
-    plink \
-        --bfile ./06_remove_low_call_samples/merged_batches_remove_low_call_samples \
-        --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
-        --make-bed \
-        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples; \
-    ls -l ./07_remove_high_LogRDev_samples/")
-            #create a new folder to save plink filesets after filtering
-            #then use --remove to remove samples included in a file with two columns: family id and within-family id.
-                #this file is in a different parent folder so we have to use "../"
-                #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
-                    #https://www.cog-genomics.org/plink/1.9/filter
-
-
-print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
-fam_file_after_logRdev_filtering = pd.read_csv( \
-    "./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
-    sep=" ", \
-    header=0, \
-    low_memory=False)
-print(sum(fam_file_after_logRdev_filtering.iloc[:, 1].isin(total_removed_samples_logRdev)) == 0)
-    #no sample ID (second column in fam file) should be included in the list of IDs to be removed
-
-
-print_text("see the number of samples removed", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/; \
-    n_samples_before=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
-    n_samples_after=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
-    lost_samples=$(($n_samples_before - $n_samples_after)); \
-    lost_samples_percent=$( \
-        awk \
-            -v l=$lost_samples \
-            -v b=$n_samples_before \
-            'BEGIN{print (l/b)*100}'); \
-    if [[ $lost_samples_percent < 2 && $lost_samples_percent > 0 ]]; then \
-        printf 'The number of samples lost due to logR SD above illumina expectations is: %s; Note that we previously filtered by missingness, so we already removed there some samples with logR dev problems' \"$lost_samples\"; \
-    else \
-        echo 'ERROR: FALSE! We have lost more than 2% of samples due logR SD above illumina expectations OR just zero samples removed, which would be also strange, maybe you are using the wrong CNMetric file';\
-    fi")
-        #see SNP missing code to details about awk steps
-        #just added another condition, if the number of removed samples is zero, get error because we have problematic samples for this in both batches, so maybe you are using the incorrect CNMetric file
-
-
-
-
-print_text("apply again the MAF and missing filters", header=2)
-#We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
-#In other words, 
-    #imagine you have already filtered by MAF and missing (SNP and sample). Of course, after the SNP filters, you can be sure that no SNP is below the MAF threshold or above the missing threshold. 
-    #But then, you remove samples. It could be the case that after removing samples, the MAF of a SNP gets below 0.05 because the few minor carriers have been removed. 
-    #This makes snps with MAF close but above of 0.05 actually getting below that thershold. We remove again these SNPs.
-    #This removal of SNPs can in turn influence the missing call percentage of samples because maybe a sample has a call rate of 0.99, but we have removed one SNP for which it had data (i.e., non-missing). Its call rate has decreased being now below the threshold. See the following dummy example:
-        #We only have 5 SNPs, thus 10 potential genotypess
-        #A sample has missing for 2 genotypes, thus its missing rate is 2/10=0.2 and its call rate is 8/10=0.8.
-        #If we remove one of the SNPs, the number of potential genotypes is 8 instead of 10.
-        #Imagine that the removed SNPs was indeed one of the SNPs without missing for this sample, thus the number of genotypes for this sample goes down to 6.
-        #Therefore, its missing rate is now 2/8=0.25 and its call rate is 6/8=0.75.
-        #We have now a higher missing rate and a lower call rate.
-#We have to continue until we remove SNPs by filters and then no additional sample is removed. In that moment, we can be sure that all SNPs and samples meet the filters considered.
-    #"An iterative procedure that repeats the SNP and sample-level filtering until no additional samples are removed is also common" 
-        #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
-#the other previous steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
-print_text("create missing and freq reports", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
-    plink \
-        --bfile merged_batches_remove_high_LogRDev_samples \
-        --freq \
-        --missing \
-        --out merged_batches_remove_high_LogRDev_samples_reports; \
-    ls -l")
-
-
-
-
-print_text("create a folder to save plink data after new filters", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./08_loop_maf_missing; \
-    ls -l")
-
-
-print_text("check if we have SNPs below the MAF threshold after removing samples", header=3)
-n_snps_below_maf_first_round_raw = run_bash(" \
-    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
-    awk \
-        'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
-        merged_batches_remove_high_LogRDev_samples_reports.frq", return_value=True).strip()
-n_snps_below_maf_first_round = 0 if n_snps_below_maf_first_round_raw=="" else int(n_snps_below_maf_first_round_raw)
-print(f"We have {n_snps_below_maf_first_round} SNPs below the MAF threshold after the first round of filters")
-
-
-print_text("check if we have SNPs below the missing threshold after removing samples", header=3)
-n_snps_below_missing_first_round_raw = run_bash(" \
-    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
-    awk \
-        'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
-        merged_batches_remove_high_LogRDev_samples_reports.lmiss", return_value=True).strip()
-n_snps_below_missing_first_round = 0 if n_snps_below_missing_first_round_raw=="" else int(n_snps_below_missing_first_round_raw)
-print(f"We have {n_snps_below_missing_first_round} SNPs above the missing threshold after the first round of filters")
-
-
-print_text("repeat the filters if these snps exists", header=3)
-if(n_snps_below_maf_first_round>0) | (n_snps_below_missing_first_round>0):
-    print_text("apply MAF and missing SNP filters", header=4)
-    run_bash(" \
-      cd ./data/genetic_data/quality_control/; \
-      plink \
-          --bfile ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples \
-          --maf 0.05 \
-          --geno 0.01 \
-          --make-bed \
-          --out ./08_loop_maf_missing/loop_maf_missing_1; \
-      ls -l ./08_loop_maf_missing/")  
-
-    print_text("apply missing sample filters", header=4)
-    run_bash(" \
-        cd ./data/genetic_data/quality_control/; \
-        plink \
-            --bfile ./08_loop_maf_missing/loop_maf_missing_1 \
-            --mind 0.01 \
-            --make-bed \
-            --out ./08_loop_maf_missing/loop_maf_missing_2; \
-        ls -l ./08_loop_maf_missing/")
-
-    print_text("create MAF and missing reports", header=4)
-    run_bash(
-        "cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
-        plink \
-            --bfile loop_maf_missing_2 \
-            --freq \
-            --missing \
-            --out loop_maf_missing_2_reports; \
-        ls -l")
-    
-    print_text("check reports again", header=4)
-    n_snps_below_maf_second_round_raw = run_bash(" \
-        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
-        awk \
-            'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
-            loop_maf_missing_2_reports.frq", return_value=True).strip()
-    n_snps_below_maf_second_round = 0 if n_snps_below_maf_second_round_raw=="" else int(n_snps_below_maf_second_round_raw)
-    print(f"We have {n_snps_below_maf_second_round} SNPs below the MAF threshold after the second round of filters")    
-    n_snps_below_missing_second_round_raw = run_bash(" \
-        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
-        awk \
-            'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
-            loop_maf_missing_2_reports.lmiss", return_value=True).strip()
-    n_snps_below_missing_second_round = 0 if n_snps_below_missing_second_round_raw=="" else int(n_snps_below_missing_second_round_raw)
-    print(f"We have {n_snps_below_missing_second_round} SNPs above the missing threshold after the second round of filters")
-    n_samples_below_missing_second_round_raw = run_bash(" \
-        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
-        awk \
-            'BEGIN{FS=\" \"}{if((NR>1) && ($6 > 0.01)){count++}}END{print count}' \
-            loop_maf_missing_2_reports.imiss", return_value=True).strip()
-    n_samples_below_missing_second_round = 0 if n_samples_below_missing_second_round_raw=="" else int(n_samples_below_missing_second_round_raw)
-    print(f"We have {n_samples_below_missing_second_round} Samples above the missing threshold after the second round of filters")
-
-    print_text("stop if we still have SNPs/samples not meeting the filters", header=4)
-    if (n_snps_below_maf_second_round>0) | (n_snps_below_missing_second_round>0) | (n_samples_below_missing_second_round>0):
-        raise ValueError("ERROR: FALSE! WE HAVE AN ERROR WITH THE ITERATIONS OF MAF/MISSING FILFERS!, WE STILL HAVE SNPS OR SAMPLES NOT MEETING THE CONDITIONS")
-else:
-    print("Step not required")
-
-
-print_text("just copy plink files if no filter is required", header=3)
-if(n_snps_below_maf_first_round==0) & (n_snps_below_missing_first_round==0):
-    run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    cp \
-        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bim \
-        ./08_loop_maf_missing/loop_maf_missing_2.bim; \
-    cp \
-        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam \
-        ./08_loop_maf_missing/loop_maf_missing_2.fam; \
-    cp \
-        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bed \
-        ./08_loop_maf_missing/loop_maf_missing_2.bed; \
-    ls -l ./08_loop_maf_missing/")
-else:
-    print("Step not required.")
-
-
-
-
-print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=2)
-##XY chromosome in final reports (chromosome 25 in bim file)
-#General info about XY regions
-#In an Illumina Final Report, SNPs in the XY chromosome refer to genetic variations that occur in the pseudoautosomal regions (PARs) of the X and Y chromosomes[1]. 
-#These regions are present on both X and Y chromosomes and are capable of undergoing recombination during meiosis, similar to autosomal chromosomes[1]. Therefore, these SNPs may show male heterozygotes[1].
-#The Illumina genotyping arrays, such as the ones used in the GenomeStudio software, identify these SNPs using pre-defined oligonucleotide probes designed to hybridize specific regions of genomic DNA[1]. The identity of alleles is determined by automated clustering of samples based on the similarity of fluorescent intensity[1].
-#It's important to note that the XY chromosome should be treated as an autosomal chromosome when analyzing these SNPs[1]. This is because the PARs behave more like autosomal regions rather than sex-determining regions. Because of this, SNPs in these regions have a different code (XY or 25).
-#Source: Conversation with Bing, 5/1/2024
-#(1) GenomeStudio Genotyping QC SOP v.1.6 - GitHub Pages. https://khp-informatics.github.io/COPILOT/GenomeStudio_genotyping_SOP.html.
-#(2) How to interpret DNA strand and allele information ... - Illumina Knowledge. https://knowledge.illumina.com/microarray/general/microarray-general-reference_material-list/000001489.
-#(3) tutorials:population-diversity:snp-chips [ILRI Research Computing] - CGIAR. https://hpc.ilri.cgiar.org/tutorials/population-diversity/snp-chips.
-#(4) Infinium Genotyping Data Analysis - Illumina. https://www.illumina.com/documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf.
-
-#Specific details about our data
-#It seems that the SNPs marked as XY in the illumina report (and as 25 in the bim files of plink) have the physical position in the chromosome X. Sometimes, the position is the same in both X and Y, but if the are not, then the position showed in the illumina report is the X position. See examples:
-#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 155870488, i.e., chrX.
-#rs5946743 has code XY in the final report and position 733497. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946743/#variant_details) this SNP is in position 733497 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 733497.
-#rs28416357 has code XY in the final report and position 1308288. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs28416357/#variant_details) this SNP is in position 1308288 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 1308288.
-#kgp22824102 has code XY in the final report and position 825992. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946480#variant_details) this SNP is in position 825992 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 825992. Note, SNPs that start with “kgp” are also genetic variations, similar to those that start with “rs”. The “kgp” prefix is used by the 1000 Genomes Project. The number following “kgp” is a unique identifier for that specific SNP. Please note that not all “kgp” SNPs may have a corresponding “rs” identifier. The “rs” identifiers are assigned by the dbSNP database when a SNP is submitted to them, and not all SNPs identified by the 1000 Genomes Project may have been submitted to dbSNP.
-
-#Comparison of the PAR region in our data and the PAR region defined for hg38 by plink
-#According to plink, in GRCh38/UCSC human genome 38, the boundaries are 2781479 and 155701383 (https://www.cog-genomics.org/plink/1.9/data#split_x). It seems these are the limits of the two PAR regions in the X chromosome. 
-#Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
-#Therefore, we can assume these are the correct coordinates of pseudo-autosomal regions in the X chromosome. Note that I have previously check in several cases that coordinates of XY SNPs in illumina reports are chrX coordinates.
-
-
-
-#in the last BIM file after MAF filters, select ID of those SNPs with code 25 that are outside the PAR regions previously indicated.
-print_text("see SNPs that are considered to be pseudoautosomals (chr=25) but in reality are not in pseudo-autosomal regions of XY", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    awk \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1 == 25){ \
-                if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
-                    print $2 \
-                } \
-            } \
-        }' \
-        ./loop_maf_missing_2.bim > snps_par_problem.txt"
-)
-#load bim file after MAF filtering to awk using tabs as delimiter (checked this is the delimiter in the file)
-#select those SNPs in pseudo autosomal regions (code 25) that
-#are located: 1) before the start of the first PAR region;
-#2) After the first PAR region and before the second one;
-#3) After the second PAR region
-#print these cases and count them
-#at the END, print the count
-
-
-
-#check we only have 36 problematic cases
-print_text("check we ONLY have 36 of these problematic cases", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    n_par_problem=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./snps_par_problem.txt); \
-    if [[ $n_par_problem -eq 36 ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi"
-)
-
-
-
-#make a file with ID of NON problematic SNPs
-print_text("create a list WITHOUT SNPs that are problematic for PAR: We discard SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    awk \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1 == 25){ \
-                if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
-                    print $2 \
-                } \
-            } else { \
-                print $2 \
-            } \
-        }' \
-        ./loop_maf_missing_2.bim > snps_par_no_problem.txt"
-)
-#if the chromosome is 25 (PAR)
-    #if the SNPs is within the PAR limits accoridng to NCBI print the ID (second column)
-    #if not, then it is a SNP considered pseudo-autosomal but being outside of the PAR
-        #region, so out.
-#if the SNP is not considered PAR, then we can print the ID
-
-
-
-
-#retain only these SNPs without the problem
-#We cannot be sure if there is something wrong with these SNPs
-#They are in PAr regions or not? should they be treated as PAR o like
-#sex chromosomes? so we are going to check the number is not very high
-#and then remove all of them. We should be ok with the remaining PAR SNPs
-#as they are considered separately from autosomals and sex chromosomes
-print_text("retain only these SNPs without the problem", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    plink \
-        --bfile ./loop_maf_missing_2 \
-        --extract ./snps_par_no_problem.txt \
-        --make-bed \
-        --out ./loop_maf_missing_3; \
-    ls -l ")
-        #--bfile: 
-            #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
-            #https://www.cog-genomics.org/plink/1.9/input#bed
-        #--extract:
-            #normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces) and removes all unlisted variants from the current analysis
-            #https://www.cog-genomics.org/plink/1.9/filter#snp
-        #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
-            #https://www.cog-genomics.org/plink/1.9/data#make_bed
-
-
-
-#quick check
-print_text("quick check", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    n_snps_before_par=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./loop_maf_missing_2.bim); \
-    n_snps_after_par=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./loop_maf_missing_3.bim); \
-    n_snps_par_problem=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./snps_par_problem.txt); \
-    sum_snps=$(($n_snps_after_par + $n_snps_par_problem)); \
-    if [[ $n_snps_before_par -eq $sum_snps ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi"
-)
-
-
-
-
+###################################
+# region sample relatedness #######
+###################################
 print_text("sample relatedness", header=2)
 #the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
@@ -2650,9 +2108,24 @@ print_text("sample relatedness", header=2)
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
 #we can filter by sample relatdness, select a subset of SNPs based on LD-pruning (for IBD), then filter by relatedness and use that subset also for PCA and heterozigosity
 #Summary:
-    #1. Sample relatedness: it is usually done as one of the first steps in many of the tutorials checked
+    #1. MAF, missingnes and initial HWE filtering
+        #The most important argument I have found to do MAF before sample relatedenss is the following:
+            #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
+                #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
+            #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
+        #So we are going to make an initial clean of SNPs and then do sample removals. If we clean by MAF and then clean by HWE there is no change in the MAF, because we are removing SNPs, not samples.
+    #2. Sample relatedness and sample geno rate:
+        #We related samples after we have decent MAF data and then we can remove samples with low genotyping rate. The previous removal of samples is not going to influenec the genotypiing rate of a sample because we removed samples, not SNPs...
+    #3. MAF loop to ensure we have OK MAF and genotyping rate
+        #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
     #2. Population stratification: It is strongly recommended by Plink´s author to check subgroups and then perform checks like sex-imbalances inside each group. Besides this, we will use the PCAs as covariates in the analyses.
-    #3. Sex imbalances. The differences in allele frequencies between ancestry groups can influence the check for sex imbalances, so we have to do it after population stratification analyses. This should be ok, because the problem with sex imbalances could be that the phenotype of one sample is ineed the phenotype or other sample, i.e., they are swapped, but it should influence if we just do analyses with only genotypes like the PCA.
+    #4. HWE
+        #This is recommnded to be done also withjing ancestry groups
+            #After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
+            #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+    #5. Sex determination. The differences in allele frequencies between ancestry groups can influence the check for sex imbalances, so we have to do it after population stratification analyses. This should be ok, because the problem with sex imbalances could be that the phenotype of one sample is ineed the phenotype or other sample, i.e., they are swapped, but it should influence if we just do analyses with only genotypes like the PCA.
+    #6. MAF-Missing loop
+        #We ahve removed SNPs (HWE) and samples (sex problems), this MAFs and genotyping rates can be changed, so we have to ensure again that MAF and geno rates are ok
 
 #Rationale:
     #Many population-genomic statistics (such as the allele frequencies) and analyses are distorted when there are lots of very close relatives in the dataset; you are generally trying to make inferences about the population as a whole, rather than a few families that you oversampled. For example, PLINK 2 includes an implementation of the KING-robust [5] pairwise relatedness estimator, which can be used to prune all related pairs. This does not mean that both samples in each related pair are thrown out. Instead, –king-cutoff tries to keep as much data as possible, and as a consequence it usually keeps one sample out of each pair (see below).
@@ -2852,26 +2325,33 @@ run_bash(" \
             #Z0  P(IBD=0)
                 #Individuals sharing close to zero alleles IBD at every locus (Z0~1) are unrelated.
             #Z1  P(IBD=1)
-                #Individuals sharing one allele IBD at every locus (Z1~1) are parent-child pairs. On average, siblings share zero, one, and two alleles IBD at 25%, 50%, and 25% of the genome, respectively. Therefore, Z0=0.25, Z1=0.5 and Z2=0.25.
+                #Individuals sharing one allele IBD at every locus (Z1~1) are parent-child pairs. 
+                #On average, siblings share zero, one, and two alleles IBD at 25%, 50%, and 25% of the genome, respectively. Therefore, Z0=0.25, Z1=0.5 and Z2=0.25.
             #Z2  P(IBD=2)
                 #(IBD). Individuals sharing two alleles IBD at nearly every locus (Z2~1) are monozygotic twins, or the pair is a single sample processed twice.
-            #PI_HAT  Proportion IBD, i.e. P(IBD=2) + 0.5*P(IBD=1)
+            #PI_HAT  Proportion IBD, i.e., P(IBD=2) + 0.5*P(IBD=1)
                 #This counts the whole probability of having 2 shared alleles IBD and then half of the probability of having 1 shared allele IBD.
                 #I guess this is the whole probability of have a shared allele at all.
-
-    ##POR AQUII
-
-    #particular cases
-        #Identical twins, and duplicates, are 100% identical by descent (Pihat 1.0)
-            #P(IBD=2)=1, i.e., Z2=1
-        #First-degree relatives are 50% IBD (Pihat 0.5)
-            #P(IBD=1)=1, i.e., Z1=1. Therefore, 0.5*1=0.5
-        #Second-degree relatives are 25% IBD (Pihat 0.25)
-        #Third-degree relatives are 12.5% equal IBD (Pihat 0.125).
-            #https://www.biostars.org/p/58663/
-            #https://www.biostars.org/p/75335/
-
-            
+                #particular cases
+                    #Identical twins, and duplicates, are 100% identical by descent (Pihat 1.0)
+                        #P(IBD=1)=0 and P(IBD=2)=1, thus PI_HAT=1+0.5*0=1
+                        #Because they share two alelles in every loci, i.e., Z1=0 and Z2=1.
+                    #First-degree relatives are 50% IBD (Pihat 0.5)
+                        #Parent-child:
+                            #P(IBD=1)=1 and P(IBD=2)=0, thus PI_HAT=0+0.5*1=0.5
+                            #Becuase they share 1 allele in almost every locus, i.e., Z1=1 and Z2=0
+                        #Siblings:
+                            #P(IBD=1)=0.5 and P(IBD=2)=0.25, thus PI_HAT=0.25+0.5*0.5=0.5
+                            #Because they share 1 allele in half of loci and 2 alleles in 25% of loci, i.e., Z1=0.5 and Z2=0.25
+                    #Second-degree relatives are 25% IBD (Pihat 0.25)
+                        #grandparents, grandchildren, aunts, uncles, nieces, nephews, and half-siblings
+                    #Third-degree relatives are 12.5% equal IBD (Pihat 0.125).
+                        #great-grandparents, great-grandchildren, first cousins, great-uncles, great-aunts, and the great-nieces and great-nephews
+                        #https://www.biostars.org/p/58663/
+                        #https://www.biostars.org/p/75335/
+                    #A PI_HAT value of 0.2 is usually used as threshold so we remove second degree relatives and above. This is according to Marees et al., review. Also the trainability paper used that threshold.
+                        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
+                        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
             #PHE Pairwise phenotypic code (1, 0, -1 = AA, AU, and UU pairs, respectively)
             #DST IBS distance, i.e. (IBS2 + 0.5*IBS1) / (IBS0 + IBS1 + IBS2)
             #PPC IBS binomial test
@@ -2930,12 +2410,29 @@ plt.yscale('log')
 plt.savefig( \
     fname="./data/genetic_data/quality_control/09_remove_related_samples/pi_hat_hist.png")
 plt.close()
-    #we have several cases above pi_hat of 0.2
+    #we have several cases above pi_hat of 0.2, i.e., at least second degree relatives, possibly including first-degree relatives (PI_HAT=0.5) and twins/duplicated samples (PI_HAT=1).
+
+print_text("We have multiple cases with PI_HAT around 0.2, 0.5 and 1, which are potential second, first-degree relatives and twins/duplicated samples, respectively", header=4)
+pi_hat_above_0_2=ibd_report.loc[ibd_report["PI_HAT"]>0.2, ["FID1", "IID1", "FID2", "IID2", "PI_HAT"]]
+print(pi_hat_above_0_2)
+
+print_text("print unique related samples with pi_hat > 0.2", header=4)
+samples_pi_hat_above_0_2=pd.concat( \
+    [pi_hat_above_0_2["IID1"], pi_hat_above_0_2["IID2"]], \
+    axis=0).unique()
+print("We have %s samples with PI_HAT > 0.2" % len(samples_pi_hat_above_0_2))
+print(samples_pi_hat_above_0_2)
 
 
 
 
 
+
+
+
+#The plink tutorial says that sample relatdness can influence allele frequencies os they remove these samples before doing maf fitlering
+
+#we could do a LD prouning wiht the data before filtering, calculate pi_hat and king (without pruning), remove samples, then do the maf filtering, then do another LD prunung to do pop stratification and then sex incosistences on the same LD prunned withtin ancestry groups
 
 
 
@@ -2947,6 +2444,14 @@ plt.close()
 
 #As long as you're just concerned with finding/pruning close relations (1st-2nd degree, maybe third degree), you can think of KING kinship as half of PI_HAT.
     #https://groups.google.com/g/plink2-users/c/z2HRffl-6k8/m/ndOZIjpMBQAJ
+
+
+
+#Note that KING kinship coefficients are scaled such that duplicate samples have kinship 0.5, not 1. First-degree relations (parent-child, full siblings) correspond to ~0.25, second-degree relations correspond to ~0.125, etc. It is conventional to use a cutoff of ~0.354 (the geometric mean of 0.5 and 0.25) to screen for monozygotic twins and duplicate samples, ~0.177 to add first-degree relations, etc.
+#https://www.cog-genomics.org/plink/2.0/distance#king_coefs
+
+#Christopher: If you need to ask, then you should ignore PI_HAT. A major advantage of the KING method is that it is much harder to misuse.
+    #https://www.biostars.org/p/434832/#434898
 
 
 
@@ -3058,32 +2563,751 @@ run_bash(" \
 #bim_no_dups.loc[:, 5].unique()
 
 
+# endregion
 
 
 
 
 
+################################
+# region sample missingness #######
+################################
+print_text("filter by sample missingness", header=2)
+print_text("make sample missing report after previous filters", header=3)
+run_bash("head ./data/genetic_data/quality_control/05_remove_missing_snps/plink.imiss")
+    #imiss: A text file with a header line, and one line per sample with the following six fields:
+        #FID    Family ID
+        #IID Within-family ID
+        #MISS_PHENO  Phenotype missing? (Y/N)
+        #N_MISS  Number of missing genotype call(s), not including obligatory missings or het. haploids
+        #N_GENO  Number of potentially valid call(s)
+        #F_MISS  Missing call rate
+            #https://www.cog-genomics.org/plink/1.9/formats#imiss
+    #IMPORTANT: 
+        #I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+        #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
+
+
+print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
+    n_samples_freq_file=$( \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\" \"} \
+            {if(NR>1)(count++)}\
+            END{print count}'\
+            plink.imiss \
+    ); \
+    n_correct_freq_miss=$( \
+        awk \
+            'BEGIN{ \
+                FS=\" \"; OFS=\" \" \
+            } \
+            { \
+                if((int(($4/$5)*100+0.5)/100==int($6*100+0.5)/100) && (NR>1)){ \
+                    count++ \
+                } \
+            } \
+            END { \
+                print count \
+            }' \
+            plink.imiss \
+    ); \
+    if [[ $n_correct_freq_miss -eq $n_samples_freq_file ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #just check if freq miss is the ratio of missing calls respect to the potential number of valid calls per sample. We count the number of samples for which this is the case, N_MISS/N_GENO is equal to F_MISS and then check this is the total number of samples, i.e., all meet the condition.
+        #see above in the SNP missing part for explanations about the script
+
+
+print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{if(NR>0){print $1,$2,$3,$4,$5,$6}}' \
+        plink.imiss \
+    > plink_awk_processed.imiss; \
+    head plink_awk_processed.imiss")
+        #specify the delimiter of the output (OFS="\t") and just print all fields (1 to 6) for all rows, then save as a new file
+
+
+print_text("load in pandas", header=3)
+sample_missing_report = pd.read_csv( \
+    "./data/genetic_data/quality_control/05_remove_missing_snps/plink_awk_processed.imiss", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+print(sample_missing_report)
+
+
+print_text("check we have the correct number of samples and columns in the missing sample report", header=3)
+print(sample_missing_report.shape[0]==1458) 
+print(sample_missing_report.shape[1]==6) 
+
+
+print_text("calculate the proportion of samples retained at different missing thresholds", header=3)
+#calculate the thresholds over 1
+thresholds = [x / 1000 for x in range(980, 1000, 1)]
+    #we want from proportion 0.985 to 1. In order to get floats with range, we need to first use integers that include all the numbers we want to include as decimals (e.g., 985 for 0.985) and then divide by 1000 (985/1000=0.985).
+        #https://stackoverflow.com/a/7267287/12772630
+print("see the thresholds selected")
+print(thresholds)
+
+#calculate the proportion of retained samples
+list_tuples_thresholds = [] #empty list to save results
+#threshold=thresholds[0]
+for threshold in thresholds:
+    
+    #get the number of samples above the missing threshold    
+    n_retained_samples = sample_missing_report \
+        .loc[(1-sample_missing_report["F_MISS"]) >= threshold,:]\
+        .shape[0]
+            #1 minus F_MISS gives the call rate over 1
+    
+    #calculate proportion of retained samples dividing retained samples by the total number of samples
+    proportion_remaining = n_retained_samples/sample_missing_report.shape[0]
+    
+    #append to the result list a tuple with threshold and proportion
+    list_tuples_thresholds.append((threshold, proportion_remaining))
+
+#convert the list to DF
+pd_tuples_thresholds = pd.DataFrame(list_tuples_thresholds, columns=["threshold", "proportion_remaining"])
+print("see thresholds and proportion of retained samples")
+print(pd_tuples_thresholds)
+
+#create a new folder for doing operations about missing in samples
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./06_remove_low_call_samples/; \
+    ls -l")
+
+
+print_text("plot sample missing thresholds against the proportion of samples retained", header=3)
+import matplotlib.pyplot as plt
+plt.plot( \
+    pd_tuples_thresholds["threshold"], \
+    pd_tuples_thresholds["proportion_remaining"], \
+    marker="o", \
+    linestyle="dashed")
+plt.xlabel("Call Rate Threshold")
+plt.ylabel("Proportion Remaining")
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/06_remove_low_call_samples/merged_batches_plot_sample_retention_thresholds.png")
+plt.close()
+
+
+print_text("remove samples with low call rate", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./05_remove_missing_snps/merged_batches_remove_missing_snps \
+        --mind 0.01 \
+        --make-bed \
+        --out ./06_remove_low_call_samples/merged_batches_remove_low_call_samples")
+            #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
+                #https://www.cog-genomics.org/plink/1.9/filter
+            #recommended threshold
+                #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. 
+                #The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
+                #The illumina report of the first batch says "Four samples are below the illumina expected 99% SNP call rate (values expected for typical projects, excluding tumour samples)".
+                #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is below the expectation of Illunina. Therefore, I think we are ok removing these samples.
+
+
+print_text("see the number of samples removed", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    n_samples_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./05_remove_missing_snps/merged_batches_remove_missing_snps.fam); \
+    n_samples_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
+    lost_samples=$(($n_samples_before - $n_samples_after)); \
+    lost_samples_percent=$( \
+        awk \
+            -v l=$lost_samples \
+            -v b=$n_samples_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_samples_percent < 2 ]]; then \
+        printf 'The number of samples lost due to call rate below 0.99 is: %s' \"$lost_samples\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 2% of samples due low-call rate';\
+    fi")
+        #see SNP missing code to details about awk steps
+
+
+print_text("create again the missing report", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
+    plink \
+        --bfile merged_batches_remove_low_call_samples \
+        --missing; \
+    ls -lh")
+        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
+            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+
+
+print_text("check that no sample has a missing % above the selected threshold", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
+    total_number_samples=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
+            plink.imiss);\
+    n_samples_below_threshold=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($6 <= 0.01)){count++}}END{print count}' \
+            plink.imiss); \
+    if [[ $n_samples_below_threshold -eq $total_number_samples ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #see SNP missing code to details about awk steps
+
+# endregion
+
+
+
+####################################################################
+# region samples with LogR SD above the illumina expectation #######
+####################################################################
+print_text("remove samples with LogR SD above the illumina expectation", header=2)
+#In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
+#Some the samples above the expectation have also a call rate below 0.99, but not others, thus a specific filter is needed for this. Given that Illumina says that level of LogR SD is not normal, we should remove these individuals.
+
+
+print_text("obtain the samples above the expectation for logR dev in each batch", header=3)
+#batch_name = "ILGSA24-17873"
+for batch_name in ["ILGSA24-17873", "ILGSA24-17303"]:
+    
+    print_text(batch_name + ": process the file with the logR deviation", header=4)
+    if(batch_name == "ILGSA24-17873"):
+        cnmetricts_file_name="CAGRF20093767_CNMetrics"
+    elif(batch_name == "ILGSA24-17303"):
+        cnmetricts_file_name="ILGSA24-17303_CNMetrics"
+    print(cnmetricts_file_name)
+    
+    print_text(batch_name + ": get the ID of samples above the illumina expectation for logR SD", header=3)
+    removed_samples_logRdev = run_bash(" \
+        cd ./data/genetic_data/cn_metrics/; \
+        awk \
+            'BEGIN{ \
+                FS=\",\"; \
+                OFS=\"\t\"} \
+            { \
+                if((NR>2) && ($9 >= 0.3)){ \
+                    print \"combat_" + batch_name + "\", $1 \
+                }\
+            }' \
+            " + cnmetricts_file_name + ".csv > " + batch_name + "_samples_filter_out_LogRDev.tsv; \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            " + batch_name + "_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
+            #load the CNMetrics CSV file into awk indicating that sep is ",", but the output should be tab
+            #print only from the third row (the two first have complicated headers) and only those rows for which the 9th column (the one with logR SD) is above the expectation (i.e., 0.3).
+                #from that rows, only print the first column, which is the ID.
+                #also print the name of the family first, because plink --remove needs a file with two columns, the family ID and the within-family ID
+                    #in our case, the family ID is the batch name, which is "combat_" + batch_name
+                    #this can be add as another column just with print and ""
+                        #https://stackoverflow.com/questions/7551991/add-a-new-column-to-the-file
+            #the resulting IDs of samples above the expectation can be saved as a TSV file
+            #also get the output in python
+                #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
+    print(removed_samples_logRdev)
+
+
+print_text("combine the IDs from both batched into one single file", header=3)
+run_bash(" \
+    cd ./data/genetic_data/cn_metrics/; \
+    cat \
+        ILGSA24-17303_samples_filter_out_LogRDev.tsv  \
+        ILGSA24-17873_samples_filter_out_LogRDev.tsv > \
+    merged_batches_samples_filter_out_LogRDev.tsv; \
+    cat merged_batches_samples_filter_out_LogRDev.tsv")
+        #https://stackoverflow.com/a/2150794/12772630
+
+
+print_text("check we have the correct IDs in the merged file", header=3)
+print_text("get IDs from the merged file", header=4)
+total_removed_samples_logRdev = run_bash(" \
+    awk \
+        'BEGIN{FS=\"\t\"}{print $2}' \
+        ./data/genetic_data/cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
+
+print_text("combine the list of ID samples from both batches and check it is identical than the merged list", header=4)
+print( \
+    run_bash(" \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            ./data/genetic_data/cn_metrics/ILGSA24-17303_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") + \
+    run_bash(" \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            ./data/genetic_data/cn_metrics/ILGSA24-17873_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") == \
+    total_removed_samples_logRdev)
+
+
+
+print_text("remove these samples", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        07_remove_high_LogRDev_samples; \
+    plink \
+        --bfile ./06_remove_low_call_samples/merged_batches_remove_low_call_samples \
+        --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
+        --make-bed \
+        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples; \
+    ls -l ./07_remove_high_LogRDev_samples/")
+            #create a new folder to save plink filesets after filtering
+            #then use --remove to remove samples included in a file with two columns: family id and within-family id.
+                #this file is in a different parent folder so we have to use "../"
+                #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+                    #https://www.cog-genomics.org/plink/1.9/filter
+
+
+print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
+fam_file_after_logRdev_filtering = pd.read_csv( \
+    "./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
+    sep=" ", \
+    header=0, \
+    low_memory=False)
+print(sum(fam_file_after_logRdev_filtering.iloc[:, 1].isin(total_removed_samples_logRdev)) == 0)
+    #no sample ID (second column in fam file) should be included in the list of IDs to be removed
+
+
+print_text("see the number of samples removed", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    n_samples_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
+    n_samples_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
+    lost_samples=$(($n_samples_before - $n_samples_after)); \
+    lost_samples_percent=$( \
+        awk \
+            -v l=$lost_samples \
+            -v b=$n_samples_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_samples_percent < 2 && $lost_samples_percent > 0 ]]; then \
+        printf 'The number of samples lost due to logR SD above illumina expectations is: %s; Note that we previously filtered by missingness, so we already removed there some samples with logR dev problems' \"$lost_samples\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 2% of samples due logR SD above illumina expectations OR just zero samples removed, which would be also strange, maybe you are using the wrong CNMetric file';\
+    fi")
+        #see SNP missing code to details about awk steps
+        #just added another condition, if the number of removed samples is zero, get error because we have problematic samples for this in both batches, so maybe you are using the incorrect CNMetric file
+
+# endregion
+
+
+
+
+#########################
+# region MAF loop #######
+#########################
+print_text("apply again the MAF and missing filters", header=2)
+#We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
+#In other words, 
+    #imagine you have already filtered by MAF and missing (SNP and sample). Of course, after the SNP filters, you can be sure that no SNP is below the MAF threshold or above the missing threshold. 
+    #But then, you remove samples. It could be the case that after removing samples, the MAF of a SNP gets below 0.05 because the few minor carriers have been removed. 
+    #This makes snps with MAF close but above of 0.05 actually getting below that thershold. We remove again these SNPs.
+    #This removal of SNPs can in turn influence the missing call percentage of samples because maybe a sample has a call rate of 0.99, but we have removed one SNP for which it had data (i.e., non-missing). Its call rate has decreased being now below the threshold. See the following dummy example:
+        #We only have 5 SNPs, thus 10 potential genotypess
+        #A sample has missing for 2 genotypes, thus its missing rate is 2/10=0.2 and its call rate is 8/10=0.8.
+        #If we remove one of the SNPs, the number of potential genotypes is 8 instead of 10.
+        #Imagine that the removed SNPs was indeed one of the SNPs without missing for this sample, thus the number of genotypes for this sample goes down to 6.
+        #Therefore, its missing rate is now 2/8=0.25 and its call rate is 6/8=0.75.
+        #We have now a higher missing rate and a lower call rate.
+#We have to continue until we remove SNPs by filters and then no additional sample is removed. In that moment, we can be sure that all SNPs and samples meet the filters considered.
+    #"An iterative procedure that repeats the SNP and sample-level filtering until no additional samples are removed is also common" 
+        #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
+#the other previous steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
+print_text("create missing and freq reports", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    plink \
+        --bfile merged_batches_remove_high_LogRDev_samples \
+        --freq \
+        --missing \
+        --out merged_batches_remove_high_LogRDev_samples_reports; \
+    ls -l")
+
+
+
+
+print_text("create a folder to save plink data after new filters", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./08_loop_maf_missing; \
+    ls -l")
+
+
+print_text("check if we have SNPs below the MAF threshold after removing samples", header=3)
+n_snps_below_maf_first_round_raw = run_bash(" \
+    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    awk \
+        'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
+        merged_batches_remove_high_LogRDev_samples_reports.frq", return_value=True).strip()
+n_snps_below_maf_first_round = 0 if n_snps_below_maf_first_round_raw=="" else int(n_snps_below_maf_first_round_raw)
+print(f"We have {n_snps_below_maf_first_round} SNPs below the MAF threshold after the first round of filters")
+
+
+print_text("check if we have SNPs below the missing threshold after removing samples", header=3)
+n_snps_below_missing_first_round_raw = run_bash(" \
+    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    awk \
+        'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
+        merged_batches_remove_high_LogRDev_samples_reports.lmiss", return_value=True).strip()
+n_snps_below_missing_first_round = 0 if n_snps_below_missing_first_round_raw=="" else int(n_snps_below_missing_first_round_raw)
+print(f"We have {n_snps_below_missing_first_round} SNPs above the missing threshold after the first round of filters")
+
+
+print_text("repeat the filters if these snps exists", header=3)
+if(n_snps_below_maf_first_round>0) | (n_snps_below_missing_first_round>0):
+    print_text("apply MAF and missing SNP filters", header=4)
+    run_bash(" \
+      cd ./data/genetic_data/quality_control/; \
+      plink \
+          --bfile ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples \
+          --maf 0.05 \
+          --geno 0.01 \
+          --make-bed \
+          --out ./08_loop_maf_missing/loop_maf_missing_1; \
+      ls -l ./08_loop_maf_missing/")  
+
+    print_text("apply missing sample filters", header=4)
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/; \
+        plink \
+            --bfile ./08_loop_maf_missing/loop_maf_missing_1 \
+            --mind 0.01 \
+            --make-bed \
+            --out ./08_loop_maf_missing/loop_maf_missing_2; \
+        ls -l ./08_loop_maf_missing/")
+
+    print_text("create MAF and missing reports", header=4)
+    run_bash(
+        "cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        plink \
+            --bfile loop_maf_missing_2 \
+            --freq \
+            --missing \
+            --out loop_maf_missing_2_reports; \
+        ls -l")
+    
+    print_text("check reports again", header=4)
+    n_snps_below_maf_second_round_raw = run_bash(" \
+        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
+            loop_maf_missing_2_reports.frq", return_value=True).strip()
+    n_snps_below_maf_second_round = 0 if n_snps_below_maf_second_round_raw=="" else int(n_snps_below_maf_second_round_raw)
+    print(f"We have {n_snps_below_maf_second_round} SNPs below the MAF threshold after the second round of filters")    
+    n_snps_below_missing_second_round_raw = run_bash(" \
+        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
+            loop_maf_missing_2_reports.lmiss", return_value=True).strip()
+    n_snps_below_missing_second_round = 0 if n_snps_below_missing_second_round_raw=="" else int(n_snps_below_missing_second_round_raw)
+    print(f"We have {n_snps_below_missing_second_round} SNPs above the missing threshold after the second round of filters")
+    n_samples_below_missing_second_round_raw = run_bash(" \
+        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($6 > 0.01)){count++}}END{print count}' \
+            loop_maf_missing_2_reports.imiss", return_value=True).strip()
+    n_samples_below_missing_second_round = 0 if n_samples_below_missing_second_round_raw=="" else int(n_samples_below_missing_second_round_raw)
+    print(f"We have {n_samples_below_missing_second_round} Samples above the missing threshold after the second round of filters")
+
+    print_text("stop if we still have SNPs/samples not meeting the filters", header=4)
+    if (n_snps_below_maf_second_round>0) | (n_snps_below_missing_second_round>0) | (n_samples_below_missing_second_round>0):
+        raise ValueError("ERROR: FALSE! WE HAVE AN ERROR WITH THE ITERATIONS OF MAF/MISSING FILFERS!, WE STILL HAVE SNPS OR SAMPLES NOT MEETING THE CONDITIONS")
+else:
+    print("Step not required")
+
+
+print_text("just copy plink files if no filter is required", header=3)
+if(n_snps_below_maf_first_round==0) & (n_snps_below_missing_first_round==0):
+    run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    cp \
+        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bim \
+        ./08_loop_maf_missing/loop_maf_missing_2.bim; \
+    cp \
+        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam \
+        ./08_loop_maf_missing/loop_maf_missing_2.fam; \
+    cp \
+        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bed \
+        ./08_loop_maf_missing/loop_maf_missing_2.bed; \
+    ls -l ./08_loop_maf_missing/")
+else:
+    print("Step not required.")
+
+# endregion
+
+
+
+###############################
+# region PROBLEM PAR XY #######
+###############################
+
+print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=2)
+##XY chromosome in final reports (chromosome 25 in bim file)
+#General info about XY regions
+#In an Illumina Final Report, SNPs in the XY chromosome refer to genetic variations that occur in the pseudoautosomal regions (PARs) of the X and Y chromosomes[1]. 
+#These regions are present on both X and Y chromosomes and are capable of undergoing recombination during meiosis, similar to autosomal chromosomes[1]. Therefore, these SNPs may show male heterozygotes[1].
+#The Illumina genotyping arrays, such as the ones used in the GenomeStudio software, identify these SNPs using pre-defined oligonucleotide probes designed to hybridize specific regions of genomic DNA[1]. The identity of alleles is determined by automated clustering of samples based on the similarity of fluorescent intensity[1].
+#It's important to note that the XY chromosome should be treated as an autosomal chromosome when analyzing these SNPs[1]. This is because the PARs behave more like autosomal regions rather than sex-determining regions. Because of this, SNPs in these regions have a different code (XY or 25).
+#Source: Conversation with Bing, 5/1/2024
+#(1) GenomeStudio Genotyping QC SOP v.1.6 - GitHub Pages. https://khp-informatics.github.io/COPILOT/GenomeStudio_genotyping_SOP.html.
+#(2) How to interpret DNA strand and allele information ... - Illumina Knowledge. https://knowledge.illumina.com/microarray/general/microarray-general-reference_material-list/000001489.
+#(3) tutorials:population-diversity:snp-chips [ILRI Research Computing] - CGIAR. https://hpc.ilri.cgiar.org/tutorials/population-diversity/snp-chips.
+#(4) Infinium Genotyping Data Analysis - Illumina. https://www.illumina.com/documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf.
+
+#Specific details about our data
+#It seems that the SNPs marked as XY in the illumina report (and as 25 in the bim files of plink) have the physical position in the chromosome X. Sometimes, the position is the same in both X and Y, but if the are not, then the position showed in the illumina report is the X position. See examples:
+#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 155870488, i.e., chrX.
+#rs5946743 has code XY in the final report and position 733497. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946743/#variant_details) this SNP is in position 733497 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 733497.
+#rs28416357 has code XY in the final report and position 1308288. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs28416357/#variant_details) this SNP is in position 1308288 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 1308288.
+#kgp22824102 has code XY in the final report and position 825992. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946480#variant_details) this SNP is in position 825992 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 825992. Note, SNPs that start with “kgp” are also genetic variations, similar to those that start with “rs”. The “kgp” prefix is used by the 1000 Genomes Project. The number following “kgp” is a unique identifier for that specific SNP. Please note that not all “kgp” SNPs may have a corresponding “rs” identifier. The “rs” identifiers are assigned by the dbSNP database when a SNP is submitted to them, and not all SNPs identified by the 1000 Genomes Project may have been submitted to dbSNP.
+
+#Comparison of the PAR region in our data and the PAR region defined for hg38 by plink
+#According to plink, in GRCh38/UCSC human genome 38, the boundaries are 2781479 and 155701383 (https://www.cog-genomics.org/plink/1.9/data#split_x). It seems these are the limits of the two PAR regions in the X chromosome. 
+#Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
+#Therefore, we can assume these are the correct coordinates of pseudo-autosomal regions in the X chromosome. Note that I have previously check in several cases that coordinates of XY SNPs in illumina reports are chrX coordinates.
+
+
+
+#in the last BIM file after MAF filters, select ID of those SNPs with code 25 that are outside the PAR regions previously indicated.
+print_text("see SNPs that are considered to be pseudoautosomals (chr=25) but in reality are not in pseudo-autosomal regions of XY", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1 == 25){ \
+                if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
+                    print $2 \
+                } \
+            } \
+        }' \
+        ./loop_maf_missing_2.bim > snps_par_problem.txt"
+)
+#load bim file after MAF filtering to awk using tabs as delimiter (checked this is the delimiter in the file)
+#select those SNPs in pseudo autosomal regions (code 25) that
+#are located: 1) before the start of the first PAR region;
+#2) After the first PAR region and before the second one;
+#3) After the second PAR region
+#print these cases and count them
+#at the END, print the count
+
+
+
+#check we only have 36 problematic cases
+print_text("check we ONLY have 36 of these problematic cases", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    n_par_problem=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./snps_par_problem.txt); \
+    if [[ $n_par_problem -eq 36 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi"
+)
+
+
+
+#make a file with ID of NON problematic SNPs
+print_text("create a list WITHOUT SNPs that are problematic for PAR: We discard SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1 == 25){ \
+                if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
+                    print $2 \
+                } \
+            } else { \
+                print $2 \
+            } \
+        }' \
+        ./loop_maf_missing_2.bim > snps_par_no_problem.txt"
+)
+#if the chromosome is 25 (PAR)
+    #if the SNPs is within the PAR limits accoridng to NCBI print the ID (second column)
+    #if not, then it is a SNP considered pseudo-autosomal but being outside of the PAR
+        #region, so out.
+#if the SNP is not considered PAR, then we can print the ID
+
+
+
+
+#retain only these SNPs without the problem
+#We cannot be sure if there is something wrong with these SNPs
+#They are in PAr regions or not? should they be treated as PAR o like
+#sex chromosomes? so we are going to check the number is not very high
+#and then remove all of them. We should be ok with the remaining PAR SNPs
+#as they are considered separately from autosomals and sex chromosomes
+print_text("retain only these SNPs without the problem", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    plink \
+        --bfile ./loop_maf_missing_2 \
+        --extract ./snps_par_no_problem.txt \
+        --make-bed \
+        --out ./loop_maf_missing_3; \
+    ls -l ")
+        #--bfile: 
+            #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
+            #https://www.cog-genomics.org/plink/1.9/input#bed
+        #--extract:
+            #normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces) and removes all unlisted variants from the current analysis
+            #https://www.cog-genomics.org/plink/1.9/filter#snp
+        #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
+            #https://www.cog-genomics.org/plink/1.9/data#make_bed
+
+
+
+#quick check
+print_text("quick check", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    n_snps_before_par=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./loop_maf_missing_2.bim); \
+    n_snps_after_par=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./loop_maf_missing_3.bim); \
+    n_snps_par_problem=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./snps_par_problem.txt); \
+    sum_snps=$(($n_snps_after_par + $n_snps_par_problem)); \
+    if [[ $n_snps_before_par -eq $sum_snps ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi"
+)
+
+
+#endregion
+
+# endregion
 
 
 
 
 
+####################################################################
+# region POP STRATIFICACION #######
+####################################################################
 
 
+##we have to decide whetehr to maintain the groups or to remove ancestry oultiers like trainibiltiy paper
+    ##Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n = 10).
+    #it depends of the number lost....
 
 
+#THINK ABOUT THIS, because maybe we have to do imptuation in each group separately?
+    #michina imputation sever says we have to Choose a reference panel
+    #it seems that the reference panel is something like hapmap or the 1KGP, so it shoudl ahndle different ancestries, but check
+        #A simple alternative is to use a “cosmopolitan” reference set that includes all available haplotypes, each of which is assigned an equal chance of being copied a priori. This approach produces relatively accurate results in a variety of human populations and has therefore been proposed as a good fallback choice when the optimal panel composition is unclear (Guan and Stephens 2008; Huang et al. 2009a; Li et al. 2010). Another class of methods tries to maximize accuracy by weighting reference panels through cross-validation (Huang et al. 2009a) or ancestry estimation (Egyud et al. 2009; Pasaniuc et al. 2010); the Pasaniuc et al. approach differs from the others in that it uses local ancestry estimates to provide customized reference weights for each study individual. As an alternative, Jostins et al. (2011) suggested balancing accuracy and computation by using reference panels that “approximately cluster” with the study individuals on a plot of principal components (PC) that capture genetic ancestry.
+        #https://academic.oup.com/g3journal/article/1/6/457/5986469
 
-
-
-##CHANGE NAME OF THE FOLDER PCA, THIS IS NO LONGER THE 5TH
-
-#do case-control study for batch effects after PCA? or after all pre-QC steps?
 
 #In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
 
 
 
+print_text("start PCA to detect individuals that are outliers", header=2)
+print_text("prepare folder for PCA", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./XX_pca; \
+    ls -l")
 
+
+
+print_text("run PCA to detect clusters of samples", header=3)
+run_bash("\
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --pca \
+            'tabs' \
+            'header' \
+        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
+        --out ./XX_pca/pca_after_logR_filter")
+        #dimensionality reduction
+            #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
+            #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
+            #By default, --pca extracts the top 20 principal components of the variance-standardized relationship matrix; you can change the number by passing a numeric parameter. Eigenvectors are written to plink.eigenvec, and top eigenvalues are written to plink.eigenval. 
+            #The 'header' modifier adds a header line to the .eigenvec file(s), and the 'tabs' modifier makes the .eigenvec file(s) tab- instead of space-delimited.
+                #https://www.cog-genomics.org/plink/1.9/strat#pca
+
+
+
+print_text("load the eigenvec file generated", header=3)
+pca_after_logR_filter=pd.read_csv(\
+    "./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter.eigenvec", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+pca_after_logR_filter
+        #Produced by --pca. Accompanied by an .eigenval file, which contains one eigenvalue per line.
+        #The .eigenvec file 
+            #is, by default, a space-delimited text file with no header line and 2+V columns per sample, where V is the number of requested principal components. 
+            #The --pca 'header' modifier causes a header line to be written, and the 'tabs' modifier makes this file tab-delimited.
+            #The first two columns are the sample's FID/IID, and the rest are principal component weights in the same order as the .eigenval values (if the header line is present, these columns are titled 'PC1', 'PC2', ...).
+        #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
+
+
+
+print_text("make interactive plot of the two first PCAs, so you can zoom in", header=3)
+import plotly.express as px
+fig = px.scatter(\
+    data_frame=pca_after_logR_filter, \
+    x="PC1", \
+    y="PC2", \
+    color="FID",
+    hover_data=[\
+        "IID"])
+        #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
+        #https://plotly.com/python/line-and-scatter/
+        #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
+#fig.show()
+fig.write_html("./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter_plot.html")
+    #https://plotly.com/python/interactive-html-export/
+
+
+#but how much is this? we should check in the conext of 1000 KGP....
+
+
+
+
+
+##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
+    #look tutorials
+    #https://www.cog-genomics.org/plink/1.9/strat
 
 
 ##clustering
@@ -3245,88 +3469,56 @@ run_bash("\
 
 
 
-print_text("start PCA to detect individuals that are outliers", header=2)
-print_text("prepare folder for PCA", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./XX_pca; \
-    ls -l")
 
-
-
-print_text("run PCA to detect clusters of samples", header=3)
-run_bash("\
-    cd ./data/genetic_data/quality_control/; \
-    plink \
-        --pca \
-            'tabs' \
-            'header' \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
-        --out ./XX_pca/pca_after_logR_filter")
-        #dimensionality reduction
-            #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
-            #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
-            #By default, --pca extracts the top 20 principal components of the variance-standardized relationship matrix; you can change the number by passing a numeric parameter. Eigenvectors are written to plink.eigenvec, and top eigenvalues are written to plink.eigenval. 
-            #The 'header' modifier adds a header line to the .eigenvec file(s), and the 'tabs' modifier makes the .eigenvec file(s) tab- instead of space-delimited.
-                #https://www.cog-genomics.org/plink/1.9/strat#pca
-
-
-
-print_text("load the eigenvec file generated", header=3)
-pca_after_logR_filter=pd.read_csv(\
-    "./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter.eigenvec", \
-    sep="\t", \
-    header=0, \
-    low_memory=False)
-pca_after_logR_filter
-        #Produced by --pca. Accompanied by an .eigenval file, which contains one eigenvalue per line.
-        #The .eigenvec file 
-            #is, by default, a space-delimited text file with no header line and 2+V columns per sample, where V is the number of requested principal components. 
-            #The --pca 'header' modifier causes a header line to be written, and the 'tabs' modifier makes this file tab-delimited.
-            #The first two columns are the sample's FID/IID, and the rest are principal component weights in the same order as the .eigenval values (if the header line is present, these columns are titled 'PC1', 'PC2', ...).
-        #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
-
-
-
-print_text("make interactive plot of the two first PCAs, so you can zoom in", header=3)
-import plotly.express as px
-fig = px.scatter(\
-    data_frame=pca_after_logR_filter, \
-    x="PC1", \
-    y="PC2", \
-    color="FID",
-    hover_data=[\
-        "IID"])
-        #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
-        #https://plotly.com/python/line-and-scatter/
-        #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
-#fig.show()
-fig.write_html("./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter_plot.html")
-    #https://plotly.com/python/interactive-html-export/
-
-
-#but how much is this? we should check in the conext of 1000 KGP....
+# endregion
 
 
 
 
-
-##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
-    #look tutorials
-    #https://www.cog-genomics.org/plink/1.9/strat
-
-
-#check differences in pheno between batches?
+##########################
+# region HWE
+###########################
 
 
+#After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
-
+# endregion
 
 
 
-#####SEX INCONSISTENCES ######
+
+######################################################
+# region heterozygosity wihting ancestry groups ######
+######################################################
+
+#Ritchie's tutorial says "in downstream analyuses .... less than expected heterozygosity (mean – 3 SD) suggests possible inbreeding and greater than expected heterozygosity (mean + 3 SD) suggests possible sample contamination. However, these thresholds should take into account the expected heterozygosity rates in the ancestry group under study, as some diverse populations may exhibit different rates of heterozygosity than other populations."
+
+##important
+#check if you have to use prunned LD data
+
+#do plot hetero - missingness
+#use the information to remove samples due to contamination (high hetero) or inbreeding (low hetero)
+
+# endregion
+
+
+
+
+##################################
+# region SEX INCONSISTENCES ######
+##################################
+
+
+    #check sex uses allele frequencies, so you can have problems with different ancestries, yo have to prepare the data... so maybe is bettter to see the PCA for outliers and batch effects, filtering and then go to see sex once we have cleaner data
+        #"Due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution, you may need to process the rare-ancestry samples separately."
+        #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+
+    #check-sex has to be used on LD-pruned data, so we can use the previous data
+        #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
+    #This isn't implemented yet in plink2 since there would be little practical difference from the plink 1.9 implementation.  Use "--make-bed --chr X,Y" to export a .bed fileset with only chrX and chrY, and run plink 1.9 --check-sex on that.
+
+    #BUT OF COURSE WE NEED DATA OF SEX CHROMOSOMES, select the prunnn ed dataset with sex chromosomes
 
 #sex inconsistences on ld_pruned
     #In the tutorial of plink Chirstopher checks sex on the prunned dataset
@@ -3398,6 +3590,20 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
     #If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
 
 
+# endregion
+
+
+
+
+#####################################
+# region LAST MAF-MISSING LOOP ######
+#####################################
+
+#We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
+
+#do it within each ancestry group?
+
+# endregion
 
 
 
@@ -3406,7 +3612,16 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 
 
 
-###when finished this script, you should check missing threholds, hetero and PCA plots
+
+
+
+#check differences in pheno between batches?
+#do case-control study for batch effects AFTER all pre-QC steps?
+
+
+
+
+###imputation separated between ancestry groups?
 
 
 
@@ -3419,49 +3634,6 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 
 
 
-print_text("heterozigosity", header=2)
-
-
-#Ritchie's tutorial says "while less than expected heterozygosity (mean – 3 SD) suggests possible inbreeding and greater than expected heterozygosity (mean + 3 SD) suggests possible sample contamination. How- ever, these thresholds should take into account the expected heterozygosity rates in the ancestry group under study, as some diverse populations may exhibit different rates of heterozygosity than other populations."
-
-#the heterozygosity of each individual is influenced by the genotypes, and we have already cleaned low-quality calls BUT the problem can be with the threshold we use to remove samples with low/high heterozigosity, because this is influenced by ancestry.
-
-
-##important
-#check if you need pruned data and if we can use sex chromosomes or not
-#we have two sets of LD pruned data, one with sex and another without sex chromosomes
-
-
-#I guess we can then use PCA to remove outlier samples because of ancestry issues, also by heterogizogisty those factors that can be influenced by ancestry
-#do plot hetero - missingness
-#use the information of both approaches to remove samples because different ancestry (outlier PCA), contamination (high hetero) or inbreeding (low hetero)
-
-
-
-#####see tutorials
-
-
-
-
-
-
-##################################
-###### check sex mismatches ######
-##################################
-print_text("check sex mismatches", header=1)
-
-
-
-
-    #check sex uses allele frequencies, so you can have problems with different ancestries, yo have to prepare the data... so maybe is bettter to see the PCA for outliers and batch effects, filtering and then go to see sex once we have cleaner data
-        #"Due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution, you may need to process the rare-ancestry samples separately."
-        #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
-
-    #check-sex has to be used on LD-pruned data, so we can use the previous data
-        #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
-    #This isn't implemented yet in plink2 since there would be little practical difference from the plink 1.9 implementation.  Use "--make-bed --chr X,Y" to export a .bed fileset with only chrX and chrY, and run plink 1.9 --check-sex on that.
-
-    #BUT OF COURSE WE NEED DATA OF SEX CHROMOSOMES, select the prunnn ed dataset with sex chromosomes
 
 
 
