@@ -2150,25 +2150,169 @@ run_bash(" \
 
 
 
-##############################################
-# region INITIAL CHECK HETERO ##############
-##############################################
+###############################
+# region PROBLEM PAR XY #######
+###############################
 
-#Rithce take a look before sampling checks
+##POR AQUIIII
+#it is ok to remove snps due to PAR right? no samples are removed... so MAF should be the same for the rest of SNPs....
 
-#see page 6 to make the plot
 
-"./06_first_hwe_filter/merged_batches_hwe_filtered"
+print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=2)
+##XY chromosome in final reports (chromosome 25 in bim file)
+#General info about XY regions
+#In an Illumina Final Report, SNPs in the XY chromosome refer to genetic variations that occur in the pseudoautosomal regions (PARs) of the X and Y chromosomes[1]. 
+#These regions are present on both X and Y chromosomes and are capable of undergoing recombination during meiosis, similar to autosomal chromosomes[1]. Therefore, these SNPs may show male heterozygotes[1].
+#The Illumina genotyping arrays, such as the ones used in the GenomeStudio software, identify these SNPs using pre-defined oligonucleotide probes designed to hybridize specific regions of genomic DNA[1]. The identity of alleles is determined by automated clustering of samples based on the similarity of fluorescent intensity[1].
+#It's important to note that the XY chromosome should be treated as an autosomal chromosome when analyzing these SNPs[1]. This is because the PARs behave more like autosomal regions rather than sex-determining regions. Because of this, SNPs in these regions have a different code (XY or 25).
+#Source: Conversation with Bing, 5/1/2024
+#(1) GenomeStudio Genotyping QC SOP v.1.6 - GitHub Pages. https://khp-informatics.github.io/COPILOT/GenomeStudio_genotyping_SOP.html.
+#(2) How to interpret DNA strand and allele information ... - Illumina Knowledge. https://knowledge.illumina.com/microarray/general/microarray-general-reference_material-list/000001489.
+#(3) tutorials:population-diversity:snp-chips [ILRI Research Computing] - CGIAR. https://hpc.ilri.cgiar.org/tutorials/population-diversity/snp-chips.
+#(4) Infinium Genotyping Data Analysis - Illumina. https://www.illumina.com/documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf.
 
-'''
-het <- read.table("R_check.het", head=TRUE)
-pdf("heterozygosity.pdf")
-het$HET_RATE = (het$"N.NM." - het$"O.HOM.")/het$"N.NM."
-hist(het$HET_RATE, xlab="Heterozygosity Rate", ylab="Frequency", main= "Heterozygosity Rate")
-dev.off()
-'''
-    #code from maares
+#Specific details about our data
+#It seems that the SNPs marked as XY in the illumina report (and as 25 in the bim files of plink) have the physical position in the chromosome X. Sometimes, the position is the same in both X and Y, but if the are not, then the position showed in the illumina report is the X position. See examples:
+#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 155870488, i.e., chrX.
+#rs5946743 has code XY in the final report and position 733497. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946743/#variant_details) this SNP is in position 733497 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 733497.
+#rs28416357 has code XY in the final report and position 1308288. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs28416357/#variant_details) this SNP is in position 1308288 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 1308288.
+#kgp22824102 has code XY in the final report and position 825992. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946480#variant_details) this SNP is in position 825992 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 825992. Note, SNPs that start with “kgp” are also genetic variations, similar to those that start with “rs”. The “kgp” prefix is used by the 1000 Genomes Project. The number following “kgp” is a unique identifier for that specific SNP. Please note that not all “kgp” SNPs may have a corresponding “rs” identifier. The “rs” identifiers are assigned by the dbSNP database when a SNP is submitted to them, and not all SNPs identified by the 1000 Genomes Project may have been submitted to dbSNP.
 
+#Comparison of the PAR region in our data and the PAR region defined for hg38 by plink
+#According to plink, in GRCh38/UCSC human genome 38, the boundaries are 2781479 and 155701383 (https://www.cog-genomics.org/plink/1.9/data#split_x). It seems these are the limits of the two PAR regions in the X chromosome. 
+#Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
+#Therefore, we can assume these are the correct coordinates of pseudo-autosomal regions in the X chromosome. Note that I have previously check in several cases that coordinates of XY SNPs in illumina reports are chrX coordinates.
+
+
+
+print_text("create folder for this step", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./07_par_problem_cleanup/; \
+    ls -l")
+
+
+
+#in the last BIM file after MAF filters, select ID of those SNPs with code 25 that are outside the PAR regions previously indicated.
+print_text("see SNPs that are considered to be pseudoautosomals (chr=25) but in reality are not in pseudo-autosomal regions of XY", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1 == 25 || $1 == \"XY\"){ \
+                if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
+                    print $2 \
+                } \
+            } \
+        }' \
+        ./06_first_hwe_filter/merged_batches_hwe_filtered.bim > ./07_par_problem_cleanup/snps_par_problem.txt"
+)
+#load bim file after MAF filtering to awk using tabs as delimiter (checked this is the delimiter in the file)
+#select those SNPs in pseudo autosomal regions (code 25) that
+#are located: 1) before the start of the first PAR region;
+#2) After the first PAR region and before the second one;
+#3) After the second PAR region
+#print these cases and count them
+#at the END, print the count
+
+
+
+#check we only have 36 problematic cases
+print_text("check we ONLY have 21 of these problematic cases", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/07_par_problem_cleanup; \
+    n_par_problem=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./snps_par_problem.txt); \
+    if [[ $n_par_problem -eq 21 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi"
+)
+
+
+
+#make a file with ID of NON problematic SNPs
+print_text("create a list WITHOUT SNPs that are problematic for PAR: We discard SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1 == 25 || $1 == \"XY\"){ \
+                if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
+                    print $2 \
+                } \
+            } else { \
+                print $2 \
+            } \
+        }' \
+        ./06_first_hwe_filter/merged_batches_hwe_filtered.bim > ./07_par_problem_cleanup/snps_par_no_problem.txt"
+)
+#if the chromosome is 25 (PAR)
+    #if the SNPs is within the PAR limits accoridng to NCBI print the ID (second column)
+    #if not, then it is a SNP considered pseudo-autosomal but being outside of the PAR
+        #region, so out.
+#if the SNP is not considered PAR, then we can print the ID
+
+
+
+#retain only these SNPs without the problem
+#We cannot be sure if there is something wrong with these SNPs
+#They are in PAr regions or not? should they be treated as PAR o like
+#sex chromosomes? so we are going to check the number is not very high
+#and then remove all of them. We should be ok with the remaining PAR SNPs
+#as they are considered separately from autosomals and sex chromosomes
+print_text("retain only these SNPs without the problem", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./06_first_hwe_filter/merged_batches_hwe_filtered \
+        --extract ./07_par_problem_cleanup/snps_par_no_problem.txt \
+        --make-bed \
+        --out ./07_par_problem_cleanup/merged_batches_hwe_par; \
+    ls -l ")
+        #--bfile: 
+            #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
+            #https://www.cog-genomics.org/plink/1.9/input#bed
+        #--extract:
+            #normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces) and removes all unlisted variants from the current analysis
+            #https://www.cog-genomics.org/plink/1.9/filter#snp
+        #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
+            #https://www.cog-genomics.org/plink/1.9/data#make_bed
+
+
+
+
+#quick check
+print_text("quick check", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    n_snps_before_par=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./loop_maf_missing_2.bim); \
+    n_snps_after_par=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./loop_maf_missing_3.bim); \
+    n_snps_par_problem=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}END{print NR}' \
+            ./snps_par_problem.txt); \
+    sum_snps=$(($n_snps_after_par + $n_snps_par_problem)); \
+    if [[ $n_snps_before_par -eq $sum_snps ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi"
+)
+
+
+#endregion
 
 # endregion
 
@@ -3121,157 +3265,103 @@ else:
 
 
 
-###############################
-# region PROBLEM PAR XY #######
-###############################
+##############################################
+# region INITIAL CHECK HETERO ##############
+##############################################
 
-print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=2)
-##XY chromosome in final reports (chromosome 25 in bim file)
-#General info about XY regions
-#In an Illumina Final Report, SNPs in the XY chromosome refer to genetic variations that occur in the pseudoautosomal regions (PARs) of the X and Y chromosomes[1]. 
-#These regions are present on both X and Y chromosomes and are capable of undergoing recombination during meiosis, similar to autosomal chromosomes[1]. Therefore, these SNPs may show male heterozygotes[1].
-#The Illumina genotyping arrays, such as the ones used in the GenomeStudio software, identify these SNPs using pre-defined oligonucleotide probes designed to hybridize specific regions of genomic DNA[1]. The identity of alleles is determined by automated clustering of samples based on the similarity of fluorescent intensity[1].
-#It's important to note that the XY chromosome should be treated as an autosomal chromosome when analyzing these SNPs[1]. This is because the PARs behave more like autosomal regions rather than sex-determining regions. Because of this, SNPs in these regions have a different code (XY or 25).
-#Source: Conversation with Bing, 5/1/2024
-#(1) GenomeStudio Genotyping QC SOP v.1.6 - GitHub Pages. https://khp-informatics.github.io/COPILOT/GenomeStudio_genotyping_SOP.html.
-#(2) How to interpret DNA strand and allele information ... - Illumina Knowledge. https://knowledge.illumina.com/microarray/general/microarray-general-reference_material-list/000001489.
-#(3) tutorials:population-diversity:snp-chips [ILRI Research Computing] - CGIAR. https://hpc.ilri.cgiar.org/tutorials/population-diversity/snp-chips.
-#(4) Infinium Genotyping Data Analysis - Illumina. https://www.illumina.com/documents/products/technotes/technote_infinium_genotyping_data_analysis.pdf.
+###TO DO
 
-#Specific details about our data
-#It seems that the SNPs marked as XY in the illumina report (and as 25 in the bim files of plink) have the physical position in the chromosome X. Sometimes, the position is the same in both X and Y, but if the are not, then the position showed in the illumina report is the X position. See examples:
-#rs1883078 has code XY in the final report and position 155870488. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs1883078#variant_details) this SNP is in position 155870488 of chrX (hg38), while it is in position 57057008 for chrY. In the bim file, this SNP has code 25 and position 155870488, i.e., chrX.
-#rs5946743 has code XY in the final report and position 733497. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946743/#variant_details) this SNP is in position 733497 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 733497.
-#rs28416357 has code XY in the final report and position 1308288. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs28416357/#variant_details) this SNP is in position 1308288 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 1308288.
-#kgp22824102 has code XY in the final report and position 825992. According to ncbi (variant details page; https://www.ncbi.nlm.nih.gov/snp/rs5946480#variant_details) this SNP is in position 825992 for both chrX and chrY (hg38). In the bim file, this SNP has code 25 and position 825992. Note, SNPs that start with “kgp” are also genetic variations, similar to those that start with “rs”. The “kgp” prefix is used by the 1000 Genomes Project. The number following “kgp” is a unique identifier for that specific SNP. Please note that not all “kgp” SNPs may have a corresponding “rs” identifier. The “rs” identifiers are assigned by the dbSNP database when a SNP is submitted to them, and not all SNPs identified by the 1000 Genomes Project may have been submitted to dbSNP.
+    #see page 6 to make the plot rITCHIE
 
-#Comparison of the PAR region in our data and the PAR region defined for hg38 by plink
-#According to plink, in GRCh38/UCSC human genome 38, the boundaries are 2781479 and 155701383 (https://www.cog-genomics.org/plink/1.9/data#split_x). It seems these are the limits of the two PAR regions in the X chromosome. 
-#Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
-#Therefore, we can assume these are the correct coordinates of pseudo-autosomal regions in the X chromosome. Note that I have previously check in several cases that coordinates of XY SNPs in illumina reports are chrX coordinates.
-
-
-
-#in the last BIM file after MAF filters, select ID of those SNPs with code 25 that are outside the PAR regions previously indicated.
-print_text("see SNPs that are considered to be pseudoautosomals (chr=25) but in reality are not in pseudo-autosomal regions of XY", header=3)
+print_text("visualize heterozygosity", header=2)
+print_text("create folder for this step", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    awk \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1 == 25){ \
-                if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
-                    print $2 \
-                } \
-            } \
-        }' \
-        ./loop_maf_missing_2.bim > snps_par_problem.txt"
-)
-#load bim file after MAF filtering to awk using tabs as delimiter (checked this is the delimiter in the file)
-#select those SNPs in pseudo autosomal regions (code 25) that
-#are located: 1) before the start of the first PAR region;
-#2) After the first PAR region and before the second one;
-#3) After the second PAR region
-#print these cases and count them
-#at the END, print the count
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./07_visual_hetero/; \
+    ls -l")
 
 
+#calculate heterozigosity and missing reports per sample
 
-#check we only have 36 problematic cases
-print_text("check we ONLY have 36 of these problematic cases", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    n_par_problem=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./snps_par_problem.txt); \
-    if [[ $n_par_problem -eq 36 ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi"
-)
-
-
-
-#make a file with ID of NON problematic SNPs
-print_text("create a list WITHOUT SNPs that are problematic for PAR: We discard SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    awk \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1 == 25){ \
-                if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
-                    print $2 \
-                } \
-            } else { \
-                print $2 \
-            } \
-        }' \
-        ./loop_maf_missing_2.bim > snps_par_no_problem.txt"
-)
-#if the chromosome is 25 (PAR)
-    #if the SNPs is within the PAR limits accoridng to NCBI print the ID (second column)
-    #if not, then it is a SNP considered pseudo-autosomal but being outside of the PAR
-        #region, so out.
-#if the SNP is not considered PAR, then we can print the ID
-
-
-
-
-#retain only these SNPs without the problem
-#We cannot be sure if there is something wrong with these SNPs
-#They are in PAr regions or not? should they be treated as PAR o like
-#sex chromosomes? so we are going to check the number is not very high
-#and then remove all of them. We should be ok with the remaining PAR SNPs
-#as they are considered separately from autosomals and sex chromosomes
-print_text("retain only these SNPs without the problem", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./loop_maf_missing_2 \
-        --extract ./snps_par_no_problem.txt \
-        --make-bed \
-        --out ./loop_maf_missing_3; \
-    ls -l ")
-        #--bfile: 
-            #This flag causes the binary fileset plink.bed + plink.bim + plink.fam to be referenced. If a prefix is given, it replaces all instances of 'plink', i.e., it looks for bed, bim and fam files having that suffix instead of "plink".
-            #https://www.cog-genomics.org/plink/1.9/input#bed
-        #--extract:
-            #normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces) and removes all unlisted variants from the current analysis
-            #https://www.cog-genomics.org/plink/1.9/filter#snp
-        #--make-bed creates a new PLINK 1 binary fileset, AFTER applying sample/variant filters and other operations
-            #https://www.cog-genomics.org/plink/1.9/data#make_bed
+        --bfile ./06_first_hwe_filter/merged_batches_hwe_filtered \
+        --het \
+        --missing \
+         --out ./07_visual_hetero/merged_batches_hwe_filtered_hetero \
+    ")
 
-
-
-#quick check
-print_text("quick check", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
-    n_snps_before_par=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./loop_maf_missing_2.bim); \
-    n_snps_after_par=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./loop_maf_missing_3.bim); \
-    n_snps_par_problem=$( \
-        awk \
-            'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./snps_par_problem.txt); \
-    sum_snps=$(($n_snps_after_par + $n_snps_par_problem)); \
-    if [[ $n_snps_before_par -eq $sum_snps ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi"
-)
+    cd ./data/genetic_data/quality_control/; \
+    awk \
+        'BEGIN{OFS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6}' \
+        ./07_visual_hetero/merged_batches_hwe_filtered_hetero.imiss > ./07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.imiss \
+    ")
+
+missing_data=pd.read_csv("./data/genetic_data/quality_control/07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.imiss", sep="\t", low_memory=False)
+missing_data
+
+missing_data["prop_missing"] = (missing_data["N_MISS"] / missing_data["N_GENO"])
 
 
-#endregion
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    awk \
+        'BEGIN{OFS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6}' \
+        ./07_visual_hetero/merged_batches_hwe_filtered_hetero.het > ./07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.het \
+    ")
+
+hetero_data=pd.read_csv("./data/genetic_data/quality_control/07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.het", sep="\t", low_memory=False)
+hetero_data
+
+merged_hetero = missing_data.merge(hetero_data, on='IID')
+merged_hetero
+
+#The heterozygosity rate is the ratio of the total non-missing geno types minus the homozygous genotypes com pared to the total non-missing genotypes in a given sample.
+
+#By using the *.het file, we can calculate the heterozygosity rate where the O.HOM column represents the observed homozygous genotypes while the N.NM column represents the non-missing genotypes
+
+merged_hetero["hetero_rate"] = (merged_hetero["N(NM)"] - merged_hetero["O(HOM)"]) / merged_hetero["N(NM)"]
+
+
+
+merged_hetero["F_MISS"].mean()-merged_hetero["F_MISS"].std()
+
+
+import matplotlib.pyplot as plt
+
+plt.scatter(merged_hetero["F_MISS"], merged_hetero["hetero_rate"], s=0.5)
+plt.axhline(y=merged_hetero["hetero_rate"].mean()+(3*merged_hetero["hetero_rate"].std()), color='r', linestyle='-')  # Add horizontal line at y=0.5
+plt.axhline(y=merged_hetero["hetero_rate"].mean()-(3*merged_hetero["hetero_rate"].std()), color='r', linestyle='-')  # Add horizontal line at y=0.5
+plt.axvline(x=merged_hetero["F_MISS"].mean(), color='r', linestyle='-')  # Add horizontal line at y=0.5
+plt.xlabel('F_MISS')
+plt.ylabel('hetero_rate')
+plt.title('Scatter plot: F_MISS vs hetero_rate')
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/07_visual_hetero/scatter_hetero_rate_vs_missing.png")
+plt.close()
+
+
+
+#missing genotypes porque no hemos filtrado por missingenss
+
+
+'''
+het <- read.table("R_check.het", head=TRUE)
+pdf("heterozygosity.pdf")
+het$HET_RATE = (het$"N.NM." - het$"O.HOM.")/het$"N.NM."
+hist(het$HET_RATE, xlab="Heterozygosity Rate", ylab="Frequency", main= "Heterozygosity Rate")
+dev.off()
+'''
+    #code from maares
+
 
 # endregion
+
+
 
 
 
