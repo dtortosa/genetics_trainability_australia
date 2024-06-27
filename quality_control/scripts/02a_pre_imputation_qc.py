@@ -2087,7 +2087,7 @@ run_bash(
 
 
 ############################
-# region INITIAL HWE #######
+# region HWE INITIAL #######
 ############################
 
 #If there are far more heterozygous calls than would be expected under Hardy–Weinberg equilibrium, that is usually due to a systematic variant calling error. Any such variants should be removed from the dataset.
@@ -2125,6 +2125,10 @@ run_bash(" \
         #We are using it, but it seems it does not change anything using it or not.
     #Because of the missing data issue, you should not apply a single p-value threshold across a batch of variants with highly variable missing call rates. A warning is now given whenever observation counts vary by more than 10%.
         #we should not have this problem because we have already clean the SNPs based on missingness
+    #Note the notation of non-autosomal chromosomes si changed here from 23 to X, 24 to Y and so on... This is because we are using here plink2 to filter by HWE. Adding this step with plink2 changes the chromosome notation.
+    #Once we create new bed files with plink1.9, then the previous notation comeback again.
+
+
 
 print_text("Less than 22 SNPs have been removed by the initial HWE filter", header=3)
 run_bash(" \
@@ -2153,10 +2157,6 @@ run_bash(" \
 ###############################
 # region PROBLEM PAR XY #######
 ###############################
-
-##POR AQUIIII
-#it is ok to remove snps due to PAR right? no samples are removed... so MAF should be the same for the rest of SNPs....
-
 
 print_text("remove SNPs that are considered to be pseudoautosomals but in reality are not in pseudo-autosomal regions of XY", header=2)
 ##XY chromosome in final reports (chromosome 25 in bim file)
@@ -2205,21 +2205,29 @@ run_bash(" \
                 if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
                     print $2 \
                 } \
+            } else if($1 == 23 || $1 == \"X\") { \
+                if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
+                    print $2 \
+                } \
+            } else if($1 == 24 || $1 == \"Y\") { \
+                if($4 >= 10001 && $4 <= 2781479 || $4 >= 56887903 && $4 <= 57217415){ \
+                    print $2 \
+                } \
             } \
         }' \
         ./06_first_hwe_filter/merged_batches_hwe_filtered.bim > ./07_par_problem_cleanup/snps_par_problem.txt"
 )
 #load bim file after MAF filtering to awk using tabs as delimiter (checked this is the delimiter in the file)
-#select those SNPs in pseudo autosomal regions (code 25) that
-#are located: 1) before the start of the first PAR region;
-#2) After the first PAR region and before the second one;
-#3) After the second PAR region
-#print these cases and count them
-#at the END, print the count
+#select those SNPs in pseudo autosomal regions (code 25) that are located: 1) before the start of the first PAR region; 2) After the first PAR region and before the second one; 3) After the second PAR region. Then print their ID. 
+#else, if the SNP is considered to be in the X chromosome, but within a PAR region, also print its ID.
+    #Note I am using the PAR coordinates accoring to GRC38 for chromosome X.
+#else, if the SNP is considered to be in the Y chromosome, but within a PAR region, also print its ID.
+    #Note I am using the PAR coordinates accoring to GRC38 for chromosome Y.
+        #https://www.ncbi.nlm.nih.gov/grc/human
 
 
 
-#check we only have 36 problematic cases
+#check we only have 21 problematic cases
 print_text("check we ONLY have 21 of these problematic cases", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/07_par_problem_cleanup; \
@@ -2246,17 +2254,27 @@ run_bash(" \
                 if($4 >= 10001 && $4 <= 2781479 || $4 >= 155701383 && $4 <= 156030895){ \
                     print $2 \
                 } \
+            } else if($1 == 23 || $1 == \"X\"){ \
+                if($4 < 10001 || $4 > 2781479 && $4 < 155701383 || $4 > 156030895){ \
+                    print $2 \
+                } \
+            } else if($1 == 24 || $1 == \"Y\"){ \
+                if($4 < 10001 || $4 > 2781479 && $4 < 56887903 || $4 > 57217415){ \
+                    print $2 \
+                } \
             } else { \
                 print $2 \
             } \
         }' \
         ./06_first_hwe_filter/merged_batches_hwe_filtered.bim > ./07_par_problem_cleanup/snps_par_no_problem.txt"
 )
-#if the chromosome is 25 (PAR)
-    #if the SNPs is within the PAR limits accoridng to NCBI print the ID (second column)
-    #if not, then it is a SNP considered pseudo-autosomal but being outside of the PAR
-        #region, so out.
-#if the SNP is not considered PAR, then we can print the ID
+#if the chromosome is 25 (XY) and the SNPs is within the PAR limits accoridng to NCBI print the ID (second column)
+#if the chromosome is 23 (X) and the SNPs is outside the PAR limits for X, print its ID
+    #using hg38 coordinates of PAR for X
+#if the chromosome is 24 (Y) and the SNPs is outside the PAR limits for Y, print its ID
+    #using hg38 coordinates of PAR for Y
+    #https://www.ncbi.nlm.nih.gov/grc/human
+#if the SNP is not considered PAR, X nor Y, we can just print its ID
 
 
 
@@ -2286,23 +2304,22 @@ run_bash(
 
 
 
-
 #quick check
 print_text("quick check", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/08_loop_maf_missing; \
+    cd ./data/genetic_data/quality_control/; \
     n_snps_before_par=$( \
         awk \
             'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./loop_maf_missing_2.bim); \
+            ./06_first_hwe_filter/merged_batches_hwe_filtered.bim); \
     n_snps_after_par=$( \
         awk \
             'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./loop_maf_missing_3.bim); \
+            ./07_par_problem_cleanup/merged_batches_hwe_par.bim); \
     n_snps_par_problem=$( \
         awk \
             'BEGIN{FS=\"\t\"}END{print NR}' \
-            ./snps_par_problem.txt); \
+            ./07_par_problem_cleanup/snps_par_problem.txt); \
     sum_snps=$(($n_snps_after_par + $n_snps_par_problem)); \
     if [[ $n_snps_before_par -eq $sum_snps ]]; then \
         echo 'TRUE'; \
@@ -2319,9 +2336,383 @@ run_bash(" \
 
 
 
+################################
+# region sample missingness ####
+################################
+print_text("filter by sample missingness", header=2)
+
+print_text("create folder for this step", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./08_remove_low_call_samples/; \
+    ls -l")
+
+
+
+print_text("make sample missing report after previous filters", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./07_par_problem_cleanup/merged_batches_hwe_par \
+        --missing \
+        --out ./08_remove_low_call_samples/merged_batches_hwe_par_miss_report;" \
+)
+    #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
+        #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+run_bash("head ./data/genetic_data/quality_control/08_remove_low_call_samples/merged_batches_hwe_par_miss_report.imiss")
+    #imiss: A text file with a header line, and one line per sample with the following six fields:
+        #FID    Family ID
+        #IID Within-family ID
+        #MISS_PHENO  Phenotype missing? (Y/N)
+        #N_MISS  Number of missing genotype call(s), not including obligatory missings or heterozygous haploids
+        #N_GENO  Number of potentially valid call(s)
+        #F_MISS  Missing call rate
+            #https://www.cog-genomics.org/plink/1.9/formats#imiss
+    #IMPORTANT: 
+        #I understand that heterozigous cases for haploid regions (i.e., non-PAR X-Y regions that should not have a second allele because there is no correspondance between X and Y) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
+        #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
+
+
+print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/08_remove_low_call_samples/; \
+    n_samples_freq_file=$( \
+        awk \
+            'BEGIN{FS=\" \"; OFS=\" \"} \
+            {if(NR>1)(count++)}\
+            END{print count}'\
+            merged_batches_hwe_par_miss_report.imiss \
+    ); \
+    n_correct_freq_miss=$( \
+        awk \
+            'BEGIN{ \
+                FS=\" \"; OFS=\" \" \
+            } \
+            { \
+                if((int(($4/$5)*100+0.5)/100==int($6*100+0.5)/100) && (NR>1)){ \
+                    count++ \
+                } \
+            } \
+            END { \
+                print count \
+            }' \
+            merged_batches_hwe_par_miss_report.imiss \
+    ); \
+    if [[ $n_correct_freq_miss -eq $n_samples_freq_file ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #just check if freq miss is the ratio of missing calls respect to the potential number of valid calls per sample. We count the number of samples for which this is the case, N_MISS/N_GENO is equal to F_MISS and then check this is the total number of samples, i.e., all meet the condition.
+        #see the SNP missing part for explanations about the script
+
+
+print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/08_remove_low_call_samples/; \
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{if(NR>0){print $1,$2,$3,$4,$5,$6}}' \
+        merged_batches_hwe_par_miss_report.imiss \
+    > merged_batches_hwe_par_miss_report_awk_processed.imiss; \
+    head merged_batches_hwe_par_miss_report_awk_processed.imiss")
+        #specify the delimiter of the output (OFS="\t") and just print all fields (1 to 6) for all rows, then save as a new file
+
+
+print_text("load in pandas", header=3)
+sample_missing_report = pd.read_csv( \
+    "./data/genetic_data/quality_control/08_remove_low_call_samples/merged_batches_hwe_par_miss_report_awk_processed.imiss", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+print(sample_missing_report)
+
+
+print_text("check we have the correct number of samples and columns in the missing sample report", header=3)
+print(sample_missing_report.shape[0]==1458) 
+print(sample_missing_report.shape[1]==6) 
+
+
+print_text("calculate the proportion of samples retained at different missing thresholds", header=3)
+#calculate the thresholds over 1
+thresholds = [x / 1000 for x in range(980, 1000, 1)]
+    #we want from proportion 0.985 to 1. In order to get floats with range, we need to first use integers that include all the numbers we want to include as decimals (e.g., 985 for 0.985) and then divide by 1000 (985/1000=0.985).
+        #https://stackoverflow.com/a/7267287/12772630
+print("see the thresholds selected")
+print(thresholds)
+
+#calculate the proportion of retained samples
+list_tuples_thresholds = [] #empty list to save results
+#threshold=thresholds[0]
+for threshold in thresholds:
+    
+    #get the number of samples above the missing threshold    
+    n_retained_samples = sample_missing_report \
+        .loc[(1-sample_missing_report["F_MISS"]) >= threshold,:]\
+        .shape[0]
+            #1 minus F_MISS gives the call rate over 1
+    
+    #calculate proportion of retained samples dividing retained samples by the total number of samples
+    proportion_remaining = n_retained_samples/sample_missing_report.shape[0]
+    
+    #append to the result list a tuple with threshold and proportion
+    list_tuples_thresholds.append((threshold, proportion_remaining))
+
+#convert the list to DF
+pd_tuples_thresholds = pd.DataFrame(list_tuples_thresholds, columns=["threshold", "proportion_remaining"])
+print("see thresholds and proportion of retained samples")
+print(pd_tuples_thresholds)
+
+
+
+print_text("plot sample missing thresholds against the proportion of samples retained", header=3)
+import matplotlib.pyplot as plt
+plt.plot( \
+    pd_tuples_thresholds["threshold"], \
+    pd_tuples_thresholds["proportion_remaining"], \
+    marker="o", \
+    linestyle="dashed")
+plt.xlabel("Call Rate Threshold")
+plt.ylabel("Proportion Remaining")
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/08_remove_low_call_samples/merged_batches_plot_sample_retention_thresholds.png")
+plt.close()
+
+
+print_text("remove samples with low call rate", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./07_par_problem_cleanup/merged_batches_hwe_par \
+        --mind 0.01 \
+        --make-bed \
+        --out ./08_remove_low_call_samples/merged_batches_hwe_par_callrate")
+            #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
+                #https://www.cog-genomics.org/plink/1.9/filter
+            #recommended threshold
+                #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. 
+                #The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
+                #The illumina report of the first batch says "Four samples are below the illumina expected 99% SNP call rate (values expected for typical projects, excluding tumour samples)".
+                #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is below the expectation of Illunina. Therefore, I think we are ok removing these samples.
+            #The family and sample IDs of removed individuals are indicated in a file with the extension ".irem"
+
+
+
+print_text("see the number of samples removed", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    n_samples_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./07_par_problem_cleanup/merged_batches_hwe_par.fam); \
+    n_samples_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./08_remove_low_call_samples/merged_batches_hwe_par_callrate.fam); \
+    n_samples_removed=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./08_remove_low_call_samples/merged_batches_hwe_par_callrate.irem); \
+    lost_samples=$(($n_samples_before - $n_samples_after)); \
+    lost_samples_percent=$( \
+        awk \
+            -v l=$lost_samples \
+            -v b=$n_samples_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_samples_percent < 2 && $n_samples_removed -eq $lost_samples ]]; then \
+        printf 'The number of samples lost due to call rate below 0.99 is: %s' \"$lost_samples\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 2% of samples due low-call rate';\
+    fi")
+        #see SNP missing code to details about awk steps
+
+
+
+print_text("create again the missing report", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/08_remove_low_call_samples/; \
+    plink \
+        --bfile merged_batches_hwe_par_callrate \
+        --missing \
+        --out merged_batches_hwe_par_callrate_missing; \
+    ls -lh")
+        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
+            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
+
+
+print_text("check that no sample has a missing % above the selected threshold", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/08_remove_low_call_samples/; \
+    total_number_samples=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
+            merged_batches_hwe_par_callrate_missing.imiss);\
+    n_samples_below_threshold=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($6 <= 0.01)){count++}}END{print count}' \
+            merged_batches_hwe_par_callrate_missing.imiss); \
+    if [[ $n_samples_below_threshold -eq $total_number_samples ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #see SNP missing code to details about awk steps
+
+# endregion
+
+
+
+
+####################################################################
+# region samples with LogR SD above the illumina expectation #######
+####################################################################
+print_text("remove samples with LogR SD above the illumina expectation", header=2)
+#In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
+#Some the samples above the expectation have also a call rate below 0.99, but not others, thus a specific filter is needed for this. Given that Illumina says that level of LogR SD is not normal, we should remove these individuals.
+
+
+print_text("obtain the samples above the expectation for logR dev in each batch", header=3)
+#batch_name = "ILGSA24-17873"
+for batch_name in ["ILGSA24-17873", "ILGSA24-17303"]:
+    
+    print_text(batch_name + ": process the file with the logR deviation", header=4)
+    if(batch_name == "ILGSA24-17873"):
+        cnmetricts_file_name="CAGRF20093767_CNMetrics"
+    elif(batch_name == "ILGSA24-17303"):
+        cnmetricts_file_name="ILGSA24-17303_CNMetrics"
+    print(cnmetricts_file_name)
+    
+    print_text(batch_name + ": get the ID of samples above the illumina expectation for logR SD", header=3)
+    removed_samples_logRdev = run_bash(" \
+        cd ./data/genetic_data/cn_metrics/; \
+        awk \
+            'BEGIN{ \
+                FS=\",\"; \
+                OFS=\"\t\"} \
+            { \
+                if((NR>2) && ($9 >= 0.3)){ \
+                    print \"combat_" + batch_name + "\", $1 \
+                }\
+            }' \
+            " + cnmetricts_file_name + ".csv > " + batch_name + "_samples_filter_out_LogRDev.tsv; \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            " + batch_name + "_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
+            #load the CNMetrics CSV file into awk indicating that sep is ",", but the output should be tab
+            #print only from the third row (the two first have complicated headers) and only those rows for which the 9th column (the one with logR SD) is above the expectation (i.e., 0.3).
+                #from that rows, only print the first column, which is the ID.
+                #also print the name of the family first, because plink --remove needs a file with two columns, the family ID and the within-family ID
+                    #in our case, the family ID is the batch name, which is "combat_" + batch_name
+                    #this can be add as another column just with print and ""
+                        #https://stackoverflow.com/questions/7551991/add-a-new-column-to-the-file
+            #the resulting IDs of samples above the expectation can be saved as a TSV file
+            #also get the output in python
+                #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
+    print(removed_samples_logRdev)
+
+
+print_text("combine the IDs from both batched into one single file", header=3)
+run_bash(" \
+    cd ./data/genetic_data/cn_metrics/; \
+    cat \
+        ILGSA24-17303_samples_filter_out_LogRDev.tsv  \
+        ILGSA24-17873_samples_filter_out_LogRDev.tsv > \
+    merged_batches_samples_filter_out_LogRDev.tsv; \
+    cat merged_batches_samples_filter_out_LogRDev.tsv")
+        #https://stackoverflow.com/a/2150794/12772630
+
+
+print_text("check we have the correct IDs in the merged file", header=3)
+print_text("get IDs from the merged file", header=4)
+total_removed_samples_logRdev = run_bash(" \
+    awk \
+        'BEGIN{FS=\"\t\"}{print $2}' \
+        ./data/genetic_data/cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
+
+print_text("combine the list of ID samples from both batches and check it is identical than the merged list", header=4)
+print( \
+    run_bash(" \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            ./data/genetic_data/cn_metrics/ILGSA24-17303_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") + \
+    run_bash(" \
+        awk \
+            'BEGIN{FS=\"\t\"}{print $2}' \
+            ./data/genetic_data/cn_metrics/ILGSA24-17873_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") == \
+    total_removed_samples_logRdev)
+
+
+
+print_text("remove these samples", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        07_remove_high_LogRDev_samples; \
+    plink \
+        --bfile ./06_remove_low_call_samples/merged_batches_remove_low_call_samples \
+        --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
+        --make-bed \
+        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples; \
+    ls -l ./07_remove_high_LogRDev_samples/")
+            #create a new folder to save plink filesets after filtering
+            #then use --remove to remove samples included in a file with two columns: family id and within-family id.
+                #this file is in a different parent folder so we have to use "../"
+                #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+                    #https://www.cog-genomics.org/plink/1.9/filter
+
+
+print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
+fam_file_after_logRdev_filtering = pd.read_csv( \
+    "./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
+    sep=" ", \
+    header=0, \
+    low_memory=False)
+print(sum(fam_file_after_logRdev_filtering.iloc[:, 1].isin(total_removed_samples_logRdev)) == 0)
+    #no sample ID (second column in fam file) should be included in the list of IDs to be removed
+
+
+print_text("see the number of samples removed", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    n_samples_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
+    n_samples_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
+    lost_samples=$(($n_samples_before - $n_samples_after)); \
+    lost_samples_percent=$( \
+        awk \
+            -v l=$lost_samples \
+            -v b=$n_samples_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_samples_percent < 2 && $lost_samples_percent > 0 ]]; then \
+        printf 'The number of samples lost due to logR SD above illumina expectations is: %s; Note that we previously filtered by missingness, so we already removed there some samples with logR dev problems' \"$lost_samples\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 2% of samples due logR SD above illumina expectations OR just zero samples removed, which would be also strange, maybe you are using the wrong CNMetric file';\
+    fi")
+        #see SNP missing code to details about awk steps
+        #just added another condition, if the number of removed samples is zero, get error because we have problematic samples for this in both batches, so maybe you are using the incorrect CNMetric file
+
+# endregion
+
+
+
+
+
 ###################################
 # region sample relatedness #######
 ###################################
+
+
+#first we remove samples by missing and from the remianing we calculate kindshop, in this way we avoid to consider samples that would be removed anyways due to missingness
+#having related samples should not influence missingness...
+
+
 print_text("sample relatedness", header=2)
 #the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
@@ -2344,7 +2735,7 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./09_remove_related_samples/; \
+        ./08_remove_related_samples/; \
     ls -l")
 
 
@@ -2452,12 +2843,16 @@ run_bash(" \
     fi")
         #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
             #https://phoenixnap.com/kb/bash-printf
+
+
+#CHECK HERE CHROMOSOME CODES
+
 print("All non-autosomals SNPs have been removed from the LD pruned dataset?")
 run_bash(" \
     cd ./data/genetic_data/quality_control/09_remove_related_samples; \
     n_non_auto_snps=$( \
         awk \
-            'BEGIN{FS=\" \"}{if($1==0 || $1==23 || $1==24 || $1==25 || $1==26){count++}}END{print count}'\
+            'BEGIN{FS=\" \"}{if($1==0 || $1==23 || $1==24 || $1==25 || $1==26 || $1== \"X\"|| $1==\"Y\" || $1==\"XY\" || $1==\"MT\"){count++}}END{print count}'\
             ./loop_maf_missing_3_ld_pruned_autosomals.bim); \
     if [[ $n_non_auto_snps -eq 0 ]]; then \
         echo 'TRUE'; \
@@ -2769,351 +3164,6 @@ run_bash(" \
 
 # endregion
 
-
-
-
-################################
-# region sample missingness #######
-################################
-print_text("filter by sample missingness", header=2)
-print_text("make sample missing report after previous filters", header=3)
-run_bash("head ./data/genetic_data/quality_control/05_remove_missing_snps/plink.imiss")
-    #imiss: A text file with a header line, and one line per sample with the following six fields:
-        #FID    Family ID
-        #IID Within-family ID
-        #MISS_PHENO  Phenotype missing? (Y/N)
-        #N_MISS  Number of missing genotype call(s), not including obligatory missings or het. haploids
-        #N_GENO  Number of potentially valid call(s)
-        #F_MISS  Missing call rate
-            #https://www.cog-genomics.org/plink/1.9/formats#imiss
-    #IMPORTANT: 
-        #I understand that heterozigous cases for hayploid regions (i.e., non-PAR X-Y regions) are not considered in the missing count, we should take care of this later! The cool thing is that they do not affect when calculating missing samples, so we would not lose samples because of these problematic cases as they do not increase the number of missing per sample
-        #Also, obligatory missing are are not counted, for example, Y snps are obligatory missing in females, we should not count these.
-
-
-print_text("check that F_MISS is just the number of missing genotype divided by the number of potentially valid calls", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
-    n_samples_freq_file=$( \
-        awk \
-            'BEGIN{FS=\" \"; OFS=\" \"} \
-            {if(NR>1)(count++)}\
-            END{print count}'\
-            plink.imiss \
-    ); \
-    n_correct_freq_miss=$( \
-        awk \
-            'BEGIN{ \
-                FS=\" \"; OFS=\" \" \
-            } \
-            { \
-                if((int(($4/$5)*100+0.5)/100==int($6*100+0.5)/100) && (NR>1)){ \
-                    count++ \
-                } \
-            } \
-            END { \
-                print count \
-            }' \
-            plink.imiss \
-    ); \
-    if [[ $n_correct_freq_miss -eq $n_samples_freq_file ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #just check if freq miss is the ratio of missing calls respect to the potential number of valid calls per sample. We count the number of samples for which this is the case, N_MISS/N_GENO is equal to F_MISS and then check this is the total number of samples, i.e., all meet the condition.
-        #see above in the SNP missing part for explanations about the script
-
-
-print_text("load the report with awk and then save it controlling the delimiter. If I load it directly into pandas, I got problems separating the columns", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/05_remove_missing_snps/; \
-    awk \
-        'BEGIN{FS=\" \"; OFS=\"\t\"}{if(NR>0){print $1,$2,$3,$4,$5,$6}}' \
-        plink.imiss \
-    > plink_awk_processed.imiss; \
-    head plink_awk_processed.imiss")
-        #specify the delimiter of the output (OFS="\t") and just print all fields (1 to 6) for all rows, then save as a new file
-
-
-print_text("load in pandas", header=3)
-sample_missing_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/05_remove_missing_snps/plink_awk_processed.imiss", \
-    sep="\t", \
-    header=0, \
-    low_memory=False)
-print(sample_missing_report)
-
-
-print_text("check we have the correct number of samples and columns in the missing sample report", header=3)
-print(sample_missing_report.shape[0]==1458) 
-print(sample_missing_report.shape[1]==6) 
-
-
-print_text("calculate the proportion of samples retained at different missing thresholds", header=3)
-#calculate the thresholds over 1
-thresholds = [x / 1000 for x in range(980, 1000, 1)]
-    #we want from proportion 0.985 to 1. In order to get floats with range, we need to first use integers that include all the numbers we want to include as decimals (e.g., 985 for 0.985) and then divide by 1000 (985/1000=0.985).
-        #https://stackoverflow.com/a/7267287/12772630
-print("see the thresholds selected")
-print(thresholds)
-
-#calculate the proportion of retained samples
-list_tuples_thresholds = [] #empty list to save results
-#threshold=thresholds[0]
-for threshold in thresholds:
-    
-    #get the number of samples above the missing threshold    
-    n_retained_samples = sample_missing_report \
-        .loc[(1-sample_missing_report["F_MISS"]) >= threshold,:]\
-        .shape[0]
-            #1 minus F_MISS gives the call rate over 1
-    
-    #calculate proportion of retained samples dividing retained samples by the total number of samples
-    proportion_remaining = n_retained_samples/sample_missing_report.shape[0]
-    
-    #append to the result list a tuple with threshold and proportion
-    list_tuples_thresholds.append((threshold, proportion_remaining))
-
-#convert the list to DF
-pd_tuples_thresholds = pd.DataFrame(list_tuples_thresholds, columns=["threshold", "proportion_remaining"])
-print("see thresholds and proportion of retained samples")
-print(pd_tuples_thresholds)
-
-#create a new folder for doing operations about missing in samples
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./06_remove_low_call_samples/; \
-    ls -l")
-
-
-print_text("plot sample missing thresholds against the proportion of samples retained", header=3)
-import matplotlib.pyplot as plt
-plt.plot( \
-    pd_tuples_thresholds["threshold"], \
-    pd_tuples_thresholds["proportion_remaining"], \
-    marker="o", \
-    linestyle="dashed")
-plt.xlabel("Call Rate Threshold")
-plt.ylabel("Proportion Remaining")
-plt.savefig( \
-    fname="./data/genetic_data/quality_control/06_remove_low_call_samples/merged_batches_plot_sample_retention_thresholds.png")
-plt.close()
-
-
-print_text("remove samples with low call rate", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/; \
-    plink \
-        --bfile ./05_remove_missing_snps/merged_batches_remove_missing_snps \
-        --mind 0.01 \
-        --make-bed \
-        --out ./06_remove_low_call_samples/merged_batches_remove_low_call_samples")
-            #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
-                #https://www.cog-genomics.org/plink/1.9/filter
-            #recommended threshold
-                #the PRS tutorial recommends to retain samples with "sample missingness <0.02", i.e., samples with more than 2% missing or less than 98% call rate should be removed. 
-                #The Ritchie tutorials says "A recommended threshold is 98% to 99% efficiency after first removing markers that have a low genotype call rate across samples."
-                #The illumina report of the first batch says "Four samples are below the illumina expected 99% SNP call rate (values expected for typical projects, excluding tumour samples)".
-                #we are going to use 99%, i.e., < 0.01 missingness. This is higher than recommended by PRS tutoria, but within the range recommended by Ritchie tutorial and the value for Illumina. In the second batch, this threshold does not increase the number of samples removed compared to 98%, while in the first one only makes 1 more sample to be removed, one with call rate=0.981. Remember that the FPD report says that this is below the expectation of Illunina. Therefore, I think we are ok removing these samples.
-
-
-print_text("see the number of samples removed", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/; \
-    n_samples_before=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./05_remove_missing_snps/merged_batches_remove_missing_snps.fam); \
-    n_samples_after=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
-    lost_samples=$(($n_samples_before - $n_samples_after)); \
-    lost_samples_percent=$( \
-        awk \
-            -v l=$lost_samples \
-            -v b=$n_samples_before \
-            'BEGIN{print (l/b)*100}'); \
-    if [[ $lost_samples_percent < 2 ]]; then \
-        printf 'The number of samples lost due to call rate below 0.99 is: %s' \"$lost_samples\"; \
-    else \
-        echo 'ERROR: FALSE! We have lost more than 2% of samples due low-call rate';\
-    fi")
-        #see SNP missing code to details about awk steps
-
-
-print_text("create again the missing report", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
-    plink \
-        --bfile merged_batches_remove_low_call_samples \
-        --missing; \
-    ls -lh")
-        #--missing produces sample-based and variant-based missing data reports. If run with --within/--family, the variant-based report is stratified by cluster. 'gz' causes the output files to be gzipped.
-            #https://www.cog-genomics.org/plink/1.9/basic_stats#missing
-
-
-print_text("check that no sample has a missing % above the selected threshold", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/06_remove_low_call_samples/; \
-    total_number_samples=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
-            plink.imiss);\
-    n_samples_below_threshold=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if((NR>1) && ($6 <= 0.01)){count++}}END{print count}' \
-            plink.imiss); \
-    if [[ $n_samples_below_threshold -eq $total_number_samples ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #see SNP missing code to details about awk steps
-
-# endregion
-
-
-
-
-####################################################################
-# region samples with LogR SD above the illumina expectation #######
-####################################################################
-print_text("remove samples with LogR SD above the illumina expectation", header=2)
-#In the PDF summary of the first batch they say that "Three samples are above the illumina expectations of < 0.3 for LogR SD. Details can be found on page 3 of this report.". Remember that LogR is a parameter mentioned in the tutorials to detect sex inconsistences, and it is mentioned in the pdf report of batch 1, so it makes sense to use it.
-#Some the samples above the expectation have also a call rate below 0.99, but not others, thus a specific filter is needed for this. Given that Illumina says that level of LogR SD is not normal, we should remove these individuals.
-
-
-print_text("obtain the samples above the expectation for logR dev in each batch", header=3)
-#batch_name = "ILGSA24-17873"
-for batch_name in ["ILGSA24-17873", "ILGSA24-17303"]:
-    
-    print_text(batch_name + ": process the file with the logR deviation", header=4)
-    if(batch_name == "ILGSA24-17873"):
-        cnmetricts_file_name="CAGRF20093767_CNMetrics"
-    elif(batch_name == "ILGSA24-17303"):
-        cnmetricts_file_name="ILGSA24-17303_CNMetrics"
-    print(cnmetricts_file_name)
-    
-    print_text(batch_name + ": get the ID of samples above the illumina expectation for logR SD", header=3)
-    removed_samples_logRdev = run_bash(" \
-        cd ./data/genetic_data/cn_metrics/; \
-        awk \
-            'BEGIN{ \
-                FS=\",\"; \
-                OFS=\"\t\"} \
-            { \
-                if((NR>2) && ($9 >= 0.3)){ \
-                    print \"combat_" + batch_name + "\", $1 \
-                }\
-            }' \
-            " + cnmetricts_file_name + ".csv > " + batch_name + "_samples_filter_out_LogRDev.tsv; \
-        awk \
-            'BEGIN{FS=\"\t\"}{print $2}' \
-            " + batch_name + "_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
-            #load the CNMetrics CSV file into awk indicating that sep is ",", but the output should be tab
-            #print only from the third row (the two first have complicated headers) and only those rows for which the 9th column (the one with logR SD) is above the expectation (i.e., 0.3).
-                #from that rows, only print the first column, which is the ID.
-                #also print the name of the family first, because plink --remove needs a file with two columns, the family ID and the within-family ID
-                    #in our case, the family ID is the batch name, which is "combat_" + batch_name
-                    #this can be add as another column just with print and ""
-                        #https://stackoverflow.com/questions/7551991/add-a-new-column-to-the-file
-            #the resulting IDs of samples above the expectation can be saved as a TSV file
-            #also get the output in python
-                #remove the empty spaces with strip and then split by "\n", in this way we get all IDs as different elements of a list and the space at the end is not considered.
-    print(removed_samples_logRdev)
-
-
-print_text("combine the IDs from both batched into one single file", header=3)
-run_bash(" \
-    cd ./data/genetic_data/cn_metrics/; \
-    cat \
-        ILGSA24-17303_samples_filter_out_LogRDev.tsv  \
-        ILGSA24-17873_samples_filter_out_LogRDev.tsv > \
-    merged_batches_samples_filter_out_LogRDev.tsv; \
-    cat merged_batches_samples_filter_out_LogRDev.tsv")
-        #https://stackoverflow.com/a/2150794/12772630
-
-
-print_text("check we have the correct IDs in the merged file", header=3)
-print_text("get IDs from the merged file", header=4)
-total_removed_samples_logRdev = run_bash(" \
-    awk \
-        'BEGIN{FS=\"\t\"}{print $2}' \
-        ./data/genetic_data/cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n")
-
-print_text("combine the list of ID samples from both batches and check it is identical than the merged list", header=4)
-print( \
-    run_bash(" \
-        awk \
-            'BEGIN{FS=\"\t\"}{print $2}' \
-            ./data/genetic_data/cn_metrics/ILGSA24-17303_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") + \
-    run_bash(" \
-        awk \
-            'BEGIN{FS=\"\t\"}{print $2}' \
-            ./data/genetic_data/cn_metrics/ILGSA24-17873_samples_filter_out_LogRDev.tsv", return_value=True).strip().split("\n") == \
-    total_removed_samples_logRdev)
-
-
-
-print_text("remove these samples", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        07_remove_high_LogRDev_samples; \
-    plink \
-        --bfile ./06_remove_low_call_samples/merged_batches_remove_low_call_samples \
-        --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
-        --make-bed \
-        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples; \
-    ls -l ./07_remove_high_LogRDev_samples/")
-            #create a new folder to save plink filesets after filtering
-            #then use --remove to remove samples included in a file with two columns: family id and within-family id.
-                #this file is in a different parent folder so we have to use "../"
-                #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
-                    #https://www.cog-genomics.org/plink/1.9/filter
-
-
-print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
-fam_file_after_logRdev_filtering = pd.read_csv( \
-    "./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
-    sep=" ", \
-    header=0, \
-    low_memory=False)
-print(sum(fam_file_after_logRdev_filtering.iloc[:, 1].isin(total_removed_samples_logRdev)) == 0)
-    #no sample ID (second column in fam file) should be included in the list of IDs to be removed
-
-
-print_text("see the number of samples removed", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/; \
-    n_samples_before=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
-    n_samples_after=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
-    lost_samples=$(($n_samples_before - $n_samples_after)); \
-    lost_samples_percent=$( \
-        awk \
-            -v l=$lost_samples \
-            -v b=$n_samples_before \
-            'BEGIN{print (l/b)*100}'); \
-    if [[ $lost_samples_percent < 2 && $lost_samples_percent > 0 ]]; then \
-        printf 'The number of samples lost due to logR SD above illumina expectations is: %s; Note that we previously filtered by missingness, so we already removed there some samples with logR dev problems' \"$lost_samples\"; \
-    else \
-        echo 'ERROR: FALSE! We have lost more than 2% of samples due logR SD above illumina expectations OR just zero samples removed, which would be also strange, maybe you are using the wrong CNMetric file';\
-    fi")
-        #see SNP missing code to details about awk steps
-        #just added another condition, if the number of removed samples is zero, get error because we have problematic samples for this in both batches, so maybe you are using the incorrect CNMetric file
-
-# endregion
 
 
 
