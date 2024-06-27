@@ -261,11 +261,14 @@ print_text("starting with the pre-imputation QC using " + str(n_cores) + " cores
 #1. MAF, missingnes and initial HWE filtering
     #The most important argument I have found to do MAF before sample relatedenss is the following:
         #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
-            #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
-        #Therefore, I understand that we should not have very low MAFs if we want to robustly calculate relatedness between our samples.
+            #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT". However, if you continue reading, they say that "Manichaikul et al.'s KING-robust estimator can also be mostly trusted on mixed-population datasets (with one uncommon exception noted below), and doesn't require MAFs at all. Therefore, we have added this computation to PLINK 2, and the relationship-based pruner is now based on KING-robust."
+                #The exception is that KING-robust underestimates kinship when the parents are from very different populations. You may want to have some special handling of this case; --pca can help detect it.
+                #We should not have parents here....
+        #Therefore, we do not need good MAFs, but we are doing it after MAF filtering still because we have already prepared the script for that and it should not be a problem, and Ritchie do it after maf filterint (see Figure 5). 
     #So we are going to make an initial clean of SNPs and then do sample removals. If we clean by MAF and then clean by HWE there is no change in the MAF, because we are removing SNPs, not samples.
-#2. Sample relatedness and sample geno rate:
-    #We related samples after we have decent MAF data and done some SNP cleaning and then we can remove samples with low genotyping rate. The previous removal of samples is not going to influenec the genotypiing rate of a sample because we removed samples, not SNPs...
+#2. Sample call rate and relatedness:
+    #We remove related samples after we have decent MAF data (for KING) and done some SNP cleaning and then we can remove samples with low genotyping rate. The previous removal of samples is not going to influenec the genotypiing rate of a sample because we removed samples, not SNPs...
+    #We can do this before pop stratification becuase we are using King robust
 #3. MAF loop to ensure we have OK MAF and genotyping rate
     #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
 #2. Population stratification: It is strongly recommended by Plink´s author to check subgroups and then perform checks like sex-imbalances inside each group. Besides this, we will use the PCAs as covariates in the analyses.
@@ -2340,6 +2343,8 @@ run_bash(" \
 # region sample missingness ####
 ################################
 print_text("filter by sample missingness", header=2)
+#The usual practice is to filter out the samples and variants with high missing-entry frequencies; these tend to be caused by mistakes in the lab, bad SNP probes, variant calling limitations, and similar issues where throwing out the entire row/column is an appropriate solution. (You still have lots of other rows and columns to work with, so at least in population genomics it usually is not worth the effort to try to salvage it.) 
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
 print_text("create folder for this step", header=3)
 run_bash(" \
@@ -2649,13 +2654,13 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        07_remove_high_LogRDev_samples; \
+        09_remove_high_LogRDev_samples; \
     plink \
-        --bfile ./06_remove_low_call_samples/merged_batches_remove_low_call_samples \
+        --bfile ./08_remove_low_call_samples/merged_batches_hwe_par_callrate \
         --remove ../cn_metrics/merged_batches_samples_filter_out_LogRDev.tsv \
         --make-bed \
-        --out ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples; \
-    ls -l ./07_remove_high_LogRDev_samples/")
+        --out ./09_remove_high_LogRDev_samples/merged_batches_hwe_par_callrate_LogRDev; \
+    ls -l ./09_remove_high_LogRDev_samples/")
             #create a new folder to save plink filesets after filtering
             #then use --remove to remove samples included in a file with two columns: family id and within-family id.
                 #this file is in a different parent folder so we have to use "../"
@@ -2665,9 +2670,9 @@ run_bash(" \
 
 print_text("check that the corresponding samples are indeed not included in the new fam file", header=3)
 fam_file_after_logRdev_filtering = pd.read_csv( \
-    "./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam", \
+    "./data/genetic_data/quality_control/09_remove_high_LogRDev_samples/merged_batches_hwe_par_callrate_LogRDev.fam", \
     sep=" ", \
-    header=0, \
+    header=None, \
     low_memory=False)
 print(sum(fam_file_after_logRdev_filtering.iloc[:, 1].isin(total_removed_samples_logRdev)) == 0)
     #no sample ID (second column in fam file) should be included in the list of IDs to be removed
@@ -2679,11 +2684,11 @@ run_bash(
     n_samples_before=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./06_remove_low_call_samples/merged_batches_remove_low_call_samples.fam); \
+            ./08_remove_low_call_samples/merged_batches_hwe_par_callrate.fam); \
     n_samples_after=$( \
         awk \
             'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
-            ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam); \
+            ./09_remove_high_LogRDev_samples/merged_batches_hwe_par_callrate_LogRDev.fam); \
     lost_samples=$(($n_samples_before - $n_samples_after)); \
     lost_samples_percent=$( \
         awk \
@@ -2703,16 +2708,110 @@ run_bash(
 
 
 
+##############################
+# region MAF SECOND ROUND ####
+##############################
+print_text("MAF filtering second round", header=2)
+#We need decent MAFs for the next step (sample relatdness with King), so we are to check again MAF just in case the previous removal of samples has made some SNPs to be now below our MAF threshold.
+#see previous MAF round for info about the selected threshold
+
+print_text("apply the filter", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./10_remove_low_maf_snps/; \
+    plink \
+        --bfile ./09_remove_high_LogRDev_samples/merged_batches_hwe_par_callrate_LogRDev \
+        --maf 0.05 \
+        --make-bed \
+        --out ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf; \
+    ls -l ./10_remove_low_maf_snps")
+            #create a new folder to save filesets after removing related samples
+            #apply the MAF filter to the fileset filtered for logR SD
+                #--maf filters out all variants with minor allele frequency below the provided threshold (default 0.01), while --max-maf imposes an upper MAF bound. Similarly, --mac and --max-mac impose lower and upper minor allele count bounds, respectively.
+                    #https://www.cog-genomics.org/plink/1.9/filter
+
+
+print_text("see the number of SNPs removed", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    n_snps_before=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./09_remove_high_LogRDev_samples/merged_batches_hwe_par_callrate_LogRDev.bim); \
+    n_snps_after=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>0){count++}}END{print count}'\
+            ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf.bim); \
+    lost_snps=$(($n_snps_before - $n_snps_after)); \
+    lost_snps_percent=$( \
+        awk \
+            -v l=$lost_snps \
+            -v b=$n_snps_before \
+            'BEGIN{print (l/b)*100}'); \
+    if [[ $lost_snps_percent < 1 ]]; then \
+        printf 'The number of SNPs lost due to MAF below 0.05 is: %s' \"$lost_snps\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 60% of SNPs due low-call rate';\
+    fi")
+        #First calculate the number of SNPs, i.e., rows, in the bim files before and after filtering using for that "++" to count cases.
+        #Calculate the difference of snps, i.e., SNPs removed.
+        #calculate the percentage respect to the initial number of SNPs
+            #use the -v flag to load variables into awk, so we can use the number of SNPs removed and those previously present before the filtering. Use awk to calculate the percentage.
+                #https://stackoverflow.com/a/12147154/12772630
+                #https://www.unix.com/unix-for-dummies-questions-and-answers/15651-awk-v.html
+            #bash cannot do operations with floats
+        #if the percentage of lost SNPs is less than 1%, we are fine. So print the number of SNPs using printf, so you can combine string message with a variable, indicated as %s because it is loaded as string.
+            #https://phoenixnap.com/kb/bash-printf
+
+
+print_text("create freq report", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/10_remove_low_maf_snps/; \
+    plink \
+        --bfile merged_batches_hwe_par_callrate_LogRDev_maf \
+        --freq; \
+    head plink.frq")
+        #--frq produces a frequency report
+            #A text file with a header line, and then one line per variant with the following six fields:
+                #CHR Chromosome code
+                #SNP Variant identifier
+                #A1  Allele 1 (usually minor)
+                #A2  Allele 2 (usually major)
+                #MAF Allele 1 frequency
+                #NCHROBS Number of allele observations
+            #https://www.cog-genomics.org/plink/1.9/formats#frq
+
+
+print_text("check that no SNP has a MAF below the selected threshold", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/10_remove_low_maf_snps/; \
+    total_number_snps=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
+            plink.frq);\
+    n_snps_above_threshold=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if((NR>1) && ($5 >= 0.05)){count++}}END{print count}' \
+            plink.frq); \
+    if [[ $n_snps_above_threshold -eq $total_number_snps ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #count the number of rows of the frequency report, i.e., total number of SNPs
+        #then count the number of SNPs in that file that have a MAF equal or higher than 0.05, which is our selected threshold.
+        #the number of snps meeting this condition should be the same than the total number of SNPs, because we have already applied the filter.
+
+# endregion
+
+
+
 
 ###################################
 # region sample relatedness #######
 ###################################
-
-
-#first we remove samples by missing and from the remianing we calculate kindshop, in this way we avoid to consider samples that would be removed anyways due to missingness
-#having related samples should not influence missingness...
-
-
 print_text("sample relatedness", header=2)
 #the plink tutorial first remove related samples before filtering by MAF and calculate the PCA.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
@@ -2720,11 +2819,22 @@ print_text("sample relatedness", header=2)
     #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
 #In the VO2 max paper, they also seem to remove the related individuals using pi-hat before doing the PCA
     #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-#we can filter by sample relatdness, select a subset of SNPs based on LD-pruning (for IBD), then filter by relatedness and use that subset also for PCA and heterozigosity
+
+#We have already filtered SNPs by MAF so we have enough MAF for King (see summary of steps above). We filter by relatedness and then filter again by MAF ensuring the removal of all individuals has not make some SNPs to have very low MAF. Then we can go to pop stratification,
+    #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
+        #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT"
+
+#Note about the removal of samples
+    #First, we remove samples by missing and by logRDev. From the remaining individuals, we calculate kindship, in this way we avoid to consider samples that would be removed anyways due to missingness
+    #Note that having related samples should not influence missingness. It should NOT influence the amount of genotypes correctly genotype in a sample, so we can do it before removeing related samples.
+    #The only problem here is MAF, because the previous removal of samples could be bad for KING. Because of this, we apply again the MAF filter before this step.
+    #Yes, the new MAF filter could make some samples to have now low missingness, but this should not be a big problem for king. If a sample has low call rate, it could make difficult to check its relationthip with other samples, but that is ok, because that sample would be removed anyways, in this step (we remove the sample with lowest cal rrat ein each pair) or later with the last MAF loop.
+        #Also note that we are going to use King-robust which should be robust to this and also robust to mixed populations.
+            #The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, if your MAFs are decent. However, Manichaikul et al.'s KING-robust estimator can also be mostly trusted on mixed-population datasets (with one uncommon exception noted below), and doesn't require MAFs at all. Therefore, we have added this computation to PLINK 2, and the relationship-based pruner is now based on KING-robust.
 
 #Rationale:
     #Many population-genomic statistics (such as the allele frequencies) and analyses are distorted when there are lots of very close relatives in the dataset; you are generally trying to make inferences about the population as a whole, rather than a few families that you oversampled. For example, PLINK 2 includes an implementation of the KING-robust [5] pairwise relatedness estimator, which can be used to prune all related pairs. This does not mean that both samples in each related pair are thrown out. Instead, –king-cutoff tries to keep as much data as possible, and as a consequence it usually keeps one sample out of each pair (see below).
-    #These related samples, if treated as independent samples in the downstream analyses, having many related samples in the dataset would result in increased type I and type II errors. The options are tu use of mixed-regression models while considering in place of simple linear or logistic regression.
+    #These related samples, if treated as independent samples in the downstream analyses, having many related samples in the dataset would result in increased type I and type II errors. The options are tu use of mixed-regression models while considering in place of simple linear/logistic regression or remove one member of each pair.
     #Retaining a maximal set of unrelated individuals is computationally expensive (NP-hard), but an efficient greedy approximation is available in PLINK 2.0 using the --king-cutoff flag (as opposed to just removing one of each pair of related individuals)
         #see below about KING
     #Cryptic relatedness can interfere with the association analysis. If you have a family‐based sample (e.g., parent‐offspring), you do not need to remove related pairs but the statistical analysis should take family relatedness into account. However, for a population based sample we suggest to use a pi‐hat threshold of 0.2, which in line with the literature (Anderson et al., 2010; Guo et al., 2014).
@@ -2735,7 +2845,7 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./08_remove_related_samples/; \
+        ./11_remove_related_samples/; \
     ls -l")
 
 
@@ -2749,10 +2859,10 @@ print_text("LD-pruning", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
-        --bfile ./08_loop_maf_missing/loop_maf_missing_3 \
+        --bfile ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf \
         --indep-pairwise 500kb 1 0.2 \
-        --out ./09_remove_related_samples/ldpruned_snplist; \
-    ls -l ./09_remove_related_samples/")
+        --out ./11_remove_related_samples/ldpruned_snplist; \
+    ls -l ./11_remove_related_samples/")
         #This command produces a pruned subset of variants that are in approximate linkage equilibrium with each other, writing the IDs to plink2.prune.in (and the IDs of all excluded variants to plink2.prune.out). These files are valid input for --extract/--exclude in a future PLINK run; and, for backward compatibility, they do not affect the set of variants in the current run.
         #Since the only output of these commands is a pair of variant-ID lists, they now error out when variant IDs are not unique.
         #--indep-pairwise is the simplest approach, which only considers correlations between unphased-hardcall allele counts. We cannot use the alternative, which is --indep-pairphase and requires phased data. --indep-pairwise takes three parameters: 
@@ -2776,7 +2886,7 @@ run_bash(" \
 print("Do we have at least 70K SNPs after LD pruning like in Ritchie's tutorial?")
 #In the Ritchie's tutorial, they ended up with 67,000 autosomal indepent variants in order to calculate IBD and pi_hat.
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
     echo 'see first lines of the .prune.in list:'; \
     head ./ldpruned_snplist.prune.in; \
     ld_snps_in=$( \
@@ -2795,11 +2905,11 @@ run_bash(" \
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./08_loop_maf_missing/loop_maf_missing_3 \
-        --extract ./09_remove_related_samples/ldpruned_snplist.prune.in \
+        --bfile ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf \
+        --extract ./11_remove_related_samples/ldpruned_snplist.prune.in \
         --make-bed \
-        --out ./09_remove_related_samples/loop_maf_missing_3_ld_pruned;\
-    ls -l ./09_remove_related_samples/")
+        --out ./11_remove_related_samples/merged_batches_hwe_par_callrate_LogRDev_maf_ld_prunned;\
+    ls -l ./11_remove_related_samples/")
         #from the current fileset, select only those SNPs included in .prune.in
         #we use extract for that
             #--extract normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces), and removes all unlisted variants from the current analysis.
@@ -2809,31 +2919,31 @@ run_bash(" \
 print_text("remove sex chromsomes", header=4)
 #According to Marees et al. (2018), we should check for sample relatedness not only using independent SNPs (pruning), but also limiting the analysis to autosomal chromosomes only.
     #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6001694/
-#In Ritchie's tutorial (figure 5), they show an histogram for the distribution of pairwise pi-hat. They calculated IBD after "removing sex inconsistent individuals, 95% SNP call rate, 90% sample call rate, 10% MAF, and pruning to 67,000 AUTOSOMAL variants.".
+#In Ritchie's tutorial (figure 5), they show an histogram for the distribution of pairwise pi-hat. They calculated IBD after "removing sex inconsistent individuals, 95% SNP call rate, 90% sample call rate, 10% MAF, and pruning to 67,000 AUTOSOMAL variants.". Also, in Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
     #Therefore they do not use SNPs in sex chromosomes!
     #Respect sex inconsistencies, we can have minorities within the sample, and as plink help says (--check-sex), imbalanced ancestries can give problems so in that case you have to do the check of sex within each ancestry group. Therefore we need to check the PCA before.
-#In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
+    #plink tutorial check sex after pop stratification
 #They are talking specifically about autosomals, so we are going to consider ONLY autosomals, no X, Y, MT nor PAR regions. The case I was doubting more was PAR regions because these behave like autosomal chromosomes, but they are sexual chromosomes. They are just 500 in total, so we are going to remove them.
 
 #Therefore, I think we can use this set of pruned autosomal SNPs for kinship and PCA.
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
     plink \
-        --bfile ./loop_maf_missing_3_ld_pruned \
+        --bfile ./merged_batches_hwe_par_callrate_LogRDev_maf_ld_prunned \
         --autosome \
         --make-bed \
-        --out ./loop_maf_missing_3_ld_pruned_autosomals;\
+        --out ./merged_batches_hwe_par_callrate_LogRDev_maf_ld_prunned_autosomals;\
     ls -l")
         #--autosome excludes all unplaced and non-autosomal variants, while --autosome-xy does not exclude the pseudo-autosomal region of X
             #https://www.cog-genomics.org/plink/1.9/filter
 print("Do we have at least 70K autosomal SNPs after LD pruning like in Ritchie's tutorial?")
 #In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat.
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
     auto_ld_snps_in=$( \
         awk \
             'BEGIN{FS=\" \"}END{print NR}' \
-            ./loop_maf_missing_3_ld_pruned_autosomals.bim); \
+            ./merged_batches_hwe_par_callrate_LogRDev_maf_ld_prunned_autosomals.bim); \
     printf 'The number of included autosomal SNPs in linkage equilibrium is %s\n' \"$auto_ld_snps_in\"; \
     echo 'Is this number greater than 70K?'; \
     if [[ $auto_ld_snps_in -gt 70000 ]]; then \
@@ -2843,17 +2953,13 @@ run_bash(" \
     fi")
         #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
             #https://phoenixnap.com/kb/bash-printf
-
-
-#CHECK HERE CHROMOSOME CODES
-
 print("All non-autosomals SNPs have been removed from the LD pruned dataset?")
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
     n_non_auto_snps=$( \
         awk \
             'BEGIN{FS=\" \"}{if($1==0 || $1==23 || $1==24 || $1==25 || $1==26 || $1== \"X\"|| $1==\"Y\" || $1==\"XY\" || $1==\"MT\"){count++}}END{print count}'\
-            ./loop_maf_missing_3_ld_pruned_autosomals.bim); \
+            ./merged_batches_hwe_par_callrate_LogRDev_maf_ld_prunned_autosomals.bim); \
     if [[ $n_non_auto_snps -eq 0 ]]; then \
         echo 'TRUE'; \
     else \
@@ -2866,10 +2972,10 @@ print_text("calculate the kindship", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
+        --bfile ./11_remove_related_samples/merged_batches_hwe_par_callrate_LogRDev_maf_ld_prunned_autosomals \
         --genome \
-        --out ./09_remove_related_samples/ibd_report;\
-    ls -l ./09_remove_related_samples/")
+        --out ./11_remove_related_samples/ibd_report;\
+    ls -l ./11_remove_related_samples/")
         #These calculations ARE NOT LD-aware. It is usually a good idea to perform some form of LD-based pruning before invoking them.
         #--genome invokes an IBS/IBD computation, and then writes a report plink.genome
             #Note that there is one entry per pair of samples, so this file can be very large.
@@ -2902,7 +3008,7 @@ run_bash(" \
 
 print_text("explore the kindship file looking for pairs with pi_hat > 0.2", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
     echo 'See first lines of the IBD report'; \
     head ibd_report.genome; \
     echo '\n See now only those rows for which pi_hat > 0.2'; \
@@ -2958,7 +3064,7 @@ run_bash(" \
 
 print_text("convert delimiter of ibd report", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
     awk \
         'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14}' \
         ibd_report.genome > ibd_report_awk_processed.genome.tsv; \
@@ -2969,7 +3075,7 @@ run_bash(" \
 
 print_text("load ibd report as pandas DF", header=4)
 ibd_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/09_remove_related_samples/ibd_report_awk_processed.genome.tsv.gz", \
+    "./data/genetic_data/quality_control/11_remove_related_samples/ibd_report_awk_processed.genome.tsv.gz", \
     sep="\t", 
     header=0, 
     low_memory=False)
@@ -2990,24 +3096,24 @@ axs[1].scatter( \
 axs[1].set_xlabel("Z0")
 axs[1].set_ylabel("Z2")
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/09_remove_related_samples/pairs_relatdness_before_filtering.png")
+    fname="./data/genetic_data/quality_control/11_remove_related_samples/pairs_relatdness_before_filtering.png")
 plt.tight_layout()
 plt.close()
     #Our results:
         #We have many samples with Z0~1, i.e., unrelated individuals.
-        #We do not have cases with Z1 close to 1, so to parent-child pairs, but we have cases with Z1=0.5, thus potential siblings. 
-        #We have one pair with Z2=1, thus we have twins or the same sample duplicated.
+        #We do not have cases with Z1 close to 1, so to parent-child pairs, but we have cases with Z1=0.5, thus potential siblings (they share 1 allele in almost all loci) 
+        #We have one pair with Z2=1 (they share 2 alleles in almost all loci), thus we have twins or the same sample duplicated.
 
 print_text("plot histogram of pi_hat", header=4)
 ibd_report["PI_HAT"].hist(bins=100)
     #PI_HAT  Proportion IBD, i.e. P(IBD=2) + 0.5*P(IBD=1)
         #This counts the whole probability of having 2 shared alleles IBD and then half of the probability of having 1 shared allele IBD.
-        #It sums Z2 plus half Z1.W
+        #see above for calculation in specific cases.
 plt.yscale('log') 
     #to gain visibility, like in Ritche tutorial
         #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/09_remove_related_samples/pi_hat_hist.png")
+    fname="./data/genetic_data/quality_control/11_remove_related_samples/pi_hat_hist.png")
 plt.close()
     #we have several cases above pi_hat of 0.2, i.e., at least second degree relatives, possibly including first-degree relatives (PI_HAT=0.5) and twins/duplicated samples (PI_HAT=1).
 
@@ -3024,66 +3130,96 @@ print(samples_pi_hat_above_0_2)
 
 
 
+print_text("run KING-robust with plink2", header=3)
+print_text("intro to KING", header=4)
+#we need to use other method to ensure I am not making a mistake so we can confidently say that these samples are related.
+#We are going to KING, because, according to Christopher, is much less error prone. This method is also recommended in the Ricthie´s tutorial.
+    #If you need to ask, then you should ignore PI_HAT. A major advantage of the KING method is that it is much harder to misuse.
+        #https://www.biostars.org/p/434832/#434898
+
+#PLINK 2 includes an implementation of the KING-robust [5] pairwise relatedness estimator, which can be used to prune all related pairs. This does not mean that both samples in each related pair are thrown out. Instead, –king-cutoff tries to keep as much data as possible, and as a consequence it usually keeps one sample out of each pair.
+    #apply the KING-robust method
+        #https://www.cog-genomics.org/plink/2.0/distance#make_king
+
+#The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, if your MAFs are decent. However, Manichaikul et al.'s KING-robust estimator can also be mostly trusted on mixed-population datasets (with one uncommon exception noted below), and doesn't require MAFs at all. Therefore, we have added this computation to PLINK 2, and the relationship-based pruner is now based on KING-robust.
+    #The exception is that KING-robust underestimates kinship when the parents are from very different populations. You may want to have some special handling of this case; --pca can help detect it.
+    #We should not have parents here. We are using the second method in plink2, which is robust to mixed pops and MAF problems.
+
+#Note that KING kinship coefficients are scaled such that duplicate samples have kinship 0.5, not 1 (pi_hat for twins is 1). First-degree relations (parent-child, full siblings; pi_hat for first-degree is 0.5) correspond to ~0.25, second-degree relations correspond to ~0.125 (pi_hat for second-degree is 0.25). Therefore, I understand that third-degree relatives will have 0.125/2=0.0625, because pi_hat of these relatives is 0.125.
+    #see above for pi_hat calculations
+
+#According to Christopher, we can consider king-cutoff as half of pi_hat if our purpose is just to remove relatives from first to third-degree
+    #As long as you're just concerned with finding/pruning close relations (1st-2nd degree, maybe third degree), you can think of KING kinship as half of PI_HAT.
+    #https://groups.google.com/g/plink2-users/c/z2HRffl-6k8/m/NL0pqc-7AQAJ
+
+#It is conventional to use a cutoff of ~0.354 (the geometric mean of 0.5 and 0.25) to screen for monozygotic twins and duplicate samples, ~0.177 (the geometric mean of 0.25 and 0.125) to add first-degree relations, etc. Therefore, I understand that in order to filter out second-degree relatives, we would need to calculate the geometric mean of 0.125 and 0.0625, as these are the king-cutoffs for second and third-degree relatives. This would make a cutoff value of 0.088. Indeed, Christopher specifically said this in the forum: "A threshold of 0.177 corresponds to removing 1st-degree relations, and 0.088 also removes 2nd-degree relations"
+    #https://www.cog-genomics.org/plink/2.0/distance#king_coefs
+    #https://groups.google.com/g/plink2-users/c/938B07i8AXQ/m/dMFI8-GLAwAJ
+import numpy as np
+from scipy.stats import gmean
+print("The geometric mean of king-cutoffs for second and third-degree relatives (0.125 and 0.0625, respectively) is %s. This could be used to filter second-degree relatives" % gmean([0.125, 0.0625]))
+
+print_text("run KING-robust", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf \
+        --king-cutoff 0.088 \
+        --make-bed \
+        --out ./11_remove_related_samples/merged_batches_hwe_par_callrate_LogRDev_maf_related; \
+    ls -l ./11_remove_related_samples")
+    #code taken from:
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+    #We are using the whole dataset instead of the prunned data:
+        #
+    
+    
+    #--make-king
+    
+
+    #--king-cutoff
+        #relationship-based pruner. This uses KING-Robust:
+        #If used in conjunction with a later calculation (I guess --make-bed suffices), --king-cutoff excludes one member of each pair of samples with kinship coefficient greater than the given threshold. Alternatively, you can invoke this on its own to write a pruned list of sample IDs to plink2.king.cutoff.in.id, and excluded IDs to plink2.king.cutoff.out.id. We are using the former option by creating a bed file.
+        #According to Maares et al, it is frequent to remove second-degree relatives and above by using a pi_hat=0.2. Indeed, this is the threshold used in the trainability paper. This would correspond with a king-cutoff of 0.1 (assuming the king-cutoff is half of pi_hat, see above)
+        #However, according to plink docs, we would need a king-threshold of 0.088 to remove second degree samples (see above).
+        #We are going to follow the plink documentation and use the more stringent threshold.
+    #PLINK tries to maximize the final sample size, but this maximum independent set problem is NP-hard, so we use a greedy algorithm which does not guarantee an optimal result. In practice, --king-cutoff does yield a maximum set whenever there aren't too many intertwined close relations, but if you want to try to beat it (or optimize a fancier function that takes the exact kinship-coefficient values into account), use the --make-king[-table] and --keep/--remove flags and patch your preferred algorithm in between.
+        #so for this we can use --king-table
+    #--king-cutoff usually computes kinship coefficients from scratch. However, you can provide a precomputed kinship-coefficient matrix (must be --make-king binary format, triangular shape, either precision ok) as input to --king-cutoff, or a .kin0 file (can be compressed) to --king-cutoff-table; this is a time-saver when experimenting with different thresholds.
+        #so if you want to compare multiple thresholds, you can save the pre-computation and save time.
 
 
 
-
-
-#The plink tutorial says that sample relatdness can influence allele frequencies os they remove these samples before doing maf fitlering
-
-#we could do a LD prouning wiht the data before filtering, calculate pi_hat and king (without pruning), remove samples, then do the maf filtering, then do another LD prunung to do pop stratification and then sex incosistences on the same LD prunned withtin ancestry groups
-
+#what king-table does?
+#how king removes? what sample remains? the one with more missing?
+#the 40 samples are the same than in pi_hat?
+#what to do with the potential duplicated
 
 
 
-##if we do it without the MAF filtering, we lose 3 samples due sibling-sibling/father-sibling, but after the MAF filter we lose 20!! We have to check with other approaches! because KING says that is better not remove SNPs (at least for LD prunning) so maybe we are making it difficult for the approach.
+##it seems it is better not to do LD prunning for king, indeed, plink tutorial just use data cleaned for MAF and missingned to King, without removing even sexual chromo
+    #CHECK THIS!!!  i THINK remembed the original king software says that LD prunning is not recommended
+        #https://www.kingrelatedness.com/manual.shtml
 
 
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
+    awk \
+        'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
+        ./merged_batches_hwe_par_callrate_LogRDev_maf_related.king.cutoff.out.id")
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    cat ./11_remove_related_samples/merged_batches_hwe_par_callrate_LogRDev_maf_related.king.cutoff.out.id")
+
+
+#CHECK THIS REMOVED SAMPLES ARE THOSE WITH PI_HAT>0.2
+    #0.2 WAS USED IN THE VO2 PAPER, BUT NOT SURE, CHECK FIGURE 5 RITCHIE where <0.2 are 3rd degree related or unrelated.
 
 
 #As long as you're just concerned with finding/pruning close relations (1st-2nd degree, maybe third degree), you can think of KING kinship as half of PI_HAT.
     #https://groups.google.com/g/plink2-users/c/z2HRffl-6k8/m/ndOZIjpMBQAJ
-
-
-
-#Note that KING kinship coefficients are scaled such that duplicate samples have kinship 0.5, not 1. First-degree relations (parent-child, full siblings) correspond to ~0.25, second-degree relations correspond to ~0.125, etc. It is conventional to use a cutoff of ~0.354 (the geometric mean of 0.5 and 0.25) to screen for monozygotic twins and duplicate samples, ~0.177 to add first-degree relations, etc.
-#https://www.cog-genomics.org/plink/2.0/distance#king_coefs
-
-#Christopher: If you need to ask, then you should ignore PI_HAT. A major advantage of the KING method is that it is much harder to misuse.
-    #https://www.biostars.org/p/434832/#434898
-
-
-
-print_text("run KING-robust with plink2", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    plink2 \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
-        --king-cutoff 0.177 \
-        --make-bed \
-        --out ./09_remove_related_samples/remove_related_samples; \
-    ls -l ./09_remove_related_samples")
-    #PLINK 2 includes an implementation of the KING-robust [5] pairwise relatedness estimator, which can be used to prune all related pairs. This does not mean that both samples in each related pair are thrown out. Instead, –king-cutoff tries to keep as much data as possible, and as a consequence it usually keeps one sample out of each pair.
-        #apply the KING-robust method
-            #https://www.cog-genomics.org/plink/2.0/distance#make_king
-
-
-
-###IMPORTANT: LD pruning is not recommended in KING
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
-    awk \
-        'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
-        ./remove_related_samples.king.cutoff.out.id")
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    cat ./09_remove_related_samples/remove_related_samples.king.cutoff.out.id")
-
-#CHECK THIS REMOVED SAMPLES ARE THOSE WITH PI_HAT>0.2
-    #0.2 WAS USED IN THE VO2 PAPER, BUT NOT SURE, CHECK FIGURE 5 RITCHIE where <0.2 are 3rd degree related or unrelated.
 
 
 #maybe remove the sample with more missing from each related pair
@@ -3421,9 +3557,13 @@ dev.off()
 ####################################################################
 
 
+
 ##we have to decide whetehr to maintain the groups or to remove ancestry oultiers like trainibiltiy paper
     ##Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n = 10).
     #it depends of the number lost....
+    #Christopher:
+        #Population structure is typically accounted for by using top principal components (computed via plink --pca, or a similar function in another software package) as covariates.  Unfortunately, plink 1.07's haplotype association analysis does not support covariates; but the main allelic association command (--linear/--logistic, or --glm in plink 2.0) does support them.
+            #https://groups.google.com/g/plink2-users/c/938B07i8AXQ/m/dMFI8-GLAwAJ
 
 
 #THINK ABOUT THIS, because maybe we have to do imptuation in each group separately?
