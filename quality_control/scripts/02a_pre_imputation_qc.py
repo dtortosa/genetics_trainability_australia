@@ -16,9 +16,9 @@
 ######## PRE-IMPUTATION QUALITY CONTROL ########
 ################################################
 
-############################################
-# region INITIAL ANOTATIONS ################
-############################################
+######################################################
+# region INITIAL ANOTATIONS AND STEPS ################
+######################################################
 
 
 #This script will perform pre-imputation QC. 
@@ -2098,6 +2098,10 @@ run_bash(
 #Plink tutorial does this after MAF filtering
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
+#Also note this is relevant for KING. In a thread, Christopher said to someone trying to fitler related samples with KING that he/she was not performing QC correctly due to the kinship values he/she was obtaining. He recommended to use HWE
+    #"This indicates that you aren't performing proper QC.  More precisely, it is important to exclude variants that are not close to Hardy-Weinberg equilibrium, especially when that's because the variant-caller is screwing up royally and calling most or all samples heterozygous; you're in a tough position with only 29 samples, but you may still be able to detect and filter enough instances of this.  The Hardy-Weinberg p-value calculator at https://www.cog-genomics.org/software/stats/ may be helpful re: setting a --hwe threshold."
+        #https://groups.google.com/g/plink2-users/c/NKBcu2cC160/m/3_IftZbEAwAJ
+
 print_text("Initial HWE filter", header=2)
 print_text("create folder for this step", header=3)
 run_bash(" \
@@ -3129,8 +3133,15 @@ print("We have %s samples with PI_HAT > 0.2" % len(samples_pi_hat_above_0_2))
 print(samples_pi_hat_above_0_2)
 
 
-
 print_text("run KING-robust with plink2", header=3)
+print_text("make subfolder for KING", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
+    mkdir \
+        --parents \
+        ./king_analyses/; \
+    ls -l")
+
 print_text("intro to KING", header=4)
 #we need to use other method to ensure I am not making a mistake so we can confidently say that these samples are related.
 #We are going to KING, because, according to Christopher, is much less error prone. This method is also recommended in the Ricthie´s tutorial.
@@ -3159,143 +3170,183 @@ import numpy as np
 from scipy.stats import gmean
 print("The geometric mean of king-cutoffs for second and third-degree relatives (0.125 and 0.0625, respectively) is %s. This could be used to filter second-degree relatives" % gmean([0.125, 0.0625]))
 
-print_text("run KING-robust", header=4)
+#Important note about LD-prunning
+#The KING documentation says "Please do not prune or filter any "good" SNPs that pass QC prior to any KING inference, unless the number of variants is too many to fit the computer memory, e.g., > 100,000,000 as in a WGS study, in which case rare variants can be filtered out. LD pruning is not recommended in KING."
+    #https://www.kingrelatedness.com/manual.shtml
+#Christopher also made a reference to this.
+    #https://groups.google.com/g/plink2-users/c/NKBcu2cC160/m/3_IftZbEAwAJ
+#The plink tutorial filter by relatedness in the whole dataset just after filtering samples and SNPs missingness
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+#So we are going to use the dataset without LD prunning and without excluding any chromosome. Although it seems that KING only consider autosomals anyways.
+
+print_text("run --make-king-table to get a table with kindship coefficients", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf \
+        --make-king-table \
+        --king-table-filter 0.088 \
+        --out ./11_remove_related_samples/king_analyses/king_table; \
+    ls -l ./11_remove_related_samples")
+    #--make-king
+        #It seems that "--make-king" writes the KING-robust kindship coefficients into a matrix for all sample pairs, while --make-king-table creates a table. The removal of samples is done with "--king-cutoff", see below.
+        #We select only those sample with a kindship coefficient greater than 0.088
+            #This is usually the threshold used to consider sample above as related in at least second degree (see --king-cutoff below for details)
+        #--make-king writes KING-robust coefficients in matrix form to plink2.king[.zst] or plink2.king.bin, while --make-king-table writes them in table form to plink2.kin0[.zst].
+            #--make-king's matrix shape ('square', 'square0', 'triangle') and encoding ('bin', 'bin4') modifiers have the same behavior as --make-rel's, except that the diagonal is excluded from triangular output. Default shape+encoding is triangle+text, but note that bin/bin4 encoding changes the default shape to square.
+                #The 'square', 'square0', and 'triangle' modifiers affect the shape of the output matrix. 'square' yields a symmetric matrix; 'triangle' (normally the default) yields a lower-trianglar matrix where the first row contains only the <sample #1-sample #1> relationship, the second row has the <sample #1-sample #2> and <sample #2-sample #2> relationships in that order, etc.; and 'square0' yields a square matrix with all cells in the upper right triangle zeroed out.
+                #The 'bin' modifier causes the matrix to be written to plink2.rel.bin using little-endian IEEE-754 double encoding (suitable for loading from R). When using 'bin', the default output shape is 'square' instead of 'triangle'.
+                #'bin4' uses IEEE-754 single-precision encoding, and is otherwise identical to 'bin'. This saves disk space, but you'll need to specify 4-byte single-precision input for your next analysis step. The following does so in R: readBin('<filename>', what="numeric", n=<number of entries>, size=4)
+            #Only autosomes are included in this computation.
+                #So I understand we do NOT have to filtered them out
+            #Pedigree information is currently ignored; the between-family estimator is used for all pairs.
+            #For multiallelic variants, REF allele counts are used.
+            #--make-king jobs with the 'square0' or 'triangle' output shapes and all --make-king-table jobs can be subdivided with --parallel.
+        #In addition, with --make-king-table,
+            #The 'counts' modifier causes counts rather than 0.1 frequencies to be reported in the output columns that support both.
+            #The 'rel-check' modifier causes only same-FID pairs to be reported. (The between-family KING estimator is still used.)
+                #I understand these make to look only into samples of the same family, but we want to do comparisons between families, i.e., between batches, so we use the default. Indeed, I have found a correlation between one sample of one batch and one of another.
+            #--king-table-filter causes only kinship coefficients ≥ the given threshold to be reported.
+            #--king-table-subset causes only sample-pairs mentioned in the given .kin0 file (and optionally passing a kinship-coefficient threshold) to be processed. This allows you to start with a screening step which considers all sample pairs but only a small number of variants scattered across the genome (try --maf + --bp-space), and follow up with accurate kinship-coefficient computations for just the sample pairs identified as possible relations during the screening step. (This two-step approach remains practical with millions of samples!)
+                #Not necessary for us as we have a few thousands
+            #--king-table-require accepts one or more space/tab-delimited text files with sample IDs, and removes sample-pairs which don't contain at least one of the listed samples from the analysis. Similarly, --king-table-require-xor removes sample-pairs which don't contain exactly one of the listed samples.
+            #Refer to the file format entry for other output details and optional columns. --make-king-table now covers much of PLINK 1.x --genome's functionality.
+print_text("load the talbe in python")
+king_table = pd.read_csv( \
+    "./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/king_table.kin0", \
+    sep="\t", 
+    header=0, 
+    low_memory=False)
+print(king_table)
+    #A text file with a header line, and one line per sample pair with kinship coefficient no smaller than the --king-table-filter value. When --king-table-filter is not specified, all sample pairs are included. The following columns are present:
+        #FID1: FID of first sample in current pair
+        #IID1: IID of first sample in current pair
+        #FID2: FID of second sample in current pair
+        #IID2: IID of second sample in current pair
+        #NSNP: Number of variants considered (autosomal, neither call missing)
+        #HETHET: Proportion/count of considered call pairs which are het-het
+        #IBS0: Proportion/count of considered call pairs which are opposite homs
+        #KINSHIP: KING-robust between-family kinship estimate
+print("extract the unique cases ")
+samples_king_value_above_0_008=pd.concat( \
+    [king_table["IID1"], king_table["IID2"]], \
+    axis=0).unique()
+print("We have %s samples with KING-robust between-family kinship estimate > 0.088" % len(samples_king_value_above_0_008))
+print(samples_king_value_above_0_008)
+
+print_text("do we have the same problematic samples in king (kindship>0.088) and pi_hat (pi_Hat>0.2)?", header=4)
+print("check we have the exact same problematic IDs")
+from natsort import natsorted
+import numpy as np
+check_pi_hat_king = np.array_equal( \
+    natsorted(samples_king_value_above_0_008), \
+    natsorted(samples_pi_hat_above_0_2) \
+)
+if(check_pi_hat_king):
+    print(check_pi_hat_king)
+else:
+    raise ValueError("ERROR: FALSE! PI-HAT AND ING DO NOT SELECT THE SAME RELATED SAMPLES")
+print("Count number of each case with both approaches")
+print( \
+    "Duplicates: PI_HAT=0.5 (%s) and KINSHIP>0.354 (%s)" % ( \
+        ibd_report.loc[ibd_report["PI_HAT"]>=0.9,:].shape[0], \
+        king_table.loc[king_table["KINSHIP"]>=0.354,:].shape[0]))
+print( \
+    "First-degree: PI_HAT around 0.5 (%s) and KINDSHIP between 0.17 and 0.35 (%s)" % ( \
+        ibd_report.loc[(ibd_report["PI_HAT"]>0.4) & (ibd_report["PI_HAT"]<0.6),:].shape[0], \
+        king_table.loc[(king_table["KINSHIP"]>=0.177) & (king_table["KINSHIP"]<0.354),:].shape[0]))
+print( \
+    "Second-degree: PI_HAT around 0.25 (%s) and KINDSHIP between 0.08 and 0.17 (%s)" % ( \
+        ibd_report.loc[(ibd_report["PI_HAT"]>0.2) & (ibd_report["PI_HAT"]<0.4),:].shape[0], \
+        king_table.loc[(king_table["KINSHIP"]>=0.088) & (king_table["KINSHIP"]<0.177),:].shape[0]))
+print("check that NONE of the problematic cases have all NA for phenotypes, this would be a problem] because we would need to prioritize cases with pheno instead of using the greedy approach implement in PLINK 2")
+#get the pheno data
+#IMPORTANTE: SOME VARIABLES NEED PROCESING DUE TO ERRORS, BUT WE ARE NOT GOING TO DO IT HERE BECAUSE WE ONLY NEED THE IDS WITHOUT PHENO DATA
+run_bash(" \
+    cp \
+        ./data/pheno_data/'Combat gene DNA GWAS 23062022_v2.xlsx' \
+        ./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/pheno_data.xlsx")
+import pandas as pd
+import numpy as np
+pheno_data = pd.read_excel(
+    "./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/pheno_data.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+print(pheno_data)
+run_bash("rm ./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/pheno_data.xlsx")
+#get IDs of those samples with NA for all phenotypes, which we are goin 
+ids_no_pheno=pheno_data.loc[ \
+    (pheno_data.drop("AGRF code", axis=1).isna().all(axis=1)) & \
+    (pheno_data["AGRF code"].notna()), \
+    "AGRF code"]
+    #Extract the ID of those rows for which all columns are NA (except AGRF code) AND do not have NA for the ID
+if(len(ids_no_pheno)!=41):
+    raise ValueError("ERROR! FALSE! WE DO NOT HAVE THE CORRECT NUMBER OF SAMPLES WITH NA FOR ALL PHENOTYPES")
+#check the problematic IDs do not include the mislabelled sampled and the samples with all NA for phenotypes
+print(sum(ids_no_pheno.isin(["2397LDJA", "2399LDJA"]))==0)
+print(sum(ids_no_pheno.isin(samples_king_value_above_0_008))==0)
+print(sum(ids_no_pheno.isin(samples_pi_hat_above_0_2))==0)
+
+print_text("run --king-cutoff to remove related samples", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
         --bfile ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf \
         --king-cutoff 0.088 \
         --make-bed \
-        --out ./11_remove_related_samples/merged_batches_hwe_par_callrate_LogRDev_maf_related; \
-    ls -l ./11_remove_related_samples")
+        --out ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_related; \
+    ls -l ./11_remove_related_samples/king_analyses")
     #code taken from:
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-    #We are using the whole dataset instead of the prunned data:
-        #
-    
-    
-    #--make-king
-    
-
     #--king-cutoff
         #relationship-based pruner. This uses KING-Robust:
         #If used in conjunction with a later calculation (I guess --make-bed suffices), --king-cutoff excludes one member of each pair of samples with kinship coefficient greater than the given threshold. Alternatively, you can invoke this on its own to write a pruned list of sample IDs to plink2.king.cutoff.in.id, and excluded IDs to plink2.king.cutoff.out.id. We are using the former option by creating a bed file.
         #According to Maares et al, it is frequent to remove second-degree relatives and above by using a pi_hat=0.2. Indeed, this is the threshold used in the trainability paper. This would correspond with a king-cutoff of 0.1 (assuming the king-cutoff is half of pi_hat, see above)
         #However, according to plink docs, we would need a king-threshold of 0.088 to remove second degree samples (see above).
         #We are going to follow the plink documentation and use the more stringent threshold.
-    #PLINK tries to maximize the final sample size, but this maximum independent set problem is NP-hard, so we use a greedy algorithm which does not guarantee an optimal result. In practice, --king-cutoff does yield a maximum set whenever there aren't too many intertwined close relations, but if you want to try to beat it (or optimize a fancier function that takes the exact kinship-coefficient values into account), use the --make-king[-table] and --keep/--remove flags and patch your preferred algorithm in between.
-        #so for this we can use --king-table
+    #PLINK tries to maximize the final sample size, but this maximum independent set problem is NP-hard, so we use a greedy algorithm which does not guarantee an optimal result as opposed to just removing one of each pair of related individuals. In practice, --king-cutoff does yield a maximum set whenever there aren't too many intertwined close relations, but if you want to try to beat it (or optimize a fancier function that takes the exact kinship-coefficient values into account), use the --make-king[-table] and --keep/--remove flags and patch your preferred algorithm in between.
+        #From this, I understand that we are indeed doing better than just removing a sample from each pair, but getting a the set the maximum number of samples possibles while stying below the KING cutoff (at least if there are no too much intertwined connections). So instead just removing the member with the lowest genotyping rate, we use this.
+        #so for this we can use --king-table. Calculate kindship coefficients with --make-king table, then use these coefficients as input in a algorithm that remove related samples, and the list of remaining samples being used as filter in plink with --keep/--remove.
     #--king-cutoff usually computes kinship coefficients from scratch. However, you can provide a precomputed kinship-coefficient matrix (must be --make-king binary format, triangular shape, either precision ok) as input to --king-cutoff, or a .kin0 file (can be compressed) to --king-cutoff-table; this is a time-saver when experimenting with different thresholds.
         #so if you want to compare multiple thresholds, you can save the pre-computation and save time.
 
+print_text("compare the number of removed samples with the total number of problematic samples", header=4)
+#load the list IDs for prunned samples
+king_removed_samples = pd.read_csv("./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_related.king.cutoff.out.id", sep="\t", header=0, low_memory=False)
+print(king_removed_samples)
 
-
-#what king-table does?
-#how king removes? what sample remains? the one with more missing?
-#the 40 samples are the same than in pi_hat?
-#what to do with the potential duplicated
-
-
-
-##it seems it is better not to do LD prunning for king, indeed, plink tutorial just use data cleaned for MAF and missingned to King, without removing even sexual chromo
-    #CHECK THIS!!!  i THINK remembed the original king software says that LD prunning is not recommended
-        #https://www.kingrelatedness.com/manual.shtml
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
-    awk \
-        'BEGIN{FS=\" \"}{if(NR>1){count++}}END{print count}' \
-        ./merged_batches_hwe_par_callrate_LogRDev_maf_related.king.cutoff.out.id")
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    cat ./11_remove_related_samples/merged_batches_hwe_par_callrate_LogRDev_maf_related.king.cutoff.out.id")
-
-
-#CHECK THIS REMOVED SAMPLES ARE THOSE WITH PI_HAT>0.2
-    #0.2 WAS USED IN THE VO2 PAPER, BUT NOT SURE, CHECK FIGURE 5 RITCHIE where <0.2 are 3rd degree related or unrelated.
-
-
-#As long as you're just concerned with finding/pruning close relations (1st-2nd degree, maybe third degree), you can think of KING kinship as half of PI_HAT.
-    #https://groups.google.com/g/plink2-users/c/z2HRffl-6k8/m/ndOZIjpMBQAJ
-
-
-#maybe remove the sample with more missing from each related pair
-
-
-        #check general usage of plink2 and king
-
-            #it seems this approach tries to balance between getting a subset of unrelated samples and speed. This does not just remove one sample of each related pair
-
-            #Please do not prune or filter any "good" SNPs that pass QC prior to any KING inference, unless the number of variants is too many to fit the computer memory, e.g., > 100,000,000 as in a WGS study, in which case rare variants can be filtered out. LD pruning is not recommended in KING.
-                #https://www.kingrelatedness.com/manual.shtml
-
-            #LOOK to this ancestry problem:
-                #The exception is that KING-robust underestimates kinship when the parents are from very different populations. You may want to have some special handling of this case; --pca can help detect it.
-
-            #The same samples are removed with threshold 0.354 and 4. Maybe these are duplicated samples?
-                #only 3 more samples are removed with 0.177, i.e., when removing first-degree relations (parent–child and sibling–sibling)
-
-
-
-#talk with Bishop once we have results of sample relatdness
-#in the meantime work on teaching
+print("Percentage of problematic samples removed:")
+print((king_removed_samples.shape[0]/len(samples_king_value_above_0_008))*100)
 
 
 
 
+#what to do with the potential duplicated samples?
 
 
+#we could remove the 15 duplicates and then run --king-cutoff with the remaining to real remove relatives!!!
 
+#different sex
+#combat_ILGSA24-17873	8145ORJJ	combat_ILGSA24-17873	7974SJNN	271094	0.326426	0	0.5
+    #8145ORJJ pero es que este caso de check proble, esta puesto como male, pero es probablemetne una mujer
+        #de hecho esto explicariía el problema del sexo, tenemos duplicado el genoma de 7974SJNN (mujer) tanto en 7974SJNN como en 8145ORJJ que debería ser hombre.
+    #combat_ILGSA24-17873	8244DCDJ	combat_ILGSA24-17873	8244CDSJ	271170	0.327887	0	0.499992
+    #combat_ILGSA24-17873	8501CGDJ	combat_ILGSA24-17873	8500NHNJ	271207	0.325301	0	0.5
+    #combat_ILGSA24-17873	9187MFMM	combat_ILGSA24-17873	0197SNMM	271149	0.331242	0	0.5
+    #No creo euq merezca la pena salvar estas 4, no podemos estar seugros... no hay manera de estar 100% because we just do not know, we have 2 phenotypes and 1 genome...
 
+    #check the email was sent
 
-
-
-
-
-
-
-
-
-
-#LD equlibbrium es solo para un subset que se usa solo para PCA!! no para el resto de analisis!
-
-#LD seem to be done before PCA, but also HWE? plink tutorial does but not ritche tutorial doing after imputation, also Augusot paper does it after imptuation
-
-#the plink tutorials says to do it before and after PCA: 
-    #The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner (so the fewer-hets-than-expected variants that one would expect from population stratification would not be filtered out by this command)
-    #if a snAfter you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.p can violate HWE becuase pop structure, should be control (remove ancestry outliers) before filtering for HWE.
-#the VO2 max paper does HWE before PCA
-
-
-
-#Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
-    #general tutorial gwas
-
-
-#several tutorials say that the MAF (and LD) filtering should be done before the PCA, then filter by MAF again after imputation
-    #not sure if LD prunning should be done in general or only for the snps of the PCA
-    #see EIGENSOFT
-
-    #ritche says to filter snps used in PCA by MAF and LD..., use eigensoft... see the vairance of the PCA axes to select those included in the models...
-    
-    #Once you have LD-pruned and MAF-filtered your dataset, PLINK 2’s –pca command has a good shot of revealing large-scale population structure
-        #EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure
-        #If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding
-        #plink tutorial
-
-    #SNPs with Minor Allele Frequency (MAF)>0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n=10). 
-        #paper VO2 max
-
-
-
-
-#after filtering for maf, you should not have any SNP with 0 in the allele column for minor. in that moment, we would have remove snps with very low minor frequencies.
-#look at the bim file the unique cases
-#bim_no_dups.loc[:, 4].unique()
-#bim_no_dups.loc[:, 5].unique()
+    #Dear Christopher,
+    #First of all, thank you for developing (and continuing to develop) these amazing tools.
+    #I am performing QC on a dataset with approximately 1400 samples and around 600K SNPs (hg38). I am using the KING-robust method implemented in PLINK 2 to detect and filter out second-degree relatives and above. As you explained in the documentation, I am using the geometric mean of the kinship coefficient of second and third-degree relatives (i.e., 0.088). The resulting KING table is attached.
+    #As you can see, I have 15 pairs with a coefficient of 0.5, suggesting these are duplicates. Is this number common? or my KING results are strange? It seems a bit high to me, as it implies a significant number of errors when processing/genotyping samples…
+    #Please note that before this step, I removed duplicated SNPs and filtered SNPs by MAF (0.05), missingness (0.01), HWE (threshold=1e-25), and samples by missingness (0.01). The KING table remains mostly the same even if I perform the analyses without these previous filters.Also, note that filtering by the usual pi_hat threshold used for second-degree relatives (0.2) yields the exact same results. I used LD-prunned data for pi_hat (~95K autosomal SNPs), while data for KING was not prunned.
+    #I have confirmed that we do not have twins by comparing the age between the samples of each pair. In all cases, ages are different, so these are not twins.
+    #Finally, I have found that 4 of these samples have a mismatch between the self-reported sex and the sex based on genetic data. In these cases, it is pretty clear that the genotype of one sample has been duplicated and matched with the phenotypes of other sample that have a different self-reported sex.
+    #All this leads me to think that I could actually have a high number of duplicated samples. If you think this is the case, what would be your recommendation for dealing with them?
+    #The removal of samples with --king-cutoff essentially removes one sample in each pair, but I am unsure whether I should remove all these samples with a coefficient of 0.5. If two samples share two alleles in almost every loci, but have different phenotypes, which phenotype does this genotype belong to?
+    #My point is that, in each pair, we have two phenotypes but one genome, so we cannot be sure what phenotype should match with the genetic data. I guess all the 30 samples should be removed. Does this make sense?
 
 
 # endregion
@@ -3557,14 +3608,28 @@ dev.off()
 ####################################################################
 
 
+###LD PRUNNING
+    #Some analyses, such as the PCA we will discuss next, work best on a genome-spanning subset of SNPs which are in approximate linkage equilibrium. PLINK 2’s –indep-pairwise command (see Note 6) is a computationally efficient method of identifying a reasonable subset. 
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+    #Once you have LD-pruned and MAF-filtered your dataset, PLINK 2’s –pca command has a good shot of revealing large-scale population structure
+        #EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure
+        #If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding
+        #plink tutorial
+
+    #SNPs with Minor Allele Frequency (MAF)>0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n=10). 
+        #paper VO2 max
 
 ##we have to decide whetehr to maintain the groups or to remove ancestry oultiers like trainibiltiy paper
     ##Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n = 10).
     #it depends of the number lost....
+    #Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
+        #general tutorial gwas
     #Christopher:
         #Population structure is typically accounted for by using top principal components (computed via plink --pca, or a similar function in another software package) as covariates.  Unfortunately, plink 1.07's haplotype association analysis does not support covariates; but the main allelic association command (--linear/--logistic, or --glm in plink 2.0) does support them.
             #https://groups.google.com/g/plink2-users/c/938B07i8AXQ/m/dMFI8-GLAwAJ
 
+#SELECT THE AXES BASED ON EXPLAINED VARIANCE
+    #you can use eigensoft
 
 #THINK ABOUT THIS, because maybe we have to do imptuation in each group separately?
     #michina imputation sever says we have to Choose a reference panel
@@ -3816,7 +3881,7 @@ run_bash("\
 
 
 ##########################
-# region HWE
+# region HWE SECOND ROUND
 ###########################
 
 
@@ -3871,15 +3936,15 @@ run_bash("\
 
 
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples; \
+    cd ./data/genetic_data/quality_control/10_remove_low_maf_snps; \
     plink \
-        --bfile loop_maf_missing_3_ld_pruned \
+        --bfile ./merged_batches_hwe_par_callrate_LogRDev_maf \
         --check-sex; \
     ls -l")
 
 
 run_bash(" \
-    cd ./data/genetic_data/quality_control/09_remove_related_samples/; \
+    cd ./data/genetic_data/quality_control/10_remove_low_maf_snps/; \
     awk \
         'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1, $2, $3, $4, $5, $6}'\
         plink.sexcheck > plink.sexcheck_awk_processed.tsv; \
@@ -3887,7 +3952,7 @@ run_bash(" \
 
 
 sex_check_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/09_remove_related_samples/plink.sexcheck_awk_processed.tsv", \
+    "./data/genetic_data/quality_control/10_remove_low_maf_snps/plink.sexcheck_awk_processed.tsv", \
     sep="\t", 
     header=0, 
     low_memory=False)
@@ -3919,7 +3984,7 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
     #there are also 42 cases with sex zero in the fam file of the second batch before merging
     #the origin of the fam file is the map file!
     #The problem is 2399LDJA/2397LDJA, this mislabeled sample. 2397LDJA is present in the first batch but not in the pheno data so it is sex is "0". In contrast, 2399LDJA is present in the pheno data, having sex as M, but not in the first batch. Therefore, when we count the number of NaN sex in pheno data is only 41 (2399LDJA has sex data), while the genetic data has 42 (2397LDJA has no sex data).
-    #we should change the name of this sample. in the genetic data?
+    #we should change the name of this sample, probably easier to do it in the excel...
 
 #OJO MINORITIES
     #the results seems to make sense with most females below 0.2, CHECK THAT!
