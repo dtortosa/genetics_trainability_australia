@@ -3108,6 +3108,12 @@ plt.close()
         #We do not have cases with Z1 close to 1, so to parent-child pairs, but we have cases with Z1=0.5, thus potential siblings (they share 1 allele in almost all loci) 
         #We have one pair with Z2=1 (they share 2 alleles in almost all loci), thus we have twins or the same sample duplicated.
 
+print("check that the cases with Z0 and Z1 equal to 0 are those with Z2=1")
+if(sum(ibd_report.loc[(ibd_report["Z0"]==0) & (ibd_report["Z1"]==0), "Z2"]!=1)!=0):
+    raise ValueError("ERROR! FALSE! that the cases with Z0 and Z1 equal to 0 are NOT those with Z2=1")
+else:
+    print("TRUE")
+
 print_text("plot histogram of pi_hat", header=4)
 ibd_report["PI_HAT"].hist(bins=100)
     #PI_HAT  Proportion IBD, i.e. P(IBD=2) + 0.5*P(IBD=1)
@@ -3287,14 +3293,108 @@ print(sum(ids_no_pheno.isin(["2397LDJA", "2399LDJA"]))==0)
 print(sum(ids_no_pheno.isin(samples_king_value_above_0_008))==0)
 print(sum(ids_no_pheno.isin(samples_pi_hat_above_0_2))==0)
 
-print_text("run --king-cutoff to remove related samples", header=4)
+print_text("Remove samples with a kindship above 0.354", header=4)
+#My explanation
+    #I am performing QC on a dataset with approximately 1400 samples and around 600K SNPs (hg38). I am using the KING-robust method implemented in PLINK 2 to detect and filter out second-degree relatives and above. As you explained in the documentation, I am using the geometric mean of the kinship coefficient of second and third-degree relatives (i.e., 0.088). The resulting KING table is attached.
+    #As you can see, I have 15 pairs with a coefficient of 0.5, suggesting these are duplicates. Is this number common? or my KING results are strange? It seems a bit high to me, as it implies a significant number of errors during processing and/or genotyping the samples…
+    #Please note that before this step, I removed duplicated SNPs and filtered SNPs by MAF (0.05), missingness (0.01), HWE (1e-25), and sample missingness (0.01). Around 270K SNPs passed all the filters. The KING table remains mostly the same even if I perform the analysis without these previous filters. Also, note that filtering by the usual pi_hat threshold for second-degree relatives (0.2) yields the exact same results. For pi_hat I used LD-prunned data (95K autosomal SNPs), but not for KING.
+    #In case I could have an extremely abnormal proportion of twins in my data, I have checked that each pair of samples have different phenotypes values and, specifically, different ages, which is the case. Therefore, these are not twins. 
+    #Finally, I have found that 4 of these samples have a mismatch between reported-biological sex and sex based on genetic data. In these cases, it is very clear that the genetic data of one sample has been duplicated and matched with another sample having a different self-reported sex.
+    #All this leads me to think that I could actually have a high number of duplicated samples. If you think this is the case, what would be your recommendation for dealing with them?
+    #The removal of samples with --king-cutoff essentially removes one sample in each pair, but I am unsure whether I should remove all these samples with a coefficient of 0.5. If two samples share two alleles in almost every loci, but have different phenotypes, which phenotype does this genotype belong to?
+    #My point is that, in each pair, we have two different phenotypes and 1 genome, so we cannot be sure which is the correct phenotype that matches the genotype. I guess all the 30 samples should be removed. Does this make sense?
+#Answer Christopher
+    #Yes, I would remove both copies of any duplicate where you’re unsure about the phenotype.
+    #A ~1% rate of sample-handling errors is pretty typical.
+
+print("from the king table, select samples above the monozygotic twins threshold")
+king_duplicates = king_table.loc[king_table["KINSHIP"]>=0.354,:]
+#get the fam and sample IDs for each member of each pair, set the same column name and then concat
+king_duplicates_ids = pd.concat( \
+    [king_duplicates[["#FID1", "IID1"]].rename(columns={"#FID1": "FID", "IID1": "IID"}), \
+    king_duplicates[["FID2", "IID2"]].rename(columns={"FID2": "FID", "IID2": "IID"})], \
+    axis=0)
+#select those unique fam-sample IDs
+king_duplicates_ids=king_duplicates_ids.loc[~king_duplicates_ids.duplicated(["FID", "IID"]), :]
+#check
+if((king_duplicates_ids.shape[0]!=30) | (king_duplicates.shape[0]!=15)):
+    raise ValueError("ERROR! FALSE! WE DO NOT HAVE THE EXPECTED NUMBER OF DUPLICATED SAMPLES")
+#save the ids to filter them out
+king_duplicates_ids.to_csv("./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/id_samples_duplicates.txt",
+    sep="\t",
+    header=False,
+    index=False)
+
+print("remove duplicated samples from plink files")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf \
+        --remove ./11_remove_related_samples/king_analyses/id_samples_duplicates.txt \
+        --make-bed \
+        --out ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates"
+)
+    #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+    #we cannot use --king-cutoff because we want to remove ALL samples implicated as we do not know which phenotype should associate with the duplicated genotype (see question to christopher). --king-cutoff removes one of each pair.
+
+print("load the resulting FAM file and check we do not have the duplicated samples")
+fam_file_no_dup_samples = pd.read_csv( \
+    "./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates.fam", \
+    sep=" ", \
+    header=None, \
+    low_memory=False, \
+    names=["FID", "IID", "fatherID", "mother_ID", "sex_code", "phenotye_value"])
+fam_file_no_dup_samples
+#check
+merged = fam_file_no_dup_samples.merge( \
+    king_duplicates_ids, \
+    on=["FID", "IID"], \
+    how="left", \
+    indicator=True)
+    #To check whether the combination of two columns in a pandas DataFrame is present in another DataFrame, you can use the merge function with the indicator parameter set to True
+    #In this code, fam_file_no_dup_samples.merge(king_duplicates_ids, on=["FID", "IID"], how="left", indicator=True) merges df1 and df2 on 'column1' and 'column2'. The indicator parameter adds a column to the resulting DataFrame that indicates whether each row is present in df1 only, df2 only, or both. The result is then assigned to the merged variable.
+    #how="left":
+        #In this case, how='left' means it's a left join. A left join returns all the rows from the left DataFrame and the matched rows from the right DataFrame. If there is no match, the result is NaN on the right side.
+        #therefore, we are selecting all samples included in the new fam file.
+    #on=["FID", "IID"] means that the merge is being performed on the 'FID' and 'IID' columns. That is, pandas is looking for rows in fam_file_no_dup_samples and king_duplicates_ids where the 'FID' and 'IID' values are the same, and combining those matching rows into a single row in the resulting DataFrame.
+if(sum(merged["_merge"] == "both")!=0):
+    #if a row is present in the fam file and in the list of duplicates, it will have a value of "both". We should not have any case like this.
+    raise ValueError("ERROR! FALSE! WE STILL HAVE DUPLICATED SAMPLES IN OUR FILTERED DATASET")
+else:
+    print("True")
+
+print("make a new king table to see the result consdering third-degree relatives and above")
+#make the table in plink2
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
-        --bfile ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf \
+        --bfile ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates \
+        --make-king-table \
+        --king-table-filter 0.088 \
+        --out ./11_remove_related_samples/king_analyses/king_table_after_dups; \
+    ls -l ./11_remove_related_samples")
+#load the table
+king_table_after_dups = pd.read_csv( \
+    "./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/king_table_after_dups.kin0", \
+    sep="\t", 
+    header=0, 
+    low_memory=False)
+print(king_table_after_dups)
+#check
+if( \
+    (king_table_after_dups.shape[0]!=5) | \
+    (sum(king_table_after_dups["KINSHIP"]>=0.354)!=0) | \
+    (sum(king_table_after_dups["KINSHIP"]<=0.088)!=0)):
+    raise ValueError("ERROR! FALSE! WE DO NOT HAVE EXACTLTY 5 RELATED SAMPLES AFTER APPLYING THE INITIAL FILTER OF TWINS OR WE HAVE SAMPLES WITH KINSHIP ABOVE 0.354, I.E., DUPLICATES, OR BELOW <0.088, I.E., BELOW THE THRESHOLD USED FOR THE KING TABLE")
+
+print_text("Remove samples with first and second-degree relationship using --king-cutoff", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates \
         --king-cutoff 0.088 \
         --make-bed \
-        --out ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_related; \
+        --out ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related; \
     ls -l ./11_remove_related_samples/king_analyses")
     #code taken from:
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
@@ -3310,44 +3410,43 @@ run_bash(" \
     #--king-cutoff usually computes kinship coefficients from scratch. However, you can provide a precomputed kinship-coefficient matrix (must be --make-king binary format, triangular shape, either precision ok) as input to --king-cutoff, or a .kin0 file (can be compressed) to --king-cutoff-table; this is a time-saver when experimenting with different thresholds.
         #so if you want to compare multiple thresholds, you can save the pre-computation and save time.
 
+print("see the samples removed in the last filter")
+king_removed_samples_last_filter = pd.read_csv( \
+    "./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related.king.cutoff.out.id", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+print(king_removed_samples_last_filter)
+
 print_text("compare the number of removed samples with the total number of problematic samples", header=4)
-#load the list IDs for prunned samples
-king_removed_samples = pd.read_csv("./data/genetic_data/quality_control/11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_related.king.cutoff.out.id", sep="\t", header=0, low_memory=False)
-print(king_removed_samples)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    n_samples_before=$( \
+        awk \
+        'BEGIN{FS=\"\t\"; OFS=\"\t\"}END{print NR}' \
+        ./10_remove_low_maf_snps/merged_batches_hwe_par_callrate_LogRDev_maf.fam \
+    ); \
+    n_samples_after=$( \
+        awk \
+        'BEGIN{FS=\"\t\"; OFS=\"\t\"}END{print NR}' \
+        ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related.fam \
+    ); \
+    samples_lost=$(($n_samples_before-$n_samples_after)); \
+    if [[ $samples_lost -eq 35 ]]; then \
+        printf 'The number of samples filtered out due to relatedness is: %s' \"$samples_lost\"; \
+    else \
+        echo 'ERROR: FALSE! We have lost more than 20 samples due to relatedness';\
+    fi")
+    #We should have 35 samples removed:
+        #15 pairs of samples with kinship>0.354 from which all samples were removed, i.e., 15*2=30.
+        #5 pairs of samples with kinship between 0.088 and 0.354, from which one sample per pair was removed.
 
-print("Percentage of problematic samples removed:")
-print((king_removed_samples.shape[0]/len(samples_king_value_above_0_008))*100)
-
-
-
-
-#what to do with the potential duplicated samples?
-
-
-#we could remove the 15 duplicates and then run --king-cutoff with the remaining to real remove relatives!!!
-
-#different sex
-#combat_ILGSA24-17873	8145ORJJ	combat_ILGSA24-17873	7974SJNN	271094	0.326426	0	0.5
-    #8145ORJJ pero es que este caso de check proble, esta puesto como male, pero es probablemetne una mujer
-        #de hecho esto explicariía el problema del sexo, tenemos duplicado el genoma de 7974SJNN (mujer) tanto en 7974SJNN como en 8145ORJJ que debería ser hombre.
+#Final note: Some of the sex incosistences initially detected were indeed duplicated cases, i.e., two samples have the exact same genome, hence both have the same biological sex based on genetics, but in the phenotype one of them has a different sex:
+    #combat_ILGSA24-17873	8145ORJJ	combat_ILGSA24-17873	7974SJNN	271094	0.326426	0	0.5
     #combat_ILGSA24-17873	8244DCDJ	combat_ILGSA24-17873	8244CDSJ	271170	0.327887	0	0.499992
     #combat_ILGSA24-17873	8501CGDJ	combat_ILGSA24-17873	8500NHNJ	271207	0.325301	0	0.5
     #combat_ILGSA24-17873	9187MFMM	combat_ILGSA24-17873	0197SNMM	271149	0.331242	0	0.5
-    #No creo euq merezca la pena salvar estas 4, no podemos estar seugros... no hay manera de estar 100% because we just do not know, we have 2 phenotypes and 1 genome...
-
-    #check the email was sent
-
-    #Dear Christopher,
-    #First of all, thank you for developing (and continuing to develop) these amazing tools.
-    #I am performing QC on a dataset with approximately 1400 samples and around 600K SNPs (hg38). I am using the KING-robust method implemented in PLINK 2 to detect and filter out second-degree relatives and above. As you explained in the documentation, I am using the geometric mean of the kinship coefficient of second and third-degree relatives (i.e., 0.088). The resulting KING table is attached.
-    #As you can see, I have 15 pairs with a coefficient of 0.5, suggesting these are duplicates. Is this number common? or my KING results are strange? It seems a bit high to me, as it implies a significant number of errors when processing/genotyping samples…
-    #Please note that before this step, I removed duplicated SNPs and filtered SNPs by MAF (0.05), missingness (0.01), HWE (threshold=1e-25), and samples by missingness (0.01). The KING table remains mostly the same even if I perform the analyses without these previous filters.Also, note that filtering by the usual pi_hat threshold used for second-degree relatives (0.2) yields the exact same results. I used LD-prunned data for pi_hat (~95K autosomal SNPs), while data for KING was not prunned.
-    #I have confirmed that we do not have twins by comparing the age between the samples of each pair. In all cases, ages are different, so these are not twins.
-    #Finally, I have found that 4 of these samples have a mismatch between the self-reported sex and the sex based on genetic data. In these cases, it is pretty clear that the genotype of one sample has been duplicated and matched with the phenotypes of other sample that have a different self-reported sex.
-    #All this leads me to think that I could actually have a high number of duplicated samples. If you think this is the case, what would be your recommendation for dealing with them?
-    #The removal of samples with --king-cutoff essentially removes one sample in each pair, but I am unsure whether I should remove all these samples with a coefficient of 0.5. If two samples share two alleles in almost every loci, but have different phenotypes, which phenotype does this genotype belong to?
-    #My point is that, in each pair, we have two phenotypes but one genome, so we cannot be sure what phenotype should match with the genetic data. I guess all the 30 samples should be removed. Does this make sense?
-
+    #We should not rescue these 4 cases becasue we cannot completely sure that the case with correct sex (i.e., same sex according to genetics and phenotype) is the one we have to select. We cannot be completely sure.
 
 # endregion
 

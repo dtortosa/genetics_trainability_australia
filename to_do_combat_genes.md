@@ -62,6 +62,7 @@ PREGUNTA ESTO A DAVID NEXT TIME
 - PRS
     - We need a base cohort and a target cohort
     - See explanations in "03a_association_analyses.py"
+    - Efficient blockLASSO for Polygenic Scores with Applications to All of Us and UK Biobank
     - Exploring the application of deep learning methods for polygenic risk score estimation
     - AI-enabled evaluation of genome-wide association relevance and polygenic risk score prediction in Alzheimer’s disease
     - Leveraging Machine Learning and Genetic Risk Scores for the Prediction of Metabolic Syndrome in Children with Obesit
@@ -71,6 +72,7 @@ PREGUNTA ESTO A DAVID NEXT TIME
     - paper about correlation between test and discovery in PRS
     - Overestimated prediction using polygenic prediction derived from summary statistics
     - more interesting papers
+        - Evaluation of polygenic scoring methods in five biobanks shows larger variation between biobanks than methods and finds benefits of ensemble learning
         - Polygenic risk score prediction accuracy convergence
         - 15 years of GWAS discovery: Realizing the promise
         -  PGS-Depot: a comprehensive resource for polygenic scores constructed by summary statistics based methods 
