@@ -3230,6 +3230,10 @@ print(king_table)
         #FID2: FID of second sample in current pair
         #IID2: IID of second sample in current pair
         #NSNP: Number of variants considered (autosomal, neither call missing)
+            #As this only consider autosomals, it is a lower number than the total SNPs that passed the filters considering also sex chromosome
+            #According to the king table, the number of SNPs used for each sample is around 271K.
+            #The total number of SNPs that passed the filter is 289148, while only 270790 autosomal and 511 pseudo-autosomals. If we sum 270790 plus 511, we get 271301, which is around the number of SNPs considered per sample in the king table. So it seems king is considering XY regions.
+                #This is not a problem as we have ensured in a previous step that we have only XY variants in recognized XY regions for hg38.
         #HETHET: Proportion/count of considered call pairs which are het-het
         #IBS0: Proportion/count of considered call pairs which are opposite homs
         #KINSHIP: KING-robust between-family kinship estimate
@@ -3474,46 +3478,47 @@ print_text("apply again the MAF and missing filters", header=2)
     #"An iterative procedure that repeats the SNP and sample-level filtering until no additional samples are removed is also common" 
         #https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6605
 #the other previous steps should not be influenced by this, as we just removed SNPs duplicated or with wrong chromosome names
-print_text("create missing and freq reports", header=3)
-run_bash(
-    "cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
-    plink \
-        --bfile merged_batches_remove_high_LogRDev_samples \
-        --freq \
-        --missing \
-        --out merged_batches_remove_high_LogRDev_samples_reports; \
-    ls -l")
-
-
-
-
 print_text("create a folder to save plink data after new filters", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./08_loop_maf_missing; \
+        ./12_loop_maf_missing; \
     ls -l")
+
+
+
+print_text("create missing and freq reports", header=3)
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related \
+        --freq \
+        --missing \
+        --out ./12_loop_maf_missing/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related; \
+    ls -l")
+
 
 
 print_text("check if we have SNPs below the MAF threshold after removing samples", header=3)
 n_snps_below_maf_first_round_raw = run_bash(" \
-    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    cd ./data/genetic_data/quality_control/; \
     awk \
         'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
-        merged_batches_remove_high_LogRDev_samples_reports.frq", return_value=True).strip()
+        ./12_loop_maf_missing/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related.frq", return_value=True).strip()
 n_snps_below_maf_first_round = 0 if n_snps_below_maf_first_round_raw=="" else int(n_snps_below_maf_first_round_raw)
 print(f"We have {n_snps_below_maf_first_round} SNPs below the MAF threshold after the first round of filters")
 
 
 print_text("check if we have SNPs below the missing threshold after removing samples", header=3)
 n_snps_below_missing_first_round_raw = run_bash(" \
-    cd ./data/genetic_data/quality_control/07_remove_high_LogRDev_samples/; \
+    cd ./data/genetic_data/quality_control/; \
     awk \
         'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
-        merged_batches_remove_high_LogRDev_samples_reports.lmiss", return_value=True).strip()
+        12_loop_maf_missing/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related.lmiss", return_value=True).strip()
 n_snps_below_missing_first_round = 0 if n_snps_below_missing_first_round_raw=="" else int(n_snps_below_missing_first_round_raw)
 print(f"We have {n_snps_below_missing_first_round} SNPs above the missing threshold after the first round of filters")
+
 
 
 print_text("repeat the filters if these snps exists", header=3)
@@ -3522,26 +3527,26 @@ if(n_snps_below_maf_first_round>0) | (n_snps_below_missing_first_round>0):
     run_bash(" \
       cd ./data/genetic_data/quality_control/; \
       plink \
-          --bfile ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples \
+          --bfile ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related \
           --maf 0.05 \
           --geno 0.01 \
           --make-bed \
-          --out ./08_loop_maf_missing/loop_maf_missing_1; \
-      ls -l ./08_loop_maf_missing/")  
+          --out ./12_loop_maf_missing/loop_maf_missing_1; \
+      ls -l ./12_loop_maf_missing/")  
 
     print_text("apply missing sample filters", header=4)
     run_bash(" \
         cd ./data/genetic_data/quality_control/; \
         plink \
-            --bfile ./08_loop_maf_missing/loop_maf_missing_1 \
+            --bfile ./12_loop_maf_missing/loop_maf_missing_1 \
             --mind 0.01 \
             --make-bed \
-            --out ./08_loop_maf_missing/loop_maf_missing_2; \
-        ls -l ./08_loop_maf_missing/")
+            --out ./12_loop_maf_missing/loop_maf_missing_2; \
+        ls -l ./12_loop_maf_missing/")
 
     print_text("create MAF and missing reports", header=4)
     run_bash(
-        "cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        "cd ./data/genetic_data/quality_control/12_loop_maf_missing/; \
         plink \
             --bfile loop_maf_missing_2 \
             --freq \
@@ -3551,21 +3556,21 @@ if(n_snps_below_maf_first_round>0) | (n_snps_below_missing_first_round>0):
     
     print_text("check reports again", header=4)
     n_snps_below_maf_second_round_raw = run_bash(" \
-        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        cd ./data/genetic_data/quality_control/12_loop_maf_missing/; \
         awk \
             'BEGIN{FS=\" \"}{if((NR>1) && ($5 < 0.05)){count++}}END{print count}' \
             loop_maf_missing_2_reports.frq", return_value=True).strip()
     n_snps_below_maf_second_round = 0 if n_snps_below_maf_second_round_raw=="" else int(n_snps_below_maf_second_round_raw)
     print(f"We have {n_snps_below_maf_second_round} SNPs below the MAF threshold after the second round of filters")    
     n_snps_below_missing_second_round_raw = run_bash(" \
-        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        cd ./data/genetic_data/quality_control/12_loop_maf_missing/; \
         awk \
             'BEGIN{FS=\" \"}{if((NR>1) && ($5 > 0.01)){count++}}END{print count}' \
             loop_maf_missing_2_reports.lmiss", return_value=True).strip()
     n_snps_below_missing_second_round = 0 if n_snps_below_missing_second_round_raw=="" else int(n_snps_below_missing_second_round_raw)
     print(f"We have {n_snps_below_missing_second_round} SNPs above the missing threshold after the second round of filters")
     n_samples_below_missing_second_round_raw = run_bash(" \
-        cd ./data/genetic_data/quality_control/08_loop_maf_missing/; \
+        cd ./data/genetic_data/quality_control/12_loop_maf_missing/; \
         awk \
             'BEGIN{FS=\" \"}{if((NR>1) && ($6 > 0.01)){count++}}END{print count}' \
             loop_maf_missing_2_reports.imiss", return_value=True).strip()
@@ -3579,20 +3584,21 @@ else:
     print("Step not required")
 
 
+
 print_text("just copy plink files if no filter is required", header=3)
 if(n_snps_below_maf_first_round==0) & (n_snps_below_missing_first_round==0):
     run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     cp \
-        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bim \
-        ./08_loop_maf_missing/loop_maf_missing_2.bim; \
+        ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related.bim \
+        ./12_loop_maf_missing/loop_maf_missing_2.bim; \
     cp \
-        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.fam \
-        ./08_loop_maf_missing/loop_maf_missing_2.fam; \
+        ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related.fam \
+        ./12_loop_maf_missing/loop_maf_missing_2.fam; \
     cp \
-        ./07_remove_high_LogRDev_samples/merged_batches_remove_high_LogRDev_samples.bed \
-        ./08_loop_maf_missing/loop_maf_missing_2.bed; \
-    ls -l ./08_loop_maf_missing/")
+        ./11_remove_related_samples/king_analyses/merged_batches_hwe_par_callrate_LogRDev_maf_duplicates_related.bed \
+        ./12_loop_maf_missing/loop_maf_missing_2.bed; \
+    ls -l ./12_loop_maf_missing/")
 else:
     print("Step not required.")
 
@@ -3601,99 +3607,140 @@ else:
 
 
 
-##############################################
-# region INITIAL CHECK HETERO ##############
-##############################################
+####################################
+# region CHECK HETERO ##############
+####################################
 
-###TO DO
+#After applying all filters except pop stratification and sex-mismatch, we are going to take a look to heterozigosity rate.
 
-    #see page 6 to make the plot rITCHIE
-
+#It is valuable to ensure the data are free from potential inbreeding. To check for these confounders, it is necessary to carry out methods that will adjust the data based on established thresholds by first calculating the genotype call rate and heterozygosity rate. The heterozygosity rate is the ratio of the total non-missing genotypes minus the homozygous genotypes (i.e., heterozygous genotypes) compared to the total non-missing genotypes in a given sample. The --het flag in PLINK produces a file with a list of heterozygous haploid genotypes (*.hh) and a file with individual heterozygosity information (*.het). By using the *.het file, we can calculate the heterozygosity rate where the O.HOM column represents the observed homozygous genotypes while the N.NM.
+    #page 6 in Ritchie´s review.
 print_text("visualize heterozygosity", header=2)
 print_text("create folder for this step", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./07_visual_hetero/; \
+        ./13_visual_hetero/; \
     ls -l")
 
 
-#calculate heterozigosity and missing reports per sample
 
+print_text("calculate heterozygosity and missing reports per sample", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./06_first_hwe_filter/merged_batches_hwe_filtered \
+        --bfile ./12_loop_maf_missing/loop_maf_missing_2 \
         --het \
         --missing \
-         --out ./07_visual_hetero/merged_batches_hwe_filtered_hetero \
+         --out ./13_visual_hetero/loop_maf_missing_2_hetero \
     ")
 
+
+
+print_text("process the missing report", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     awk \
         'BEGIN{OFS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6}' \
-        ./07_visual_hetero/merged_batches_hwe_filtered_hetero.imiss > ./07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.imiss \
+        ./13_visual_hetero/loop_maf_missing_2_hetero.imiss > ./13_visual_hetero/loop_maf_missing_2_hetero_awk_processed.imiss \
     ")
-
-missing_data=pd.read_csv("./data/genetic_data/quality_control/07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.imiss", sep="\t", low_memory=False)
-missing_data
-
-missing_data["prop_missing"] = (missing_data["N_MISS"] / missing_data["N_GENO"])
+missing_data=pd.read_csv("./data/genetic_data/quality_control/13_visual_hetero/loop_maf_missing_2_hetero_awk_processed.imiss", sep="\t", low_memory=False)
+print(missing_data)
 
 
+
+print_text("process the heterozygosity report", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     awk \
         'BEGIN{OFS=\" \"; OFS=\"\t\"}{print $1,$2,$3,$4,$5,$6}' \
-        ./07_visual_hetero/merged_batches_hwe_filtered_hetero.het > ./07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.het \
+        ./13_visual_hetero/loop_maf_missing_2_hetero.het > ./13_visual_hetero/loop_maf_missing_2_hetero_awk_processed.het \
     ")
+hetero_data=pd.read_csv("./data/genetic_data/quality_control/13_visual_hetero/loop_maf_missing_2_hetero_awk_processed.het", sep="\t", low_memory=False)
+print(hetero_data)
 
-hetero_data=pd.read_csv("./data/genetic_data/quality_control/07_visual_hetero/merged_batches_hwe_filtered_hetero_awk_processed.het", sep="\t", low_memory=False)
-hetero_data
 
-merged_hetero = missing_data.merge(hetero_data, on='IID')
-merged_hetero
 
-#The heterozygosity rate is the ratio of the total non-missing geno types minus the homozygous genotypes com pared to the total non-missing genotypes in a given sample.
+print_text("merge both datasets", header=3)
+merged_hetero = missing_data.merge( \
+    hetero_data,  \
+    how="inner",  \
+    on=["FID", "IID"])
+    #we need to combine in the same row columns that belong to the same family ID and sample ID
+    #we need only those cases with missing heterozygosity data, so we need the intersection of both dataframes
+print(merged_hetero)
 
-#By using the *.het file, we can calculate the heterozygosity rate where the O.HOM column represents the observed homozygous genotypes while the N.NM column represents the non-missing genotypes
 
+
+print_text("calculate heterozygosity rate", header=3)
+#The heterozygosity rate is the ratio of the total non-missing genotypes minus the homozygous genotypes (i.e., heterozygous genotypes) compared to the total non-missing genotypes in a given sample. By using the *.het file, we can calculate the heterozygosity rate where the O.HOM column represents the observed homozygous genotypes while the N.NM column represents the non-missing genotypes
 merged_hetero["hetero_rate"] = (merged_hetero["N(NM)"] - merged_hetero["O(HOM)"]) / merged_hetero["N(NM)"]
+    #formula also obtained from Marees et al.
 
 
 
-merged_hetero["F_MISS"].mean()-merged_hetero["F_MISS"].std()
-
-
+print_text("plot missingness against heterozygosity rate like in page 6 of Ritchie´s review", header=3)
+#calculate heterozygosity limits
+hetero_high_threshold = merged_hetero["hetero_rate"].mean()+(3*merged_hetero["hetero_rate"].std())
+hetero_low_threshold = merged_hetero["hetero_rate"].mean()-(3*merged_hetero["hetero_rate"].std())
 import matplotlib.pyplot as plt
-
+#proportion of missing genotypes vs. heterozygosity rate
 plt.scatter(merged_hetero["F_MISS"], merged_hetero["hetero_rate"], s=0.5)
-plt.axhline(y=merged_hetero["hetero_rate"].mean()+(3*merged_hetero["hetero_rate"].std()), color='r', linestyle='-')  # Add horizontal line at y=0.5
-plt.axhline(y=merged_hetero["hetero_rate"].mean()-(3*merged_hetero["hetero_rate"].std()), color='r', linestyle='-')  # Add horizontal line at y=0.5
-plt.axvline(x=merged_hetero["F_MISS"].mean(), color='r', linestyle='-')  # Add horizontal line at y=0.5
+#add horizontal lines at mean heterozygosity + and - 3 standard deviations
+plt.axhline( \
+    y=hetero_high_threshold, \
+    color='red', \
+    linestyle='dashed')
+plt.axhline( \
+    y=hetero_low_threshold,  \
+    color='red',  \
+    linestyle='dashed')
+#add vertical lines at mean missingness in addition to mean +- 5% of mean missingness
+plt.axvline( \
+    x=merged_hetero["F_MISS"].mean(), \
+    color='red', \
+    linestyle='dashed')
+plt.axvline( \
+    x=merged_hetero["F_MISS"].mean()+(merged_hetero["F_MISS"].mean()*0.05), \
+    color='blue', \
+    linestyle='solid')
+plt.axvline( \
+    x=merged_hetero["F_MISS"].mean()-(merged_hetero["F_MISS"].mean()*0.05), \
+    color='black', \
+    linestyle='solid')
+#add axes labels and title
 plt.xlabel('F_MISS')
 plt.ylabel('hetero_rate')
-plt.title('Scatter plot: F_MISS vs hetero_rate')
+plt.title('F_MISS vs hetero_rate')
+#save figure and close
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/07_visual_hetero/scatter_hetero_rate_vs_missing.png")
+    fname="./data/genetic_data/quality_control/13_visual_hetero/scatter_hetero_rate_vs_missing.png")
 plt.close()
+    #Based on these results, it appears that the quality of the data is very clean
+        #there is a low level of missingness. Low genotype call rates (3% to 7%) suggest low sample quality. Yes, we have filtered out samples with missingness above 0.01, but these were only 10. 
+        #The majority of heterozygosity remains within three standard deviations of the mean (horizontal red lines indicate mean ± 3 std). Less than expected heterozygosity (mean – 3 SD) suggests possible inbreeding and greater than expected heterozygosity (mean + 3 SD) suggests possible sample contamination. However, these thresholds should take into account the expected heterozygosity rates in the ancestry group under study, as some diverse populations may exhibit different rates of heterozygosity than other populations. 
+            #In our case, just 13 samples are above the mean hetero plus 3 standard deviations, while 42 are below mean hetero less 3 standard deviations. It seems we are ok because in both cases, the outliers are close to the limits (see below). At least closer compared to the plot of Ritchie´s review. In that figure you can see the limits are 0.16-0.18 but there are samples at 0.22 and 0.12.
+            #We should not have relatedness as we have already filtered that using KING-robust.
+            #Also note we have different ancestries, so this could cause the small deviation from the normal levels of heterozygosity.
 
 
 
-#missing genotypes porque no hemos filtrado por missingenss
+print_text("see the number of samples above the mean heterozigosity +- 3 standard deviations", header=3)
+samples_above_hetero = merged_hetero.loc[merged_hetero["hetero_rate"] > hetero_high_threshold,:]
+print(samples_above_hetero)
+print(samples_above_hetero.shape[0])
+print("the 97.5% percentile of the heterozigosity for samples above the heterozygosity upper limit correspond with the following percentage with respect to that limit") 
+print(((samples_above_hetero["hetero_rate"].quantile(q=0.975) - hetero_high_threshold)/hetero_high_threshold)*100)
 
 
-'''
-het <- read.table("R_check.het", head=TRUE)
-pdf("heterozygosity.pdf")
-het$HET_RATE = (het$"N.NM." - het$"O.HOM.")/het$"N.NM."
-hist(het$HET_RATE, xlab="Heterozygosity Rate", ylab="Frequency", main= "Heterozygosity Rate")
-dev.off()
-'''
-    #code from maares
 
+print_text("see the number of samples below the mean heterozigosity +- 3 standard deviations", header=3)
+samples_below_hetero = merged_hetero.loc[merged_hetero["hetero_rate"] < hetero_low_threshold,:]
+print(samples_below_hetero)
+print(samples_below_hetero.shape[0])
+print("the 2.5% percentile of the heterozigosity for samples below the heterozygosity lower limit correspond with the following percentage with respect to that limit") 
+print(((hetero_low_threshold-samples_below_hetero["hetero_rate"].quantile(q=0.025))/hetero_low_threshold)*100)
 
 # endregion
 
@@ -3702,65 +3749,107 @@ dev.off()
 
 
 
-####################################################################
+###################################
 # region POP STRATIFICACION #######
-####################################################################
-
-
-###LD PRUNNING
-    #Some analyses, such as the PCA we will discuss next, work best on a genome-spanning subset of SNPs which are in approximate linkage equilibrium. PLINK 2’s –indep-pairwise command (see Note 6) is a computationally efficient method of identifying a reasonable subset. 
-        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-    #Once you have LD-pruned and MAF-filtered your dataset, PLINK 2’s –pca command has a good shot of revealing large-scale population structure
-        #EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure
-        #If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding
-        #plink tutorial
-
-    #SNPs with Minor Allele Frequency (MAF)>0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n=10). 
-        #paper VO2 max
-
-##we have to decide whetehr to maintain the groups or to remove ancestry oultiers like trainibiltiy paper
-    ##Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n = 10).
-    #it depends of the number lost....
-    #Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
-        #general tutorial gwas
-    #Christopher:
-        #Population structure is typically accounted for by using top principal components (computed via plink --pca, or a similar function in another software package) as covariates.  Unfortunately, plink 1.07's haplotype association analysis does not support covariates; but the main allelic association command (--linear/--logistic, or --glm in plink 2.0) does support them.
-            #https://groups.google.com/g/plink2-users/c/938B07i8AXQ/m/dMFI8-GLAwAJ
-
-#SELECT THE AXES BASED ON EXPLAINED VARIANCE
-    #you can use eigensoft
-
-#THINK ABOUT THIS, because maybe we have to do imptuation in each group separately?
-    #michina imputation sever says we have to Choose a reference panel
-    #it seems that the reference panel is something like hapmap or the 1KGP, so it shoudl ahndle different ancestries, but check
-        #A simple alternative is to use a “cosmopolitan” reference set that includes all available haplotypes, each of which is assigned an equal chance of being copied a priori. This approach produces relatively accurate results in a variety of human populations and has therefore been proposed as a good fallback choice when the optimal panel composition is unclear (Guan and Stephens 2008; Huang et al. 2009a; Li et al. 2010). Another class of methods tries to maximize accuracy by weighting reference panels through cross-validation (Huang et al. 2009a) or ancestry estimation (Egyud et al. 2009; Pasaniuc et al. 2010); the Pasaniuc et al. approach differs from the others in that it uses local ancestry estimates to provide customized reference weights for each study individual. As an alternative, Jostins et al. (2011) suggested balancing accuracy and computation by using reference panels that “approximately cluster” with the study individuals on a plot of principal components (PC) that capture genetic ancestry.
-        #https://academic.oup.com/g3journal/article/1/6/457/5986469
-
-
-#In Ritchie's GitHub, they remove sex chromosomes before PCA: "Exclude any SNPs that do not liftOver and non-somatic chromosomes (X, Y)"
-
-
-
-print_text("start PCA to detect individuals that are outliers", header=2)
-print_text("prepare folder for PCA", header=3)
+###################################
+print_text("start pop stratificaction analyses to detect individuals that are outliers", header=2)
+print_text("start with pca", header=3)
+print_text("open folder", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir \
         --parents \
-        ./XX_pca; \
+        ./14_pop_strat/01_pca; \
     ls -l")
 
 
-
-print_text("run PCA to detect clusters of samples", header=3)
-run_bash("\
+print_text("Filter out snps for the PCA", header=4)
+#Besides filtering by MAF and selecting high quality SNPs, we need to do LD prunning. In addition, the marees review and Ritchie tutorial remove sex chromosome
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./12_loop_maf_missing/loop_maf_missing_2 \
+        --indep-pairwise 500kb 1 0.2 \
+        --out ./14_pop_strat/01_pca/ldpruned_pca; \
+    ls -l ./14_pop_strat/01_pca/")
+run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --pca \
-            'tabs' \
-            'header' \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
-        --out ./XX_pca/pca_after_logR_filter")
+        --bfile ./12_loop_maf_missing/loop_maf_missing_2 \
+        --extract ./14_pop_strat/01_pca/ldpruned_pca.prune.in \
+        --autosome \
+        --make-bed \
+        --out ./14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca;\
+    ls -l ./11_remove_related_samples/")
+#look section of sample relatedness for details about the filters applied in this step
+
+print_text("checks after filtering", header=4)
+#In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat. I guess they used the same dataset for the PCA. They also say that "It is recommended that the user prune to approximately ∼100,000 SNPs for use in PCA analyses". The github of the paper shows the removal of sex chromosomes (step 8) before the PCA (step 9), while Marees et al explictily says that we should perform the PCA on autosomal SNPs. Althougl plink tutorial does not filter out sex chromosomes before, we are doing it given what the other sources are doing.
+    #14_pop_strat/01_pca
+#Therefore, we need around 100K independent autosomal SNPs.
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/; \
+    auto_ld_snps_in=$( \
+        awk \
+            'BEGIN{FS=\" \"}END{print NR}' \
+            ./loop_maf_missing_2_ldprunned_autosome_pca.bim); \
+    printf 'The number of included autosomal SNPs in linkage equilibrium is %s\n' \"$auto_ld_snps_in\"; \
+    echo 'Is this number greater than 93K?'; \
+    if [[ $auto_ld_snps_in -gt 93000 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
+            #https://phoenixnap.com/kb/bash-printf
+print("All non-autosomals SNPs have been removed from the LD pruned dataset?")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
+    n_non_auto_snps=$( \
+        awk \
+            'BEGIN{FS=\" \"}{if($1==0 || $1==23 || $1==24 || $1==25 || $1==26 || $1== \"X\"|| $1==\"Y\" || $1==\"XY\" || $1==\"MT\"){count++}}END{print count}'\
+            ./loop_maf_missing_2_ldprunned_autosome_pca.bim); \
+    if [[ $n_non_auto_snps -eq 0 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+
+
+print_text("run PCA to detect clusters of samples", header=3)
+#Once you have LD-pruned and MAF-filtered your dataset, PLINK 2’s –pca command has a good shot of revealing large-scale population structure. For example,
+print_text("make the run", header=4)
+run_bash("\
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
+    plink2 \
+        --pca 10 \
+        --bfile ./loop_maf_missing_2_ldprunned_autosome_pca \
+        --out ./pca_results")
+            #--pca extracts top principal components from the variance-standardized relationship matrix computed by --make-rel/--make-grm-{bin,list}. This writes a tab-delimited table to pca_results.eigenvec, with one sample per row and one principal component per later column
+                #https://www.cog-genomics.org/plink/2.0/strat#pca
+                #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+            #The main plink2.eigenvec output file can be read by --covar, and can be used to correct for population stratification in --glm regressions...
+                #...assuming that the top principal components in your genomic dataset actually reflect broad population structure, rather than genotyping/sequencing-batch-related error patterns, small-scale family structure or sample duplication, crazy outliers... The .eigenvec file can be easily loaded and plotted in R; this should help you find significant batch effects and outliers. --king-cutoff removes duplicate samples and close relations.
+                #Since this is based on the relationship matrix, it is critical to remove very-low-MAF variants before performing this computation.
+                    #DONE
+                #LD pruning (using e.g. --indep-pairwise) reduces the risk of getting PCs based on just a few genomic regions, and tends to prevent deflation of --glm test statistics.
+                    #DONE.
+            #Technical details
+                #By default, 10 PCs are extracted; you can adjust this by passing a numeric parameter.
+                #This was reduced from PLINK 1.9's default of 20, since (i) the randomized algorithm would otherwise require ~4x as much memory, and (ii) in practice, 10 PCs has been effective across a wide range of studies.
+                #The 'approx' modifier causes the standard deterministic computation to be replaced with the randomized algorithm originally implemented for Galinsky KJ, Bhatia G, Loh PR, Georgiev S, Mukherjee S, Patterson NJ, Price AL (2016) Fast Principal-Component Analysis Reveals Convergent Evolution of ADH1B in Europe and East Asia. This can be a good idea when you have >5000 samples, and is almost required once you have >50000.
+                    #NOT OUR CASE
+                #The randomized algorithm always mean-imputes missing genotype calls. For comparison purposes, you can use the 'meanimpute' modifier to request this behavior for the standard computation.
+                #'scols=' can be used to customize how sample IDs appear in the .eigenvec file. (maybefid, fid, maybesid, and sid column sets are supported; the default is maybefid,maybesid.)
+                #The 'allele-wts' modifier requests an additional one-line-per-allele .eigenvec.allele file with PCs expressed as allele weights instead of sample scores. When it's present, 'vzs' causes the .eigenvec.allele file to be Zstd-compressed. 'vcols=' can be used to customize the .eigenvec.allele report columns; refer to the file format entry for details.
+                    #WE ARE INTERESTED IN SAMPLES
+                #If all your variants are biallelic, you can instead use the 'biallelic-var-wts' modifier to request the old .eigenvec.var format instead.
+                #Given an allele-weight or variant-weight file, you can now use --score for PCA projection. This replaces PLINK 1.9's --pca-clusters/--pca-cluster-names projection flags
+            #You may also want to look at EIGENSOFT 7, which has additional features like automatic outlier removal, LD regression, and Tracy-Widom significance testing of PCs
+                #https://www.hsph.harvard.edu/alkes-price/software/
+
+
+
         #dimensionality reduction
             #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
             #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
@@ -3769,43 +3858,140 @@ run_bash("\
                 #https://www.cog-genomics.org/plink/1.9/strat#pca
 
 
-
-print_text("load the eigenvec file generated", header=3)
-pca_after_logR_filter=pd.read_csv(\
-    "./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter.eigenvec", \
+print_text("load the eigenvec file generated", header=4)
+pca_results = pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_results.eigenvec", \
     sep="\t", \
     header=0, \
     low_memory=False)
-pca_after_logR_filter
+pca_results
         #Produced by --pca. Accompanied by an .eigenval file, which contains one eigenvalue per line.
         #The .eigenvec file 
-            #is, by default, a space-delimited text file with no header line and 2+V columns per sample, where V is the number of requested principal components. 
-            #The --pca 'header' modifier causes a header line to be written, and the 'tabs' modifier makes this file tab-delimited.
-            #The first two columns are the sample's FID/IID, and the rest are principal component weights in the same order as the .eigenval values (if the header line is present, these columns are titled 'PC1', 'PC2', ...).
-        #https://www.cog-genomics.org/plink/1.9/formats#eigenvec
+            #The .eigenvec file is a tab-delimited file with a header line and between 1+V and 3+V columns per sample, where V is the number of requested principal components. Each row is a sample. The first columns contain the sample ID, and the rest are principal component scores in the same order as the .eigenval values (with column headers 'PC1', 'PC2', ...). 
+            #With the 'allele-wts' modifier, an .eigenvec.allele file is also generated. It's a text file with a header line, followed by one line per allele with several columns (see link)
+            #Alternatively, with the 'biallelic-var-wts' modifier, an old-style .eigenvec.var file is generated. It's a text file with a header line, followed by one line per variant with several columns (see link)
+        #https://www.cog-genomics.org/plink/2.0/formats#eigenvec
+
+
+print_text("batch effects", header=4)
+#You will usually want to sanity-check the output at this point, and verify that the top principal components do not correlate too strongly with, e.g., sequencing facility or date. (A full discussion of “batch effects” and how to deal with them could take up an entire chapter; worst case, you may have to analyze your batches separately, or even redo all genotyping/sequencing from scratch. I will be optimistic here and suppose that no major problem was uncovered by PCA, but be aware that this is frequently your best chance to catch data problems that would otherwise sink your entire analysis.)
+
+
+##por aquii
+
+#I am having problems with udpating the container due to problems with hadoop, but we do not really need spark here right? check that...
+import seaborn as sns
+
+# Assuming 'pca_results' is your DataFrame
+# Melt the DataFrame to long format
+pca_melted = pd.melt(pca_results.drop("IID", axis=1), id_vars='#FID', var_name='PCA', value_name='value')
+
+# Create the boxplot
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='PCA', y='value', hue='#FID', data=pca_melted)
+plt.show()
+    #In this code, pd.melt(pca_results, id_vars='FID', var_name='PCA', value_name='value') reshapes pca_results from wide format to long format, with 'FID' as the identifier variable, 'PCA' as the variable column, and 'value' as the value column. sns.boxplot(x='PCA', y='value', hue='FID', data=pca_melted) creates a boxplot with 'PCA' on the x-axis, 'value' on the y-axis, and different colors for different 'FID' values. plt.show() displays the plot.
+
+
+from scipy.stats import mannwhitneyu
+
+#Mann–Whitney U test is a nonparametric test of the null hypothesis that, for randomly selected values X and Y from two populations, the probability of X being greater than Y is equal to the probability of Y being greater than X. 
+    #https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test
+
+#Sure, I'd be happy to elaborate on the assumptions of the Mann-Whitney U test:
+    #1. **Independence of Observations**: This is an assumption of nearly all statistical tests, including the Mann-Whitney U test. It means that the observations in each group must be independent of each other. In other words, knowing the value of one observation should not provide any information about the value of any other observation.
+    #2. **Ordinal Measurement or Higher**: The Mann-Whitney U test requires that the data be at least ordinal. This means that the data can be logically ordered. For example, a Likert scale (e.g., strongly disagree, disagree, neutral, agree, strongly agree) is an example of ordinal data. The test can also be used with interval or ratio data, which are higher levels of measurement.
+    #3. **Similar Distribution Shapes**: The Mann-Whitney U test assumes that the distributions of both groups are similar in shape. If the shapes of the distributions are very different, the Mann-Whitney U test may not be the most appropriate test to use. Note that this assumption is less crucial when the sample sizes are large.
+    #4. **Random Sampling from Populations**: The observations should be randomly sampled from the population. This is to ensure that the samples are representative of the populations they are drawn from.
+
+##we do not have fully indepndent data due to ancestry? maybe we can just do the box plots and that is all.. they look pretty good.
+
+# Assuming 'pca_results' is your DataFrame and 'FID' column has two levels 'level1' and 'level2'
+#column="PC1"
+for column in ["PC1", "PC2", "PC3", "PC4", "PC5"]:
+    group1 = pca_results.loc[pca_results['#FID'] == 'combat_ILGSA24-17303',:][column]
+    group2 = pca_results.loc[pca_results['#FID'] == 'combat_ILGSA24-17873',:][column]
+    
+    # Perform the Mann-Whitney U test
+    stat, p = mannwhitneyu(group1, group2)
+    print(f'Mann-Whitney U test on {column}: U={stat}, p={p}')
 
 
 
-print_text("make interactive plot of the two first PCAs, so you can zoom in", header=3)
+
+
+
+###follow plink tutorial
+#then eigensotf or admixustre? loook ritchie and vo2 paper...
 import plotly.express as px
 fig = px.scatter(\
-    data_frame=pca_after_logR_filter, \
+    data_frame=pca_results, \
     x="PC1", \
     y="PC2", \
-    color="FID",
+    color="#FID",
     hover_data=[\
         "IID"])
         #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
         #https://plotly.com/python/line-and-scatter/
         #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
 #fig.show()
-fig.write_html("./data/genetic_data/quality_control/XX_pca/pca_after_logR_filter_plot.html")
+fig.write_html("./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_results.html")
     #https://plotly.com/python/interactive-html-export/
 
+
+
+import seaborn as sns
+
+# Assuming 'pca_results' is your DataFrame
+sns.pairplot(pca_results[["PC1", "PC2", "PC3", "PC4", "PC5"]])
+plt.savefig("./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_results.png")
+plt.close()
+
+
+
+#SELECT THE AXES BASED ON EXPLAINED VARIANCE
+    #you can use eigensoft
+
+
+#it seesm you have to use the PCA axes in the glms even if there is not different ancestries becasue you coudl still ahve structure within an homogeneous pop, i think this is from ritchies...
+
+#It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
+
+    #SNPs with Minor Allele Frequency (MAF)>0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n=10). 
+        #paper VO2 max
+
+#plink recommend to remove outlier indicaitng genotyping errors and then check for clusters, it ehse are present, then perofmr a promer admixutre analysis to define the groups... or maybe just use eigensoft to define significant groups?
+
+##we have to decide whetehr to maintain the groups or to remove ancestry oultiers like trainibiltiy paper
+    #it depends of the number lost....
+    #Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
+        #general tutorial gwas
+    #Christopher:
+        #Population structure is typically accounted for by using top principal components (computed via plink --pca, or a similar function in another software package) as covariates.  Unfortunately, plink 1.07's haplotype association analysis does not support covariates; but the main allelic association command (--linear/--logistic, or --glm in plink 2.0) does support them.
+            #https://groups.google.com/g/plink2-users/c/938B07i8AXQ/m/dMFI8-GLAwAJ
+
+
+
+#If you do this, follow it up by repeating the PCA, since the bad samples might have distorted the principal components:
+
+#(Occasionally, the new principal components will reveal another bad sample, and you have to repeat these two steps, etc. EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure.)
+
+#Anyway, once there is nothing obviously wrong with the PCA results, you can load the table in R and plot the top pairs of principal components against each other:
+
+#If there are obvious clusters in the first few plots (i.e., first PCs plotted against each other), I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding.
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#author-information
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
 
 #but how much is this? we should check in the conext of 1000 KGP....
 
 
+
+
+#THINK ABOUT THIS, because maybe we have to do imptuation in each group separately?
+    #michina imputation sever says we have to Choose a reference panel
+    #it seems that the reference panel is something like hapmap or the 1KGP, so it shoudl ahndle different ancestries, but check
+        #A simple alternative is to use a “cosmopolitan” reference set that includes all available haplotypes, each of which is assigned an equal chance of being copied a priori. This approach produces relatively accurate results in a variety of human populations and has therefore been proposed as a good fallback choice when the optimal panel composition is unclear (Guan and Stephens 2008; Huang et al. 2009a; Li et al. 2010). Another class of methods tries to maximize accuracy by weighting reference panels through cross-validation (Huang et al. 2009a) or ancestry estimation (Egyud et al. 2009; Pasaniuc et al. 2010); the Pasaniuc et al. approach differs from the others in that it uses local ancestry estimates to provide customized reference weights for each study individual. As an alternative, Jostins et al. (2011) suggested balancing accuracy and computation by using reference panels that “approximately cluster” with the study individuals on a plot of principal components (PC) that capture genetic ancestry.
+        #https://academic.oup.com/g3journal/article/1/6/457/5986469
 
 
 

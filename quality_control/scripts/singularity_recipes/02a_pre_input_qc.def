@@ -125,6 +125,7 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	python3.9 get-pip.py
 
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
+	python3.9 -m pip install seaborn
 	python3.9 -m pip install plotly
 	python3.9 -m pip install dash-bio==1.0.1
 	python3.9 -m pip install pyspark
