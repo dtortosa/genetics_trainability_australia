@@ -3849,15 +3849,6 @@ run_bash("\
                 #https://www.hsph.harvard.edu/alkes-price/software/
 
 
-
-        #dimensionality reduction
-            #PLINK 1.9 provides two dimension reduction routines: --pca, for principal components analysis (PCA) based on the variance-standardized relationship matrix, and --mds-plot, for multidimensional scaling (MDS) based on raw Hamming distances. 
-            #Top principal components are generally used as covariates in association analysis regressions to help correct for population stratification, while MDS coordinates help with visualizing genetic distances.
-            #By default, --pca extracts the top 20 principal components of the variance-standardized relationship matrix; you can change the number by passing a numeric parameter. Eigenvectors are written to plink.eigenvec, and top eigenvalues are written to plink.eigenval. 
-            #The 'header' modifier adds a header line to the .eigenvec file(s), and the 'tabs' modifier makes the .eigenvec file(s) tab- instead of space-delimited.
-                #https://www.cog-genomics.org/plink/1.9/strat#pca
-
-
 print_text("load the eigenvec file generated", header=4)
 pca_results = pd.read_csv(\
     "./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_results.eigenvec", \
@@ -3876,48 +3867,111 @@ pca_results
 print_text("batch effects", header=4)
 #You will usually want to sanity-check the output at this point, and verify that the top principal components do not correlate too strongly with, e.g., sequencing facility or date. (A full discussion of “batch effects” and how to deal with them could take up an entire chapter; worst case, you may have to analyze your batches separately, or even redo all genotyping/sequencing from scratch. I will be optimistic here and suppose that no major problem was uncovered by PCA, but be aware that this is frequently your best chance to catch data problems that would otherwise sink your entire analysis.)
 
-
-##por aquii
-
-#I am having problems with udpating the container due to problems with hadoop, but we do not really need spark here right? check that...
+print("plot the PCA values between batches")
 import seaborn as sns
+#Melt the DataFrame to long format
+pca_melted = pd.melt( \
+    pca_results.drop("IID", axis=1),  \
+    id_vars="#FID",  \
+    var_name="PCA", \
+    value_name="value")
+    #pca_results.drop("IID", axis=1): This part of the code is using the drop function from pandas to remove the "IID" column from the pca_results DataFrame. The axis=1 parameter specifies that "IID" is a column name.
+    #pd.melt(...): This is using the melt function from pandas to reshape the DataFrame from wide format to long format.
+    #id_vars='#FID': This parameter specifies that the '#FID' column should be used as the identifier variable. The values in this column will stay the same during the reshaping.
+    #var_name='PCA': This parameter specifies that the new column created from the reshaping that contains the column headers from the original DataFrame should be named 'PCA'.
+    #value_name='value': This parameter specifies that the new column created from the reshaping that contains the values from the original DataFrame should be named 'value'.
+    #So, overall, this line of code is reshaping the pca_results DataFrame (after dropping the "IID" column) from wide format to long format, with '#FID' as the identifier variable, 'PCA' as the variable column, and 'value' as the value column. Therefore, we have a row per sample and PCA value, being first the values of PC1 for batch_1
 
-# Assuming 'pca_results' is your DataFrame
-# Melt the DataFrame to long format
-pca_melted = pd.melt(pca_results.drop("IID", axis=1), id_vars='#FID', var_name='PCA', value_name='value')
+#check the melting
+expected_melted_rows =  \
+    (sum(pca_results["#FID"] == "combat_ILGSA24-17303")*10) + \
+    (sum(pca_results["#FID"] == "combat_ILGSA24-17873")*10)
+    #we should the number of samples of each batch multiplied by 10 (i.e., 10 PCs)
+if(pca_melted.shape[0] != expected_melted_rows):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM PREPARING THE DATASET TO MAKE THE BOXPLOTS OF PCAs vs. batches")
 
-# Create the boxplot
+#create the boxplot
+import matplotlib.pyplot as plt
 plt.figure(figsize=(10, 6))
 sns.boxplot(x='PCA', y='value', hue='#FID', data=pca_melted)
-plt.show()
-    #In this code, pd.melt(pca_results, id_vars='FID', var_name='PCA', value_name='value') reshapes pca_results from wide format to long format, with 'FID' as the identifier variable, 'PCA' as the variable column, and 'value' as the value column. sns.boxplot(x='PCA', y='value', hue='FID', data=pca_melted) creates a boxplot with 'PCA' on the x-axis, 'value' on the y-axis, and different colors for different 'FID' values. plt.show() displays the plot.
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_vs_batches.png")
+plt.close()
+    #plt.figure(figsize=(10, 6)) creates a new figure with a specified size.
+    #creates a boxplot using seaborn.
+        #A box plot (or box-and-whisker plot) shows the distribution of quantitative data. The box shows the quartiles of the dataset while the whiskers extend to show the rest of the distribution, except for points that are determined to be "outliers" using a method that is a function of the inter-quartile range.
+        #x, y: These are the names of variables in data or vector data. One of them is the categorical axis (usually x; the name of the PC), and the other is the quantitative axis (usually y; the value of the PC). If only one is given, the other axis will have the boxplot for each level in the data
+        #hue: This is a name of a variable in data or a vector data (the batch in our case). It is used to group the data and produce boxes with different colors.
+    #output
+        #Box: The box itself represents the interquartile range (IQR). The bottom of the box indicates the first quartile (25th percentile), and the top of the box indicates the third quartile (75th percentile). Therefore, the box spans the IQR.
+        #Line in the box: The line inside the box represents the median (50th percentile) of the data.
+        #Whiskers: The lines extending vertically from the box (i.e., the "whiskers") indicate variability outside the upper and lower quartiles. They extend to the furthest data point within 1.5 * IQR from the box.
+        #Points beyond the whiskers: Any points beyond the whiskers can be considered outliers, i.e., unusually high or low values.
+    #For all PCs, the median and IQR are virtually identical between batches. In the case of outliers, most of them are in the same range between batches, except the most extreme. In other words, the ranges with the highest density of outliers tend to overlap between batches. Note that these extreme outliers could be caused by ancestry differences.
 
+print("check the distribution of the PCs between batches as it should be similar (Mann–Whitney U test assumption)")
+#define pc columns and batches
+pc_columns = pca_results.drop(["#FID", "IID"], axis=1).columns
+fid1 = 'combat_ILGSA24-17303'
+fid2 = 'combat_ILGSA24-17873'
+#run loop across PCs saving the result in a PDF
+from matplotlib.backends.backend_pdf import PdfPages
+#pc="PC1"
+with PdfPages('./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_vs_batches_density.pdf') as pdf:
+    for pc in pc_columns:
 
+        #define the figure size
+        plt.figure(figsize=(10, 6))
+
+        #density plot of the values of selected PC for batch 1
+        plt.subplot(1, 2, 1)  #1 row, 2 columns, first plot
+        pca_results.loc[pca_results['#FID'] == fid1, pc].plot.kde()
+        plt.title(f'Density Plot of {pc} for {fid1}')
+        plt.xlabel('Values')
+        plt.ylabel('Density')
+
+        # Second subplot
+        plt.subplot(1, 2, 2)  #1 row, 2 columns, second plot
+        pca_results.loc[pca_results['#FID'] == fid2, pc].plot.kde()
+        plt.title(f'Density Plot of {pc} for {fid2}')
+        plt.xlabel('Values')
+        plt.ylabel('Density')
+
+        plt.tight_layout()  # Adjusts subplot params so that subplots fit into the figure area
+        pdf.savefig()  # Saves the current figure into the pdf file
+        plt.close() #to close the current figure, freeing up memory
+    #Distribution tend to be the same between batches, there are only differences in PC9, but in reality the different is not so big if you look at X axis values. Note that we have large sample size, so the violation of this assumption is not so bad.
+
+print("make Mann–Whitney U test for the difference of PC values between batches")
 from scipy.stats import mannwhitneyu
-
-#Mann–Whitney U test is a nonparametric test of the null hypothesis that, for randomly selected values X and Y from two populations, the probability of X being greater than Y is equal to the probability of Y being greater than X. 
+#Mann–Whitney U test is a nonparametric test of the null hypothesis (H0) that, for randomly selected values X and Y from two populations, the probability of X being greater than Y is equal to the probability of Y being greater than X. 
     #https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test
 
-#Sure, I'd be happy to elaborate on the assumptions of the Mann-Whitney U test:
+#Assumptions of the Mann-Whitney U test:
     #1. **Independence of Observations**: This is an assumption of nearly all statistical tests, including the Mann-Whitney U test. It means that the observations in each group must be independent of each other. In other words, knowing the value of one observation should not provide any information about the value of any other observation.
+        #PARTIAL PROBLEM: We have removed related individuals, still we can have some degree of non-independency due to population stratification
     #2. **Ordinal Measurement or Higher**: The Mann-Whitney U test requires that the data be at least ordinal. This means that the data can be logically ordered. For example, a Likert scale (e.g., strongly disagree, disagree, neutral, agree, strongly agree) is an example of ordinal data. The test can also be used with interval or ratio data, which are higher levels of measurement.
+        #OK
     #3. **Similar Distribution Shapes**: The Mann-Whitney U test assumes that the distributions of both groups are similar in shape. If the shapes of the distributions are very different, the Mann-Whitney U test may not be the most appropriate test to use. Note that this assumption is less crucial when the sample sizes are large.
+        #OK: According to chatGTP, it is usually considered 30 or more large sample size. In our case (with 200 and 1200 samples), we should be ok regarding this assumption.
+        #Central Limit Theorem states that when independent random variables are added, their properly normalized sum tends toward a normal distribution even if the original variables themselves are not normally distributed. Therefore, we should be ok as long ass both populations, i.e., both batches, are large enough.
+        #I have checked this anyways.... (see above)
     #4. **Random Sampling from Populations**: The observations should be randomly sampled from the population. This is to ensure that the samples are representative of the populations they are drawn from.
 
-##we do not have fully indepndent data due to ancestry? maybe we can just do the box plots and that is all.. they look pretty good.
 
 # Assuming 'pca_results' is your DataFrame and 'FID' column has two levels 'level1' and 'level2'
-#column="PC1"
-for column in ["PC1", "PC2", "PC3", "PC4", "PC5"]:
-    group1 = pca_results.loc[pca_results['#FID'] == 'combat_ILGSA24-17303',:][column]
-    group2 = pca_results.loc[pca_results['#FID'] == 'combat_ILGSA24-17873',:][column]
+#pc="PC1"
+for pc in pc_columns:
+    group1 = pca_results.loc[pca_results['#FID'] == 'combat_ILGSA24-17303',:][pc]
+    group2 = pca_results.loc[pca_results['#FID'] == 'combat_ILGSA24-17873',:][pc]
     
     # Perform the Mann-Whitney U test
     stat, p = mannwhitneyu(group1, group2)
-    print(f'Mann-Whitney U test on {column}: U={stat}, p={p}')
+    print(f'Mann-Whitney U test on {pc}: U={stat}, p={p}')
 
 
 
+#check predicted variability of each axis...
 
 
 
@@ -4215,6 +4269,11 @@ run_bash("\
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec18
     #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
 
+
+
+#By default, –check-sex/–impute-sex and several other PLINK commands assume that your dataset is representative of a single population, and all samples are members of that population; population allele frequencies and F coefficients are estimated under these assumptions.
+
+#Thus, if you identified multiple subpopulations in the previous section, you should perform sex validation/imputation on one subpopulation at a time. PLINK’s –filter flag provides one way to do this; put sample IDs in the first two columns of subpops.txt and subpopulation IDs in the third column, then
 
 #Plink says that, due to the use of allele frequencies we may need to check sex within ancestry groups, and he did that in the tutorial, so we are doing this after pop structure analysis
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec19
