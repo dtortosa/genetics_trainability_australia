@@ -3983,7 +3983,7 @@ if (wilcoxon_results_df.shape[0]!=len(pc_columns)) | (sum(wilcoxon_results_df["P
 else:
     print("The wilcoxon test for all the PCs between batches are non-significant. Therefore, we accept the null hypothesis: for randomly selected PC values X and Y from two batches, the probability of X being greater than Y is equal to the probability of Y being greater than X (see code for details)")
 
-print("select PCs based on explianed variance", header=4)
+print_text("select PCs based on explianed variance", header=4)
 print("load eigenvalues")
 #In the context of Principal Component Analysis (PCA), eigenvalues represent the amount of variance explained by each principal component³. 
 #PCA is a statistical procedure that uses an orthogonal transformation to convert a set of observations of possibly correlated variables into a set of values of linearly uncorrelated variables called principal components¹. This transformation is defined in such a way that the first principal component has the largest possible variance (that is, accounts for as much of the variability in the data as possible), and each succeeding component in turn has the highest variance possible under the constraint that it is orthogonal to the preceding components¹.
@@ -4005,7 +4005,9 @@ if(pca_eigenvalues.shape[0]!=(pca_results.shape[1]-2)):
     raise ValueError("ERROR! FALSE! WE DO NOT HAVE THE CORRECT NUMBER OF EIGENVALUES")
 else:
     #set row names as numbers 1 to 10
-    pca_eigenvalues.index = range(1, (pca_eigenvalues.shape[0]+1))
+    pc_list = [f"P{i}" for i in range(1, pca_eigenvalues.shape[0]+1)]
+        #the "end" of range is not included, so setting the end to 20 would end at 19, but we want the 20 PC axes, so we add 1.
+    pca_eigenvalues.index = pc_list
     print(pca_eigenvalues)
 
 print("plot the eigenvalues")
@@ -4017,48 +4019,59 @@ pca_eigenvalues.reset_index().plot( \
     style='-o', \
     legend=None)
     #plot a line with a dot in eahc observation
+    #reset_index() is called on the pca_eigenvalues DataFrame. This resets the index of the DataFrame, and the old index is added as a column named 'index'. This new DataFrame is then plotted using the plot function, with 'index' as the x-values and the first column (0) as the y-values.
 
 #add labels
 plt.title('Scatter Plot of PCA Eigenvalues')
-plt.xlabel('Index')
+plt.xlabel('PCs')
 plt.ylabel('Eigenvalue')
 
-#add xticks
-plt.xticks(range(0, pca_results.shape[1]-1))
+#add xticks from the first to the last PC
+plt.xticks(range(0, pca_eigenvalues.shape[0]), pc_list, fontsize=8)
 
 #save and close
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_eigenvalues.png")
+    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_eigenvalues.png", \
+    dpi=300) #dpi=300 for better resolution
 plt.close()
 
 print("see the first PC where cumulative explianed variability reaches 80% of the total")
 #According to Ritchie´s review, it is recommended to use the eigenvectors that explain the greatest proportion of variance (on an average cumulative 80% variance) as covariates in any downstream analysis to correct for bias due to population stratification.
 #sum all variability explained and calculate the 80%
 cumulative_variance_80=(pca_eigenvalues.sum()*0.8)[0]
-print(cumulative_variance_80)
 
 #for each eigenvalue
-#index=0; row=pca_eigenvalues.iloc[0,:]
-for index, row in pca_eigenvalues.iterrows():
+#pc="P1"; row=pca_eigenvalues.iloc[0,:]
+for pc, row in pca_eigenvalues.iterrows():
 
-    #if the row is not the last one
-    if(index<(pca_eigenvalues.shape[0]-1)):
+    #if the row is not the last one, i.e., the las PC
+    if(pc!="P"+str(pca_eigenvalues.shape[0])):
+
+        #get the position of the current row
+        current_index = np.where(pca_eigenvalues.index == pc)[0][0]
 
         #take all the values from the first to the current row and sum them all
-        cumulative_variability = (pca_eigenvalues.iloc[0:index,:].sum())[0]
+        cumulative_variability = (pca_eigenvalues.iloc[0:current_index+1,:].sum())[0]
+            #to get the row of "index", we need need "index"+1 because the lsat number is not included
         
         #if the cumulative variability is equal or lower than the 80%
         if(cumulative_variability>=cumulative_variance_80):
             
             #print the name of PC and stop de loop
-            print(index)
+            print(pc)
             break
 
-###por aquii
-###check the index!!!
+
+##por aquii
 
 #Summary:
-#The elbow is at PC5, but the PCs absorbing 80% of variability are 10 first.
+#The elbow is at PC5, but the PCs absorbing 80% of variability are 10 first. The plink tutorial does not say anything about the 80% rule and we really have an elbow at the fifth PC, so I think we are just going to use the first 5.
+
+#Marees says that in psychiatric genetics community, 10 axes of MDS are accepted. It dependes of the population and your sample size, as you have more samples, you can use more axes in the glms
+
+#maybe we are not reaching 80% with the first 5 axis because we have low explciarive power because not so much ancestry differences? our axes explain less than Ritchie´s axes...
+
+
 
 print_text("outlier removal", header=4)
 #It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
@@ -4070,6 +4083,9 @@ print_text("outlier removal", header=4)
 
 
 
+
+
+#Marees uses MDS analysis form plink, remove outliers, repeat mds and use the first axes in the glms..
 
 
 #eigensof tor ritchie?
