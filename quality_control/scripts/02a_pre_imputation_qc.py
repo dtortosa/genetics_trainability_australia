@@ -4018,10 +4018,7 @@ else:
     pca_eigenvalues.index = pc_list
     print(pca_eigenvalues)
 
-
-pca_eigenvalues["prop_variance"] = pca_eigenvalues[0]/pca_eigenvalues[0].sum()
-pca_eigenvalues
-
+print("calculate the proportion of explained variance")
 #The proportion of total variance explained by each PC is a useful metric for understanding structure in a sample and for evaluating how many PCs one might want to include in downstream analyses. This can be computed as λi∕∑kλk, with λi being eigenvalues in decreasing order
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
     #The formula λi∕(∑k λk) is used in the context of **Principal Component Analysis (PCA)**, a statistical procedure that uses an orthogonal transformation to convert a set of observations of possibly correlated variables into a set of values of linearly uncorrelated variables called principal components.
@@ -4030,12 +4027,12 @@ pca_eigenvalues
         #- **∑k λk**: This is the **sum of all eigenvalues** of the covariance matrix. 
         #The fraction $$\frac{\lambda_i}{\sum_k \lambda_k}$$ thus represents the **proportion of the total variance** in the data that is explained by the i-th principal component. This is often used to understand the importance of each principal component in the analysis and decide how many principal components to retain for further analysis.
         #In the sentence you provided, this value is being plotted, likely to create a **scree plot**. A scree plot is a simple line segment plot that shows the fraction of total variance in the data as explained or represented by each PC. This is useful to determine the appropriate number of principal components to retain for further analysis. The plot helps to visualize the **explained variance** by each principal component and it typically decreases and eventually becomes flat with increasing components, which can help to choose the optimal number of components. 
+pca_eigenvalues[1] = pca_eigenvalues[0]/pca_eigenvalues[0].sum()
+#change column names
+pca_eigenvalues = pca_eigenvalues.rename(columns={0:"eigenvalue", 1:"prop_variance"})
+pca_eigenvalues
 
-
-
-
-
-print("plot the eigenvalues")
+print("make de scree plot")
 #A scree plot (Fig. 6A in Ritchie´s tutorial) can be used to evaluate and determine how many principal components would be appropriate for the covariates; the bend in the line plot, known as the “elbow”, denotes the location of the PCs that should be selected (Cattell, 1966).
 #add a new column with the index (row numbers) and plot index vs the first and only column (eigenvalues)
 pca_eigenvalues.reset_index().plot( \
@@ -4060,18 +4057,13 @@ plt.savefig( \
     dpi=300) #dpi=300 for better resolution
 plt.close()
 
-#The results show that the first PC explains a big fraction of the variance (46%). The next 6 (until PC7) explain between 7.5 and 2.4% of variability. After the 7, the variance explained per PC becomes relatively constant.
-
-
-
+#The results show that the first PC explains a big fraction of the variance (46%). The next 8 (until PC9) explain between 7.5 and 2.1% of variability. After the 1, the variance explained per PC becomes relatively constant (around 2.1%).
 
 print("see the first PC where cumulative explianed variability reaches 80% of the total")
 #According to Ritchie´s review, it is recommended to use the eigenvectors that explain the greatest proportion of variance (on an average cumulative 80% variance) as covariates in any downstream analysis to correct for bias due to population stratification.
-#sum all variability explained and calculate the 80%
-cumulative_variance_80=(pca_eigenvalues.sum()*0.8)[0]
 
 #for each eigenvalue
-#pc="P1"; row=pca_eigenvalues.iloc[0,:]
+#pc_short="P1"; row=pca_eigenvalues.iloc[0,:]
 import numpy as np
 for pc_short, row in pca_eigenvalues.iterrows():
 
@@ -4082,37 +4074,43 @@ for pc_short, row in pca_eigenvalues.iterrows():
         current_index = np.where(pca_eigenvalues.index == pc_short)[0][0]
 
         #take all the values from the first to the current row and sum them all
-        cumulative_variability = (pca_eigenvalues.iloc[0:current_index+1,:].sum())[0]
-            #to get the row of "index", we need need "index"+1 because the lsat number is not included
+        cumulative_variability = \
+            pca_eigenvalues.iloc[ \
+                0:current_index+1, \
+                np.where(pca_eigenvalues.columns=="prop_variance")[0][0]].sum()
+            #to get the row of "index", we need need "index"+1 because the last number is not included
         
-        #if the cumulative variability is equal or lower than the 80%
-        if(cumulative_variability>=cumulative_variance_80):
+        #if the cumulative variability is above 76%
+        if(cumulative_variability>=0.76):
             
             #print the name of PC and stop de loop
-            print(pc_short)
+            print(f"The first PC where cumulative explianed variability reaches 76% of the total is {pc_short} with {cumulative_variability:.2f} of the total")
+            
+            #save the PC as a variable
+            last_pca_to_consider = "PC"+pc_short.split("P")[1]
             break
 
 #Summary:
-#The elbow is at PC5, but the PCs absorbing 80% of variability are 10 first. So we should use the first 10 axes as covariates, but for doing checks and outliers we do not have to use all of them. Ritchies talks about the variance explianed in the context of using the axes as covariates.
-#Marees says that in psychiatric genetics community, up to 10 axes of MDS are accepted. It dependes of the population and your sample size, as you have more samples, you can use more axes in the glms. 
-#They say the same in this tutorial. Also they say that 10 is ok as covariates, but they only use 2 for structure detection. 
-    #https://gwas-intro-bajicv.readthedocs.io/en/latest/05_pop_stratification/
-#See copiltor summary:
-    #In Genome-Wide Association Studies (GWAS), Principal Component Analysis (PCA) is a standard method for estimating population structure and sample ancestry¹. The inclusion of Principal Components (PCs) as covariates in the models helps to control for population stratification¹².
-    #The number of PCs to be included as covariates depends on the population structure and the sample size³⁵. Generally, the inclusion of **up to 10 components** is accepted³⁵. However, some studies have found that **five PCs** are generally sufficient to correct for stratification in simulated and real data sets⁴. Alternatively, the number of PCs may be selected through cross-validation or Tracy–Widom statistics⁴.
-    #It's important to note that these are general recommendations and the optimal number of PCs to include might vary depending on the specific dataset and research question. Therefore, it's always a good idea to perform some exploratory data analysis and consider the specific characteristics of your dataset when deciding on the number of PCs to include in your models.
-        #Source: Conversation with Copilot, 7/4/2024
-        #(1) Controlling for stratification in (meta-)GWAS with PCA: Theory .... https://www.broadinstitute.org/talks/controlling-stratification-meta-gwas-pca-theory-applications-and-implications.
-        #(2) Robust methods for population stratification in genome wide association .... https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-14-132.
-        #(3) Population Stratifiction - Introduction to GWAS. https://gwas-intro-bajicv.readthedocs.io/en/latest/05_pop_stratification/.
-        #(4) 4 Quality Control: Relatedness & Population Stratification. https://hds-sandbox.github.io/GWAS_course/Notebooks/GWAS4-QualityControlB/.
-        #(5) Improving the Power of GWAS and Avoiding Confounding from Population .... https://academic.oup.com/genetics/article/197/3/1045/5935993.
+#The elbow is around P9 (almost no changes after this axis), and that axis is already explaining 77% of variability, which is very close to 80%. This is below the limit usually cosnidered of 10 axis and we have enough observations to use these axes as covariates plus others confounding variables assuming at least 10 observations per covariate. We would have 9 axes plus 3 confounding variables makes 12 covariates in total. 12*10 makes 120 observations and have more than 1300.
+    #Marees says that in psychiatric genetics community, up to 10 axes of MDS are accepted. It dependes of the population and your sample size, as you have more samples, you can use more axes in the glms. 
+    #They say the same in this tutorial. Also they say that 10 is ok as covariates, but they only use 2 for structure detection. 
+        #https://gwas-intro-bajicv.readthedocs.io/en/latest/05_pop_stratification/
+    #See copiltor summary:
+        #In Genome-Wide Association Studies (GWAS), Principal Component Analysis (PCA) is a standard method for estimating population structure and sample ancestry¹. The inclusion of Principal Components (PCs) as covariates in the models helps to control for population stratification¹².
+        #The number of PCs to be included as covariates depends on the population structure and the sample size³⁵. Generally, the inclusion of **up to 10 components** is accepted³⁵. However, some studies have found that **five PCs** are generally sufficient to correct for stratification in simulated and real data sets⁴. Alternatively, the number of PCs may be selected through cross-validation or Tracy–Widom statistics⁴.
+        #It's important to note that these are general recommendations and the optimal number of PCs to include might vary depending on the specific dataset and research question. Therefore, it's always a good idea to perform some exploratory data analysis and consider the specific characteristics of your dataset when deciding on the number of PCs to include in your models.
+            #Source: Conversation with Copilot, 7/4/2024
+            #(1) Controlling for stratification in (meta-)GWAS with PCA: Theory .... https://www.broadinstitute.org/talks/controlling-stratification-meta-gwas-pca-theory-applications-and-implications.
+            #(2) Robust methods for population stratification in genome wide association .... https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-14-132.
+            #(3) Population Stratifiction - Introduction to GWAS. https://gwas-intro-bajicv.readthedocs.io/en/latest/05_pop_stratification/.
+            #(4) 4 Quality Control: Relatedness & Population Stratification. https://hds-sandbox.github.io/GWAS_course/Notebooks/GWAS4-QualityControlB/.
+            #(5) Improving the Power of GWAS and Avoiding Confounding from Population .... https://academic.oup.com/genetics/article/197/3/1045/5935993.
 
 print_text("outlier removal", header=4)
 #It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
-    #The phrase "8 standard deviations out" refers to a data point that falls 8 standard deviations away from the mean of a dataset. In statistics, the standard deviation is a measure of the amount of variation or dispersion in a set of values. A low standard deviation means that the values tend to be close to the mean, while a high standard deviation means that the values are spread out over a wider range. When a data point is said to be "8 standard deviations out", it means it's quite far from the mean. In a normal distribution, almost all data falls within 3 standard deviations of the mean. So, a data point that is 8 standard deviations away from the mean is extremely rare and could be considered an outlier. In the context of your sentence, it suggests that any sample which falls more than 8 standard deviations away on any top principal component might have been genotyped or sequenced improperly, and thus, it might be a good idea to remove these outliers from the analysis. This is because such extreme values can significantly skew the results and interpretations of the data analysis.
+#The phrase "8 standard deviations out" refers to a data point that falls 8 standard deviations away from the mean of a dataset. In statistics, the standard deviation is a measure of the amount of variation or dispersion in a set of values. A low standard deviation means that the values tend to be close to the mean, while a high standard deviation means that the values are spread out over a wider range. When a data point is said to be "8 standard deviations out", it means it's quite far from the mean. In a normal distribution, almost all data falls within 3 standard deviations of the mean. So, a data point that is 8 standard deviations away from the mean is extremely rare and could be considered an outlier. In the context of your sentence, it suggests that any sample which falls more than 8 standard deviations away on any top principal component might have been genotyped or sequenced improperly, and thus, it might be a good idea to remove these outliers from the analysis. This is because such extreme values can significantly skew the results and interpretations of the data analysis.
 
 
 #remove outliers based on the first 10 axes
@@ -4143,6 +4141,19 @@ concatenated_unique_df[["#FID", "IID"]].to_csv("./data/genetic_data/quality_cont
     sep="\t",
     header=False,
     index=False)
+
+
+
+
+
+#As mentioned above in the section on LD, it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions [7] (see Fig. 8). SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
+
+
+#there is a package to run R code in python
+#but maybe you can just use run_bash with Rscrip '', look def files of pinus niche for installaing packages on the fly
+
+run_bash("Rscript -e 'print(\"Hello, world!\")'")
+
 
 
 run_bash(" \
