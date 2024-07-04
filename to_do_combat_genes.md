@@ -60,6 +60,9 @@ PREGUNTA ESTO A DAVID NEXT TIME
             - https://www.cell.com/cell/fulltext/S0092-8674(22)00991-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0092867422009916%3Fshowall%3Dtrue
 
 - PRS
+    - prs papers cited by authors eigensoft
+        - https://www.nature.com/articles/s41588-018-0183-z
+        - https://www.nature.com/articles/nrg.2016.27
     - We need a base cohort and a target cohort
     - See explanations in "03a_association_analyses.py"
     - Efficient blockLASSO for Polygenic Scores with Applications to All of Us and UK Biobank
