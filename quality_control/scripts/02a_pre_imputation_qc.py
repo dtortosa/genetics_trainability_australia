@@ -4106,12 +4106,122 @@ for pc_short, row in pca_eigenvalues.iterrows():
             #(4) 4 Quality Control: Relatedness & Population Stratification. https://hds-sandbox.github.io/GWAS_course/Notebooks/GWAS4-QualityControlB/.
             #(5) Improving the Power of GWAS and Avoiding Confounding from Population .... https://academic.oup.com/genetics/article/197/3/1045/5935993.
 
+
+
+
+
+##admixture tutorial uses number of PCs as  another indication of the number of gruops, each pc split a different group.... so using traci test to get a p-value for PCs would be really interesting... also eigeinsoft due automatic outlier removal
+
+
+#As a minor issue, smartpca ignores individuals in the .fam file if they are marked as missing in the phenotypes column. This awk command provides a new .fam file that will automatically include all individuals.
+#copy also bim and bed files
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/; \
+    awk \
+        '{print $1,$2,$3,$4,$5,1}' \
+        ./loop_maf_missing_2_ldprunned_autosome_pca.fam > \
+    ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.new_fam.fam; \
+    cp ./loop_maf_missing_2_ldprunned_autosome_pca.bim ./eigen_out; \
+    cp ./loop_maf_missing_2_ldprunned_autosome_pca.bed ./eigen_out \
+")
+
+#run eigensoft with outlier removal
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
+    mkdir -p ./eigen_out; \
+    PREFIX=loop_maf_missing_2_ldprunned_autosome_pca; \
+    echo genotypename: ./eigen_out/$PREFIX.bed > ./eigen_out/$PREFIX.par; \
+    echo snpname: ./eigen_out/$PREFIX.bim >> ./eigen_out/$PREFIX.par; \
+    echo indivname: ./eigen_out/$PREFIX.new_fam.fam >> ./eigen_out/$PREFIX.par; \
+    echo snpweightoutname: ./eigen_out/$PREFIX.snpeigs >> ./eigen_out/$PREFIX.par; \
+    echo evecoutname: ./eigen_out/$PREFIX.eigs >> ./eigen_out/$PREFIX.par; \
+    echo evaloutname: ./eigen_out/$PREFIX.eval >> ./eigen_out/$PREFIX.par; \
+    echo numoutevec: 10 >> ./eigen_out/$PREFIX.par; \
+    echo numoutlieriter: 5 >> ./eigen_out/$PREFIX.par; \
+    echo numoutlierevec: 10 >> ./eigen_out/$PREFIX.par; \
+    echo outlieroutname: ./eigen_out/$PREFIX.outliers >> ./eigen_out/$PREFIX.par; \
+    echo altnormstyle: YES >> ./eigen_out/$PREFIX.par; \
+    echo missingmode: NO >> ./eigen_out/$PREFIX.par; \
+    echo ldregress: 0 >> ./eigen_out/$PREFIX.par; \
+    echo noxdata: YES >> ./eigen_out/$PREFIX.par; \
+    echo nomalexhet: YES >> ./eigen_out/$PREFIX.par; \
+")
+    #script for smartpca parameter file from ADMIXTURE TUTORIAL
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
+    #genotypename: input genotype file (in any format: see ../CONVERTF/README)
+    #snpname:      input snp file      (in any format: see ../CONVERTF/README)
+    #indivname:    input indiv file    (in any format: see ../CONVERTF/README)
+    #snpweightoutname: output file containing SNP weightings of each principal component.  Note that this output file does not contain entries for monomorphic SNPs from the input .snp file. 
+    #evecoutname:  output file of eigenvectors. See numoutevec parameter below.
+    #evaloutname:  output file of all eigenvalues
+    #numoutevec:     number of eigenvectors to output.  Default is 10.
+    #numoutlieriter: maximum number of outlier removal iterations. Default is 5.  To turn off outlier removal, set this parameter to 0.
+    #numoutlierevec: number of principal components along which to remove outliers during each outlier removal iteration.  Default is 10.
+    #outlieroutname: output logfile of outlier individuals removed. If not specified, smartpca will print this information to stdout, which is the default.
+    #altnormstyle: Affects very subtle details in normalization formula. Default is YES (normalization formulas of Patterson et al. 2006). To match EIGENSTRAT (normalization formulas of Price et al. 2006), set to NO.
+    #missingmode: If set to YES, then instead of doing PCA on # reference alleles, do PCA on whether each data point is missing or nonmissing.  Default is NO.
+    #ldregress: If set to a positive integer, then LD regression is turned on, and input to PCA will be the residual of a regression involving that many previous SNPs, according to physical location.  See Patterson et al. 2006. Default is 0 (no LD regression).  If desiring LD correction, we recommend 200.
+    #noxdata:    if set to YES, all SNPs on X chr are excluded from the data set. The smartpca default for this parameter is YES, since different variances for males vs. females on X chr may confound PCA analysis.
+        #Using YES, but not required anyway because we have only autosomal SNPs.
+    #nomalexhet: if set to YES, any het genotypes on X chr for males are changed to missing data. The smartpca default for this parameter is YES.
+        #males should be homozigous for X (except pseudo-autosomic regions)
+        #Using YES, but not required anyway because we have only autosomal SNPs.
+
+
+
+#sudo cp ./eigensoft_versions/eigensoft_8_0_0/EIG-8.0.0/bin/smartpca.perl /usr/local/bin
+
+run_bash("ls /usr/lib/eigensoft")
+
+#apt-cache policy eigensoft
+#sudo apt-get install eigensoft=7.2.1+dfsg-3build1
+#/usr/lib/eigensoft/smartpca
+
+#install eigensoft package for PCA analysis
+	#apt -y install eigensoft=7.2.1+dfsg-3build1
+		#we select the last version available in ubuntu repo at the moment of writting (7.2.1). This version is the second latest version in github at the moment of writting also indicated as the latest version in the page of the author.
+		#https://github.com/DReichLab/EIG/releases
+        #https://www.hsph.harvard.edu/alkes-price/software/
+
+#I cannot run smartpca in the container after pasting it there
+    #smartpca: error while loading shared libraries: libgsl.so.27: cannot open shared object file: No such file or directory
+
+
+#/usr/bin/twstats
+    #this works on my laptop
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/; \
+    /usr/lib/eigensoft/smartpca -p ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.par > ./eigen_out/smart_pca_run.out")
+
+
+
+
+#10 o 20? ritchie says use defaults of eigensoft
+#p-value ejes
+
+#Multithreading (Code added by Chris Chang)
+#smartpca now supports multithreading but NOT with fastmode: YES
+#By default a (hopefully) system dependent number of threads is chosen.
+#This can be overwritten by (for example)
+#numthreads
+
+
+#twstats: tracy
+
+
+
 print_text("outlier removal", header=4)
 #It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
 #The phrase "8 standard deviations out" refers to a data point that falls 8 standard deviations away from the mean of a dataset. In statistics, the standard deviation is a measure of the amount of variation or dispersion in a set of values. A low standard deviation means that the values tend to be close to the mean, while a high standard deviation means that the values are spread out over a wider range. When a data point is said to be "8 standard deviations out", it means it's quite far from the mean. In a normal distribution, almost all data falls within 3 standard deviations of the mean. So, a data point that is 8 standard deviations away from the mean is extremely rare and could be considered an outlier. In the context of your sentence, it suggests that any sample which falls more than 8 standard deviations away on any top principal component might have been genotyped or sequenced improperly, and thus, it might be a good idea to remove these outliers from the analysis. This is because such extreme values can significantly skew the results and interpretations of the data analysis.
 
+
+##should we use all 9 axes for this??
 
 #remove outliers based on the first 10 axes
 #pc="PC2"
