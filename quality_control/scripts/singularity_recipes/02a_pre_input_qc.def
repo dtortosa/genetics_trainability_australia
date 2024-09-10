@@ -5,7 +5,7 @@
 
 Bootstrap: library #It determines the bootstrap agent that will be used to create the base operating system you want to use. For example, the library bootstrap agent will pull a container from the Container Library. 
 
-From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword becomes valid. You indicate the container you want from the library. This will be downloaded and build. #it seem deadsnakes for downloading python does not work anymore with ubuntu 18.04, so we use ubuntu 20.04 #https://stackoverflow.com/a/64353748/12772630 
+From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword becomes valid. You indicate the container you want from the library. This will be downloaded and build. #it seem deadsnakes for downloading python does not work anymore with ubuntu 18.04, so we use ubuntu 20.04 #https://stackoverflow.com/a/64353748/12772630 
 
 
 
@@ -46,7 +46,18 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/plink_versions/plink2_linux_x86_64_20230531/plink2 /bin/plink2
 
 	#copy the binary of smartpc of eigensoft
-	/usr/lib/eigensoft/smartpca /bin/smartpca
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/eigensoft_versions/EIG-8.0.0/bin/smartpca /bin/smartpca
+		#I downloaded the latest version of eigensoft (Jul 2021) from "https://github.com/DReichLab/EIG/releases", then I decompressed and compiled it the C code to create executables
+		#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/eigensoft_versions/
+		#wget https://github.com/DReichLab/EIG/archive/refs/tags/v8.0.0.tar.gz
+		#tar -xzf v8.0.0.tar.gz
+		#cd EIG-8.0.0/src
+		#make LDLIBS="-llapacke"
+			#we add LDLIBS... to avoid errors related to llapackage, see eigensof readme
+		#make install
+		#smartpca executable is in "EIG-8.0.0/bin/"
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/eigensoft_versions/EIG-8.0.0/bin/twstats /bin/twstats
+		#also add twstats just in case we needed
 
 	#copy script
 	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/scripts/02a_pre_imputation_qc.py /opt/scripts/02a_pre_imputation_qc.py
@@ -116,7 +127,13 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 		#https://stackoverflow.com/questions/46613651/how-to-setup-spark-home-variable
 		#we do this better in env, because singualirty uses its own bashrc file
 
+	#install a required libraries for using smartpca
+    apt -y install libgsl-dev
+	apt -y install libopenblas-base
+	apt -y install liblapacke-dev
+
 	#Install python
+	export DEBIAN_FRONTEND=noninteractive #to avoid tzdata asking for promps
 	apt -y install python3.9
 
 	#also install curl, needed for install python packages
@@ -131,7 +148,7 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
 	python3.9 -m pip install seaborn
 	python3.9 -m pip install plotly
-	python3.9 -m pip install dash-bio==1.0.1
+	#python3.9 -m pip install dash-bio==1.0.1
 	python3.9 -m pip install pyspark
 	python3.9 -m pip install PyArrow #for pandas group by functions in pyspark
 	python3.9 -m pip install openpyxl
@@ -142,7 +159,7 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	#python3.9 -m pip install scikeras
 	#python3.9 -m pip install optuna
 	python3.9 -m pip install numpy
-	#python3.9 -m pip install scipy
+	python3.9 -m pip install scipy
 	python3.9 -m pip install matplotlib
 	python3.9 -m pip install pandas
 	python3.9 -m pip install ipython
