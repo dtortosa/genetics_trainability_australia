@@ -2340,9 +2340,6 @@ run_bash(" \
     fi"
 )
 
-
-#endregion
-
 # endregion
 
 
@@ -4107,13 +4104,15 @@ for pc_short, row in pca_eigenvalues.iterrows():
             #(5) Improving the Power of GWAS and Avoiding Confounding from Population .... https://academic.oup.com/genetics/article/197/3/1045/5935993.
 
 
+print_text("run PCA with smartpca", header=4)
+#smartpca: general explanations
+    #smartpca runs Principal Components Analysis on input genotype data and  outputs principal components (eigenvectors) and eigenvalues. We note that eigenvalue_k/(Sum of eigenvalues) is the proportion of variance explained by eigenvector_k. The method assumes that samples are unrelated. However, a small number of cryptically related individuals is usually  not a problem in practice as they will typically be discarded as outliers (we already removed related individuals).
+    #The syntax of smartpca is "../bin/smartpca -p parfile"
+        #The below for details about each argument
 
-
-
-##admixture tutorial uses number of PCs as  another indication of the number of gruops, each pc split a different group.... so using traci test to get a p-value for PCs would be really interesting... also eigeinsoft due automatic outlier removal
-
-
+print("prepare fam file for smartpca")
 #As a minor issue, smartpca ignores individuals in the .fam file if they are marked as missing in the phenotypes column. This awk command provides a new .fam file that will automatically include all individuals.
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
 #copy also bim and bed files
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/; \
@@ -4126,9 +4125,7 @@ run_bash(" \
     cp ./loop_maf_missing_2_ldprunned_autosome_pca.bed ./eigen_out \
 ")
 
-#run eigensoft with outlier removal
-    #see below plink info about the importance of outlier removal based on plink
-
+print("smartpca parameter file")
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
     PREFIX=loop_maf_missing_2_ldprunned_autosome_pca; \
@@ -4139,7 +4136,8 @@ run_bash(" \
     echo evecoutname: ./eigen_out/$PREFIX.eigs >> ./eigen_out/$PREFIX.par; \
     echo evaloutname: ./eigen_out/$PREFIX.eval >> ./eigen_out/$PREFIX.par; \
     echo numoutevec: 10 >> ./eigen_out/$PREFIX.par; \
-    echo numoutlieriter: 5 >> ./eigen_out/$PREFIX.par; \
+    echo outliersigmathresh: 8 >> ./eigen_out/$PREFIX.par; \
+    echo numoutlieriter: 8 >> ./eigen_out/$PREFIX.par; \
     echo numoutlierevec: 10 >> ./eigen_out/$PREFIX.par; \
     echo outlieroutname: ./eigen_out/$PREFIX.outliers >> ./eigen_out/$PREFIX.par; \
     echo altnormstyle: YES >> ./eigen_out/$PREFIX.par; \
@@ -4147,57 +4145,71 @@ run_bash(" \
     echo ldregress: 0 >> ./eigen_out/$PREFIX.par; \
     echo noxdata: YES >> ./eigen_out/$PREFIX.par; \
     echo nomalexhet: YES >> ./eigen_out/$PREFIX.par; \
+    echo newshrink: YES >> ./eigen_out/$PREFIX.par; \
 ")
     #script for smartpca parameter file from ADMIXTURE TUTORIAL
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
-    #genotypename: input genotype file (in any format: see ../CONVERTF/README)
-    #snpname:      input snp file      (in any format: see ../CONVERTF/README)
-    #indivname:    input indiv file    (in any format: see ../CONVERTF/README)
-    #snpweightoutname: output file containing SNP weightings of each principal component.  Note that this output file does not contain entries for monomorphic SNPs from the input .snp file. 
-    #evecoutname:  output file of eigenvectors. See numoutevec parameter below.
-    #evaloutname:  output file of all eigenvalues
-    #numoutevec:     number of eigenvectors to output.  Default is 10.
-    #numoutlieriter: maximum number of outlier removal iterations. Default is 5.  To turn off outlier removal, set this parameter to 0.
-    #numoutlierevec: number of principal components along which to remove outliers during each outlier removal iteration.  Default is 10.
-    #outlieroutname: output logfile of outlier individuals removed. If not specified, smartpca will print this information to stdout, which is the default.
-    #altnormstyle: Affects very subtle details in normalization formula. Default is YES (normalization formulas of Patterson et al. 2006). To match EIGENSTRAT (normalization formulas of Price et al. 2006), set to NO.
-    #missingmode: If set to YES, then instead of doing PCA on # reference alleles, do PCA on whether each data point is missing or nonmissing.  Default is NO.
-    #ldregress: If set to a positive integer, then LD regression is turned on, and input to PCA will be the residual of a regression involving that many previous SNPs, according to physical location.  See Patterson et al. 2006. Default is 0 (no LD regression).  If desiring LD correction, we recommend 200.
-    #noxdata:    if set to YES, all SNPs on X chr are excluded from the data set. The smartpca default for this parameter is YES, since different variances for males vs. females on X chr may confound PCA analysis.
+    #genotypename:
+        #contains genotype data for each individual at each SNP
+    #snpname:
+        #contains information about each SNP 
+    #indivname:
+        #contains information about each individual
+        #accorind to the readme, the genotype and snp file can be just .bed and.bim files, respectively, from plink format, which is our format. 
+        #according to the admixture tutorial, you can use the plink format, i.e., bed, bim and fam file as input. In the case of the fam file, the phenotypes have to be 1 for all samples, if not, they are not considered (see above)
+            #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
+    #snpweightoutname:
+        #output file containing SNP weightings of each principal component. Note that this output file does not contain entries for monomorphic SNPs from the input .snp file. 
+    #evecoutname:
+        #output file of eigenvectors. See numoutevec parameter below.
+    #evaloutname:
+        #output file of all eigenvalues
+    #numoutevec:
+        #number of eigenvectors to output.  Default is 10.
+    #outlier removal. According to plink tutorial (https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3)
+        #It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
+            #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #The phrase "8 standard deviations out" refers to a data point that falls 8 standard deviations away from the mean of a dataset. In statistics, the standard deviation is a measure of the amount of variation or dispersion in a set of values. A low standard deviation means that the values tend to be close to the mean, while a high standard deviation means that the values are spread out over a wider range. When a data point is said to be "8 standard deviations out", it means it's quite far from the mean. In a normal distribution, almost all data falls within 3 standard deviations of the mean. So, a data point that is 8 standard deviations away from the mean is extremely rare and could be considered an outlier. In the context of your sentence, it suggests that any sample which falls more than 8 standard deviations away on any top principal component might have been genotyped or sequenced improperly, and thus, it might be a good idea to remove these outliers from the analysis. This is because such extreme values can significantly skew the results and interpretations of the data analysis.
+        #If you do this, follow it up by repeating the PCA, since the bad samples might have distorted the principal components. Occasionally, the new principal components will reveal another bad sample, and you have to repeat these two steps, etc. We are using the iterative process of smartpca as recommended in the tutorial
+        #Steps
+            #The program identifies individuals whose principal component scores deviate significantly from the majority of the population. This is typically done by setting a threshold for the number of standard deviations from the mean.
+            #Iterative Process: Outlier removal is often an iterative process. The program may run PCA multiple times, each time removing individuals who are identified as outliers, until no more outliers are detected.
+            #Impact on Analysis: Removing outliers helps to ensure that the PCA results are not skewed by individuals who have unusual genetic backgrounds. This can provide a clearer picture of the population structure and improve the accuracy of downstream analyses.
+        #outliersigmathresh: 
+            #We are using 8 as recommended by the plink tutorial, using the default (6) would increase the removed individuals from 45 to 125.
+            #number of standard deviations which an individual must exceed, along one of the top (numoutlierevec) principal components, in order for that individual to be removed as an outlier.  Default is 6.0.
+        #numoutlieriter:
+            #maximum number of outlier removal iterations. Default is 5.  To turn off outlier removal, set this parameter to 0.
+            #I have checked that outliers are removed until iteration 7, so we just using until 8.
+        #numoutlierevec:
+            #number of principal components along which to remove outliers during each outlier removal iteration.  Default is 10.
+            #We are using the default. The PCA axes with a significant p-value (<0.05) are the first 11, but I have checked that using 11 instead of 10 for outlier removal gives the same outliers. In addition, I have checked the eigenvectors that detect the outliers and never 10 or 11 are included, so we do not need to consider more axes. We are sticking to the default.
+        #outlieroutname:
+            #output logfile of outlier individuals removed. If not specified, smartpca will print this information to stdout, which is the default.
+    #altnormstyle:
+        #Affects very subtle details in normalization formula. Default is YES (normalization formulas of Patterson et al. 2006). To match EIGENSTRAT (normalization formulas of Price et al. 2006), set to NO.
+    #missingmode:
+        #If set to YES, then instead of doing PCA on # reference alleles, do PCA on whether each data point is missing or nonmissing.  Default is NO.
+    #ldregress:
+        #If set to a positive integer, then LD regression is turned on, and input to PCA will be the residual of a regression involving that many previous SNPs, according to physical location.  See Patterson et al. 2006. Default is 0 (no LD regression).  If desiring LD correction, we recommend 200.
+        #this is done to correct for the correlation (i.e., the linkage disequilibrium) of the SNPs. We do NOT to do this because we have already prunned our data considering LD.
+    #noxdata: 
+        #if set to YES, all SNPs on X chr are excluded from the data set. The smartpca default for this parameter is YES, since different variances for males vs. females on X chr may confound PCA analysis.
         #Using YES, but not required anyway because we have only autosomal SNPs.
-    #nomalexhet: if set to YES, any het genotypes on X chr for males are changed to missing data. The smartpca default for this parameter is YES.
+    #nomalexhet:
+        #if set to YES, any het genotypes on X chr for males are changed to missing data. The smartpca default for this parameter is YES.
         #males should be homozigous for X (except pseudo-autosomic regions)
         #Using YES, but not required anyway because we have only autosomal SNPs.
+    #lsqproject
+        #PCA projection is carried out by solving least squares equations rather than an orthogonal projection step. This is approriate if PCs are calculated using samples with little missing data but it is desired to project samples with much missing data onto the top PCs. In other words, most of the samples have a lot of data, but some samples have a lot of missing, in that situation, instead of filling gaps with the average, this approach does something different that solves the problem. BUT, if the sample has few missing, then this works as the default orthogonal. I have checked that setting this to NO or YES does not change the results.
+        #./EIG-8.0.0/POPGEN/lsqproject.pdf
+    #shrinkmode/newshrink
+        #A problem with smartpca is that samples used to calculate the PC axes "stretch" the axes.  So that 2 populations in fact genetically identical (2 independent samples from the same underlying population) will appear different if one is used to compute axes, and one not.  shrinkmode: YES is an attempt to solve this problem.  Details to appear later, but this has been used successfully in the Reich lab.*** warning *** shrinkmode is slow and will greatly increase the runtime. (NEW) New version:  newshrink:  YES technical variation of shrinkmode,  should be (slightly)
 
-
-
-#sudo cp ./eigensoft_versions/eigensoft_8_0_0/EIG-8.0.0/bin/smartpca.perl /usr/local/bin
-
-run_bash("ls /usr/lib/eigensoft")
-
-run_bash("ls /bin/smartpca")
-run_bash("/bin/smartpca")
-
-
-#apt-cache policy eigensoft
-#sudo apt-get install eigensoft=7.2.1+dfsg-3build1
-#/usr/lib/eigensoft/smartpca
-
-#install eigensoft package for PCA analysis
-	#apt -y install eigensoft=7.2.1+dfsg-3build1
-		#we select the last version available in ubuntu repo at the moment of writting (7.2.1). This version is the second latest version in github at the moment of writting also indicated as the latest version in the page of the author.
-		#https://github.com/DReichLab/EIG/releases
-        #https://www.hsph.harvard.edu/alkes-price/software/
-
-#I cannot run smartpca in the container after pasting it there
-    #smartpca: error while loading shared libraries: libgsl.so.27: cannot open shared object file: No such file or directory
-
-#https://citationgecko.azurewebsites.net/
-
-
-
-
-#run smartpca
+print("run smartpca")
+#we use the version 8.0.0, which is the latest at the moment of writting (sep 2024). This was released in october 2022.
+    #see the contianer receipte for further details about how install in the container
+    #https://github.com/DReichLab/EIG/releases
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/; \
     /bin/smartpca -p ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.par > ./eigen_out/smart_pca_run.out")
@@ -4205,6 +4217,11 @@ run_bash(" \
         #I have visually compared this table and the generated by twstats. They are the same, just a few decimals are different. Also that table has a column with eigenvalues and a p-value. Therefore, smartpca is also using twstats
             #see below for the code to ran twstats
         #The twstats program computes Tracy-Widom statistics to evaluate the statistical significance of each principal component identified by pca (Patterson et al. 2006).
+        #it helps determine whether the observed eigenvalues (which correspond to the variance explained by each PC) are significantly larger than what would be expected by chance.
+        #steps (from copilot):
+            #Eigenvalue Calculation: After performing PCA, the eigenvalues corresponding to each principal component are calculated. These eigenvalues represent the amount of variance explained by each PC.
+            #Comparison with Tracy-Widom Distribution: The largest eigenvalues are compared to the Tracy-Widom distribution. This comparison helps determine if the observed eigenvalues are significantly larger than those expected under the null hypothesis (i.e., no structure in the data, the axes are not absorbing any structure from the data).
+            #Significance Testing: The program computes p-values for each eigenvalue based on the Tracy-Widom distribution. A low p-value indicates that the corresponding principal component explains a significant amount of variance, suggesting it captures meaningful structure in the data.
         #The twstats program assumes a random set of markers, and should not be used on data sets of ancestry-informative markers, as admixture-LD may violate its underlying assumptions. 
             #Ancestry-informative markers are those SNPs that significantly different between pops and are speficically used for infer ancestry of individuals.
             #This is not our case, as we have not specifically selected SNPs that differ between pops. 
@@ -4222,6 +4239,78 @@ if False:
 '''
 
 
+### think shrinkage
+'''
+The `shrinkmode` argument in the **smartpca** program is designed to address the issue of "stretching" of the principal component (PC) axes. This stretching can occur when the samples used to calculate the PC axes are not representative of the entire population, leading to distortions in the PCA results. Here's a detailed explanation:
+
+### Problem with Axis Stretching
+When PCA is performed, the principal components are calculated based on the variance in the data. If the samples used to compute these axes are not representative, it can cause the axes to stretch. This means that two populations that are genetically identical might appear different if one population is used to compute the axes and the other is not.
+
+### Solution: `shrinkmode`
+The `shrinkmode` argument, when set to `YES`, attempts to correct this problem by adjusting the principal component axes. Here’s how it works:
+
+1. **Adjustment of Axes**: `shrinkmode` modifies the calculation of the PC axes to reduce the stretching effect. This adjustment ensures that the axes better represent the underlying population structure.
+
+2. **Improved Comparability**: By using `shrinkmode`, the PCA results become more comparable across different populations, even if they were not all included in the initial calculation of the PC axes.
+
+3. **Practical Use**: This feature has been successfully used in the Reich lab to improve the accuracy of PCA results in genetic studies.
+
+### How to Use It
+To enable this feature, you simply set the `shrinkmode` argument to `YES` in your smartpca configuration file or command line options.
+
+```plaintext
+shrinkmode: YES
+```
+
+This adjustment helps to ensure that the PCA results are more accurate and reflective of the true genetic relationships between populations.
+
+If you have any more questions or need further details, feel free to ask!
+
+If you are calculating the PCA with only one population and all your study samples are included in the PCA analysis, the need for `shrinkmode` might be less critical. The primary purpose of `shrinkmode` is to correct for the stretching of PC axes that can occur when different populations are used to compute the axes and to ensure comparability across populations.
+
+### Considerations:
+- **Single Population**: Since you are working with a single population, the issue of axis stretching due to different populations should not be a concern.
+- **Homogeneity**: If your population is relatively homogeneous, the PCA results should accurately reflect the genetic structure without the need for `shrinkmode`.
+
+### When to Use `shrinkmode`:
+- **Multiple Populations**: If you were comparing multiple populations or if there was a risk of axis stretching due to non-representative samples, `shrinkmode` would be more beneficial.
+- **Ensuring Accuracy**: If you still want to ensure the most accurate representation of your data, you could try running the PCA with and without `shrinkmode` to see if there is any significant difference.
+
+In summary, for a single, homogeneous population, `shrinkmode` is likely not necessary. However, it can be a useful tool if you want to double-check the robustness of your PCA results.
+
+If you have any more questions or need further clarification, feel free to ask!
+
+Given that your single population shows internal structure with several significant axes, using `shrinkmode` could still be beneficial. Here's why:
+
+### Why `shrinkmode` Might Help
+- **Internal Structure**: Even within a single population, if there is significant internal structure, `shrinkmode` can help ensure that the PCA axes are not unduly influenced by subgroups within your population.
+- **Accurate Representation**: It can provide a more accurate representation of the genetic variation by adjusting for any potential stretching of the axes caused by these subgroups.
+
+### Considerations
+- **Runtime**: As you mentioned, enabling `shrinkmode` increases runtime. If computational resources or time are a concern, you might want to weigh the benefits against the cost.
+- **Testing Both Options**: You could run PCA both with and without `shrinkmode` on a subset of your data to see if there is a significant difference in the results. This can help you decide if the additional runtime is justified.
+
+### Practical Approach
+1. **Initial Run**: Perform PCA without `shrinkmode` and evaluate the results.
+2. **Comparison Run**: Enable `shrinkmode` and compare the results to see if there is a meaningful improvement in the representation of your population structure.
+
+By comparing the results, you can make an informed decision on whether the use of `shrinkmode` is necessary for your specific case.
+
+If you need further assistance or have more questions, feel free to ask!
+'''
+
+
+
+##admixture tutorial uses number of PCs as  another indication of the number of gruops, each pc split a different group.... so using traci test to get a p-value for PCs would be really interesting... also eigeinsoft due automatic outlier removal
+#We have aorund 11 significant axes, meaning we really have structure on the data!!!
+
+
+#plotting
+    #we are not goint to use PCAviz, because the main point is to see individuals around labeled populations, but we have already remove outliers using smartpca. We can take a look just using the approach of plink tutorial, i.e., plot PC1 vs PC2. See "3.7 Principal Component Analysis" in plink tutorial
+
+    #Eigenvalues (section "3.4.2 Plotting PCA Results with PCAviz" in ADMIXTURE tutorial)
+
+    #PC1 vs PC2
 
 
 #10 o 20? ritchie says use defaults of eigensoft
@@ -4241,10 +4330,7 @@ if False:
 
 
 print_text("outlier removal", header=4)
-#It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
-#The phrase "8 standard deviations out" refers to a data point that falls 8 standard deviations away from the mean of a dataset. In statistics, the standard deviation is a measure of the amount of variation or dispersion in a set of values. A low standard deviation means that the values tend to be close to the mean, while a high standard deviation means that the values are spread out over a wider range. When a data point is said to be "8 standard deviations out", it means it's quite far from the mean. In a normal distribution, almost all data falls within 3 standard deviations of the mean. So, a data point that is 8 standard deviations away from the mean is extremely rare and could be considered an outlier. In the context of your sentence, it suggests that any sample which falls more than 8 standard deviations away on any top principal component might have been genotyped or sequenced improperly, and thus, it might be a good idea to remove these outliers from the analysis. This is because such extreme values can significantly skew the results and interpretations of the data analysis.
 
 
 ##should we use all 9 axes for this??
