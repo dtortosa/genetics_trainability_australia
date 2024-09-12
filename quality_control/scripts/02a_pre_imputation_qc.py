@@ -4104,7 +4104,7 @@ for pc_short, row in pca_eigenvalues.iterrows():
             #(5) Improving the Power of GWAS and Avoiding Confounding from Population .... https://academic.oup.com/genetics/article/197/3/1045/5935993.
 
 
-print_text("run PCA with smartpca", header=4)
+print_text("PCA with smartpca", header=4)
 #smartpca: general explanations
     #smartpca runs Principal Components Analysis on input genotype data and  outputs principal components (eigenvectors) and eigenvalues. We note that eigenvalue_k/(Sum of eigenvalues) is the proportion of variance explained by eigenvector_k. The method assumes that samples are unrelated. However, a small number of cryptically related individuals is usually  not a problem in practice as they will typically be discarded as outliers (we already removed related individuals).
     #The syntax of smartpca is "../bin/smartpca -p parfile"
@@ -4125,6 +4125,9 @@ run_bash(" \
     cp ./loop_maf_missing_2_ldprunned_autosome_pca.bed ./eigen_out \
 ")
 
+print("decide the number of axes to output")
+n_axes=20
+
 print("smartpca parameter file")
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
@@ -4135,7 +4138,8 @@ run_bash(" \
     echo snpweightoutname: ./eigen_out/$PREFIX.snpeigs >> ./eigen_out/$PREFIX.par; \
     echo evecoutname: ./eigen_out/$PREFIX.eigs >> ./eigen_out/$PREFIX.par; \
     echo evaloutname: ./eigen_out/$PREFIX.eval >> ./eigen_out/$PREFIX.par; \
-    echo numoutevec: 10 >> ./eigen_out/$PREFIX.par; \
+    echo phylipoutname: ./eigen_out/$PREFIX.fst >> ./eigen_out/$PREFIX.par; \
+    echo numoutevec: " + str(n_axes) + " >> ./eigen_out/$PREFIX.par; \
     echo outliersigmathresh: 8 >> ./eigen_out/$PREFIX.par; \
     echo numoutlieriter: 8 >> ./eigen_out/$PREFIX.par; \
     echo numoutlierevec: 10 >> ./eigen_out/$PREFIX.par; \
@@ -4145,7 +4149,7 @@ run_bash(" \
     echo ldregress: 0 >> ./eigen_out/$PREFIX.par; \
     echo noxdata: YES >> ./eigen_out/$PREFIX.par; \
     echo nomalexhet: YES >> ./eigen_out/$PREFIX.par; \
-    echo newshrink: YES >> ./eigen_out/$PREFIX.par; \
+    echo newshrink: NO >> ./eigen_out/$PREFIX.par \
 ")
     #script for smartpca parameter file from ADMIXTURE TUTORIAL
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
@@ -4164,8 +4168,12 @@ run_bash(" \
         #output file of eigenvectors. See numoutevec parameter below.
     #evaloutname:
         #output file of all eigenvalues
+    #phylipoutname:
+        #output file containing an fst matrix which can be used as input to programs in the PHYLIP package, such as the "fitch" program for constructing phylogenetic trees.
+        #we are generating this just in case.
     #numoutevec:
         #number of eigenvectors to output.  Default is 10.
+        #this should affect the results, for example, the axes used for outlier removal are indicated in another argument.
     #outlier removal. According to plink tutorial (https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3)
         #It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
             #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
@@ -4188,6 +4196,7 @@ run_bash(" \
             #output logfile of outlier individuals removed. If not specified, smartpca will print this information to stdout, which is the default.
     #altnormstyle:
         #Affects very subtle details in normalization formula. Default is YES (normalization formulas of Patterson et al. 2006). To match EIGENSTRAT (normalization formulas of Price et al. 2006), set to NO.
+        #I have checked with and without altnormstyle and there are almost no differences.
     #missingmode:
         #If set to YES, then instead of doing PCA on # reference alleles, do PCA on whether each data point is missing or nonmissing.  Default is NO.
     #ldregress:
@@ -4204,7 +4213,12 @@ run_bash(" \
         #PCA projection is carried out by solving least squares equations rather than an orthogonal projection step. This is approriate if PCs are calculated using samples with little missing data but it is desired to project samples with much missing data onto the top PCs. In other words, most of the samples have a lot of data, but some samples have a lot of missing, in that situation, instead of filling gaps with the average, this approach does something different that solves the problem. BUT, if the sample has few missing, then this works as the default orthogonal. I have checked that setting this to NO or YES does not change the results.
         #./EIG-8.0.0/POPGEN/lsqproject.pdf
     #shrinkmode/newshrink
-        #A problem with smartpca is that samples used to calculate the PC axes "stretch" the axes.  So that 2 populations in fact genetically identical (2 independent samples from the same underlying population) will appear different if one is used to compute axes, and one not.  shrinkmode: YES is an attempt to solve this problem.  Details to appear later, but this has been used successfully in the Reich lab.*** warning *** shrinkmode is slow and will greatly increase the runtime. (NEW) New version:  newshrink:  YES technical variation of shrinkmode,  should be (slightly)
+        #A problem with smartpca is that samples used to calculate the PC axes "stretch" the axes. So that 2 populations in fact genetically identical (2 independent samples from the same underlying population) will appear different if one is used to compute axes, and one not.  shrinkmode: YES is an attempt to solve this problem.  Details to appear later, but this has been used successfully in the Reich lab.*** warning *** shrinkmode is slow and will greatly increase the runtime. (NEW) New version:  newshrink:  YES technical variation of shrinkmode,  should be (slightly). 
+        #According to chatGTP, even within a single population, if there is significant internal structure, `shrinkmode` can help ensure that the PCA axes are not unduly influenced by subgroups within your population.
+        #HOWEVER, I have run with and without shrink mode and the results are EXACTLY the same, with all decimals, while the run time goes up to 40 min from 5-10. We are not using this mode.
+    #Multithreading (Code added by Chris Chang).
+        #smartpca now supports multithreading but NOT with fastmode: YES. By default a (hopefully) system dependent number of threads is chosen. This can be overwritten by (for example) numthreads:   10
+        #it seems by default it is using all the cores.
 
 print("run smartpca")
 #we use the version 8.0.0, which is the latest at the moment of writting (sep 2024). This was released in october 2022.
@@ -4238,71 +4252,182 @@ if False:
             -o ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tracy.out")
 '''
 
-
-### think shrinkage
-'''
-The `shrinkmode` argument in the **smartpca** program is designed to address the issue of "stretching" of the principal component (PC) axes. This stretching can occur when the samples used to calculate the PC axes are not representative of the entire population, leading to distortions in the PCA results. Here's a detailed explanation:
-
-### Problem with Axis Stretching
-When PCA is performed, the principal components are calculated based on the variance in the data. If the samples used to compute these axes are not representative, it can cause the axes to stretch. This means that two populations that are genetically identical might appear different if one population is used to compute the axes and the other is not.
-
-### Solution: `shrinkmode`
-The `shrinkmode` argument, when set to `YES`, attempts to correct this problem by adjusting the principal component axes. Here’s how it works:
-
-1. **Adjustment of Axes**: `shrinkmode` modifies the calculation of the PC axes to reduce the stretching effect. This adjustment ensures that the axes better represent the underlying population structure.
-
-2. **Improved Comparability**: By using `shrinkmode`, the PCA results become more comparable across different populations, even if they were not all included in the initial calculation of the PC axes.
-
-3. **Practical Use**: This feature has been successfully used in the Reich lab to improve the accuracy of PCA results in genetic studies.
-
-### How to Use It
-To enable this feature, you simply set the `shrinkmode` argument to `YES` in your smartpca configuration file or command line options.
-
-```plaintext
-shrinkmode: YES
-```
-
-This adjustment helps to ensure that the PCA results are more accurate and reflective of the true genetic relationships between populations.
-
-If you have any more questions or need further details, feel free to ask!
-
-If you are calculating the PCA with only one population and all your study samples are included in the PCA analysis, the need for `shrinkmode` might be less critical. The primary purpose of `shrinkmode` is to correct for the stretching of PC axes that can occur when different populations are used to compute the axes and to ensure comparability across populations.
-
-### Considerations:
-- **Single Population**: Since you are working with a single population, the issue of axis stretching due to different populations should not be a concern.
-- **Homogeneity**: If your population is relatively homogeneous, the PCA results should accurately reflect the genetic structure without the need for `shrinkmode`.
-
-### When to Use `shrinkmode`:
-- **Multiple Populations**: If you were comparing multiple populations or if there was a risk of axis stretching due to non-representative samples, `shrinkmode` would be more beneficial.
-- **Ensuring Accuracy**: If you still want to ensure the most accurate representation of your data, you could try running the PCA with and without `shrinkmode` to see if there is any significant difference.
-
-In summary, for a single, homogeneous population, `shrinkmode` is likely not necessary. However, it can be a useful tool if you want to double-check the robustness of your PCA results.
-
-If you have any more questions or need further clarification, feel free to ask!
-
-Given that your single population shows internal structure with several significant axes, using `shrinkmode` could still be beneficial. Here's why:
-
-### Why `shrinkmode` Might Help
-- **Internal Structure**: Even within a single population, if there is significant internal structure, `shrinkmode` can help ensure that the PCA axes are not unduly influenced by subgroups within your population.
-- **Accurate Representation**: It can provide a more accurate representation of the genetic variation by adjusting for any potential stretching of the axes caused by these subgroups.
-
-### Considerations
-- **Runtime**: As you mentioned, enabling `shrinkmode` increases runtime. If computational resources or time are a concern, you might want to weigh the benefits against the cost.
-- **Testing Both Options**: You could run PCA both with and without `shrinkmode` on a subset of your data to see if there is a significant difference in the results. This can help you decide if the additional runtime is justified.
-
-### Practical Approach
-1. **Initial Run**: Perform PCA without `shrinkmode` and evaluate the results.
-2. **Comparison Run**: Enable `shrinkmode` and compare the results to see if there is a meaningful improvement in the representation of your population structure.
-
-By comparing the results, you can make an informed decision on whether the use of `shrinkmode` is necessary for your specific case.
-
-If you need further assistance or have more questions, feel free to ask!
-'''
+print("plot smartpca results")
 
 
 
-##admixture tutorial uses number of PCs as  another indication of the number of gruops, each pc split a different group.... so using traci test to get a p-value for PCs would be really interesting... also eigeinsoft due automatic outlier removal
-#We have aorund 11 significant axes, meaning we really have structure on the data!!!
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
+    awk \
+        'BEGIN{ \
+            OFS=\"\t\" \
+        }{ \
+            if(NR>0){ \
+                print " + ",".join(f"${i}" for i in range(1,n_axes+2)) + " \
+            } \
+        }'\
+        ./loop_maf_missing_2_ldprunned_autosome_pca.eigs > ./loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs \
+")
+    #we to sum 1 because the last number is not included in the range
+    #also 1 more because we have a column with the IDs
+
+
+smartpca_eigenvectors = pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
+    sep="\t", \
+    header=None, \
+    skiprows=1, \
+    low_memory=False)
+smartpca_eigenvectors
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.pairplot(smartpca_eigenvectors.iloc[:,1:6])
+plt.savefig("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/eigen_vectors_pairwise.png", dpi=300)
+plt.close()
+
+smartpca_eigenvalues = pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.eval", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+smartpca_eigenvalues
+
+smartpca_eigenvalues
+
+
+
+
+#eigenvalues are in eivector table and in other separte table
+
+smartpca_eigenvalues[1] = smartpca_eigenvalues[0]/smartpca_eigenvalues[0].sum()
+
+smartpca_eigenvalues[2] = smartpca_eigenvalues.iloc[:, 1].cumsum(axis=0)
+
+
+#change column names
+smartpca_eigenvalues = smartpca_eigenvalues.rename(columns={0:"eigenvalue", 1:"prop_variance"})
+smartpca_eigenvalues
+    
+    
+
+
+smartpca_eigenvalues_20 = smartpca_eigenvalues.iloc[0:21, :]
+smartpca_eigenvalues_20
+
+
+
+#add a new column with the index (row numbers) and plot index vs the first and only column (eigenvalues)
+smartpca_eigenvalues_20.reset_index().plot( \
+    x='index', \
+    y="prop_variance", \
+    style='-o', \
+    legend=None)
+    #plot a line with a dot in eahc observation
+    #reset_index() is called on the pca_eigenvalues DataFrame. This resets the index of the DataFrame, and the old index is added as a column named 'index'. This new DataFrame is then plotted using the plot function, with 'index' as the x-values and the first column (0) as the y-values.
+
+#add labels
+plt.title('Scatter Plot of PCA Eigenvalues')
+plt.xlabel('PCs')
+plt.ylabel('Proportion of variance explained')
+
+#add xticks from the first to the last PC
+plt.xticks(range(0, smartpca_eigenvalues_20.shape[0]), smartpca_eigenvalues_20.index, fontsize=8)
+
+#save and close
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/explained_var.png", \
+    dpi=300) #dpi=300 for better resolution
+plt.close()
+
+    #The results show that the top PCs only explain a small fraction of the variance (<1.7%) and that after about K=4 the variance explained per PC becomes relatively constant. This is much less compared to the results of plink where variance explained by the first axis was of 40%! but it is in line what the admixture tutorial got with smartpca, so maybe this is a question of this approach and/or the removal of outliers
+    #we are not calculating cumultaive percentage of explained variance because we have a small proportion explained by each axis, and the rule of Ritche of 80% would require to include hundreds of axes...
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
+    awk \
+        'BEGIN{ \
+            OFS=\"\t\" \
+        }{ \
+            if(NR>0){ \
+                print " + ",".join(f"${i}" for i in range(1,n_axes+4)) + " \
+            } \
+        }'\
+        ./loop_maf_missing_2_ldprunned_autosome_pca.snpeigs > ./loop_maf_missing_2_ldprunned_autosome_pca_tab.snpeigs \
+")
+    #we to sum 1 because the last number is not included in the range
+    #also 3 more because we have a column with the IDs and another with the chromosome and the phyisical position (I checedm with the bim file, identical all cases)
+
+
+
+smartpca_snp_weights = pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.snpeigs", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+smartpca_snp_weights
+
+
+smartpca_snp_weights = smartpca_snp_weights.sort_values(by=[1, 2])
+
+smartpca_snp_weights.columns = ["rs_number", "chr", "pos"] + [f"pca_{i}" for i in range(1,n_axes+1)]
+
+smartpca_snp_weights
+
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Melt the DataFrame to have one row for each combination of chromosome and PCA axis
+melted_df = pd.melt(smartpca_snp_weights, id_vars=["rs_number", "chr", "pos"], value_vars=[f"pca_{i}" for i in range(1,n_axes+1)], var_name='pca_axis', value_name='snp_weight')
+    #pd.melt transforms the DataFrame from wide format to long format, with one row for each combination of chromosome, position, and PCA axis. The id_vars parameter specifies the columns to use as identifier variables, and the value_vars parameter specifies the columns to unpivot. The var_name and value_name parameters specify the names of the new columns.
+
+#NOS FALTAN FILAS
+
+melted_df["snp_weight"]
+
+print(smartpca_snp_weights.isnull().sum())
+
+
+print(smartpca_snp_weights[["rs_number", "chr"]].nunique())
+
+
+
+# Create a FacetGrid with one row for each PCA axis and one column for each chromosome
+g = sns.FacetGrid(melted_df, row='pca_axis', col="chr", height=4, aspect=1)
+    #Then, sns.FacetGrid creates a grid of subplots with one row for each PCA axis and one column for each chromosome. The row and col parameters specify the columns to use for the rows and columns of the grid, respectively.
+
+# Create a scatter plot for each combination of PCA axis and chromosome
+g = g.map(plt.scatter, x="pos", y="snp_weight")
+    #Finally, g.map applies the plt.scatter function to each subplot, with the position as the x variable and the weight as the y variable. The points in the plot are not connected by lines.
+
+
+
+
+#save and close
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/eso.png", \
+    dpi=300) #dpi=300 for better resolution
+plt.close()
+
+
+#As mentioned above in the section on LD, it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions [7] (see Fig. 8). SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
+
+
+
+
+#we have clusters in the first plots. According to the plink tutorial: "If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding." In the most important PCs (PC1 and PC2 explain a lot of varaibility), there is at least one clear cluster.
+
+#12 PCA axes are significant (P<0.05), meaining that they explain more genetic variance than expected by chance. This also means that they are detecting the existence of population structure inside of our study meaning that there are indiviauls from different ancestries. 
+
+#48 samples have been removed because they are very away from the mean of the PCA axes, specifically, more than 8 standard deviations. These are very extreme outliers likely caused due to genotyping errors and it is recommended to remove them. 
+
+#
 
 
 #plotting
@@ -4313,17 +4438,19 @@ If you need further assistance or have more questions, feel free to ask!
     #PC1 vs PC2
 
 
-#10 o 20? ritchie says use defaults of eigensoft
-#p-value ejes
-
-#Multithreading (Code added by Chris Chang)
-#smartpca now supports multithreading but NOT with fastmode: YES
-#By default a (hopefully) system dependent number of threads is chosen.
-#This can be overwritten by (for example)
-#numthreads
 
 
-#twstats: tracy
+    #evecoutname:
+        #output file of eigenvectors. See numoutevec parameter below.
+    #evaloutname:
+        #output file of all eigenvalues
+
+
+
+##admixture tutorial uses number of PCs as  another indication of the number of gruops, each pc split a different group.... so using traci test to get a p-value for PCs would be really interesting... also eigeinsoft due automatic outlier removal
+#We have aorund 11 significant axes, meaning we really have structure on the data!!!
+#we really need to do admixture analyses after this? CHECK ADMIXTURE TUTORIAL, a prioir, the only interesting thing is to have CV error for K, numbr of groups and compare with the number of significant axes...
+
 
 
 ## outlier removal not needed if we use smartpca...
