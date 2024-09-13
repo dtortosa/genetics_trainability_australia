@@ -4252,71 +4252,78 @@ if False:
             -o ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tracy.out")
 '''
 
-print("plot smartpca results")
-
-
-
-
+print("plot smartpca eigenvectors")
+#process the eigenvector file to ensure is tab delimited
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
     awk \
         'BEGIN{ \
             OFS=\"\t\" \
         }{ \
-            if(NR>0){ \
+            if(NR>1){ \
                 print " + ",".join(f"${i}" for i in range(1,n_axes+2)) + " \
             } \
         }'\
         ./loop_maf_missing_2_ldprunned_autosome_pca.eigs > ./loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs \
 ")
-    #we to sum 1 because the last number is not included in the range
-    #also 1 more because we have a column with the IDs
+    #force the OFS to be tabs
+    #select all except the first 1, i.e., NR>1. The first one has eigenvalues of rach PCA axis. For each row
+    #print the following columns
+        #all columns from the first to the last one
+        #the last is based on the number of PCA axes we have plus 1 because we have an ID column and 1 more because the last element of the range is not included in python
+    #this effectively prints all columns as tab separated
 
-
+#load the table without the first row
 smartpca_eigenvectors = pd.read_csv(\
     "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
     sep="\t", \
     header=None, \
-    skiprows=1, \
     low_memory=False)
-smartpca_eigenvectors
+print(smartpca_eigenvectors)
+#check we have the correct number of columns
+if(smartpca_eigenvectors.shape[1]-1!=n_axes):
+    raise ValueError("ERROR! FALSE! We are not considering all the interesting axes in smartpca")
 
+#plot the ifrst 5 axes againts each other
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.pairplot(smartpca_eigenvectors.iloc[:,1:6])
 plt.savefig("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/eigen_vectors_pairwise.png", dpi=300)
 plt.close()
+    #In PC1 vs PC2, there is a clear cluster on the right. Also in PC1 vs PC3, a cluster on the right. Note that these are the most informative axes by far.
+    #Therefore, we need to label subgroups using admixture, see below.
 
+print("plot the explained variance using eigenvalues")
+#load the eigenvalues
 smartpca_eigenvalues = pd.read_csv(\
     "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.eval", \
     sep="\t", \
     header=None, \
     low_memory=False)
-smartpca_eigenvalues
+print(smartpca_eigenvalues)
+    #I have checked these eigenvalues are the same than in the first row of the eigenvector table, which is named as "#eigvals"
 
-smartpca_eigenvalues
+#check eigenvalues are in decreasing order
+smartpca_eigenvalues_list = smartpca_eigenvalues[0].tolist()
+is_decreasing = all(x >= y for x, y in zip(smartpca_eigenvalues_list, smartpca_eigenvalues_list[1:]))
+    #In this code, convert the eigenvalues pandas series to list, then: zip(smartpca_eigenvalues_list, smartpca_eigenvalues_list[1:]) pairs each element in the list with the next element. Then, all(x >= y for x, y in ...) checks if each element is greater than or equal to the next element. The result is True if the list is in decreasing order and False otherwise. The result is printed to the console.
+if(is_decreasing == False):
+    raise ValueError("ERROR! FALSE! The eigen values are not in decreasing order")
 
-
-
-
-#eigenvalues are in eivector table and in other separte table
-
+#The proportion of total variance explained by each PC is a useful metric for understanding structure in a sample and for evaluating how many PCs one might want to include in downstream analyses (see Fig. 9). This can be computed as λi∕∑kλk, with λi being eigenvalues in decreasing order
 smartpca_eigenvalues[1] = smartpca_eigenvalues[0]/smartpca_eigenvalues[0].sum()
-
-smartpca_eigenvalues[2] = smartpca_eigenvalues.iloc[:, 1].cumsum(axis=0)
-
+#smartpca_eigenvalues[2] = smartpca_eigenvalues.iloc[:, 1].cumsum(axis=0)
+#check
+if(smartpca_eigenvalues[1].sum() != 1.0):
+    raise ValueError("ERROR! FALSE! We have not correctly calculated the proportion of explained variance")
 
 #change column names
 smartpca_eigenvalues = smartpca_eigenvalues.rename(columns={0:"eigenvalue", 1:"prop_variance"})
-smartpca_eigenvalues
+print(smartpca_eigenvalues)
     
-    
-
-
+#select the eigenvalues of the first 20 axes
 smartpca_eigenvalues_20 = smartpca_eigenvalues.iloc[0:21, :]
-smartpca_eigenvalues_20
-
-
+print(smartpca_eigenvalues_20)
 
 #add a new column with the index (row numbers) and plot index vs the first and only column (eigenvalues)
 smartpca_eigenvalues_20.reset_index().plot( \
@@ -4343,6 +4350,8 @@ plt.close()
 
     #The results show that the top PCs only explain a small fraction of the variance (<1.7%) and that after about K=4 the variance explained per PC becomes relatively constant. This is much less compared to the results of plink where variance explained by the first axis was of 40%! but it is in line what the admixture tutorial got with smartpca, so maybe this is a question of this approach and/or the removal of outliers
     #we are not calculating cumultaive percentage of explained variance because we have a small proportion explained by each axis, and the rule of Ritche of 80% would require to include hundreds of axes...
+
+
 
 
 
@@ -4387,33 +4396,41 @@ import matplotlib.pyplot as plt
 melted_df = pd.melt(smartpca_snp_weights, id_vars=["rs_number", "chr", "pos"], value_vars=[f"pca_{i}" for i in range(1,n_axes+1)], var_name='pca_axis', value_name='snp_weight')
     #pd.melt transforms the DataFrame from wide format to long format, with one row for each combination of chromosome, position, and PCA axis. The id_vars parameter specifies the columns to use as identifier variables, and the value_vars parameter specifies the columns to unpivot. The var_name and value_name parameters specify the names of the new columns.
 
-#NOS FALTAN FILAS
+#we have all the rows
 
-melted_df["snp_weight"]
+smartpca_snp_weights[["rs_number", "chr", "pos"]].drop_duplicates().shape[0]*n_axes==melted_df.shape[0]
+    #94854 SNPs times 20 PCA axes makes 1897080 rows, which is the number of rows of melted_df
 
-print(smartpca_snp_weights.isnull().sum())
+# Get unique PCA axes and chromosomes
+pca_axes = melted_df['pca_axis'].unique()
+chromosomes = melted_df['chr'].unique()
 
+# Create subplots
+fig, axes = plt.subplots(len(pca_axes), len(chromosomes), figsize=(4*len(chromosomes), 4*len(pca_axes)))
 
-print(smartpca_snp_weights[["rs_number", "chr"]].nunique())
+for i, pca_axis in enumerate(pca_axes):
+    for j, chromosome in enumerate(chromosomes):
+        # Select data for this PCA axis and chromosome
+        data = melted_df[(melted_df['pca_axis'] == pca_axis) & (melted_df['chr'] == chromosome)]
+        # Create scatter plot
+        axes[i, j].scatter(data['pos'], data['snp_weight'])
+        # Set x-axis range
+        axes[i, j].set_xlim(data['pos'].min()*0.9, data['pos'].max()*1.1)
+        # Set title
+        axes[i, j].set_title(f'PCA Axis: {pca_axis}, Chromosome: {chromosome}')
 
-
-
-# Create a FacetGrid with one row for each PCA axis and one column for each chromosome
-g = sns.FacetGrid(melted_df, row='pca_axis', col="chr", height=4, aspect=1)
-    #Then, sns.FacetGrid creates a grid of subplots with one row for each PCA axis and one column for each chromosome. The row and col parameters specify the columns to use for the rows and columns of the grid, respectively.
-
-# Create a scatter plot for each combination of PCA axis and chromosome
-g = g.map(plt.scatter, x="pos", y="snp_weight")
-    #Finally, g.map applies the plt.scatter function to each subplot, with the position as the x variable and the weight as the y variable. The points in the plot are not connected by lines.
-
-
-
+# Adjust layout
+plt.tight_layout()
 
 #save and close
 plt.savefig( \
     fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/eso.png", \
     dpi=300) #dpi=300 for better resolution
 plt.close()
+
+
+
+
 
 
 #As mentioned above in the section on LD, it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions [7] (see Fig. 8). SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
