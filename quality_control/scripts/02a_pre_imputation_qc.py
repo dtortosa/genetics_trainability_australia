@@ -4252,6 +4252,53 @@ if False:
             -o ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tracy.out")
 '''
 
+print("see significant axes")
+#extract the tracy table
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
+    awk \
+        'BEGIN{ \
+            OFS=\"\t\"; \
+            start_table=0; \
+            end_table=0; \
+        }{ \
+            if($0 ~ /^## Tracy-Widom statistics: rows:/){ \
+                start_table=NR \
+            }; \
+            if($0 ~ /kurtosis/){ \
+                end_table=1 \
+            }; \
+            if(start_table !=0 && NR > start_table && end_table==0){ \
+                print $1,$2,$3,$4,$5,$6 \
+            }; \
+        }' \
+        smart_pca_run.out > tracy_table.tsv \
+    ")
+    #force the output to be tab, and create two variables as zero
+    #if the has the header of tracy table
+        #save the number of the row to know when the table start
+    #if the row includes kurtosis
+        #we are at the end of the table, so activate ending
+    #if start_table is not zero, and it is greater than the first row of the tracy table and we are not yet at the end of the table 
+        #print all fields separately
+
+#load the table
+tracy_table = pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/tracy_table.tsv", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+print(tracy_table)
+
+#print significant axes
+tracy_signi_axes = tracy_table.loc[tracy_table["p-value"] < 0.05,:]
+print(tracy_signi_axes)
+print(f"We have {tracy_signi_axes.shape[0]} significant axes")
+
+#Results
+#12 PCA axes are significant (P<0.05), meaining that they explain more genetic variance than expected by chance. This also means that they are detecting the existence of population structure inside of our study meaning that there are indiviauls from different ancestries. 
+#Plink PCA gives 9 relevant axes, while we have here 12. It seems the actual number could be around 10?
+
 print("plot smartpca eigenvectors")
 #process the eigenvector file to ensure is tab delimited
 run_bash(" \
@@ -4273,7 +4320,7 @@ run_bash(" \
         #the last is based on the number of PCA axes we have plus 1 because we have an ID column and 1 more because the last element of the range is not included in python
     #this effectively prints all columns as tab separated
 
-#load the table without the first row
+#load the table
 smartpca_eigenvectors = pd.read_csv(\
     "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
     sep="\t", \
@@ -4292,6 +4339,7 @@ plt.savefig("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/e
 plt.close()
     #In PC1 vs PC2, there is a clear cluster on the right. Also in PC1 vs PC3, a cluster on the right. Note that these are the most informative axes by far.
     #Therefore, we need to label subgroups using admixture, see below.
+        #According to the plink tutorial: "If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding."
 
 print("plot the explained variance using eigenvalues")
 #load the eigenvalues
@@ -4304,9 +4352,7 @@ print(smartpca_eigenvalues)
     #I have checked these eigenvalues are the same than in the first row of the eigenvector table, which is named as "#eigvals"
 
 #check eigenvalues are in decreasing order
-smartpca_eigenvalues_list = smartpca_eigenvalues[0].tolist()
-is_decreasing = all(x >= y for x, y in zip(smartpca_eigenvalues_list, smartpca_eigenvalues_list[1:]))
-    #In this code, convert the eigenvalues pandas series to list, then: zip(smartpca_eigenvalues_list, smartpca_eigenvalues_list[1:]) pairs each element in the list with the next element. Then, all(x >= y for x, y in ...) checks if each element is greater than or equal to the next element. The result is True if the list is in decreasing order and False otherwise. The result is printed to the console.
+is_decreasing = smartpca_eigenvalues.sort_values(by=0, ascending=False).equals(smartpca_eigenvalues)
 if(is_decreasing == False):
     raise ValueError("ERROR! FALSE! The eigen values are not in decreasing order")
 
@@ -4322,10 +4368,11 @@ smartpca_eigenvalues = smartpca_eigenvalues.rename(columns={0:"eigenvalue", 1:"p
 print(smartpca_eigenvalues)
     
 #select the eigenvalues of the first 20 axes
-smartpca_eigenvalues_20 = smartpca_eigenvalues.iloc[0:21, :]
+smartpca_eigenvalues_20 = smartpca_eigenvalues.iloc[0:20, :]
 print(smartpca_eigenvalues_20)
 
 #add a new column with the index (row numbers) and plot index vs the first and only column (eigenvalues)
+import matplotlib.pyplot as plt
 smartpca_eigenvalues_20.reset_index().plot( \
     x='index', \
     y="prop_variance", \
@@ -4340,22 +4387,25 @@ plt.xlabel('PCs')
 plt.ylabel('Proportion of variance explained')
 
 #add xticks from the first to the last PC
-plt.xticks(range(0, smartpca_eigenvalues_20.shape[0]), smartpca_eigenvalues_20.index, fontsize=8)
+plt.xticks( \
+    ticks=smartpca_eigenvalues_20.index, \
+    labels=range(1, smartpca_eigenvalues_20.shape[0]+1), \
+    fontsize=8)
+    #the positions are just the index of the eigenvalues
+    #the labels are 1 to 20, but add 1 at the end because the last element of the range is not included
 
 #save and close
 plt.savefig( \
     fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/explained_var.png", \
     dpi=300) #dpi=300 for better resolution
 plt.close()
-
+    
+#Results
     #The results show that the top PCs only explain a small fraction of the variance (<1.7%) and that after about K=4 the variance explained per PC becomes relatively constant. This is much less compared to the results of plink where variance explained by the first axis was of 40%! but it is in line what the admixture tutorial got with smartpca, so maybe this is a question of this approach and/or the removal of outliers
     #we are not calculating cumultaive percentage of explained variance because we have a small proportion explained by each axis, and the rule of Ritche of 80% would require to include hundreds of axes...
 
-
-
-
-
-
+print("plot SNP weights")
+#process the file to ensure it is tab delimited
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
     awk \
@@ -4369,98 +4419,220 @@ run_bash(" \
         ./loop_maf_missing_2_ldprunned_autosome_pca.snpeigs > ./loop_maf_missing_2_ldprunned_autosome_pca_tab.snpeigs \
 ")
     #we to sum 1 because the last number is not included in the range
-    #also 3 more because we have a column with the IDs and another with the chromosome and the phyisical position (I checedm with the bim file, identical all cases)
+    #also 3 more because we have a column with the IDs and another with the chromosome and the phyisical position (I checked with the bim file, identical all cases)
 
-
-
+#load the file
 smartpca_snp_weights = pd.read_csv(\
     "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.snpeigs", \
     sep="\t", \
     header=None, \
     low_memory=False)
 smartpca_snp_weights
+#check
+if(smartpca_snp_weights.shape[1] != n_axes+3):
+    raise ValueError("ERROR! FALSE! We have a problem with the number of axes in the SNP weights")
+    #besides axes, we have 3 columns (SNP id, chromosome and position)
 
+#sort the DF by chromosome and position
+if(smartpca_snp_weights.sort_values(by=[1, 2]).equals(smartpca_snp_weights) != True):
+    raise ValueError("ERROR! FALSE! Table with snp weights is not sorted by position and chromsome")
 
-smartpca_snp_weights = smartpca_snp_weights.sort_values(by=[1, 2])
-
+#change column names
 smartpca_snp_weights.columns = ["rs_number", "chr", "pos"] + [f"pca_{i}" for i in range(1,n_axes+1)]
+    #the axes are named as pca_1, pca_2... until pca_n_axes
+print(smartpca_snp_weights)
 
-smartpca_snp_weights
+#melt the DataFrame to have one row for each combination of chromosome and PCA axis
+smartpca_snp_weights_melted = pd.melt( \
+    smartpca_snp_weights, \
+    id_vars=["rs_number", "chr", "pos"], \
+    value_vars=[f"pca_{i}" for i in range(1,n_axes+1)], \
+    var_name="pca_axis", \
+    value_name="snp_weight")
+    #This function is useful to massage a DataFrame into a format where one or more columns are identifier variables (`id_vars`), while all other columns, considered measured variables (`value_vars`), are "unpivoted" to the row axis, leaving just two non-identifier columns, 'variable' and 'value'. In other words, pd.melt transforms the DataFrame from wide format to long format, with one row for each combination of chromosome, rs_numbre, position, and PCA axis. 
+        #The id_vars parameter specifies the columns to use as identifier variables. 
+            #The specific combination of chromosome, SNP and position
+        #the value_vars parameter specifies the columns to unpivot.
+            #we are taking all the PCA_axes columns and put them all together in the same column as different rows
+        #The var_name and value_name parameters specify the names of the new columns.
+print(smartpca_snp_weights_melted)
 
+#check we have all the rows
+if(smartpca_snp_weights[["rs_number", "chr", "pos"]].shape[0]*n_axes!=smartpca_snp_weights_melted.shape[0]):
+    raise ValueError("ERROR! FALSE! Problem when melting the DF with SNP weights, we do not have the expected number of rows")
+    #94854 SNPs times 20 PCA axes makes 1897080 rows, which is the number of rows of smartpca_snp_weights_melted
 
-import pandas as pd
-import seaborn as sns
+#get unique PCA axes and chromosomes
+pca_axes = smartpca_snp_weights_melted['pca_axis'].unique()
+chromosomes = smartpca_snp_weights_melted['chr'].unique()
+
+#create subplots
+#define dimensions
 import matplotlib.pyplot as plt
+fig, axes = plt.subplots( \
+    nrows=len(pca_axes), \
+    ncols=len(chromosomes), \
+    figsize=(4*len(chromosomes), 4*len(pca_axes)))
+    #define the number of rows/columns of the subplot grid.
 
-# Melt the DataFrame to have one row for each combination of chromosome and PCA axis
-melted_df = pd.melt(smartpca_snp_weights, id_vars=["rs_number", "chr", "pos"], value_vars=[f"pca_{i}" for i in range(1,n_axes+1)], var_name='pca_axis', value_name='snp_weight')
-    #pd.melt transforms the DataFrame from wide format to long format, with one row for each combination of chromosome, position, and PCA axis. The id_vars parameter specifies the columns to use as identifier variables, and the value_vars parameter specifies the columns to unpivot. The var_name and value_name parameters specify the names of the new columns.
-
-#we have all the rows
-
-smartpca_snp_weights[["rs_number", "chr", "pos"]].drop_duplicates().shape[0]*n_axes==melted_df.shape[0]
-    #94854 SNPs times 20 PCA axes makes 1897080 rows, which is the number of rows of melted_df
-
-# Get unique PCA axes and chromosomes
-pca_axes = melted_df['pca_axis'].unique()
-chromosomes = melted_df['chr'].unique()
-
-# Create subplots
-fig, axes = plt.subplots(len(pca_axes), len(chromosomes), figsize=(4*len(chromosomes), 4*len(pca_axes)))
-
+#make the plots
+#for each PCA axis (i starts at 0)
+#pca_axis="pca_1"; chromosome=1; i=0; j=0
 for i, pca_axis in enumerate(pca_axes):
+    
+    #for each chromosome (j starts at 0)
     for j, chromosome in enumerate(chromosomes):
-        # Select data for this PCA axis and chromosome
-        data = melted_df[(melted_df['pca_axis'] == pca_axis) & (melted_df['chr'] == chromosome)]
-        # Create scatter plot
-        axes[i, j].scatter(data['pos'], data['snp_weight'])
-        # Set x-axis range
-        axes[i, j].set_xlim(data['pos'].min()*0.9, data['pos'].max()*1.1)
-        # Set title
-        axes[i, j].set_title(f'PCA Axis: {pca_axis}, Chromosome: {chromosome}')
+        
+        #select data for this PCA axis and chromosome
+        snp_weights_subset = smartpca_snp_weights_melted[(smartpca_snp_weights_melted["pca_axis"] == pca_axis) & (smartpca_snp_weights_melted["chr"] == chromosome)]
+        
+        #create scatter plot
+        axes[i, j].scatter(x=snp_weights_subset["pos"], y=snp_weights_subset["snp_weight"])
+        
+        #set x-axis range extending a bit from both sides
+        axes[i, j].set_xlim(snp_weights_subset["pos"].min()*0.9, snp_weights_subset["pos"].max()*1.1)
+        
+        #set title
+        axes[i, j].set_title(f"PCA Axis: {pca_axis}, Chromosome: {chromosome}")
 
-# Adjust layout
+#adjust layout
 plt.tight_layout()
 
 #save and close
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/eso.png", \
+    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/snps_weights_across_axes_chromosomes.png", \
     dpi=300) #dpi=300 for better resolution
 plt.close()
 
+#results
+    #it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions. SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
+    #I have found some weak positive and negative peaks in a few chromsoomes but mostly for PCAs above 9. No sign at all, so we are really capturing population structure.
 
+print("Remove outliers")
+pca_outliers = pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.outliers", \
+    sep=" ", \
+    header=None, \
+    low_memory=False)
+print(pca_outliers)
+print(f"We have removed {pca_outliers.shape[0]} samples because they were PCA outliers")
 
-
-
-
-#As mentioned above in the section on LD, it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions [7] (see Fig. 8). SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
-
-
-
-
-#we have clusters in the first plots. According to the plink tutorial: "If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding." In the most important PCs (PC1 and PC2 explain a lot of varaibility), there is at least one clear cluster.
-
-#12 PCA axes are significant (P<0.05), meaining that they explain more genetic variance than expected by chance. This also means that they are detecting the existence of population structure inside of our study meaning that there are indiviauls from different ancestries. 
-
+#Results
 #48 samples have been removed because they are very away from the mean of the PCA axes, specifically, more than 8 standard deviations. These are very extreme outliers likely caused due to genotyping errors and it is recommended to remove them. 
 
-#
+#save the IDs in a file
+pca_outliers[2].str.split(":", expand=True).to_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/smartpca_outliers.txt",
+    sep="\t",
+    header=False,
+    index=False)
+    #first split the ID column into to two columns (expand=True) so we separate family and sample ID, which is the format expected by --remove of plink
+
+#remove these outliers from the plink files
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
+    plink \
+        --bfile ./loop_maf_missing_2_ldprunned_autosome_pca \
+        --remove ./eigen_out/smartpca_outliers.txt \
+        --make-bed \
+        --out ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers"
+)
+    #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+
+#check if the difference in samples between the original and new fam files is the number of outliers
+if( \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca.fam", sep=" ", header=None, low_memory=False).shape[0] - \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", sep=" ", header=None, low_memory=False).shape[0] != \
+    pca_outliers.shape[0]):
+        raise ValueError("ERROR: FALSE! WE HAVE NOT CORRECLTY REMOVED PCA OUTLIERS ")
+
+print_text("Ancestry analysis following Admixture tutorial", header=4)
+    #tutorial developed by the authors of admixture
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
+print("general info")
+#SNPs in high LD with each other contain redundant information. More worrisome is the potential for some regions of the genome to have a disproportionate influence on the results and thus distort the representation of genome-wide structure. A nice empirical example of the problem is in figure 5 of Tian et al. [30], where PC2 of the genome-wide data is shown to be reflecting the variation in a 3.8 Mb region of chromosome 8 that is known to harbor an inversion. A standard approach to address this issue is to filter out SNPs based on pairwise LD to produce a reduced set of more independent markers. Here we use plink’s commands to produce a new LD-pruned dataset with output prefix H938_Euro.LDprune. The approach considers a chromosomal window of 50 SNPs at a time, and for any pair whose genotypes have an association r2 value greater than 0.1, it removes a SNP from the pair. Then the window is shifted by 10 SNPs and the procedure is repeated
+    #We have removed SNPs correlated more than 0.2 instead of 0.1, but the we are looking at 500KB windows, very big windows. We are being strict according to the plink standards
+
+#The ADMIXTURE software (v 1.3.0 here) comes as a pre-compiled binary executable file for either Linux or Mac operating systems. To install, simply download the package and move the executable into your standard execution path (e.g. “/usr/local/bin” on many Linux systems). Once installed, it is straightforward to run ADMIXTURE with a fixed number of source populations, commonly denoted by K. 
+
+#ADMIXTURE is a maximum-likelihood based method, so as the method runs, you will see updates to the log-likelihood as it converges on a solution for the ancestry proportions and allele frequencies that maximize the likelihood function. The algorithm will stop when the difference between successive iterations is small (the “delta” value takes a small value). A final output is an estimated FST value [11] between each of the source populations, based on the inferred allele frequencies. These estimates reflect how differentiated the source populations are, which is important for understanding whether the population structure observed in a sample is substantial or not (values closer to 0 reflect less population differentiation).
+
+print("run admixture")
+run_bash("mkdir -p ./data/genetic_data/quality_control/14_pop_strat/02_admixture")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture; \
+    /bin/admixture ../01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.bed 2")
+    #ADMIXTURE basic usage:  (see manual for complete reference) % admixture [options] inputFile K
+        #where: K is the number of populations; and inputFile may be: a PLINK .bed file or a PLINK "12" coded .ped file.
+    #After running, ADMIXTURE produces two major output files. 
+        #The file with suffix .P contains an L × K table of the allele frequencies inferred for each SNP in each population. 
+        #The file with suffix .Q contains an N × K table of inferred individual ancestry proportions from the K ancestral populations, with one row per individual.
+
+print("use pong to vizualice results with k=12")
+#pong was installed using "python3.9 -m pip install pong"
+    #https://github.com/ramachandran-lab/pong
+
+#To run pong requires setting up a few files: 
+#(1) an ind2pop file that maps individuals to populations. The example in pong github (https://github.com/ramachandran-lab/pong/blob/master/example_data_1kG-p3/ind2pop.txt) shows that is just one column with a row per sample and the population code. In our case, we do not have labelled populations, so we can just use CRTL or the batch name
 
 
-#plotting
-    #we are not goint to use PCAviz, because the main point is to see individuals around labeled populations, but we have already remove outliers using smartpca. We can take a look just using the approach of plink tutorial, i.e., plot PC1 vs PC2. See "3.7 Principal Component Analysis" in plink tutorial
+##por aquiii
 
-    #Eigenvalues (section "3.4.2 Plotting PCA Results with PCAviz" in ADMIXTURE tutorial)
+#https://github.com/ramachandran-lab/pong/tree/master
+#https://github.com/ramachandran-lab/pong/blob/master/pong-manual.pdf
 
-    #PC1 vs PC2
+#load the first column (FAM IDs) from the family file without outliers
+pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", \
+    sep=" ", \
+    header=None, \
+    low_memory=False)[0].to_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop", sep="\t",header=False, index=False)
+
+#(2) a Qfilemap file that points pong towards which “.Q” files to display; these are easy to build up from the command-line using the Euro.clst.txt file we built above, and an awk command to output tab-separated text to a file with the Qfilemap suffix added to whatever file prefix we’re using to organize our runs:
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
+    FILEPREFIX=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
+    K=2; \
+    awk \
+        -v K=$K \
+        -v file=$FILEPREFIX \
+        'BEGIN{ \
+            printf(\"ExampleRun\\t%d\\t%s.%d.Q\\n\", K, file, K) \
+        }' > $FILEPREFIX.Qfilemap\
+")
+    #The %d and %s are format specifiers used in the printf function in awk (and many other languages). They are placeholders for variables that you want to insert into a string.
+        #%d is a placeholder for a decimal integer.
+        #%s is a placeholder for a string.
+    #In your code, printf(\"ExampleRun\\t%d\\t%s.%d.Q\\n\", K, file, K):
+        #The first %d is replaced by the value of K.
+        #The %s is replaced by the value of file.
+        #The second %d is again replaced by the value of K.
+    #So if K is 2 and file is "filename", the output would be: ExampleRun\t2\tfilename.2.Q\n.
+    #The reason K is used twice is because the format of the output string requires the value of K in two places: once after the tab (\t) and once before the .Q in the filename.
 
 
 
 
-    #evecoutname:
-        #output file of eigenvectors. See numoutevec parameter below.
-    #evaloutname:
-        #output file of all eigenvalues
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
+    pong -m ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.Qfilemap -i ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop --verbose")
+
+
+###mira help pong in github, very clear
+
+
+
+
+#USE THE PLINK FILES FOR THE PCA WITHOUT OUTLIERS!
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4468,114 +4640,6 @@ plt.close()
 #We have aorund 11 significant axes, meaning we really have structure on the data!!!
 #we really need to do admixture analyses after this? CHECK ADMIXTURE TUTORIAL, a prioir, the only interesting thing is to have CV error for K, numbr of groups and compare with the number of significant axes...
 
-
-
-## outlier removal not needed if we use smartpca...
-
-
-print_text("outlier removal", header=4)
-
-
-
-##should we use all 9 axes for this??
-
-#remove outliers based on the first 10 axes
-#pc="PC2"
-list_df = list()
-for pc in pc_columns:
-
-    if(pc!="PC11"):
-        high_limit = pca_results[pc].mean()+(pca_results[pc].std()*8)
-        low_limit = pca_results[pc].mean()-(pca_results[pc].std()*8)
-
-        pca_results_subset=pca_results.loc[(pca_results[pc]>high_limit) | (pca_results[pc]<low_limit), ["#FID", "IID"]]
-        
-        pca_results_subset=pca_results_subset.assign(PC=pc)
-
-        list_df.append(pca_results_subset)
-    else:
-        break
-
-concatenated_df = pd.concat(list_df)
-
-concatenated_unique_df = concatenated_df.drop_duplicates(subset=["#FID", "IID"])
-
-concatenated_unique_df.shape[0]
-concatenated_unique_df
-
-concatenated_unique_df[["#FID", "IID"]].to_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_outliers.txt",
-    sep="\t",
-    header=False,
-    index=False)
-
-
-
-
-
-#As mentioned above in the section on LD, it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions [7] (see Fig. 8). SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
-
-
-#there is a package to run R code in python
-#but maybe you can just use run_bash with Rscrip '', look def files of pinus niche for installaing packages on the fly
-
-run_bash("Rscript -e 'print(\"Hello, world!\")'")
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
-    plink \
-        --bfile ./loop_maf_missing_2_ldprunned_autosome_pca \
-        --remove ./pca_outliers.txt \
-        --make-bed \
-        --out ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers"
-)
-    #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
-
-
-run_bash("\
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
-    plink2 \
-        --pca 20 \
-        --bfile ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers \
-        --out ./pca_results_no_outliers")
-
-pca_results_no_outliers = pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_results_no_outliers.eigenvec", \
-    sep="\t", \
-    header=0, \
-    low_memory=False)
-pca_results_no_outliers
-
-
-second_round_outliers = list()
-for pc in pc_columns:
-
-    if(pc!="PC11"):
-        high_limit = pca_results_no_outliers[pc].mean()+(pca_results_no_outliers[pc].std()*8)
-        low_limit = pca_results_no_outliers[pc].mean()-(pca_results_no_outliers[pc].std()*8)
-
-        pca_results_subset=pca_results_no_outliers.loc[(pca_results_no_outliers[pc]>high_limit) | (pca_results_no_outliers[pc]<low_limit), ["#FID", "IID"]]
-        
-        pca_results_subset=pca_results_subset.assign(PC=pc)
-
-        list_df.append(pca_results_subset)
-    else:
-        break
-
-
-if(len(second_round_outliers)!=0):
-    raise ValueError("ERROR! FALSE! WE STILL HAVE PCA OUTLIERS")
-
-
-
-import seaborn as sns
-sns.pairplot(pca_results[pc_columns[0:5]])
-plt.savefig("./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_results_no_outliers.png", dpi=300)
-plt.close()
-
-#If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding.
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
 
 #PLAN:
@@ -4587,6 +4651,16 @@ plt.close()
         #think it is worth to merge our data with the 1KGDP to use as anchor. If you do that you have to check for strand flips. see admixture tutorial.
 
 
+
+
+IMPORTANT HERE!!!! WE NEED TO REMOVE THE PCA OUTLIERS FROM THE PLINK FILES THAT WILL BE USED IN THE NEXT STEPS, WE HAVE ONLY REMOVED THEM FROM THE PCA PLINK FILES
+
+
+    plink \
+        --bfile ./loop_maf_missing_2_ldprunned_autosome_pca \
+        --remove ./eigen_out/smartpca_outliers.txt \
+        --make-bed \
+        --out ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers"
 
 
 

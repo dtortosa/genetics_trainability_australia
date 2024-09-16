@@ -59,6 +59,9 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
 	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/eigensoft_versions/EIG-8.0.0/bin/twstats /bin/twstats
 		#also add twstats just in case we needed
 
+	#copy the binary of admixture
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/admixture_versions/admixture_linux-1.3.0/dist/admixture_linux-1.3.0/admixture /bin/admixture
+
 	#copy script
 	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/scripts/02a_pre_imputation_qc.py /opt/scripts/02a_pre_imputation_qc.py
 
@@ -149,6 +152,7 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
 	python3.9 get-pip.py
 
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
+	python3.9 -m pip install pong
 	python3.9 -m pip install seaborn
 	python3.9 -m pip install plotly
 	#python3.9 -m pip install dash-bio==1.0.1

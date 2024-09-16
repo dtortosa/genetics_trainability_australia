@@ -1,6 +1,7 @@
 *.sif
 *.ipynb_checkpoints
 
+admixture_versions/
 /.vscode/
 /association_studies/results/
 /association_studies/data/
