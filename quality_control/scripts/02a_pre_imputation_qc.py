@@ -4557,7 +4557,65 @@ print("general info")
 #ADMIXTURE is a maximum-likelihood based method, so as the method runs, you will see updates to the log-likelihood as it converges on a solution for the ancestry proportions and allele frequencies that maximize the likelihood function. The algorithm will stop when the difference between successive iterations is small (the “delta” value takes a small value). A final output is an estimated FST value [11] between each of the source populations, based on the inferred allele frequencies. These estimates reflect how differentiated the source populations are, which is important for understanding whether the population structure observed in a sample is substantial or not (values closer to 0 reflect less population differentiation).
 
 print("run admixture")
-run_bash("mkdir -p ./data/genetic_data/quality_control/14_pop_strat/02_admixture")
+run_bash("mkdir -p ./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out")
+
+#run for different values of K, each with 10 runs
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
+    prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
+    for r in {1..10}; do \
+        for K in {2..12}; do \
+            admixture --seed ${RANDOM} -j10 ../01_pca/${prefix}.bed $K; \
+            mv ./${prefix}.${K}.Q ./admixture_out/${prefix}.K${K}r${r}.Q; \
+            mv ./${prefix}.${K}.P ./admixture_out/${prefix}.K${K}r${r}.P; \
+        done; \
+    done; \
+")
+
+#create pong files
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
+    prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
+    createQmap() { \
+        local r=$1; \
+        local K=$2; \
+        awk \
+            -v K=$K \
+            -v r=$r \
+            -v file=${prefix}.K${K}r${r} \
+            'BEGIN{ \
+                printf(\"K%dr%d\\t%d\\t%s.Q\\n\", K, r, K, file) \
+            }' >> ./admixture_out/${prefix}.multiplerun.Qfilemap; \
+    }; \
+    export -f createQmap; \
+    for K in {2..12}; do \
+        for r in {1..10}; do \
+            createQmap $r $K; \
+        done; \
+    done; \
+")
+    #careful ">>" adds new lines to the file!!
+
+#load the first column (FAM IDs) from the family file without outliers
+pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", \
+    sep=" ", \
+    header=None, \
+    low_memory=False)[0].to_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop", sep="\t",header=False, index=False)
+
+#run pong
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
+    pong \
+        --filemap ./admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.multiplerun.Qfilemap \
+        --greedy \
+        --sim_threshold 0.95 \
+        --ind2pop ./admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop \
+")
+
+loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.multiplerun.Qfilemap
+
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture; \
     /bin/admixture ../01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.bed 2")
@@ -4566,6 +4624,37 @@ run_bash(" \
     #After running, ADMIXTURE produces two major output files. 
         #The file with suffix .P contains an L × K table of the allele frequencies inferred for each SNP in each population. 
         #The file with suffix .Q contains an N × K table of inferred individual ancestry proportions from the K ancestral populations, with one row per individual.
+
+
+
+
+
+admixture_q_file = pd.read_csv(\
+    "./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K10r1.Q", \
+    sep=" ", \
+    header=None, \
+    low_memory=False)
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Convert to matrix and transpose it
+
+# Plotting the stacked bar plot
+admixture_q_file.plot(kind='bar', stacked=True, colormap='rainbow')
+
+# Adding labels and title
+plt.ylabel('Ancestry Proportions')
+plt.title('Ancestry Proportions for Individuals')
+plt.legend(loc='upper right', bbox_to_anchor=(1.15, 1))
+#save and close
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/02_admixture/eso.png", \
+    dpi=300) #dpi=300 for better resolution
+plt.close()
+
+
+
 
 print("use pong to vizualice results with k=12")
 #pong was installed using "python3.9 -m pip install pong"
@@ -4615,7 +4704,7 @@ run_bash(" \
 
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
-    pong -m ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.Qfilemap -i ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop --verbose")
+    pong -m ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.Qfilemap -i ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop")
 
 
 ###mira help pong in github, very clear
