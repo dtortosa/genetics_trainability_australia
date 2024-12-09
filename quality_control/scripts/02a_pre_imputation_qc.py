@@ -3788,7 +3788,11 @@ run_bash(" \
 print_text("checks after filtering", header=4)
 #In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat. I guess they used the same dataset for the PCA. They also say that "It is recommended that the user prune to approximately ∼100,000 SNPs for use in PCA analyses". The github of the paper shows the removal of sex chromosomes (step 8) before the PCA (step 9), while Marees et al explictily says that we should perform the PCA on autosomal SNPs. Althougl plink tutorial does not filter out sex chromosomes before, we are doing it given what the other sources are doing.
     #14_pop_strat/01_pca
-#Therefore, we need around 100K independent autosomal SNPs.
+#In the admixture tutorial and Admixture docs they use a more stringent LD filtering, but they say that if you want to control for population structure between related populations (i.e., within the same continent) then 10K is not enough and you should use 100K. 
+    #Using the approach suggested in the Admixture manual and tutorial gives 58K SNPs.
+        #--indep-pairwise 50 10 0.1
+        #http://dalexander.github.io/admixture/admixture-manual.pdf
+#Therefore, we need around 100K independent autosomal SNPs. This seems to be enough considering all scenarios.
 #It also seems important to remove related samples before the PCA
     #"We exclude related individuals as we are not interested in population structure that is due to family relationships and methods such as PCA and ADMIXTURE can inadvertently mistake family structure for population structure"
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
@@ -4140,8 +4144,8 @@ run_bash(" \
     echo evaloutname: ./eigen_out/$PREFIX.eval >> ./eigen_out/$PREFIX.par; \
     echo phylipoutname: ./eigen_out/$PREFIX.fst >> ./eigen_out/$PREFIX.par; \
     echo numoutevec: " + str(n_axes) + " >> ./eigen_out/$PREFIX.par; \
-    echo outliersigmathresh: 8 >> ./eigen_out/$PREFIX.par; \
-    echo numoutlieriter: 8 >> ./eigen_out/$PREFIX.par; \
+    echo outliersigmathresh: 6 >> ./eigen_out/$PREFIX.par; \
+    echo numoutlieriter: 11 >> ./eigen_out/$PREFIX.par; \
     echo numoutlierevec: 10 >> ./eigen_out/$PREFIX.par; \
     echo outlieroutname: ./eigen_out/$PREFIX.outliers >> ./eigen_out/$PREFIX.par; \
     echo altnormstyle: YES >> ./eigen_out/$PREFIX.par; \
@@ -4337,8 +4341,8 @@ import seaborn as sns
 sns.pairplot(smartpca_eigenvectors.iloc[:,1:6])
 plt.savefig("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/eigen_vectors_pairwise.png", dpi=300)
 plt.close()
-    #In PC1 vs PC2, there is a clear cluster on the right. Also in PC1 vs PC3, a cluster on the right. Note that these are the most informative axes by far.
-    #Therefore, we need to label subgroups using admixture, see below.
+    #PC1 is clearly the axis absorbing genetic structure. There are at least 2 clear groups, and maybe 3. This can be seen when plotting PC1 vs the other axes. In contrast, when plotting the other axes against each other, there are clouds with a lot of contiunity. This support the idea that PC1 is very relevant (see explained variance below).
+    #We are going to use the groups based on PC1 and check with admixture whether is better to assume 1, 2 or 3 ancestry groups in our data.
         #According to the plink tutorial: "If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding."
 
 print("plot the explained variance using eigenvalues")
@@ -4401,7 +4405,8 @@ plt.savefig( \
 plt.close()
     
 #Results
-    #The results show that the top PCs only explain a small fraction of the variance (<1.7%) and that after about K=4 the variance explained per PC becomes relatively constant. This is much less compared to the results of plink where variance explained by the first axis was of 40%! but it is in line what the admixture tutorial got with smartpca, so maybe this is a question of this approach and/or the removal of outliers
+    #PC1 explains 1.4% of variability, while PC2 explains 0.12%. From there, next PCAs until the number 20 explains around 0.10%. Therefore, the main reduction of explained variability occurs from PC1 to PC2 (1.27%) and a from PC2 to PC3 (0.01%). From there, the reductions are much smaller. Therefore, the main axes seems to be PC1 and PC2.
+    #Note that the total explained variance is much less compared to the results of plink where variance explained by the first axis was of 40%! but it is in line what the admixture tutorial got with smartpca, so maybe this is a question of this approach and/or the removal of outliers
     #we are not calculating cumultaive percentage of explained variance because we have a small proportion explained by each axis, and the rule of Ritche of 80% would require to include hundreds of axes...
 
 print("plot SNP weights")
@@ -4506,7 +4511,7 @@ plt.close()
 
 #results
     #it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions. SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
-    #I have found some weak positive and negative peaks in a few chromsoomes but mostly for PCAs above 9. No sign at all, so we are really capturing population structure.
+    #From PC3 and so on there is a marked increase of weights in a small region of chromosome 6. This maybe could still exist slightly in PC2, but it is veeeeeery mild. Therefore, this is another argument to just focus on PC1 and PC2 from this point.
 
 print("Remove outliers")
 pca_outliers = pd.read_csv(\
@@ -4518,7 +4523,8 @@ print(pca_outliers)
 print(f"We have removed {pca_outliers.shape[0]} samples because they were PCA outliers")
 
 #Results
-#48 samples have been removed because they are very away from the mean of the PCA axes, specifically, more than 8 standard deviations. These are very extreme outliers likely caused due to genotyping errors and it is recommended to remove them. 
+#99 samples have been removed because they are very away from the mean of the PCA axes, specifically, more than 6 standard deviations.
+#It is true that the plink tutorial says that outliers away more than 8 SDs, are "likely caused due to genotyping errors and it is recommended to remove them". However, the "predict-HIIT" study used 6 SD to remove PCA ancestry outliers. In addition, the default of smartpca is 6, not 8. Also, The predict-hiit study only conisdered the first 2 axes and losed 10 samples because of this, but smartpca considers 10 as default.Finally, most important is the fact that the removing all these outliers (6SDs and considering 10 axes) makes the data much more clear, showing a clear structure only for the PC1 and then clouds for the rest of axes. We have now one axis capturing a clear genetic structure (not related to structural variation). Therefore, we are going to lose all these outliers for the sake of clearer data.
 
 #save the IDs in a file
 pca_outliers[2].str.split(":", expand=True).to_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/smartpca_outliers.txt",
@@ -4527,7 +4533,7 @@ pca_outliers[2].str.split(":", expand=True).to_csv("./data/genetic_data/quality_
     index=False)
     #first split the ID column into to two columns (expand=True) so we separate family and sample ID, which is the format expected by --remove of plink
 
-#remove these outliers from the plink files
+#remove these outliers from the plink files of the LD subset
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
     plink \
@@ -4545,38 +4551,225 @@ if( \
     pca_outliers.shape[0]):
         raise ValueError("ERROR: FALSE! WE HAVE NOT CORRECLTY REMOVED PCA OUTLIERS ")
 
+#remove now from the general dataset
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir ./14_pop_strat/03_ancestry_cleaned_plink;\
+    plink \
+        --bfile ./12_loop_maf_missing/loop_maf_missing_2 \
+        --remove ./14_pop_strat/01_pca/eigen_out/smartpca_outliers.txt \
+        --make-bed \
+        --out ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers"
+)
+#check
+if( \
+    pd.read_csv("./data/genetic_data/quality_control/12_loop_maf_missing/loop_maf_missing_2.fam", sep=" ", header=None, low_memory=False).shape[0] - \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers.fam", sep=" ", header=None, low_memory=False).shape[0] != \
+    pca_outliers.shape[0]):
+        raise ValueError("ERROR: FALSE! WE HAVE NOT CORRECLTY REMOVED PCA OUTLIERS ")
+
 print_text("Ancestry analysis following Admixture tutorial", header=4)
     #tutorial developed by the authors of admixture
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
+    #admixture manual
+        #http://dalexander.github.io/admixture/admixture-manual.pdf
 print("general info")
+#ADMIXTURE is a program for estimating ancestry in a model-based manner from large autosomal SNP genotype datasets, where the individuals are unrelated (for example, the individuals in a case-control association study).
+
+#ADMIXTURE’s input is binary PLINK (.bed), ordinary PLINK (.ped), or EIGENSTRAT (.geno) formatted files and its output is simple space-delimited files containing the parameter estimates.
+
+#To use ADMIXTURE, you need an input file and an idea of K, your belief of the number of ancestral populations. You should also have the associated support files alongside your main input file, in the same directory. For example, if your primary input file is a .bed file, you should have the associated .bim (binary marker information file) and .fam stub file) files in the same directory.
+    #IMPORTANT: They say "your belief of the number of ancestral populations". In other words, based on your previous knowledge of your sample, select reasonable numbers for K. The literaly say "if you believe that the individuals in the sample derive their ancestry from three ancestral populations then run admixture .... using k=3". We have prior information from the PCA that we could have 2-3 groups, so we should stay around that range.
+
+#Prune SNPs? We tend to believe this is a good idea, since our model does not explicitly take LD into consideration, and since enormous data sets take more time to analyze. It is impossible to “remove” all LD, especially in recently-admixed populations, which have a high degree of “admixture LD”. Two approaches to mitigating the effects of LD are to include markers that are separated from each other by a certain genetic distance, or to thin the markers according the observed sample correlation coefficients. The easiest way is the latter, using the --indep-pairwise option of PLINK. For example, if we start with a file rawData.bed, we could use the following commands to prune according to a correlation threshold and store the pruned dataset in prunedData.bed
+
 #SNPs in high LD with each other contain redundant information. More worrisome is the potential for some regions of the genome to have a disproportionate influence on the results and thus distort the representation of genome-wide structure. A nice empirical example of the problem is in figure 5 of Tian et al. [30], where PC2 of the genome-wide data is shown to be reflecting the variation in a 3.8 Mb region of chromosome 8 that is known to harbor an inversion. A standard approach to address this issue is to filter out SNPs based on pairwise LD to produce a reduced set of more independent markers. Here we use plink’s commands to produce a new LD-pruned dataset with output prefix H938_Euro.LDprune. The approach considers a chromosomal window of 50 SNPs at a time, and for any pair whose genotypes have an association r2 value greater than 0.1, it removes a SNP from the pair. Then the window is shifted by 10 SNPs and the procedure is repeated
     #We have removed SNPs correlated more than 0.2 instead of 0.1, but the we are looking at 500KB windows, very big windows. We are being strict according to the plink standards
 
+#how many markers needed? This depends on how genetically differentiated your populations are, and on what you plan to do with the estimates. It has been noted elsewhere [4] that the number of markers needed to resolve populations in this kind of analysis is inversely proportional to the genetic distance (FST ) betweeen the populations. It is also noted in that paper that more markers are needed to perform adequate GWAS correction than are needed to simply observe the population structure. As a rule of thumb, we have found that 10,000 markers suffice to perform GWAS correction for continentally separated populations (for example, African, Asian, and European pop- ulations FST > .05) while more like 100,000 markers are necessary when the populations are within a continent (Europe, for instance, FST < 0.01). 
+
 #The ADMIXTURE software (v 1.3.0 here) comes as a pre-compiled binary executable file for either Linux or Mac operating systems. To install, simply download the package and move the executable into your standard execution path (e.g. “/usr/local/bin” on many Linux systems). Once installed, it is straightforward to run ADMIXTURE with a fixed number of source populations, commonly denoted by K. 
+
+#There is an output file for each parameter set: Q (the ancestry fractions), and P (the allele frequencies of the inferred ancestral populations). Note that the output filenames have ‘3’ in them. This indicates the number of populations (K) that was assumed for the analysis. This filename convention makes it easy to run analyses using different values of K in the same directory.
 
 #ADMIXTURE is a maximum-likelihood based method, so as the method runs, you will see updates to the log-likelihood as it converges on a solution for the ancestry proportions and allele frequencies that maximize the likelihood function. The algorithm will stop when the difference between successive iterations is small (the “delta” value takes a small value). A final output is an estimated FST value [11] between each of the source populations, based on the inferred allele frequencies. These estimates reflect how differentiated the source populations are, which is important for understanding whether the population structure observed in a sample is substantial or not (values closer to 0 reflect less population differentiation).
 
+
 print("run admixture")
-run_bash("mkdir -p ./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out")
-
-#run for different values of K, each with 10 runs
-
+#run admixture from K=1 to K=8 using cross-validation
+run_bash("mkdir -p ./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_cv")
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
     prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
-    for r in {1..10}; do \
-        for K in {2..12}; do \
-            admixture --seed ${RANDOM} -j10 ../01_pca/${prefix}.bed $K; \
-            mv ./${prefix}.${K}.Q ./admixture_out/${prefix}.K${K}r${r}.Q; \
-            mv ./${prefix}.${K}.P ./admixture_out/${prefix}.K${K}r${r}.P; \
+    Klow=1; \
+    Khigh=8; \
+    for ((K=$Klow; K<=$Khigh; K++)); do \
+        admixture \
+            --seed 854534 \
+            --cv=5 \
+            -j28 \
+            ../01_pca/${prefix}.bed \
+            $K | tee log.${prefix}.${K}.out; \
+        mv ./log.${prefix}.${K}.out ./admixture_cv/log.${prefix}.K${K}.out; \
+        mv ./${prefix}.${K}.Q ./admixture_cv/${prefix}.K${K}.Q; \
+        mv ./${prefix}.${K}.P ./admixture_cv/${prefix}.K${K}.P; \
+    done; \
+")
+    #--seed
+        #random seed for initialization
+    #--cv
+        #Use ADMIXTURE’s cross-validation procedure to select the best K value. A good value of K will exhibit a low cross-validation error compared to other K values. Cross-validation is enabled by simply adding the --cv flag to the ADMIXTURE command line. In this default setting, the cross-validation procedure will perform 5-fold CV—you can get 10-fold CV, for example, using --cv=10. The cross-validation error is reported in the output.
+        #ADMIXTURE includes a cross-validation procedure that allows the user to identify the value of K for which the model has best predictive accuracy, as determined by “holding out” data points.
+        #If I understand correctly, they create 5 folds with all genotypes, and convert to NA one of the folds. Then predic the genotypes of that fold and calculate the difference respect to the observed. The better prediction, the better a model with K ancestries works.
+    #-j
+        #To split ADMIXTURE’s work among N threads, you may append the flag -jN to your ADMIXTURE command. The core algorithms will run up to N times as fast, presuming you have at least N processors
+    #the last two positional arguments are
+        #input file
+            #a PLINK .bed file
+        #K
+            #the number of populations;
+    #The tee command writes the output to the file log.${prefix}.${K}.out and simultaneously displays it on the terminal.
+
+
+##do CV with 100K SNPs, to check 2 is still good, but if the same, then we could use 50K. Ritchie says 100K for their analyses, but admixture says that for pops with FST>0.1 10K is enough. We can use this subset of SNPs only for this and then do another oen if neded for another non-LD aware analysis.
+
+##SI SE QUEJAN EN REVISION, decimos que son soldados australianaos y que hemos dejado una muestra homogenea. Exactamente ogual que en el paper de fibro o en Helena. Los european adolescents de helena podrían ser africanos... asi que estamos mejor aquí.
+
+##LOOK CV ERROR AND FST BETWEEN POPS ESTIMATED
+
+
+#The Q estimates are output as a simple matrix, so it is easy to make figures like Figure 1 from our paper
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Read the Q estimates from the file
+tbl_raw = pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_cv/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K4.Q", sep="\s+", header=None)
+
+# Determine the column with the highest value for each row
+max_membership = tbl_raw.idxmax(axis=1)
+
+# Sort the DataFrame based on the column with the highest value
+tbl = tbl_raw.iloc[np.argsort(max_membership)]
+
+
+# Convert the DataFrame to a NumPy matrix and transpose it
+matrix = tbl.to_numpy().T
+
+# Define the colors for the bar plot
+colors = plt.cm.rainbow(np.linspace(0, 1, matrix.shape[0]))
+
+# Create the stacked bar plot
+fig, ax = plt.subplots(figsize=(10, 6))
+bar_width = 1.0
+indices = np.arange(matrix.shape[1])
+
+for i in range(matrix.shape[0]):
+    if i == 0:
+        ax.bar(indices, matrix[i], bar_width, color=colors[i], edgecolor='none')
+    else:
+        ax.bar(indices, matrix[i], bar_width, bottom=matrix[:i].sum(axis=0), color=colors[i], edgecolor='none')
+
+# Set the labels and title
+ax.set_xlabel("Individual #")
+ax.set_ylabel("Ancestry")
+ax.set_title("Ancestry Proportions")
+
+#save and close
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/eso3.png", \
+    dpi=300) #dpi=300 for better resolution
+plt.close()
+
+
+
+
+
+#run admixture 3 times for each K value (1 to 3)
+run_bash("mkdir -p ./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_iterated")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
+    prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
+    for r in {1..3}; do \
+        for K in {1..3}; do \
+            admixture \
+                --seed ${RANDOM} \
+                -j28 \
+                ../01_pca/${prefix}.bed \
+                $K; \
+            mv ./${prefix}.${K}.Q ./admixture_iterated/${prefix}.K${K}r${r}.Q; \
+            mv ./${prefix}.${K}.P ./admixture_iterated/${prefix}.K${K}r${r}.P; \
         done; \
     done; \
 ")
+
+
+
+
+##eval
+#
+run_bash(" \
+    cd; \
+    prefix_1=./diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/data/genetic_data/quality_control/14_pop_strat/01_pca; \
+    prefix_2=./diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_cv; \
+    ./evalAdmix/evalAdmix \
+        -plink ${prefix_1}/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers \
+        -fname ${prefix_2}/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K1.P \
+        -qname ${prefix_2}/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K1.Q \
+        -o evaladmixOut.corres \
+        -P 10 \
+")
+
+
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Read population labels and estimated admixture proportions
+pop = pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", delim_whitespace=True, header=None)
+q = pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K3r1.Q", delim_whitespace=True, header=None)
+
+# Define a color palette
+palette = ["#A6CEE3","#1F78B4","#B2DF8A","#33A02C","#FB9A99","#E31A1C","#FDBF6F","#FF7F00","#CAB2D6","#6A3D9A","#FFFF99","#B15928","#1B9E77","#999999"]
+
+# Order according to population
+ord = np.argsort(pop[1].values)
+
+# Plot ADMIXTURE results
+plt.figure(figsize=(10, 8))
+for i in range(q.shape[1]):
+    plt.bar(range(len(ord)), q.iloc[ord, i], bottom=q.iloc[ord, :i].sum(axis=1), color=palette[i % len(palette)])
+plt.xlabel('Individuals')
+plt.ylabel('Admixture Proportion')
+plt.title('ADMIXTURE Results')
+
+# Read the correlation matrix
+r = pd.read_csv("/home/dftortosa/evaladmixOut.corres", delim_whitespace=True, header=None, na_values='NA')
+
+# Plot correlation of residuals
+plt.figure(figsize=(10, 8))
+sns.heatmap(r.iloc[ord, ord], annot=False, cmap='coolwarm', cbar=True, linewidths=0.5, linecolor='black', vmin=-0.1, vmax=0.1)
+plt.xlabel('Individuals')
+plt.ylabel('Individuals')
+
+#save and close
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/eso3.png", \
+    dpi=300) #dpi=300 for better resolution
+plt.close()
+
+
+
+
 
 #create pong files
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
     prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
+    rm ./admixture_out/${prefix}.multiplerun.Qfilemap; \
     createQmap() { \
         local r=$1; \
         local K=$2; \
@@ -4589,13 +4782,583 @@ run_bash(" \
             }' >> ./admixture_out/${prefix}.multiplerun.Qfilemap; \
     }; \
     export -f createQmap; \
-    for K in {2..12}; do \
+    for K in {3..3}; do \
         for r in {1..10}; do \
             createQmap $r $K; \
         done; \
     done; \
 ")
     #careful ">>" adds new lines to the file!!
+
+
+###PODRIAMOS CORRER 10 CORES, UNO POR ITERACION, NO DEBREIA TARDAR MAS DE 2-3 DIAS.
+#el problema es el resutlado, como hacemos labeling sin tener etiqueta de ancetria?
+#y si la tenemos? miramos si los grupos son consistentes con la genetica?
+#con las ancestricas se podri ahacer la figura 6 del tutorial para ver si algín individuo no está cerca del resto de su ancestria. Validamos las ancestrias y ya las usamos como grupos.
+#se vlaida mirando individuos que se salgan de los grupos de PCA (lo mismo se puede buscar programa que haga elipses?) y tambien en bar plot de acenstry, si hay individuo de una ancestria que tiene mucho de otra ancestria.... se pueden quitar... y así tenemos grupos definidos homogeneos...
+#we could use the data from 1KGDP like in this tutorial to see if our indiviuals are close to any cluster
+    #https://meyer-lab-cshl.github.io/plinkQC/articles/Genomes1000.html
+    #https://meyer-lab-cshl.github.io/plinkQC/articles/AncestryCheck.html
+
+
+
+
+
+
+
+#SEX, check plink tutotrial and docs, but we need good MAF, Linkage equilibrum, so we are running in the LD subset after removing the ancestry outliers. PAR regions need to be separateds
+    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
+    #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+#prune LD, retainn sex
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers \
+        --indep-pairwise 500kb 1 0.2 \
+        --out ./14_pop_strat/03_ancestry_cleaned_plink/ldpruned; \
+    ls -l ./14_pop_strat/03_ancestry_cleaned_plink/")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers \
+        --extract ./14_pop_strat/03_ancestry_cleaned_plink/ldpruned.prune.in \
+        --make-bed \
+        --out ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers_ldpruned;\
+    ls -l ./14_pop_strat/03_ancestry_cleaned_plink/")
+    #CHECK NUMBER SNPS AFTER PRUNING, i think it should be 100K, check explanrations in previous steps
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
+    plink \
+        --bfile loop_maf_missing_2_pca_not_outliers_ldpruned \
+        --check-sex ycount \
+        --out f_distribution \
+")
+    #--check-sex normally compares sex assignments in the input dataset with those imputed from X chromosome inbreeding coefficients, and writes a report to plink.sexcheck. So you estimate sex from the genetic data.
+        #It uses the F statistic as calcualted for --het/--ibc
+            #It is based on the observed and expected autosomal homozygous genotype counts for each sample. The method-of-moments F coefficient is calculated as follows: (<observed hom. count> - <expected count>) / (<total observations> - <expected count>))
+            #Expected counts are based on loaded (via --read-freq) or imputed MAFs; if there are very few samples in your immediate fileset, --read-freq is practically mandatory since imputed MAFs are wildly inaccurate in that case.
+                #Not our case, we are using the complete dataset after filtering (see below about this matter) 
+            #Also, due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution (e.g. >90% EUR but a few samples with ancestry primarily from other continents), you may need to process the rare-ancestry samples separately.
+                #Again no problem as our sample is already homogeneous regarding ancestry (see below)
+            #By default, the n/(n-1) multiplier in Nei's expected homozygosity formula is now omitted, since n may be unknown when using --read-freq. The 'small-sample' modifier causes the multiplier to be included, while forcing --het to use.
+                #I guess if you use the MAFs from the whole dataset when you are dealing with a very small subset (again see below of why is this important), then you do not know the sample size of the MAF used is not known, as you are not using the MAF of the subset.
+            #Disssect the F formula:
+                #Remember that in the case of --check-sex F is calculated ONLY with genotypes of the X chromosome: "--check-sex normally compares sex assignments in the input dataset with those imputed from X chromosome inbreeding coefficients"
+                #F is (<observed hom. count> - <expected count>) / (<total observations> - <expected count>)
+                    #Observed Homozygosity: PLINK calculates the observed number of homozygous genotypes (e.g., AA or aa) for each sample
+                    #Expected Homozygosity: It also calculates the expected number of homozygous genotypes under the assumption of random mating and no population structure
+                        #Expected homozygosity is calculated with the formula "p^2 + q^2" which is derived from the Hardy-Weinberg equilibrium. As you remember, this states that in a large, randomly-mating population with no external influences (like mutation, migration, or selection), the genotype frequencies remain constant from generation to generation. Essentially, p^2 is the expected frequency of the homozygous genotype for one allele, and q^2 for the other allele.
+                    #“Total observations” in the F coefficient formula refers to the total number of genotyped loci, or positions on the genome, being analyzed for each individual. It’s the sum of all observed genotypes, both homozygous and heterozygous. 
+                        #In the case of --check-sex, this should the total number of genotypes in the X chromosome.
+                        #Think of it as the grand tally of all genotyped data points used to calculate the homozygosity for a sample. This helps to normalize the difference between observed and expected homozygosity, providing a standardized measure of inbreeding or population structure.
+                        #you calculate the difference between observed and expected homozygosity and then normalize by the total number of genotypes
+                        #The idea is to measure how far the observed data deviates from what we'd expect in a perfectly random mating scenario and adjust it according to the overall amount of genotyped data points. This gives you a standardized F coefficient to assess genetic relatedness or population structure
+                #As you will see below, males are expected to have a F value around 1 while females are expected to have a value around 0.
+                    #Males:
+                        #As males only have one X chromosome, they have only one a allele for each genotype in the X chromosome
+                        #This means almost all loci on their X chromosome are effectively homozygous, leading to an F coefficient close to 1.
+                        #In "(<observed hom. count> - <expected count>) / (<total observations> - <expected count>)", "expected count" is the same in numerator and denominator, thus if F=1, it means that "observed hom. count" and "total observations". In other words, the total number of genotypes in the X chromosome is identical to the total number of homozygous genotypes, all genotypes are homozygous because male only have one X chromosome.
+                    #Females:
+                        #Females have two X chromosomes, which means they can have both homozygous and heterozygous loci. The presence of heterozygous loci lowers the F coefficient, leading it to be closer to 0.
+                        #As the number of homozygous genotypes decreases, <observed hom. count> - <expected count> becomes smaller because the count of homozygous is smaller but the exepected homozygous are the same. Remember the expaction is based on the allele frequencies which are calculated at a population level.
+                        #When the number of homo genotypes is identical to the expected, we get 0 in the denominator, and hence F=0 (0 is the expectation). If homo genotypes is even smaller than the expectation, then the denominator is negative, making F value negative. It will get more negative as homo genotype are much more lower than the expectation. 
+                        #This explain why females have F values around zero. As they have two X chromosomes, they can have homo but also heterozygous genotypes, meaning that they can be around the expectation, i.e,. around 0.
+                    #Because all of this, we should have a tight peak around 1 for males (all homozigous genotypes with no dispersion, male=no hetero calls in the X), while the females can be around 0 with some dispersion as they can have different proportions of homo/hetero (they have two X chromosomes) but always around 0, i.e., around the expecation.
+                #We need to see the empirical distribution of F in our data to detect both peaks, and then decide the best threshold to separate males and females from according to F.
+        #Make sure that the X chromosome pseudo-autosomal region has been split off (with e.g. --split-x) before using this.
+            #we have pseudo-autosomal as 25, and I cleaned these SNPs ensuring that SNPs with code 25 are only those inside the known PAR regions
+        #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
+            #this is useful to apply a new threshodl after we have seen the actual distribution of F in our data.
+        #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
+            #Imagine you are using just a few samples from the whole dataset and checking their sex separately. These samples are included in a separated fileset. If you do check-sex, it will calculate the F coefficient using the MAF of the SNPs in these few samples instead of considering the MAF for the whole sample. This could be misleading. Independently of the genotype call for these few individuals, the total minor allele frequency is not that of them but of the whole population. So plink docs recommend to use --read-freq to upload a file with the actual MAFs from the whole population. THIS IS NOT a problem for us as we are using the whole set of samples. 
+            #We have filtered by SNPs in this steps because we need SNPs in linkage equilibrium, but removing a SNPs does not affect the MAF of other SNP.
+        #As a concrete example, if you ignore the Y chromosome and don't first perform LD-based pruning, --check-sex makes flat-out incorrect calls on several 1000 Genomes phase 1 female samples: NA19332 has an F estimate just under 0.88, and there are others with F > 0.8. However, if you first run "--indep-pairphase 20000 2000 0.5", the largest female F estimate drops to about 0.66. 0.66 is, of course, still much larger than 0.2, and in most contexts it still justifies a female call. We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
+        #Due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution, you may need to process the rare-ancestry samples separately.
+            #Our data is already homogeneus in terms of ancestry, we already remove PCA outliers.
+    #--check-sex has now two modes which consider Y chromosome data.
+        #In 'ycount' mode
+            #gender is still imputed from the X chromosome, but female calls are downgraded to ambiguous whenever more than 0 nonmissing Y genotypes are present.
+                #In other words, if a female call has 1 or more call in the Y genotype (i.e., non-missing), then it is downgraded to unknown. This makes sense because if a sample reported as female has a Y genotype, then it is female or male? Probably a sample to be removed.
+            #male calls are downgraded when fewer than 0 are present.
+                #A male can never have less than 0 Y genotype calls, thus a male is not going to be downgraded because of this. 
+                #By default, plink does not downgraded males that have zero Y genotype calls.
+                #It seems that for imputing sex from scratch, it is not a good idea to discard males without Y genotypes because older males seems to suffer a decrease of the chromosome in some cells. So it would not be a very useful marker (see y-only mode section). If some actual males suffer Y losses in some cells, you could wrongly assigned them to "unknown when they are actual males".
+            #Note that these thresholds are counts, not rates. These thresholds are controllable with --check-sex ycount's optional 3rd and 4th numeric parameters.
+                #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
+            #We want the default behaviour of "y-count" as this let us to consider both X and Y chromosomes in order to impute sex, while avoiding problems with the mosaic-loss of the Y chromosome. 
+        #In 'y-only' mode
+            #gender is imputed from nonmissing Y genotype counts, and the X chromosome is ignored. 
+            #The male minimum threshold defaults to 1 instead of zero in this case. 
+                #Now males with no Y genotypes are downgraded
+            #IMPORTANT: This is intended to recover previously-determined gender, rather than determine it from scratch, since Y chromosome data may be scarce for older males: see e.g. Dumanski JP et al. (2014) Smoking is associated with mosaic loss of chromosome Y.
+                #I guess that if you already have your dataset clean where strange cases like males with no Y genotypes being removed, you can count Y genotype calls and consider as males those with a given number of genotype Y calls.
+
+
+#check the F distribution
+#We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
+    #https://www.cog-genomics.org/plink/1.9/basic_stats
+f_distribution = pd.read_csv( \
+    "./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/f_distribution.sexcheck", \
+    sep="\s+", \
+    header=0, \
+    low_memory=False)
+        #sep
+            #The separator sep="\s+" in the highlighted code is a regular expression that matches one or more whitespace characters. This means that the read_csv function will use any sequence of whitespace (spaces, tabs, etc.) as the delimiter to separate columns in the input file.
+            #Using tabs or just space does not work.
+        #.sexcheck: A text file with a header line, and then one line per sample with the following 6-7 fields:
+            #FID	Family ID
+            #IID	Within-family ID
+            #PEDSEX	Sex code in input file (1 = male, 2 = female, 0 = unknown according the fam file)
+            #SNPSEX	Imputed sex code (1 = male, 2 = female, 0 = unknown)
+            #STATUS	'OK' if PEDSEX and SNPSEX match and are nonzero, 'PROBLEM' otherwise
+            #F	Inbreeding coefficient, considering only X chromosome. Not present with 'y-only'.
+                #we are using "y-count", so we still use X data, and we should have the F coefficient
+            #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
+
+#explore the file
+
+
+import matplotlib.pyplot as plt
+
+# Assuming f_distribution is a 2D array or a DataFrame
+# Extract the sixth column (index 5)
+sixth_column = f_distribution.iloc[:, 5]  # If f_distribution is a pandas DataFrame
+
+# Plot the distribution
+plt.hist(sixth_column, bins=100, edgecolor='black')
+plt.title('Distribution of the Sixth Column')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/f_distribution.png", \
+    dpi=300) #dpi=300 for better resolution
+plt.close()
+
+#see problematic cases
+np.sum(f_distribution["STATUS"]=="PROBLEM")
+    #48 problematic cases
+
+#see the STATUS of samples that are unknown in the fam file
+f_distribution_unknown_fam = f_distribution.loc[f_distribution["PEDSEX"]==0,:]
+f_distribution_unknown_fam.shape[0]
+len(f_distribution_unknown_fam["STATUS"].unique())==1 & (f_distribution_unknown_fam["STATUS"].unique()=="PROBLEM")[0]
+    #36 Problems are those cases without sex from the original data
+    
+#create list with samples without pheno in the excel file ("Combat gene DNA GWAS 23062022_v2.xlsx") and check their status
+#MAYBE YOU CAN DO IT PROGRAMATICALLY LOADING THE FILE...
+samples_without_pheno=[
+    "7798JWSO", 
+    "6865SOMS", 
+    "3484ACJJ", 
+    "2192HHMJ", 
+    "2197AFMJ", 
+    "7600HPDO", 
+    "7693KLNO", 
+    "7698ATMO", 
+    "7698JJJO", 
+    "7699CMOO", 
+    "7797BWAO", 
+    "2370MDJA", 
+    "0290JKSM", 
+    "0298CCJM", 
+    "0201GHFM", 
+    "0280PAMM", 
+    "0295MCMM", 
+    "0295MDDM", 
+    "0296CGMM", 
+    "0297JKMM", 
+    "4494BWMA", 
+    "7273NMDS", 
+    "4499JTMA", 
+    "0199AMDM", 
+    "0299AHNJ", 
+    "1499MYSM", 
+    "1195HBNM", 
+    "4400JWSA", 
+    "7700JMAO", 
+    "6296WWJM", 
+    "2378ADNA", 
+    "2397PAFA", 
+    "2397NCAA", 
+    "4495CMOA", 
+    "6201JJJJ", 
+    "6200DPDJ", 
+    "2471AWMA", 
+    "6897TSSS", 
+    "6899DWOS", 
+    "6296TONJ", 
+    "7799BTDO"]
+samples_no_pheno_status = f_distribution.loc[f_distribution["IID"].isin(samples_without_pheno), "STATUS"]
+samples_no_pheno_status.shape
+len(samples_no_pheno_status.unique())==1 & (samples_no_pheno_status.unique()=="PROBLEM")[0]
+    #We have 35 samples withput pheno en excel that are noted here as a problem
+#there is 1 with unknown sex in plink that it has pheno in the excel
+f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(samples_without_pheno)]
+    #this was the case that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA
+
+#see now cases that are not included in the list of samples without pheno but still have a problem in sex
+real_sex_problems = f_distribution.loc[(~f_distribution["IID"].isin(samples_without_pheno)) & (f_distribution["STATUS"]=="PROBLEM"), :]
+real_sex_problems.shape[0]
+with pd.option_context('display.max_columns', None):
+    print(real_sex_problems)
+    #This will display all columns of the real_sex_problems DataFrame for this single print operation without changing the global pandas settings.
+#13 sex-problematic cases, the rest do not have pheno data indeed
+    #cases defined a female, with F value correct, but 1 Y genotype
+        #probably better to remove 
+    #there are three cases (7699ISMO, 8244GBJJ, 8702EBMF) with very low F and no Y genotypes that are consdered male by the pheno data
+        #this could be considered as female? or just remove?
+        #just for three more samples I would not run the risk...
+    #one male (8500JADJ) and is considered unknow by plink because his F value is below 0.8
+        #it has more than exected heterozygous genotypes in the X chromosome, again we would expect 1 for a biological male, i.e., no heterozygous at all in the X chromosome.
+        #better remove....
+    #one case (2397LDJA) do not have sex, but genetic data is very clear, strongly suggesting male
+        #this was the cases that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA
+        #it was a mislabelled sample
+
+
+
+#Summay abour sex decision
+#2397LDJA was not present in the phenotype excel. It has F=0.999 and multiple Y genotypes. Also there is a sample in the pheno excel with almost the same ID (2399LDJA) that is nideed a male. So it seems to be a mislabelling. We are GOING TO KEEP, BUT WAITING FOR BIHOSP CONFOIRMATION THAT 2399LDJA and4699LDJA matches.
+#8244GBJJ and 8702EBMF were identified as males, but they have very low F, no Y genotypes and their names are one of females, so they are likely females. We retain BOTH BUT CHANGING THE SEX.
+#0295AMSM, 7692EOOO, 1390JMJM, 2197JWDM, 2282SODJ, 3400ISOM, 6796HGJS, 7300ECNO have female names, F values close to 0 but they have 1 Y genotype. This is probably a technical error but we are going to remove them.
+#8500JADJ has 64 Y genotypes, a male name, but the problem is that the F values is far below 0.99 and below our threshold, it is not included in any of the F peaks, so we are removing them.
+#7699ISMO has F value close to 0, no Y genotypes, but it has a male name. We are going to remove.
+
+
+
+
+
+
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
+    plink \
+        --bfile loop_maf_missing_2_pca_not_outliers_ldpruned \
+        --check-sex ycount 0.7 0.8 0 0 \
+        --out f_distribution_manual_threshold \
+")
+    #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
+    #0 and 0 is the default beheviour of plink for these arguments.
+    #the default for [female max F] [male min F] is 0.2 and 0.8.
+
+
+f_distribution_manual_threshold = pd.read_csv( \
+    "./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/f_distribution_manual_threshold.sexcheck", \
+    sep="\s+", \
+    header=0, \
+    low_memory=False)
+
+    #CHECK WE HAVE THE SAME AFTER THE THRESHOLD
+
+
+real_sex_problems_manual_threshold = f_distribution_manual_threshold.loc[(~f_distribution_manual_threshold["IID"].isin(samples_without_pheno)) & (f_distribution_manual_threshold["STATUS"]=="PROBLEM"), :]
+real_sex_problems_manual_threshold
+
+real_sex_problems_manual_threshold["IID"].equals(real_sex_problems["IID"])
+    #the same
+    #so increasing the female threshold to 0.7, does not change anythign
+
+
+
+
+
+
+
+
+#remove now from the general dataset
+
+
+
+##contig=<ID=1,length=248916509>
+
+
+
+###liftover to hg19
+#https://github.com/RitchieLab/GWAS-QC
+
+
+
+
+#create a DF including the current and the new chromosome names required for michigan under hg38
+new_chromosomes = ["chr"+str(x) for x in list(range(1, 27)) if x not in [23,24,25,26]]
+
+[new_chromosomes.append(x) for x in ["chrX", "chrY", "chrX", "chrM"]]
+
+
+new_chromosomes_final = pd.DataFrame([list(range(1, 27)), new_chromosomes]).T
+new_chromosomes_final
+
+new_chromosomes_final.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/new_chromosomes.tsv", index=False, header=False, sep=" ")
+
+
+#preparation for michigan
+#download the reference genome and the 1000 Genomes allele frequency annotations
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
+    mkdir -p ./michigan_prep/; cd ./michigan_prep/; \
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/latest/hg38.fa.gz; \
+    gunzip --keep hg38.fa.gz; \
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/latest/hg19.fa.gz; \
+    gunzip --keep hg19.fa.gz; \
+    wget -O af.vcf.gz http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5c.20130502.sites.vcf.gz; \
+    bcftools index af.vcf.gz; \
+")
+    #WE ARE NOW USING THE LATEST FOR HG19 AND HG38
+
+    #we are using the first hg38 version. There are updates, but not sure they are really needed for us, but CHECK
+        #https://www.gungorbudak.com/blog/2018/05/16/how-to-download-hg38-grch38-fasta-human-reference-genome/
+    #Also according to copilot, we should not use the masked versions present in "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips"
+        #For using bcftools fixref, you should use the unmasked reference FASTA file. In this case, you should use hg38.fa from the UCSC server1. The masked versions (e.g., hg38.fa.masked.gz) are not suitable for this purpose as they contain modifications that can interfere with the reference checking process.
+    #we are also downloading the allele frequency annotations from 1000 Genomes Project to use Plugin af-dist for additiona strand checks
+        #the URL is exactly the same showed in bcftools page (http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/), but just changing http by ftp. Also in the name of the file "ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites.vcf.gz", change "v5b" by "v5c", it seems to be a newer version, because v5b is not longer present.
+        #http://samtools.github.io/bcftools/howtos/plugin.af-dist.html
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/chr1; \
+    bcftools view \
+        -H ../hg38.fa \
+        ./chr1.vcf.gz")
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
+    i=1; \
+    cd ./hg19/chr${i}; \
+    awk \
+        -v chr=${i} \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1==\"NS\" && index($2, \"ref mismatch\")){ \
+                gsub(/%/, \"\", $4); \
+                print \"chr_\"chr, $3, $4; \
+            } \
+        }' \
+        fixref_stats_chr${i}.txt; \
+")
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
+    for genom_ref in \"hg19\" \"hg38\"; do \
+        mkdir -p ./${genom_ref}/; cd ./${genom_ref}/; \
+        mkdir -p ./vcfs_chr ; \
+        for i in {1..23}; do \
+            mkdir -p ./chr${i}; cd ./chr${i}; \
+            if [ ${i} -eq 23 ]; then \
+                plink \
+                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
+                    --chr 23,25 \
+                    --recode vcf-iid \
+                    --out ./chr${i}; \
+            else \
+                plink \
+                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
+                    --chr ${i} \
+                    --recode vcf-iid \
+                    --out ./chr${i}; \
+            fi; \
+            bcftools annotate \
+                --rename-chrs ../../../new_chromosomes.tsv \
+                ./chr${i}.vcf | \
+            bcftools sort -Oz -o ./chr${i}.vcf.gz;  \
+            bcftools +fixref \
+                ./chr${i}.vcf.gz \
+                -Oz -o chr${i}_flips_solved.vcf.gz -- \
+                -f ../../${genom_ref}.fa \
+                -m top &> ./fixref_stats_chr${i}.txt; \
+            awk \
+                'BEGIN{FS=\"\t\"}{ \
+                    if($1==\"SC\" && $2==\"TOP-compatible\"){ \
+                        if($3==0){ \
+                            print \"TRUE! TOP COMPATIBLE\"; \
+                        } else { \
+                            print \"FALSE! NOT TOP COMPATIBLE\"; \
+                            exit 1; \
+                        } \
+                    } \
+                    if($1==\"SC\" && $2==\"BOT-compatible\"){ \
+                        if($3==0){ \
+                            print \"TRUE! BOT COMPATIBLE\"; \
+                        } else { \
+                            print \"FALSE! NOT BOT COMPATIBLE\"; \
+                            exit 1; \
+                        } \
+                    } \
+                }' \
+                ./fixref_stats_chr${i}.txt; \
+            if [ ${i} -eq 1 ]; then \
+                > ../count_mismatch_${genom_ref}.tsv; \
+            fi; \
+            awk \
+                -v chr=${i} \
+                'BEGIN{OFS=FS=\"\t\"}{ \
+                    if($1==\"NS\" && index($2, \"ref mismatch\")){ \
+                        gsub(/%/, \"\", $4); \
+                        print \"chr_\"chr, $3, $4; \
+                    } \
+                }' \
+                ./fixref_stats_chr${i}.txt >> ../count_mismatch_${genom_ref}.tsv; \
+            cp ./chr${i}_flips_solved.vcf.gz ../vcfs_chr/; \
+            cd ../; \
+        done; \
+        cd ../; \
+    done; \
+")
+    #run a bash loop from for hg19 and hg38 and from chromosome 1 to chromosome 23 (i.e., X). Michigan imputation server does not accept Y nor M. 
+        #Respect to XY: For phasing and imputation, chrX is divided into three independent chunks (PAR1, non-PAR, PAR2). These chunks are then automatically merged by the Michigan Imputation Server 2 and returned as a single complete chromosome X file. Therefore, we are generating a VCF file with the X and the PAR regions together, being all their SNPs named as "chrX".
+            #https://genepi.github.io/michigan-imputationserver/pipeline/
+    #For each genome reference:
+        #create and enter a folder for the genome reference
+        #create a new folder to save the final VCFs
+        #For each chromosome:
+            #create a folder and go inside
+            #using plink, convert the fileset without PCA outliers to VCF
+            #using bcftools annotate
+        #If the output fixref stats shows that the VCF is TOP-compatible, fixref with the option "-m top" can be used to fix the strand.
+            #http://samtools.github.io/bcftools/howtos/plugin.fixref.html
+            #I have seen several outputs in bistars and reddit threads, showing always 0 or 1. Oddly enough, 1 usually is present when there is an error in the data (not match at all between the data and the reference fasta). Could you find more information about the usage and interpretation of bcftools -fixref?
+                #https://www.biostars.org/p/335666/#335669
+                #https://www.biostars.org/p/315990/#316056
+            #The illumina data had TOP/BOT columns, but we used instead forward alleles, so I am not sure about the errors we are getting here
+                #CHECK THIS!!!!!! the fact that we had top/bot data support that our current data is TOP compatible?? why we have flips if we used the forward strand?
+                #ESTO!!!
+    
+
+###we are doing imputation with 1000G hg38 deep that does not require to speciify a pop, so we are ok, the only problem here is that 1000G hg38 is beta and second not sure if a 0.8 of R2 between ref allele frequency of reference and my dataset is enough. We have 14K snps that differ in freuqnecy accorindg to chisq test.
+
+#maybe you can write to them, and tell that hg19 do not work because of allele flips, And yes, you checked for allele flips and swaps using the latest version of the hg38 fasta using bcftools. The problem seems to be with the lifover, because I have this problem with any hg19 problem, but I can run imputation with 1000G hg38 deep, with that you have more overal (>98%) and no flips/swaps. I had just 300 allele mismatches and 4K of snps just typed (what are these two cases?). Using 1000G low imputaton still runs, but with less overlap (93%) and more only typed SNPs (20K). First question here, 1000G deep is usable? beucase it says beta... secondly despite being able to run the imptation, the pooligenc score analyses do not run. This is not because the polygenic score per se, if I disable ancetry estimation, the analysis run, but I would like to do the nacstry esitmation. My sample is very likely European, but I would like to have more insgihts about that.
+
+#OJO, que usango los datos de prueba de michinga que son europes con 1000G pahse 3 v5 les sale R2=96.8 and only 1451 snps with allelel mismatch, but of course, we are selecting european, while in our case we are selecting ALL global, so maybe is normal? we should ask this to support also.
+
+
+count_mismatches = pd.merge( \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg19/count_mismatch_hg19.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg38/count_mismatch_hg38.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
+    on="chr", \
+    suffixes=("_hg19", "_hg38") \
+)
+
+count_mismatches["count_diff"] = count_mismatches["count_hg19"] - count_mismatches["count_hg38"]
+count_mismatches["percent_diff"] = count_mismatches["percent_hg19"] - count_mismatches["percent_hg38"]
+
+print(count_mismatches)
+
+count_mismatches.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/count_mismatches.tsv", sep="\t", index=False)
+
+
+##probably the problem with the scores in michiga ins the ancestry calculation because we are using global panel 1000gh hg38 instead of 1000G hg19?
+
+
+
+    #Calculate the chi-square for each variant (reference panel vs. study data).: WE HAVE DIFFERENCE FOR 14k SNPS, but this is using hg38 1000G all pops global, not EUR specifically
+
+    #check reference genome!
+
+
+    #I have manually checked several cases in chromsome 20. In all cases, both the flips and the swaps are done correctly. A flip means to change the strand (AC is changed to TG) while a swap means to change REF for ALT. For example:
+        #rs13831
+            #Our data: REF=C; ALT=T
+            #NCBI: REF=A; ALT=G
+            #fixref:
+                #converts C to G and T to A to flip between strands: REF=G; ALT=A
+                #Then it swaps REF and ALT: REF=A; ALT=G
+                #this matches NCBI
+            #I have checked several cases in it does correctly.
+    
+
+    
+    #last strand check:
+        #after downloading allele frequency from 1000G, annotate your data file and stream the result through the af-dist plugin to create the genotype frequency distribution
+        #The output should something like this
+            #PROB_DIST   0.000000    0.100000    100618
+            #PROB_DIST   0.100000    0.200000    144103
+            #PROB_DIST   0.200000    0.300000    214923
+            #PROB_DIST   0.300000    0.400000    320721
+            #PROB_DIST   0.400000    0.500000    817965
+            #PROB_DIST   0.500000    0.600000    84027
+            #PROB_DIST   0.600000    0.700000    86531
+            #PROB_DIST   0.700000    0.800000    97986
+            #PROB_DIST   0.800000    0.900000    108776
+            #PROB_DIST   0.900000    1.000000    176755
+        #Finally plot the distribution to check whether there are only few unlikely genotypes.
+
+
+
+
+
+
+    #the changes SHOULD BE INCLUDED IN THE FINAL DATASET! It is ok, because we are going to use the data coming out of the imputation server, the VCF files will be converted to plink after imputation
+
+
+
+#interesting tool for all this cleaning
+    #https://imputation.sanger.ac.uk/?resources=1
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
+    mkdir ./vcfs_chr/; \
+    cd ./vcfs_chr; \
+    for i in {1..26}; do \
+        if [ $i -eq 23 ]; then \
+            chr=chrX; \
+            chr_name=chrX; \
+        elif [ $i -eq 24 ]; then \
+            chr=chrY; \
+            chr_name=chrY; \
+        elif [ $i -eq 25 ]; then \
+            chr=chrXY; \
+            chr_name=chrXY; \
+        elif [ $i -eq 26 ]; then \
+            chr=chrM; \
+            chr_name=chrM; \
+        else \
+            chr=chr$i; \
+            chr_name=chr$i; \
+        fi; \
+        plink \
+            --bfile ../loop_maf_missing_2_pca_not_outliers \
+            --chr $chr \
+            --recode vcf-iid \
+            --out fileset_$chr_name; \
+        bcftools annotate \
+            --rename-chrs \
+            ../new_chromosomes.tsv \
+            fileset_$chr_name.vcf | \
+        bcftools sort -Oz -o fileset_$chr_name.vcf.gz;  \
+        rm fileset_$chr_name.vcf; \
+    done; \
+    mkdir ./final_vcfs/; \
+    cp *.vcf.gz ./final_vcfs; \
+")
+    #think that plink merge X and XY when you convert ot vcf in the whole dataset, checl
+        #check you can add severla chromsome slike this with comma, and that XY is the PAR.
+    #MIRA RECOMENDACIONSS DE MIGHICHAN TO CHEC VCFS..
+        #https://genepi.github.io/michigan-imputationserver/prepare-your-data/#convert-pedmap-files-to-vcf-files
+
+
+    #we could also do it with all the samples of the other ancestries
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
+    mkdir ./vcfs_chr_pca_outliers/; \
+    cd ./vcfs_chr_pca_outliers; \
+    plink --bfile ../../../12_loop_maf_missing/loop_maf_missing_2 --chr 1 --recode vcf-iid --out chr1_fileset; bgzip chr1_fileset.vcf;  \
+")
+
+
+
+
+#si no lo hacemos y aqluigne pregunta en revision, se puede decir que usamos los PCAs.... dudo que nos pregunten más despues de haber aplciado ese pedazo de QC.... no es lo ideal, pero...
 
 #load the first column (FAM IDs) from the family file without outliers
 pd.read_csv(\
@@ -4666,6 +5429,23 @@ print("use pong to vizualice results with k=12")
 
 ##por aquiii
 
+###con 6SD the removal (default the smart pca y lo que hicierin en train-predict) se nos van 100 individuos y ahora se ve que el eje 1 es la clave, explica casi todo y muestra tres grupos diferenciados. Se puede hacer varias iteraciones de admixutre para K=3 y si hay consistencia across iterations aceptamos la hipotesis de tres grupos. Eso es un argumento para aceptaro segun el tutorial, ademas se puede mirar la signification de los p-values, a nosotros nos saltan 8 ejes, pero es que casi toda la viaraiblidad viene del 1, es el que rompe los grupos. El resto de ejes muestra nube. Y no vamos a correr varias iteraciones para varios K. IMPORTANTE: Podemos evaluar el output de admixture con EvalAdmix! si sale correlation 0, la separaición va bien. Tendríamos 3 piezas de evidencia: el PC1, que explica la grandísima mayor parte de la variabilidad, diferencia tres grupos, pero a lo largo de los otros ejes hay continuidad. Hay consistencia a lo largo de las diferentes iteraciones de admixture, sale lo mismo mas o menos y los tres grupos quedan bien diferenciados. Y además cada iteración muestra resultado positivo con Evalmix, entonces podemos aceptar K=3. Podemos haer K=1 and K=2, to compare with less repetitions, and then we could also compare the likelihood between the three treatments. We ar basically using the most explicative PCA xis as a prior.
+    #https://speciationgenomics.github.io/ADMIXTURE/
+    #http://www.popgen.dk/software/index.php/EvalAdmix
+
+#si esto sale, se divide en tres grupos usando el PCA, y se confirma que los de cada grupo tienen más de la mitad de ancestria del grupo que le corresponde. aqui ya tenemos dos fuentes de information para clasificar, no es como antes. 
+
+# se cogen dos primeros PCAs para ocrregir en los analisis. Esto es lo estnadar y tenemos arugmetnos dada lo que explcian los dos, y que a partir del eje 3 hay una acumulacion de weights en el cromosoma 6 en una region muy concreta indicando que pueden estar capturando variacion estructural y no poblacional...
+
+#creo que ya hacemos mas que la mayoria de papers, por ejemplo, en el paper de traing-predict simplemente quitan ancestry outliers usando PCAs, we do that and more. Going for the most orthodox approach it is worth at this point.
+
+#compare 1,2,3 groups and see.
+
+
+
+
+
+
 #https://github.com/ramachandran-lab/pong/tree/master
 #https://github.com/ramachandran-lab/pong/blob/master/pong-manual.pdf
 
@@ -4681,7 +5461,7 @@ pd.read_csv(\
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
     FILEPREFIX=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
-    K=2; \
+    K=3; \
     awk \
         -v K=$K \
         -v file=$FILEPREFIX \
@@ -4744,6 +5524,11 @@ run_bash(" \
 
 IMPORTANT HERE!!!! WE NEED TO REMOVE THE PCA OUTLIERS FROM THE PLINK FILES THAT WILL BE USED IN THE NEXT STEPS, WE HAVE ONLY REMOVED THEM FROM THE PCA PLINK FILES
 
+INDIVIDUOS VAN A SER ADMIXED SEGURAMENTE, MADRE EUROPEA, PADRE ASIATOC...
+
+APUNTA QUE K FOLD DAVID!! PARA TRAINING!!!
+
+
 
     plink \
         --bfile ./loop_maf_missing_2_ldprunned_autosome_pca \
@@ -4763,26 +5548,6 @@ IMPORTANT HERE!!!! WE NEED TO REMOVE THE PCA OUTLIERS FROM THE PLINK FILES THAT 
 #I have downloaded Eigensoft, the latest version at the time of writting (3/07/2024), which is the release 8.0.0:
     #https://github.com/DReichLab/EIG/archive/refs/tags/v8.0.0.tar.gz
     #https://github.com/DReichLab/EIG/releases
-
-
-###follow plink tutorial
-#then eigensotf or admixustre? loook ritchie and vo2 paper...
-import plotly.express as px
-fig = px.scatter(\
-    data_frame=pca_results_no_outliers, \
-    x="PC1", \
-    y="PC2", \
-    color="#FID",
-    hover_data=[\
-        "IID"])
-        #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
-        #https://plotly.com/python/line-and-scatter/
-        #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
-#fig.show()
-fig.write_html("./data/genetic_data/quality_control/14_pop_strat/01_pca/pca_results_no_outliers.html")
-    #https://plotly.com/python/interactive-html-export/
-
-
 
 
 
@@ -5153,9 +5918,11 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 
 
 
+###should be check for strand differences between the batches? See to_do_combat_genes.md for programs to do strand checks.
+
 
 ###imputation separated between ancestry groups?
-
+## there is about a cosmopolitan imputation panel above
 
 # endregion
 
