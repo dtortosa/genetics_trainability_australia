@@ -1,5 +1,6 @@
 *.sif
 *.ipynb_checkpoints
+*json
 
 admixture_versions/
 /.vscode/

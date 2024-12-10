@@ -3895,7 +3895,7 @@ pca_melted = pd.melt( \
 expected_melted_rows =  \
     (sum(pca_results["#FID"] == "combat_ILGSA24-17303")*(pca_results.shape[1]-2)) + \
     (sum(pca_results["#FID"] == "combat_ILGSA24-17873")*(pca_results.shape[1]-2))
-    #we should the number of samples of each batch multiplied by the number of columns miuns FID and IID (i.e., the PCs)
+    #in the melted DF we should have the number of samples of each batch multiplied by the number of columns miuns FID and IID (i.e., the PCs)
 if(pca_melted.shape[0] != expected_melted_rows):
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM PREPARING THE DATASET TO MAKE THE BOXPLOTS OF PCAs vs. batches")
 
@@ -4058,7 +4058,7 @@ plt.savefig( \
     dpi=300) #dpi=300 for better resolution
 plt.close()
 
-#The results show that the first PC explains a big fraction of the variance (46%). The next 8 (until PC9) explain between 7.5 and 2.1% of variability. After the 1, the variance explained per PC becomes relatively constant (around 2.1%).
+#The results show that the first PC explains a big fraction of the variance (46%). The next 8 (until PC9) explain between 7.5 and 2.1% of variability. After the 10, the variance explained per PC becomes relatively constant (around 2.1%).
 
 print("see the first PC where cumulative explianed variability reaches 80% of the total")
 #According to Ritchie´s review, it is recommended to use the eigenvectors that explain the greatest proportion of variance (on an average cumulative 80% variance) as covariates in any downstream analysis to correct for bias due to population stratification.
@@ -4188,7 +4188,7 @@ run_bash(" \
             #Iterative Process: Outlier removal is often an iterative process. The program may run PCA multiple times, each time removing individuals who are identified as outliers, until no more outliers are detected.
             #Impact on Analysis: Removing outliers helps to ensure that the PCA results are not skewed by individuals who have unusual genetic backgrounds. This can provide a clearer picture of the population structure and improve the accuracy of downstream analyses.
         #outliersigmathresh: 
-            #We are using 8 as recommended by the plink tutorial, using the default (6) would increase the removed individuals from 45 to 125.
+            #We are using the default (6).
             #number of standard deviations which an individual must exceed, along one of the top (numoutlierevec) principal components, in order for that individual to be removed as an outlier.  Default is 6.0.
         #numoutlieriter:
             #maximum number of outlier removal iterations. Default is 5.  To turn off outlier removal, set this parameter to 0.
@@ -4256,6 +4256,11 @@ if False:
             -o ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tracy.out")
 '''
 
+#Important note about the number of SDs respect to the mean of any PC axis to remove outliers:
+    #The default is 6, using this we lose around 171 samples, and we do not have clear clusters in the main axes. Also ancestry considers that we have just 1 group. 
+    #Using 3 makes the PCA plots to show exactly as clouds of points, but the caveat is that we lose 500 samples. Also note that doing this still showed the problem of negatively correlated SNPs between our dataset and the reference panel in the imputation server. That was only solved after selecting the correct mode for solving flips and remove SNPs that are not possibly solved (ambiguous see below).
+    #Therefore, it seems we already have a relatively homogenous dataset using the default parameters for outlier removal.
+
 print("see significant axes")
 #extract the tracy table
 run_bash(" \
@@ -4300,8 +4305,7 @@ print(tracy_signi_axes)
 print(f"We have {tracy_signi_axes.shape[0]} significant axes")
 
 #Results
-#12 PCA axes are significant (P<0.05), meaining that they explain more genetic variance than expected by chance. This also means that they are detecting the existence of population structure inside of our study meaning that there are indiviauls from different ancestries. 
-#Plink PCA gives 9 relevant axes, while we have here 12. It seems the actual number could be around 10?
+#6 PCA axes are significant (P<0.05), meaining that they explain more genetic variance than expected by chance. Plink PCA gaves 9 relevant axes before outlier removal.
 
 print("plot smartpca eigenvectors")
 #process the eigenvector file to ensure is tab delimited
@@ -4405,7 +4409,7 @@ plt.savefig( \
 plt.close()
     
 #Results
-    #PC1 explains 1.4% of variability, while PC2 explains 0.12%. From there, next PCAs until the number 20 explains around 0.10%. Therefore, the main reduction of explained variability occurs from PC1 to PC2 (1.27%) and a from PC2 to PC3 (0.01%). From there, the reductions are much smaller. Therefore, the main axes seems to be PC1 and PC2.
+    #PC1 explains 1.4% of variability, while PC2 explains 0.135%. From there, next PCAs until the number 20 explains around 0.10%. Therefore, the main reduction of explained variability occurs from PC1 to PC2 (1.27%) and a from PC2 to PC3 (0.01%). From there, the reductions are much smaller. Therefore, the main axes seems to be PC1 and PC2.
     #Note that the total explained variance is much less compared to the results of plink where variance explained by the first axis was of 40%! but it is in line what the admixture tutorial got with smartpca, so maybe this is a question of this approach and/or the removal of outliers
     #we are not calculating cumultaive percentage of explained variance because we have a small proportion explained by each axis, and the rule of Ritche of 80% would require to include hundreds of axes...
 
@@ -4511,7 +4515,7 @@ plt.close()
 
 #results
     #it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions. SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
-    #From PC3 and so on there is a marked increase of weights in a small region of chromosome 6. This maybe could still exist slightly in PC2, but it is veeeeeery mild. Therefore, this is another argument to just focus on PC1 and PC2 from this point.
+    #Everything clean except PC5 for chromosome 8, there is a clear peak.
 
 print("Remove outliers")
 pca_outliers = pd.read_csv(\
@@ -4523,8 +4527,8 @@ print(pca_outliers)
 print(f"We have removed {pca_outliers.shape[0]} samples because they were PCA outliers")
 
 #Results
-#99 samples have been removed because they are very away from the mean of the PCA axes, specifically, more than 6 standard deviations.
-#It is true that the plink tutorial says that outliers away more than 8 SDs, are "likely caused due to genotyping errors and it is recommended to remove them". However, the "predict-HIIT" study used 6 SD to remove PCA ancestry outliers. In addition, the default of smartpca is 6, not 8. Also, The predict-hiit study only conisdered the first 2 axes and losed 10 samples because of this, but smartpca considers 10 as default.Finally, most important is the fact that the removing all these outliers (6SDs and considering 10 axes) makes the data much more clear, showing a clear structure only for the PC1 and then clouds for the rest of axes. We have now one axis capturing a clear genetic structure (not related to structural variation). Therefore, we are going to lose all these outliers for the sake of clearer data.
+#171 samples have been removed because they are very away from the mean of the PCA axes, specifically, more than 6 standard deviations.
+#It is true that the plink tutorial says that outliers away more than 8 SDs, are "likely caused due to genotyping errors and it is recommended to remove them". However, the "predict-HIIT" study used 6 SD to remove PCA ancestry outliers. In addition, the default of smartpca is 6, not 8. Also, The predict-hiit study only conisdered the first 2 axes and losed 10 samples because of this, but smartpca considers 10 as default. Finally, most important is the fact that the removing all these outliers (6SDs and considering 10 axes) makes the data much more clear, with no genetic structure whatsoever.
 
 #save the IDs in a file
 pca_outliers[2].str.split(":", expand=True).to_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/smartpca_outliers.txt",
@@ -4579,7 +4583,7 @@ print("general info")
 #ADMIXTURE’s input is binary PLINK (.bed), ordinary PLINK (.ped), or EIGENSTRAT (.geno) formatted files and its output is simple space-delimited files containing the parameter estimates.
 
 #To use ADMIXTURE, you need an input file and an idea of K, your belief of the number of ancestral populations. You should also have the associated support files alongside your main input file, in the same directory. For example, if your primary input file is a .bed file, you should have the associated .bim (binary marker information file) and .fam stub file) files in the same directory.
-    #IMPORTANT: They say "your belief of the number of ancestral populations". In other words, based on your previous knowledge of your sample, select reasonable numbers for K. The literaly say "if you believe that the individuals in the sample derive their ancestry from three ancestral populations then run admixture .... using k=3". We have prior information from the PCA that we could have 2-3 groups, so we should stay around that range.
+    #IMPORTANT: They say "your belief of the number of ancestral populations". In other words, based on your previous knowledge of your sample, select reasonable numbers for K. The literaly say "if you believe that the individuals in the sample derive their ancestry from three ancestral populations then run admixture .... using k=3". We have prior information from the PCA that we have a single ancestry, so we should stay not far away from 1.
 
 #Prune SNPs? We tend to believe this is a good idea, since our model does not explicitly take LD into consideration, and since enormous data sets take more time to analyze. It is impossible to “remove” all LD, especially in recently-admixed populations, which have a high degree of “admixture LD”. Two approaches to mitigating the effects of LD are to include markers that are separated from each other by a certain genetic distance, or to thin the markers according the observed sample correlation coefficients. The easiest way is the latter, using the --indep-pairwise option of PLINK. For example, if we start with a file rawData.bed, we could use the following commands to prune according to a correlation threshold and store the pruned dataset in prunedData.bed
 
@@ -4630,12 +4634,16 @@ run_bash(" \
             #the number of populations;
     #The tee command writes the output to the file log.${prefix}.${K}.out and simultaneously displays it on the terminal.
 
+#Results
+    #LOOK CV VALUES AND THE FST VALUES.
+    #If in a revision someone ask about the ancestry, we say that according the PCAs and the admixture analyses, we only have 1 ancestry in our sample after removing PCA outliers. The ancestry is possibly European (after comparing a few allele frequencies with ncbi freqs across pops), but we do not know for sure.
 
-##do CV with 100K SNPs, to check 2 is still good, but if the same, then we could use 50K. Ritchie says 100K for their analyses, but admixture says that for pops with FST>0.1 10K is enough. We can use this subset of SNPs only for this and then do another oen if neded for another non-LD aware analysis.
 
-##SI SE QUEJAN EN REVISION, decimos que son soldados australianaos y que hemos dejado una muestra homogenea. Exactamente ogual que en el paper de fibro o en Helena. Los european adolescents de helena podrían ser africanos... asi que estamos mejor aquí.
 
-##LOOK CV ERROR AND FST BETWEEN POPS ESTIMATED
+
+
+
+
 
 
 #The Q estimates are output as a simple matrix, so it is easy to make figures like Figure 1 from our paper
@@ -5101,22 +5109,22 @@ new_chromosomes_final.to_csv("./data/genetic_data/quality_control/14_pop_strat/0
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
     mkdir -p ./michigan_prep/; cd ./michigan_prep/; \
-    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/latest/hg38.fa.gz; \
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.fa.gz; \
     gunzip --keep hg38.fa.gz; \
-    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/latest/hg19.fa.gz; \
-    gunzip --keep hg19.fa.gz; \
     wget -O af.vcf.gz http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5c.20130502.sites.vcf.gz; \
     bcftools index af.vcf.gz; \
 ")
-    #WE ARE NOW USING THE LATEST FOR HG19 AND HG38
-
-    #we are using the first hg38 version. There are updates, but not sure they are really needed for us, but CHECK
-        #https://www.gungorbudak.com/blog/2018/05/16/how-to-download-hg38-grch38-fasta-human-reference-genome/
+    #I am using the fasta file for hg38.p13. We know from AGRF that our data is in hg38, they did not mention the patch, but given David contacted us with in My 2022, probably the genotyping was done during 2021, and p13 patch was released in feb 2019, so it is likely they used hg38.p13.
+        #https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.39/
+    #We are going to use the fasta file of hg38.p13 to solve the strand issues, but I also did it with the latest (hg38.p14) and got the same results.
     #Also according to copilot, we should not use the masked versions present in "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips"
         #For using bcftools fixref, you should use the unmasked reference FASTA file. In this case, you should use hg38.fa from the UCSC server1. The masked versions (e.g., hg38.fa.masked.gz) are not suitable for this purpose as they contain modifications that can interfere with the reference checking process.
     #we are also downloading the allele frequency annotations from 1000 Genomes Project to use Plugin af-dist for additiona strand checks
         #the URL is exactly the same showed in bcftools page (http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/), but just changing http by ftp. Also in the name of the file "ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites.vcf.gz", change "v5b" by "v5c", it seems to be a newer version, because v5b is not longer present.
         #http://samtools.github.io/bcftools/howtos/plugin.af-dist.html
+
+
+
 
 
 run_bash(" \
@@ -5143,9 +5151,33 @@ run_bash(" \
 
 
 
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
+    rs_number=$(awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1==12 && $4==8514205){ \
+                print $2; \
+            } \
+        }' \
+        loop_maf_missing_2_pca_not_outliers.bim); \
+    echo ${rs_number}; \
+    plink \
+        --bfile loop_maf_missing_2_pca_not_outliers \
+        --snp ${rs_number} \
+        --freq \
+        --out allele_freq_checks \
+")
+
+
+##Some SNPs that show opposite frequency were OK before doing the swaps. Note that you have checked and solved flips assuming your data was TOP compatible, but indeed I am sure I used the foward strand, we used pyspark to be sure about this.
+
+
+
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
-    for genom_ref in \"hg19\" \"hg38\"; do \
+    for genom_ref in \"hg19\" \"hg38.p13\"; do \
         mkdir -p ./${genom_ref}/; cd ./${genom_ref}/; \
         mkdir -p ./vcfs_chr ; \
         for i in {1..23}; do \
@@ -5170,28 +5202,9 @@ run_bash(" \
             bcftools +fixref \
                 ./chr${i}.vcf.gz \
                 -Oz -o chr${i}_flips_solved.vcf.gz -- \
-                -f ../../${genom_ref}.fa \
-                -m top &> ./fixref_stats_chr${i}.txt; \
-            awk \
-                'BEGIN{FS=\"\t\"}{ \
-                    if($1==\"SC\" && $2==\"TOP-compatible\"){ \
-                        if($3==0){ \
-                            print \"TRUE! TOP COMPATIBLE\"; \
-                        } else { \
-                            print \"FALSE! NOT TOP COMPATIBLE\"; \
-                            exit 1; \
-                        } \
-                    } \
-                    if($1==\"SC\" && $2==\"BOT-compatible\"){ \
-                        if($3==0){ \
-                            print \"TRUE! BOT COMPATIBLE\"; \
-                        } else { \
-                            print \"FALSE! NOT BOT COMPATIBLE\"; \
-                            exit 1; \
-                        } \
-                    } \
-                }' \
-                ./fixref_stats_chr${i}.txt; \
+                --fasta-ref ../../${genom_ref}.fa \
+                --discard \
+                --mode flip &> ./fixref_stats_chr${i}.txt; \
             if [ ${i} -eq 1 ]; then \
                 > ../count_mismatch_${genom_ref}.tsv; \
             fi; \
@@ -5220,15 +5233,42 @@ run_bash(" \
             #create a folder and go inside
             #using plink, convert the fileset without PCA outliers to VCF
             #using bcftools annotate
-        #If the output fixref stats shows that the VCF is TOP-compatible, fixref with the option "-m top" can be used to fix the strand.
-            #http://samtools.github.io/bcftools/howtos/plugin.fixref.html
-            #I have seen several outputs in bistars and reddit threads, showing always 0 or 1. Oddly enough, 1 usually is present when there is an error in the data (not match at all between the data and the reference fasta). Could you find more information about the usage and interpretation of bcftools -fixref?
-                #https://www.biostars.org/p/335666/#335669
-                #https://www.biostars.org/p/315990/#316056
-            #The illumina data had TOP/BOT columns, but we used instead forward alleles, so I am not sure about the errors we are getting here
-                #CHECK THIS!!!!!! the fact that we had top/bot data support that our current data is TOP compatible?? why we have flips if we used the forward strand?
-                #ESTO!!!
+        #MISSING STEPS
+        #Use bcftools +fixref to detect and remove allele switches
+            #WARNING FROM BCFTOOLS:
+                #Do not use the program blindly, make an effort to understand what strand convention your data uses! Make sure the reason for mismatching REF alleles is not a different reference build!! Also do NOT use bcftools norm --check-ref s for this purpose, as it will result in nonsense genotypes!!
+                #strand
+                    #I know the strand reference of my data, I completely sure I used the foward strand notation, not top/bot or other. You can check that in "01b_illumina_report_to_plink.py", where I used pyspark to ensure I selected the correct that from all FinalReports. 
+                    #This should the strand used by the imputation server as it is the one used by ncbi, see "01b_illumina_report_to_plink.py" about details.
+                #I am also sure about the reference build, our data has hg38 as confirmed by AGRF. So we can use hg38 in the imptuation server.
+                    #Thank you for reaching out with your detailed query regarding the reference genome for project "CAGRF20093767". I can confirm that the reference genome used to generate your data is hg38
+                    #It’s great to hear that you achieved a high overlap (~98%) using the 1000 Genomes Project hg38 high-coverage panel. While the strand issues you encountered with the initial imputation are not uncommon when reconciling different datasets, using bcftools to address allele switches is a sound approach, and the resulting reduction in median allele switches for hg38 aligns with the reference genome used for this project.
+                    #Regarding the ~4K SNPs with differing allele frequencies, this may reflect population-specific differences or residual inconsistencies in strand alignment between panels. 
+                    #Also the page of TOPMED says the reference build is hg38
+                        #https://topmedimpute.readthedocs.io/en/latest/getting-started/#build
+                #Therefore, we can be sure that any strand issue between our dataset and the reference panel in the imputation server is not caused by the reference build or the strand. In other words, we do not have allele flips because I have made a mistake and I am comparing two genetic datasets that are using different strand formats or different builds.
+            #we use the flip model ("-m flip") to swap or flip REF/ALT columns and GTs for non-ambiguous SNPs to foward and ignore the rest.
+                #According to the manual, this is the following: Assuming the reference build is correct, just flip to fwd, discarding the rest
+                    #This is ok, I selected foward notation in our data, so all our SNPs should be foward. SNPs that are not in foward, are errors and we should solve fliping to foward if possible.
+                    #Also, the imputation server is going to check for flips, if more than 10000 obvious strand flips are detected, TOPMED stops the imputation, so we are ok.
+                #We avoid ambiguous sites (A/T, C/G). According to chatGTP:
+                    #Strand Ambiguity: For non-palindromic SNPs, the reverse complement will change the alleles (e.g., A/C becomes T/G). However, for A/T and C/G SNPs, the reverse complement is identical, making it difficult to ascertain if the strand needs correction.
+            #---discard: To remove the cases that have been deemed problematic but have not been solved due to ambiguity.
+                #THIS IS THE KEY: Doing this removes all the strange SNPs whose allele frequencies were negatively correlated between our dataset and the refenrece panel of the imputation server.
     
+###CHECK ALL THE STEPS OF TOPMED PIPELINE AND CHECK WE ARE NOT MISSING STEPS FROM RITCHIE
+    #https://topmedimpute.readthedocs.io/en/latest/pipeline/#quality-control
+
+
+#From the total number of SNPS (SNPs: 285114), remove SNP not present in the reference panel (only type: 9,707) and Allele mismatches (204), giving the total number of SNPs used in imputation (275,203).
+    #https://www.biostars.org/p/446894/
+
+
+###see this sentence from the manual:
+    #Assuming the reference build is correct, just flip to fwd, discarding the rest
+    #we are already in foward! maybe we could just remove problematic cases using --discard?
+
+
 
 ###we are doing imputation with 1000G hg38 deep that does not require to speciify a pop, so we are ok, the only problem here is that 1000G hg38 is beta and second not sure if a 0.8 of R2 between ref allele frequency of reference and my dataset is enough. We have 14K snps that differ in freuqnecy accorindg to chisq test.
 
@@ -5239,13 +5279,13 @@ run_bash(" \
 
 count_mismatches = pd.merge( \
     pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg19/count_mismatch_hg19.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg38/count_mismatch_hg38.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg38.p13/count_mismatch_hg38.p13.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
     on="chr", \
-    suffixes=("_hg19", "_hg38") \
+    suffixes=("_hg19", "_hg38.p13") \
 )
 
-count_mismatches["count_diff"] = count_mismatches["count_hg19"] - count_mismatches["count_hg38"]
-count_mismatches["percent_diff"] = count_mismatches["percent_hg19"] - count_mismatches["percent_hg38"]
+count_mismatches["count_diff"] = count_mismatches["count_hg19"] - count_mismatches["count_hg38.p13"]
+count_mismatches["percent_diff"] = count_mismatches["percent_hg19"] - count_mismatches["percent_hg38.p13"]
 
 print(count_mismatches)
 
