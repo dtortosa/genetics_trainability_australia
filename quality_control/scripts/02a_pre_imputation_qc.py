@@ -4744,42 +4744,80 @@ run_bash("R CMD BATCH /opt/scripts/02bb_pre_imputation_qc_eval_admix_plot.R")
 
 print_text("Summary Ancestry: Results from the PCA analyses with smartpca and the admixture analyses with Admixture strongly suggest that our sample is relatively homogeneous in genetic terms. There are not differences at the continental level, e.g., Africans vs Europeans. Sure, we can still have more subtle differences within our sample, but we are going to use the main PCAs in the GWAS analysis anyways", header=4)
 
+# endregion
 
 
 
 
 
 
+##########################
+# region SEX CHECK #######
+##########################
+print_text("start check sex", header=2)
+print_text("open folder", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir \
+        --parents \
+        ./15_check_sex; \
+    ls -l")
 
+#If you have X-chromosome population-genomic data, you can employ PLINK’s –check-sex command to sanity-check the sex information in your .fam file. (The method is based on chrX heterozygosity rates.) Similarly, –impute-sex uses chrX heterozygosity rates to fill in missing sex entries when appropriate.
 
-#SEX, check plink tutotrial and docs, but we need good MAF, Linkage equilibrum, so we are running in the LD subset after removing the ancestry outliers. PAR regions need to be separateds
+#If your species has pseudoautosomal regions, ensure they are not encoded as part of the X chromosome. If they are, PLINK 1.9’s –split-x or PLINK 2’s –split-par flag can be used to change the chromosome codes of the relevant variants before proceeding.
+    #Yes, we have PAR regions separated as a different chromosome
+
+print_text("LD prunning", header=3)
+#we need good MAF and linkage equilibrum, so we are running in the LD subset on the full dataset after removing the ancestry outliers. We cannot use the previous LD subset because it only had autosomals, and we need sex chromosomes to do the sex check.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3
     #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
 #prune LD, retainn sex
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
+    mkdir -p ./15_check_sex/00_ld_prunning/; \
     plink2 \
         --bfile ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers \
         --indep-pairwise 500kb 1 0.2 \
-        --out ./14_pop_strat/03_ancestry_cleaned_plink/ldpruned; \
-    ls -l ./14_pop_strat/03_ancestry_cleaned_plink/")
+        --out ./15_check_sex/00_ld_prunning/ldpruned; \
+    ls -l ./15_check_sex/00_ld_prunning/")
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
         --bfile ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers \
-        --extract ./14_pop_strat/03_ancestry_cleaned_plink/ldpruned.prune.in \
+        --extract ./15_check_sex/00_ld_prunning/ldpruned.prune.in \
         --make-bed \
-        --out ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers_ldpruned;\
-    ls -l ./14_pop_strat/03_ancestry_cleaned_plink/")
-    #CHECK NUMBER SNPS AFTER PRUNING, i think it should be 100K, check explanrations in previous steps
+        --out ./15_check_sex/00_ld_prunning/loop_maf_missing_2_pca_not_outliers_ldpruned;\
+    ls -l ./15_check_sex/00_ld_prunning/")
 
-
+print_text("Check we have around 100K SNPs", header=4)
+    #We have used this criteria for the LD prunning during the pop structure analyses, see the begining of that section for further details
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
+    cd ./data/genetic_data/quality_control/15_check_sex/00_ld_prunning; \
+    sex_ld_snps_in=$( \
+        awk \
+            'BEGIN{FS=\" \"}END{print NR}' \
+            ./loop_maf_missing_2_pca_not_outliers_ldpruned.bim); \
+    printf 'The number of included autosomal SNPs in linkage equilibrium is %s\n' \"$sex_ld_snps_in\"; \
+    echo 'Is this number greater than 93K?'; \
+    if [[ $sex_ld_snps_in -gt 93000 ]]; then \
+        echo 'TRUE'; \
+    else \
+        echo 'FALSE'; \
+    fi")
+        #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
+            #https://phoenixnap.com/kb/bash-printf
+
+ 
+print_text("First run check sex", header=3)
+#Run –check-sex once without additional parameters, just to see the distribution of F (inbreeding) coefficients.
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    mkdir -p ./01_first_check_sex; \
     plink \
-        --bfile loop_maf_missing_2_pca_not_outliers_ldpruned \
+        --bfile ./00_ld_prunning/loop_maf_missing_2_pca_not_outliers_ldpruned \
         --check-sex ycount \
-        --out f_distribution \
+        --out ./01_first_check_sex/f_distribution \
 ")
     #--check-sex normally compares sex assignments in the input dataset with those imputed from X chromosome inbreeding coefficients, and writes a report to plink.sexcheck. So you estimate sex from the genetic data.
         #It uses the F statistic as calcualted for --het/--ibc
@@ -4787,7 +4825,7 @@ run_bash(" \
             #Expected counts are based on loaded (via --read-freq) or imputed MAFs; if there are very few samples in your immediate fileset, --read-freq is practically mandatory since imputed MAFs are wildly inaccurate in that case.
                 #Not our case, we are using the complete dataset after filtering (see below about this matter) 
             #Also, due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution (e.g. >90% EUR but a few samples with ancestry primarily from other continents), you may need to process the rare-ancestry samples separately.
-                #Again no problem as our sample is already homogeneous regarding ancestry (see below)
+                #Again no problem as our sample is already homogeneous regarding ancestry (see previous section)
             #By default, the n/(n-1) multiplier in Nei's expected homozygosity formula is now omitted, since n may be unknown when using --read-freq. The 'small-sample' modifier causes the multiplier to be included, while forcing --het to use.
                 #I guess if you use the MAFs from the whole dataset when you are dealing with a very small subset (again see below of why is this important), then you do not know the sample size of the MAF used is not known, as you are not using the MAF of the subset.
             #Disssect the F formula:
@@ -4811,12 +4849,12 @@ run_bash(" \
                         #As the number of homozygous genotypes decreases, <observed hom. count> - <expected count> becomes smaller because the count of homozygous is smaller but the exepected homozygous are the same. Remember the expaction is based on the allele frequencies which are calculated at a population level.
                         #When the number of homo genotypes is identical to the expected, we get 0 in the denominator, and hence F=0 (0 is the expectation). If homo genotypes is even smaller than the expectation, then the denominator is negative, making F value negative. It will get more negative as homo genotype are much more lower than the expectation. 
                         #This explain why females have F values around zero. As they have two X chromosomes, they can have homo but also heterozygous genotypes, meaning that they can be around the expectation, i.e,. around 0.
-                    #Because all of this, we should have a tight peak around 1 for males (all homozigous genotypes with no dispersion, male=no hetero calls in the X), while the females can be around 0 with some dispersion as they can have different proportions of homo/hetero (they have two X chromosomes) but always around 0, i.e., around the expecation.
+                    #Because all of this, we should have a tight peak around 1 for males (all homozigous genotypes with no dispersion, male=no hetero calls in the X), while the females can be around 0 with some dispersion as they can have different proportions of homo/hetero (they have two X chromosomes) but always around 0, i.e., around the expectation.
                 #We need to see the empirical distribution of F in our data to detect both peaks, and then decide the best threshold to separate males and females from according to F.
         #Make sure that the X chromosome pseudo-autosomal region has been split off (with e.g. --split-x) before using this.
             #we have pseudo-autosomal as 25, and I cleaned these SNPs ensuring that SNPs with code 25 are only those inside the known PAR regions
         #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
-            #this is useful to apply a new threshodl after we have seen the actual distribution of F in our data.
+            #this is useful to apply a new threshold after we have seen the actual distribution of F in our data.
         #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
             #Imagine you are using just a few samples from the whole dataset and checking their sex separately. These samples are included in a separated fileset. If you do check-sex, it will calculate the F coefficient using the MAF of the SNPs in these few samples instead of considering the MAF for the whole sample. This could be misleading. Independently of the genotype call for these few individuals, the total minor allele frequency is not that of them but of the whole population. So plink docs recommend to use --read-freq to upload a file with the actual MAFs from the whole population. THIS IS NOT a problem for us as we are using the whole set of samples. 
             #We have filtered by SNPs in this steps because we need SNPs in linkage equilibrium, but removing a SNPs does not affect the MAF of other SNP.
@@ -4841,12 +4879,11 @@ run_bash(" \
             #IMPORTANT: This is intended to recover previously-determined gender, rather than determine it from scratch, since Y chromosome data may be scarce for older males: see e.g. Dumanski JP et al. (2014) Smoking is associated with mosaic loss of chromosome Y.
                 #I guess that if you already have your dataset clean where strange cases like males with no Y genotypes being removed, you can count Y genotype calls and consider as males those with a given number of genotype Y calls.
 
-
-#check the F distribution
+print_text("check the F distribution", header=4)
 #We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
     #https://www.cog-genomics.org/plink/1.9/basic_stats
 f_distribution = pd.read_csv( \
-    "./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/f_distribution.sexcheck", \
+    "./data/genetic_data/quality_control/15_check_sex/01_first_check_sex/f_distribution.sexcheck", \
     sep="\s+", \
     header=0, \
     low_memory=False)
@@ -4863,86 +4900,58 @@ f_distribution = pd.read_csv( \
                 #we are using "y-count", so we still use X data, and we should have the F coefficient
             #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
 
-#explore the file
-
-
+print_text("explore the file", header=4)
+print("make a plot of the F distribution")
 import matplotlib.pyplot as plt
-
-# Assuming f_distribution is a 2D array or a DataFrame
-# Extract the sixth column (index 5)
-sixth_column = f_distribution.iloc[:, 5]  # If f_distribution is a pandas DataFrame
-
-# Plot the distribution
-plt.hist(sixth_column, bins=100, edgecolor='black')
-plt.title('Distribution of the Sixth Column')
+plt.hist(f_distribution.iloc[:, 5], bins=100, edgecolor='black')
+plt.title('Distribution of the F statistic')
 plt.xlabel('Value')
 plt.ylabel('Frequency')
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/f_distribution.png", \
+    fname="./data/genetic_data/quality_control/15_check_sex/01_first_check_sex/f_distribution.png", \
     dpi=300) #dpi=300 for better resolution
 plt.close()
+    #If both genders are well-represented in the dataset, you should see a big tight clump near 1 (corresponding to the males), and a more widely dispersed set of values centered near 0 (corresponding to the females).
+        #Exactly what we have, except a case with F around 0.8
 
-#see problematic cases
-np.sum(f_distribution["STATUS"]=="PROBLEM")
-    #48 problematic cases
+print("see samples with STATUS==PROBLEM")
+import numpy as np
+f'We have {np.sum(f_distribution["STATUS"]=="PROBLEM")} problematic cases'
 
-#see the STATUS of samples that are unknown in the fam file
+print("count samples that have unknown sex in the fam file")
 f_distribution_unknown_fam = f_distribution.loc[f_distribution["PEDSEX"]==0,:]
-f_distribution_unknown_fam.shape[0]
-len(f_distribution_unknown_fam["STATUS"].unique())==1 & (f_distribution_unknown_fam["STATUS"].unique()=="PROBLEM")[0]
-    #36 Problems are those cases without sex from the original data
-    
-#create list with samples without pheno in the excel file ("Combat gene DNA GWAS 23062022_v2.xlsx") and check their status
-#MAYBE YOU CAN DO IT PROGRAMATICALLY LOADING THE FILE...
-samples_without_pheno=[
-    "7798JWSO", 
-    "6865SOMS", 
-    "3484ACJJ", 
-    "2192HHMJ", 
-    "2197AFMJ", 
-    "7600HPDO", 
-    "7693KLNO", 
-    "7698ATMO", 
-    "7698JJJO", 
-    "7699CMOO", 
-    "7797BWAO", 
-    "2370MDJA", 
-    "0290JKSM", 
-    "0298CCJM", 
-    "0201GHFM", 
-    "0280PAMM", 
-    "0295MCMM", 
-    "0295MDDM", 
-    "0296CGMM", 
-    "0297JKMM", 
-    "4494BWMA", 
-    "7273NMDS", 
-    "4499JTMA", 
-    "0199AMDM", 
-    "0299AHNJ", 
-    "1499MYSM", 
-    "1195HBNM", 
-    "4400JWSA", 
-    "7700JMAO", 
-    "6296WWJM", 
-    "2378ADNA", 
-    "2397PAFA", 
-    "2397NCAA", 
-    "4495CMOA", 
-    "6201JJJJ", 
-    "6200DPDJ", 
-    "2471AWMA", 
-    "6897TSSS", 
-    "6899DWOS", 
-    "6296TONJ", 
-    "7799BTDO"]
+f'We have {f_distribution_unknown_fam.shape[0]} cases without SEX in the fam file'
+
+print("create list with samples without pheno in the excel file ('Combat gene DNA GWAS 23062022_v2.xlsx') and check their status")    
+#load the excel file
+pheno_data = pd.read_excel(
+    "./data/pheno_data/Combat gene DNA GWAS 23062022_v2.xlsx",
+    header=0,
+    sheet_name="All DNA samples")
+
+#extract the IDs of those samples without pheno (Gender) data
+samples_without_pheno = pheno_data.loc[ \
+    pheno_data["AGRF code"].notna() & pheno_data["Gender"].isna(), \
+    "AGRF code"].to_list()
+
+#see STATUS of these samples
 samples_no_pheno_status = f_distribution.loc[f_distribution["IID"].isin(samples_without_pheno), "STATUS"]
-samples_no_pheno_status.shape
-len(samples_no_pheno_status.unique())==1 & (samples_no_pheno_status.unique()=="PROBLEM")[0]
-    #We have 35 samples withput pheno en excel that are noted here as a problem
-#there is 1 with unknown sex in plink that it has pheno in the excel
-f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(samples_without_pheno)]
-    #this was the case that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA
+if( \
+    (len(samples_no_pheno_status.unique())==1) & \
+    (samples_no_pheno_status.unique()=="PROBLEM")[0] \
+):
+    f"ALL SAMPLES WITHOUT PHENO DATA ARE COUNTED AS PROBLEMATIC, being {samples_no_pheno_status.shape[0]} in total"
+else:
+    raise ValueError("There are samples without pheno data that are not considered problematic")
+
+
+
+
+##POR AQUIII
+
+print("there is 1 with unknown sex in plink that it has pheno in the excel:")
+print(f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(samples_without_pheno)])
+print("this was the case that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA")
 
 #see now cases that are not included in the list of samples without pheno but still have a problem in sex
 real_sex_problems = f_distribution.loc[(~f_distribution["IID"].isin(samples_without_pheno)) & (f_distribution["STATUS"]=="PROBLEM"), :]
@@ -5016,8 +5025,10 @@ real_sex_problems_manual_threshold["IID"].equals(real_sex_problems["IID"])
 
 
 
+#REMOVE!!!!
 #remove now from the general dataset
-
+#from here:
+    #loop_maf_missing_2_pca_not_outliers
 
 
 ##contig=<ID=1,length=248916509>
@@ -5047,8 +5058,8 @@ new_chromosomes_final.to_csv("./data/genetic_data/quality_control/14_pop_strat/0
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
     mkdir -p ./michigan_prep/; cd ./michigan_prep/; \
-    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.fa.gz; \
-    gunzip --keep hg38.fa.gz; \
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.fa.gz; \
+    gunzip --keep hg38.p13.fa.gz; \
     wget -O af.vcf.gz http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5c.20130502.sites.vcf.gz; \
     bcftools index af.vcf.gz; \
 ")
