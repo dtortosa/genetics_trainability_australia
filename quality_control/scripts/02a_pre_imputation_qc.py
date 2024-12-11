@@ -4606,7 +4606,7 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
     prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
     Klow=1; \
-    Khigh=8; \
+    Khigh=7; \
     for ((K=$Klow; K<=$Khigh; K++)); do \
         admixture \
             --seed 854534 \
@@ -4634,179 +4634,117 @@ run_bash(" \
             #the number of populations;
     #The tee command writes the output to the file log.${prefix}.${K}.out and simultaneously displays it on the terminal.
 
+#Note about Q files:
+    #The Q estimates are output as a simple matrix, so it is easy to make figures like Figure 1 in Admixture paper
+    #tbl_raw = pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_cv/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K2.Q", sep="\s+", header=None)
+
 #Results
-    #LOOK CV VALUES AND THE FST VALUES.
+    #The CV-error tend to increase from K=1 onwards (see plots below). Also the FST values are relatively low, around 0.01-0.02. The only increase to 0.04 when considering 7 groups. According to acenstry docs, continental differentiated pops have FSTs values>0.05, so it seems we are dealing with 1 single big ancestry group according to admixture.
+        #continentally separated populations (for example, African, Asian, and European pop- ulations FST > .05) while more like 100,000 markers are necessary when the populations are within a continent (Europe, for instance, FST < 0.01).
     #If in a revision someone ask about the ancestry, we say that according the PCAs and the admixture analyses, we only have 1 ancestry in our sample after removing PCA outliers. The ancestry is possibly European (after comparing a few allele frequencies with ncbi freqs across pops), but we do not know for sure.
 
-
-
-
-
-
-
-
-
-#The Q estimates are output as a simple matrix, so it is easy to make figures like Figure 1 from our paper
-
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Read the Q estimates from the file
-tbl_raw = pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_cv/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K4.Q", sep="\s+", header=None)
-
-# Determine the column with the highest value for each row
-max_membership = tbl_raw.idxmax(axis=1)
-
-# Sort the DataFrame based on the column with the highest value
-tbl = tbl_raw.iloc[np.argsort(max_membership)]
-
-
-# Convert the DataFrame to a NumPy matrix and transpose it
-matrix = tbl.to_numpy().T
-
-# Define the colors for the bar plot
-colors = plt.cm.rainbow(np.linspace(0, 1, matrix.shape[0]))
-
-# Create the stacked bar plot
-fig, ax = plt.subplots(figsize=(10, 6))
-bar_width = 1.0
-indices = np.arange(matrix.shape[1])
-
-for i in range(matrix.shape[0]):
-    if i == 0:
-        ax.bar(indices, matrix[i], bar_width, color=colors[i], edgecolor='none')
-    else:
-        ax.bar(indices, matrix[i], bar_width, bottom=matrix[:i].sum(axis=0), color=colors[i], edgecolor='none')
-
-# Set the labels and title
-ax.set_xlabel("Individual #")
-ax.set_ylabel("Ancestry")
-ax.set_title("Ancestry Proportions")
-
-#save and close
-plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/eso3.png", \
-    dpi=300) #dpi=300 for better resolution
-plt.close()
-
-
-
-
-
-#run admixture 3 times for each K value (1 to 3)
-run_bash("mkdir -p ./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_iterated")
+print("extract the CV errors")
 run_bash(" \
     cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
-    prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
-    for r in {1..3}; do \
-        for K in {1..3}; do \
-            admixture \
-                --seed ${RANDOM} \
-                -j28 \
-                ../01_pca/${prefix}.bed \
-                $K; \
-            mv ./${prefix}.${K}.Q ./admixture_iterated/${prefix}.K${K}r${r}.Q; \
-            mv ./${prefix}.${K}.P ./admixture_iterated/${prefix}.K${K}r${r}.P; \
-        done; \
-    done; \
-")
-
-
-
-
-##eval
-#
-run_bash(" \
-    cd; \
-    prefix_1=./diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/data/genetic_data/quality_control/14_pop_strat/01_pca; \
-    prefix_2=./diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_cv; \
-    ./evalAdmix/evalAdmix \
-        -plink ${prefix_1}/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers \
-        -fname ${prefix_2}/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K1.P \
-        -qname ${prefix_2}/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K1.Q \
-        -o evaladmixOut.corres \
-        -P 10 \
-")
-
-
-
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Read population labels and estimated admixture proportions
-pop = pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", delim_whitespace=True, header=None)
-q = pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K3r1.Q", delim_whitespace=True, header=None)
-
-# Define a color palette
-palette = ["#A6CEE3","#1F78B4","#B2DF8A","#33A02C","#FB9A99","#E31A1C","#FDBF6F","#FF7F00","#CAB2D6","#6A3D9A","#FFFF99","#B15928","#1B9E77","#999999"]
-
-# Order according to population
-ord = np.argsort(pop[1].values)
-
-# Plot ADMIXTURE results
-plt.figure(figsize=(10, 8))
-for i in range(q.shape[1]):
-    plt.bar(range(len(ord)), q.iloc[ord, i], bottom=q.iloc[ord, :i].sum(axis=1), color=palette[i % len(palette)])
-plt.xlabel('Individuals')
-plt.ylabel('Admixture Proportion')
-plt.title('ADMIXTURE Results')
-
-# Read the correlation matrix
-r = pd.read_csv("/home/dftortosa/evaladmixOut.corres", delim_whitespace=True, header=None, na_values='NA')
-
-# Plot correlation of residuals
-plt.figure(figsize=(10, 8))
-sns.heatmap(r.iloc[ord, ord], annot=False, cmap='coolwarm', cbar=True, linewidths=0.5, linecolor='black', vmin=-0.1, vmax=0.1)
-plt.xlabel('Individuals')
-plt.ylabel('Individuals')
-
-#save and close
-plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/eso3.png", \
-    dpi=300) #dpi=300 for better resolution
-plt.close()
-
-
-
-
-
-#create pong files
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
-    prefix=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
-    rm ./admixture_out/${prefix}.multiplerun.Qfilemap; \
-    createQmap() { \
-        local r=$1; \
-        local K=$2; \
+    Klow=1; \
+    Khigh=7; \
+    for ((K=$Klow; K<=$Khigh; K++)); do \
+        if [ $K -eq 1 ]; then \
+            > cv_errors.tsv; \
+        fi; \
         awk \
             -v K=$K \
-            -v r=$r \
-            -v file=${prefix}.K${K}r${r} \
-            'BEGIN{ \
-                printf(\"K%dr%d\\t%d\\t%s.Q\\n\", K, r, K, file) \
-            }' >> ./admixture_out/${prefix}.multiplerun.Qfilemap; \
-    }; \
-    export -f createQmap; \
-    for K in {3..3}; do \
-        for r in {1..10}; do \
-            createQmap $r $K; \
-        done; \
+            'BEGIN{FS=\" \"; OFS=\"\t\"}{ \
+                if (K==1 && NR == 1){ \
+                    print \"k\", \"cv_error\"\
+                }; \
+                if ($0 ~ /^CV error/){ \
+                    print K, $4; \
+                }; \
+            }' \
+            ./admixture_cv/log.loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K$K.out >> cv_errors.tsv ; \
     done; \
 ")
-    #careful ">>" adds new lines to the file!!
+    #From K=1 to K=7
+        #if we are analyzing the first K value (K=1), then create a new file to store results. Using ">" makes it possible to overwrite if the file exists
+        #with Awk
+            #add K as a value and use spaces as input FS and tabs as output FS
+            #if the analyzing the first file and its ifrst row, add the header as two strings
+            #if the row starts with "CV error", then print two columns with K and the fourth field of that row, i.e., the CV error
+            #add the output in the TSV file
+
+print("plot the CV errors")
+#load the data
+cv_errors = pd.read_csv( \
+    "./data/genetic_data/quality_control/14_pop_strat/02_admixture/cv_errors.tsv", \
+    sep="\t", \
+    header=0, \
+    low_memory=False)
+
+#create a scatter plot with connected dots
+import matplotlib.pyplot as plt
+plt.figure(figsize=(10, 6))
+plt.plot( \
+    cv_errors["k"], \
+    cv_errors["cv_error"], \
+    marker="o", \
+    linestyle="-")
+plt.xlabel("K values")
+plt.ylabel('Cross-validation error')
+plt.title('Change of CV error across different K values')
+plt.savefig( \
+    fname="./data/genetic_data/quality_control/14_pop_strat/02_admixture/cv_errors.png", \
+    dpi=300) #dpi=300 for better resolution
+plt.close()
+
+print("evaluate the K1 results in more detail")
+#evalAdmix allows to evaluate the results of an admixture analysis (i.e. the result of applying ADMIXTURE, STRUCTURE, NGSadmix and similar). It only needs the input genotype data used for the previous admixture analysis and the output of that analysis (admixture proportions and ancestral population frequencies). The genotype input data can either be called genotypes in binary plink format or genotype likelihoods in beagle format. 
+    #http://popgen.dk/software/index.php/EvalAdmix
+
+#The output is a pairwise correlation of residuals matrix between individuals. The correlation will be close to 0 in case of a good fit of the data to the admixture model. When individuals do not fit the model, individuals with similar demographic histories (i.e. usually individuals from the same population) will be positively correlated; and individuals with different histories but that are modelled as sharing one or more ancestral populations as admixture sources will have a negative correlation. Positive correlation between a pair of individuals might also be due to relatedness. 
+    #I understand that if the ancestry model is not working correctly, we are leaving unexplained variance, i.e., residuals, about the relationship between samples and that makes them to correlate between them.
+
+#run evalAdmix
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/; \
+    mkdir -p ./02_admixture/eval_admix; \
+    evalAdmix \
+        -plink ./01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers \
+        -fname ./02_admixture/admixture_cv/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K1.P \
+        -qname ./02_admixture/admixture_cv/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K1.Q \
+        -o ./02_admixture/eval_admix/evaladmixOut.K1.corres \
+        -P 20 \
+")
+    #plink: binary plink file prefix with genotype data
+    #fname: file with ancestral frequencies (space delimited, rows are sites and columns ancestral populations), so you have 1 column for K=1, 3 columns for K=3 and so on... while the number of rows is the number of SNPs used.
+    #qname: file with admixture proportions (space delimited, rows are individuals and columns ancestral populations), so the number of columns is again the number of pops considered, while the number of rows is the number of samples.
+    #o: prefix of output file names
+    #P: Number of threads used
+    #example: ./evalAdmix -plink inputPlinkPrefix -fname inputPlinkPrefix.K.P -qname inputPlinkPrefix.K.Q -o evaladmixOut.corres -P 10 
+
+#output:
+    #The analysis performed by evalAdmix produces one file, containing a tab delimited N times N symmetric correlation matrix, where column i in line j contains the correlation of residuals between individual i and j, and the diagonal values (self-correlation) are set to NA:
+        #NA 0.008609 -0.006919 0.002731 0.020224
+        #0.008609 NA 0.000033 0.004968 -0.008470
+        #-0.006919 0.000033 NA 0.006982 0.005664
+        #0.002731 0.004968 0.006982 NA 0.000521
+        #0.020224 -0.008470 0.005664 0.000521 NA 
+
+#plot the results
+#I am using as reference the R code showed in the manual
+    #http://popgen.dk/software/index.php/EvalAdmix
+run_bash("R CMD BATCH /opt/scripts/02bb_pre_imputation_qc_eval_admix_plot.R")
+    
+#Results:
+    #see in figure "evaladmix_plot.pdf" and compare with the figures in the evalAdmix manual
+        #http://popgen.dk/software/index.php/EvalAdmix#Run_command_example
+    #The plot show almost no color, like the right plot in the example. This means that there is no correlation between the residuals of the samples under the admixture model of 1 population.
+    #This is completely different compared to the left plot.
+    #Therefore, we can confidently say that an Admixture model assuming just 1 ancestry group fits relavitvely well our data. More evidence about the fact that our sample is already genetically homogeneous.
+
+print_text("Summary Ancestry: Results from the PCA analyses with smartpca and the admixture analyses with Admixture strongly suggest that our sample is relatively homogeneous in genetic terms. There are not differences at the continental level, e.g., Africans vs Europeans. Sure, we can still have more subtle differences within our sample, but we are going to use the main PCAs in the GWAS analysis anyways", header=4)
 
 
-###PODRIAMOS CORRER 10 CORES, UNO POR ITERACION, NO DEBREIA TARDAR MAS DE 2-3 DIAS.
-#el problema es el resutlado, como hacemos labeling sin tener etiqueta de ancetria?
-#y si la tenemos? miramos si los grupos son consistentes con la genetica?
-#con las ancestricas se podri ahacer la figura 6 del tutorial para ver si algín individuo no está cerca del resto de su ancestria. Validamos las ancestrias y ya las usamos como grupos.
-#se vlaida mirando individuos que se salgan de los grupos de PCA (lo mismo se puede buscar programa que haga elipses?) y tambien en bar plot de acenstry, si hay individuo de una ancestria que tiene mucho de otra ancestria.... se pueden quitar... y así tenemos grupos definidos homogeneos...
-#we could use the data from 1KGDP like in this tutorial to see if our indiviuals are close to any cluster
-    #https://meyer-lab-cshl.github.io/plinkQC/articles/Genomes1000.html
-    #https://meyer-lab-cshl.github.io/plinkQC/articles/AncestryCheck.html
 
 
 

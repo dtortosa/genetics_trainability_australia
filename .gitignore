@@ -1,8 +1,10 @@
 *.sif
 *.ipynb_checkpoints
-*json
+*.json
+*.log 
 
 admixture_versions/
+evalAdmix_versions/
 /.vscode/
 /association_studies/results/
 /association_studies/data/
