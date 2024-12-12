@@ -4900,7 +4900,7 @@ f_distribution = pd.read_csv( \
                 #we are using "y-count", so we still use X data, and we should have the F coefficient
             #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
 
-print_text("explore the file", header=4)
+print_text("explore the F distribution", header=4)
 print("make a plot of the F distribution")
 import matplotlib.pyplot as plt
 plt.hist(f_distribution.iloc[:, 5], bins=100, edgecolor='black')
@@ -4912,8 +4912,24 @@ plt.savefig( \
     dpi=300) #dpi=300 for better resolution
 plt.close()
     #If both genders are well-represented in the dataset, you should see a big tight clump near 1 (corresponding to the males), and a more widely dispersed set of values centered near 0 (corresponding to the females).
-        #Exactly what we have, except a case with F around 0.8
+    #Exactly what we have, except a case with F just below 0.8, but it is only 1.
+print("Sample with an F value between 0.2 and 0.8")
+samples_between_f = f_distribution.loc[(f_distribution.iloc[:, 5]>0.2) & (f_distribution.iloc[:, 5]<0.8),:]
+print(samples_between_f)
+if(samples_between_f.shape[0]!=1):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM, WE SHOULD HAVE ONLY 1 SAMPLE WITH A F VALUE BETWEEN 0.2 AND 0.8, BUT THIS IS NOT THE CASE")
+    #So we are going to continue using the default threshold values for the F statisic, i.e., 0.
 
+#Initial exploration
+    #If you change the thresholds, the F values are still going to be the same, what changes is the STATUS column, i.e,. if a sample is consider FEMALE, MALE or UNKNOWN
+    #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
+    #We are using default values for F and Y thresholds:
+        #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
+        #In 'ycount' mode, gender is still imputed from the X chromosome, but female calls are downgraded to ambiguous whenever more than 0 nonmissing Y genotypes are present, and male calls are downgraded when fewer than 0 are present. (Note that these are counts, not rates.) These thresholds are controllable with --check-sex ycount's optional 3rd and 4th numeric parameters.
+        #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
+    #Therefore, as we are going to still use eveything as it is, our previous analysis is like "--check-sex ycount 0.2 0.8 0 0"
+
+print_text("Explore the rest of results, i.e., STATUS column", header=4)
 print("see samples with STATUS==PROBLEM")
 import numpy as np
 f'We have {np.sum(f_distribution["STATUS"]=="PROBLEM")} problematic cases'
@@ -4934,91 +4950,130 @@ samples_without_pheno = pheno_data.loc[ \
     pheno_data["AGRF code"].notna() & pheno_data["Gender"].isna(), \
     "AGRF code"].to_list()
 
+#extract their data from the check sex file
+samples_no_pheno = f_distribution.loc[f_distribution["IID"].isin(samples_without_pheno), :]
+print(samples_no_pheno)
+
 #see STATUS of these samples
-samples_no_pheno_status = f_distribution.loc[f_distribution["IID"].isin(samples_without_pheno), "STATUS"]
+samples_no_pheno_status = samples_no_pheno["STATUS"]
 if( \
     (len(samples_no_pheno_status.unique())==1) & \
     (samples_no_pheno_status.unique()=="PROBLEM")[0] \
 ):
-    f"ALL SAMPLES WITHOUT PHENO DATA ARE COUNTED AS PROBLEMATIC, being {samples_no_pheno_status.shape[0]} in total"
+    print(f"ALL SAMPLES WITHOUT PHENO DATA ARE COUNTED AS PROBLEMATIC, being {samples_no_pheno_status.shape[0]} in total")
 else:
-    raise ValueError("There are samples without pheno data that are not considered problematic")
+    raise ValueError("ERROR! FALSE! There are samples without pheno data that are not considered problematic")
 
-
-
-
-##POR AQUIII
-
-print("there is 1 with unknown sex in plink that it has pheno in the excel:")
+print("there is 1 sample with unknown sex in plink that it is NOT included in the list of samples that do not have phenotype in the excel, because it is indeed a sample not included in the excel at all:")
 print(f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(samples_without_pheno)])
-print("this was the case that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA")
+    #"~" is used to negate
+print("this was the case that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA insted of 2397LDJA")
 
-#see now cases that are not included in the list of samples without pheno but still have a problem in sex
+print("Add samples without pheno in excel to be removed")
+samples_remove_due_sex = samples_no_pheno["IID"].to_list()
+
+print("see now cases that are not included in the list of samples without pheno but still have a problem in sex. These are the real problems because if we have sex data and still have an error, it means there is a mismatch between selfreported sex and genetics")
 real_sex_problems = f_distribution.loc[(~f_distribution["IID"].isin(samples_without_pheno)) & (f_distribution["STATUS"]=="PROBLEM"), :]
-real_sex_problems.shape[0]
+print("Number of real problems: " + str(real_sex_problems.shape[0]))
+
+print("check we have the correct number of problematic cases")
+#concatenate the problematic cases due to the lack of SEX in the pheno data PLUS the real problematic cases, i.e., cases with SEX reported but with a mismatch with the genetics
+combined_problematic = pd.concat([f_distribution_unknown_fam["IID"], real_sex_problems["IID"]], ignore_index=True)
+
+#count the number of duplicates, 1 means that 2 IDs are identical
+n_duplicates = combined_problematic.duplicated().sum()
+
+#the sum of problematic cases minus 1 duplicate should give the total number of problematic cases
+if(combined_problematic.shape[0] - n_duplicates != f_distribution.loc[(f_distribution["STATUS"]=="PROBLEM"), :].shape[0]):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM, THE NUMBER OF PROBLEMATIC CASES RELATED TO SEX DO NOT MATCH")
+
+#Results:
 with pd.option_context('display.max_columns', None):
     print(real_sex_problems)
     #This will display all columns of the real_sex_problems DataFrame for this single print operation without changing the global pandas settings.
-#13 sex-problematic cases, the rest do not have pheno data indeed
-    #cases defined a female, with F value correct, but 1 Y genotype
-        #probably better to remove 
-    #there are three cases (7699ISMO, 8244GBJJ, 8702EBMF) with very low F and no Y genotypes that are consdered male by the pheno data
-        #this could be considered as female? or just remove?
-        #just for three more samples I would not run the risk...
-    #one male (8500JADJ) and is considered unknow by plink because his F value is below 0.8
-        #it has more than exected heterozygous genotypes in the X chromosome, again we would expect 1 for a biological male, i.e., no heterozygous at all in the X chromosome.
-        #better remove....
-    #one case (2397LDJA) do not have sex, but genetic data is very clear, strongly suggesting male
-        #this was the cases that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA
-        #it was a mislabelled sample
+#13 sex-problematic cases, the rest of problems are caused because they do not have pheno data at all
+#Self-reported females, with F value around 0, and female names, but having 1 Y genotype. Probably technical errors. REMOVING.
+samples_remove_due_sex = samples_remove_due_sex + ["0295AMSM", "7692EOOO", "1390JMJM", "2197JWDM", "2282SODJ", "3400ISOM", "6796HGJS", "7300ECNO"]
 
-
-
-#Summay abour sex decision
-#2397LDJA was not present in the phenotype excel. It has F=0.999 and multiple Y genotypes. Also there is a sample in the pheno excel with almost the same ID (2399LDJA) that is nideed a male. So it seems to be a mislabelling. We are GOING TO KEEP, BUT WAITING FOR BIHOSP CONFOIRMATION THAT 2399LDJA and4699LDJA matches.
+#there are three cases (7699ISMO, 8244GBJJ, 8702EBMF) with very low F and no Y genotypes that are consdered male by the pheno data
 #8244GBJJ and 8702EBMF were identified as males, but they have very low F, no Y genotypes and their names are one of females, so they are likely females. We retain BOTH BUT CHANGING THE SEX.
-#0295AMSM, 7692EOOO, 1390JMJM, 2197JWDM, 2282SODJ, 3400ISOM, 6796HGJS, 7300ECNO have female names, F values close to 0 but they have 1 Y genotype. This is probably a technical error but we are going to remove them.
-#8500JADJ has 64 Y genotypes, a male name, but the problem is that the F values is far below 0.99 and below our threshold, it is not included in any of the F peaks, so we are removing them.
-#7699ISMO has F value close to 0, no Y genotypes, but it has a male name. We are going to remove.
+samples_change_sex = ["8244GBJJ", "8702EBMF"]
+#7699ISMO has F value close to 0, no Y genotypes, but it has a male name so this is really strange. It seems a biological female with a male name. We are going to REMOVE.
+samples_remove_due_sex.append("7699ISMO")
+
+#A self-reported male (8500JADJ) and is considered unknow by plink because his F value is below 0.8. It has 64 Y genotypes, a male name, but the problem is that the F values is far below 0.99 (expected for males) and below our threshold, it is not included in any of the F peaks. Tis sample has lower homozygosity in the X than expected for a male, meaning that if could have two alleles for several positions in the X. We are REMOVING.
+samples_remove_due_sex.append("8500JADJ")
+
+#one case (2397LDJA) do not have sex, but genetic data is very clear: F=0.99 and 64 Y genotypes, plus male name. This strongly suggesting male
+    #this was the cases not present in the excel. There is a sample in the excel with a very similar ID (2399LDJA). Lo an behold, that sample in the excel is reported as a male. So, as David postdoc suggested, this is likely a mislabelled sample. We are going to set the sex as male and change the ID to the one in the excel file.
+samples_change_sex.append("2397LDJA")
+
+print("check we have the correct number of samples to remove")
+if(len(samples_remove_due_sex)+len(samples_change_sex)!=f_distribution.loc[f_distribution["STATUS"]=="PROBLEM", :].shape[0]):
+    raise ValueError("ERROR! FALSE! THE NUMBER OF SAMPLES TO REMOVE IS NOT OK")
+else:
+    print("OK")
+
+#Aside note about names
+#I have checked the names of these 13 samples to see if some names were showing a very different ancestry. We should have similar ancestries given we have already filtered the samples by population structure.
+#Most of the first and last names are of European origin, suggesting that our sample is possibly of European ancestry.
+#There are two cases with a hispanic first name, but it seems these names are also used for non-hispanic people. Also note that the last names are English. So very unlikely these are people from the Americas or Phillipines. Note that Hispanic-americans and Filipinos usually have both first and last names from hispanic origin.
+#There are two cases with Turkish names. One have a last name that is of Turkish origin and the other has a last name that is frequently used in Arabic-speaking and Muslim countries but also very frequent in Turkey probably due to historic (associated with Carlos). From what I have seen, it seems these persons are possibly of turkish origin, which is not far off from European ancestry.
+#Therefore, in general, it seems that our filtering has possibly removed samples that are far away from European ancestries.
 
 
+print_text("Remove samples", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    mkdir -p ./03_removing_samples; \
+")
+print_text("Create file ready for plink", header=4)
 
 
+loop_maf_missing_2_pca_not_outliers_fam = pd.read_csv( \
+    "./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers.fam",
+    sep=" ", \
+    header=None, \
+    low_memory=False \
+)
+
+batch_sample_id_samples_remove = loop_maf_missing_2_pca_not_outliers_fam.loc[loop_maf_missing_2_pca_not_outliers_fam.iloc[:,1].isin(samples_remove_due_sex), [0, 1]]
+
+len(samples_remove_due_sex)==batch_sample_id_samples_remove.shape[0]
 
 
+batch_sample_id_samples_remove.to_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/03_removing_samples/samples_remove.tsv",
+    sep="\t",
+    header=False,
+    index=False \
+)
 
-
-
+batch_sample_id_samples_remove
 
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
+    cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile loop_maf_missing_2_pca_not_outliers_ldpruned \
-        --check-sex ycount 0.7 0.8 0 0 \
-        --out f_distribution_manual_threshold \
-")
-    #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
-    #0 and 0 is the default beheviour of plink for these arguments.
-    #the default for [female max F] [male min F] is 0.2 and 0.8.
+        --bfile ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers \
+        --remove ./15_check_sex/03_removing_samples/samples_remove.tsv \
+        --make-bed \
+        --out ./15_check_sex/03_removing_samples/loop_maf_missing_2_pca_not_outliers_first_sex_clean"
+)
+
+    #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
 
 
-f_distribution_manual_threshold = pd.read_csv( \
-    "./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/f_distribution_manual_threshold.sexcheck", \
-    sep="\s+", \
-    header=0, \
-    low_memory=False)
-
-    #CHECK WE HAVE THE SAME AFTER THE THRESHOLD
+pd.read_csv("./data/genetic_data/quality_control/15_check_sex/03_removing_samples/loop_maf_missing_2_pca_not_outliers_first_sex_clean.fam", sep=" ", header=None, low_memory=False)[1].isin(batch_sample_id_samples_remove[1]).sum()
 
 
-real_sex_problems_manual_threshold = f_distribution_manual_threshold.loc[(~f_distribution_manual_threshold["IID"].isin(samples_without_pheno)) & (f_distribution_manual_threshold["STATUS"]=="PROBLEM"), :]
-real_sex_problems_manual_threshold
-
-real_sex_problems_manual_threshold["IID"].equals(real_sex_problems["IID"])
-    #the same
-    #so increasing the female threshold to 0.7, does not change anythign
 
 
+
+#change sex
+samples_change_sex
+#also update ID of 2397LDJA to 2399LDJA
+
+#AFTER REMOVING ANYTHING, WE SHOULD NOT SEE ANY WARNING ABOUT .HH OR .NOSEX
 
 
 
@@ -5026,6 +5081,7 @@ real_sex_problems_manual_threshold["IID"].equals(real_sex_problems["IID"])
 
 
 #REMOVE!!!!
+#the cases without phenotype and the cases decided to be removed from the 13 real problems
 #remove now from the general dataset
 #from here:
     #loop_maf_missing_2_pca_not_outliers
