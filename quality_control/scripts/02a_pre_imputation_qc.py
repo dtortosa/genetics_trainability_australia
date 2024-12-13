@@ -5171,150 +5171,125 @@ run_bash(" \
     mkdir -p ./03_second_check_sex; \
 ")
 
-#run Y check
-
-"loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update"
-
-
-
-###y would be the next step
+print_text("run check-sex only with Y", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    plink \
+        --bfile ./02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update \
+        --check-sex y-only 0 1 \
+        --out ./03_second_check_sex/check_sex_y_only \
+")
     #--check-sex has now two modes which consider Y chromosome data.
-        #In 'ycount' mode
-            #gender is still imputed from the X chromosome, but female calls are downgraded to ambiguous whenever more than 0 nonmissing Y genotypes are present.
-                #In other words, if a female call has 1 or more call in the Y genotype (i.e., non-missing), then it is downgraded to unknown. This makes sense because if a sample reported as female has a Y genotype, then it is female or male? Probably a sample to be removed.
-            #male calls are downgraded when fewer than 0 are present.
-                #A male can never have less than 0 Y genotype calls, thus a male is not going to be downgraded because of this. 
-                #By default, plink does not downgraded males that have zero Y genotype calls.
-                #It seems that for imputing sex from scratch, it is not a good idea to discard males without Y genotypes because older males seems to suffer a decrease of the chromosome in some cells. So it would not be a very useful marker (see y-only mode section). If some actual males suffer Y losses in some cells, you could wrongly assigned them to "unknown when they are actual males".
-            #Note that these thresholds are counts, not rates. These thresholds are controllable with --check-sex ycount's optional 3rd and 4th numeric parameters.
-                #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
-            #We want the default behaviour of "y-count" as this let us to consider both X and Y chromosomes in order to impute sex, while avoiding problems with the mosaic-loss of the Y chromosome. 
-        #In 'y-only' mode
-            #gender is imputed from nonmissing Y genotype counts, and the X chromosome is ignored. 
-            #The male minimum threshold defaults to 1 instead of zero in this case. 
-                #Now males with no Y genotypes are downgraded
-            #IMPORTANT: This is intended to recover previously-determined gender, rather than determine it from scratch, since Y chromosome data may be scarce for older males: see e.g. Dumanski JP et al. (2014) Smoking is associated with mosaic loss of chromosome Y.
-                #I guess that if you already have your dataset clean where strange cases like males with no Y genotypes being removed, you can count Y genotype calls and consider as males those with a given number of genotype Y calls.
+    #In 'ycount' mode
+        #gender is still imputed from the X chromosome, but female calls are downgraded to ambiguous whenever more than 0 nonmissing Y genotypes are present.
+            #In other words, if a female call has 1 or more call in the Y genotype (i.e., non-missing), then it is downgraded to unknown. This makes sense because if a sample reported as female has a Y genotype, then it is female or male? Probably a sample to be removed.
+        #male calls are downgraded when fewer than 0 are present.
+            #A male can never have less than 0 Y genotype calls, thus a male is not going to be downgraded because of this. 
+            #By default, plink does not downgraded males that have zero Y genotype calls.
+            #It seems that for imputing sex from scratch, it is not a good idea to discard males without Y genotypes because older males seems to suffer a decrease of the chromosome in some cells. So it would not be a very useful marker (see y-only mode section). If some actual males suffer Y losses in some cells, you could wrongly assigned them to "unknown when they are actual males".
+        #Note that these thresholds are counts, not rates. These thresholds are controllable with --check-sex ycount's optional 3rd and 4th numeric parameters.
+            #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
+        #We want the default behaviour of "y-count" as this let us to consider both X and Y chromosomes in order to impute sex, while avoiding problems with the mosaic-loss of the Y chromosome. 
+    #In 'y-only' mode
+        #gender is imputed from nonmissing Y genotype counts, and the X chromosome is ignored. 
+        #The male minimum threshold defaults to 1 instead of zero in this case. 
+            #Now males with no Y genotypes are downgraded
+        #IMPORTANT: This is intended to recover previously-determined gender, rather than determine it from scratch, since Y chromosome data may be scarce for older males: see e.g. Dumanski JP et al. (2014) Smoking is associated with mosaic loss of chromosome Y.
+            #I guess that if you already have your dataset clean where strange cases like males with no Y genotypes being removed, you can count Y genotype calls and consider as males those with a given number of genotype Y calls.
+    #We are using the "y-only" mode:
+        #We have already used the X chromosome to calculate the F statistic and check sex. Now, we are interested only in see the females samples with non-missing Y genotypes. In the unlikely case that a male sample has a F value around 1 (we have alredy filtered by that) and have less than 1 Y genotype (one thing is a decrease in Y genotype in older and other is to have 0), the male sample will be set as PROBLEM, so we are going to add a check about that later.
+        #Given we are not calculating F, we do not good MAF falues nor LD. We are just counting the number of Y genotypes, so we are going to use the whole sample without LD prunning and see the number of Y genotypes in the samples across all Y SNPs.
+            #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
 
 
 
 
-        #.sexcheck: A text file with a header line, and then one line per sample with the following 6-7 fields:
-            #FID	Family ID
-            #IID	Within-family ID
-            #PEDSEX	Sex code in input file (1 = male, 2 = female, 0 = unknown according the fam file)
-            #SNPSEX	Imputed sex code (1 = male, 2 = female, 0 = unknown)
-            #STATUS	'OK' if PEDSEX and SNPSEX match and are nonzero, 'PROBLEM' otherwise
-                #we are using "y-count", so we still use X data, and we should have the F coefficient
-            #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
+check_sex_y_only = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/check_sex_y_only.sexcheck", \
+    sep="\s+", \
+    header=0, \
+    low_memory=False \
+)
+    #.sexcheck: A text file with a header line, and then one line per sample with the following 6-7 fields:
+        #FID	Family ID
+        #IID	Within-family ID
+        #PEDSEX	Sex code in input file (1 = male, 2 = female, 0 = unknown according the fam file)
+        #SNPSEX	Imputed sex code (1 = male, 2 = female, 0 = unknown)
+        #STATUS	'OK' if PEDSEX and SNPSEX match and are nonzero, 'PROBLEM' otherwise
+            #we are using "y-count", so non-zero y-counts for females results in SNPSEX=1 and hence PROBLEM.
+        #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
 
 
-#problems
+check_sex_y_only_problems = check_sex_y_only.loc[check_sex_y_only.iloc[:,4]=="PROBLEM"]
+
+if( \
+    (check_sex_y_only_problems.loc[ \
+        (check_sex_y_only_problems.iloc[:,2]==1) \
+    ].shape[0] != 0) | \
+    (check_sex_y_only_problems.loc[ \
+        (check_sex_y_only_problems.iloc[:,2]==2) \
+    ].shape[0] != check_sex_y_only_problems.shape[0]) \
+):
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SAMPLES ACCORDING TO Y CHROMOSOME")
+
+#check the original problematic cases due to non-missing Y genotypes are included in this new list
+original_samples_y_problem =  pd.Series(["0295AMSM", "7692EOOO", "1390JMJM", "2197JWDM", "2282SODJ", "3400ISOM", "6796HGJS", "7300ECNO"])
 #Self-reported females, with F value around 0, and female names, but having 1 Y genotype. Probably technical errors. REMOVING.
-samples_y_problem =  ["0295AMSM", "7692EOOO", "1390JMJM", "2197JWDM", "2282SODJ", "3400ISOM", "6796HGJS", "7300ECNO"]
+
+if( \
+    original_samples_y_problem.isin(check_sex_y_only_problems.iloc[:,1]).sum() != original_samples_y_problem.shape[0] \
+):
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SAMPLES ACCORDING TO Y CHROMOSOME")
 
 
 
-###AFTER Y CHECK, THEN CHECK HETEROZYGOUS HAPLOD CASES MALE IN .HH FILE
-
-
-
-
-loop_maf_missing_2_pca_not_outliers_first_sex_clean_fam = pd.read_csv( \
-    "./data/genetic_data/quality_control/15_check_sex/03_removing_samples/loop_maf_missing_2_pca_not_outliers_first_sex_clean.fam",
-    sep=" ", \
-    header=None, \
+check_sex_y_only_hh = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/check_sex_y_only.hh", \
+    sep="\s+", \
+    header=0, \
     low_memory=False \
 )
 
 
-
-print_text("last check sex round with y only", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/15_check_sex; \
-    mkdir -p ./05_clean_only_y; \
-")
-print_text("Create file ready for plink", header=4)
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/15_check_sex; \
-    plink \
-        --bfile ./04_changing_sex_ids/loop_maf_missing_2_pca_not_outliers_second_sex_clean \
-        --check-sex y-only 0 1 \
-        --out ./05_clean_only_y/check_sex_only_y \
-")
-
-check_sex_only_y = pd.read_csv( \
-    "./data/genetic_data/quality_control/15_check_sex/05_clean_only_y/check_sex_only_y.sexcheck", \
-    sep="\s+", \
-    header=0, \
-    low_memory=False)
-
-
-only_y_problems = check_sex_only_y.loc[check_sex_only_y["STATUS"] == "PROBLEM"]
-
-if((only_y_problems["PEDSEX"] == 1).sum()!=0):
-    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM, THE Y-ONLY MODE GIVE AS ERRORS MALES. WE PUT AS 1 THE MINIMUM NUMBER OF Y GENOTYPES FOR MALES AND 0 FOR FEMALES BECAUSE FEMALE THRESHOLD HAS TO BE LOWER THAN MALE THRESHOLD, BUT IT HAS DETECTED MALES WITH LOW Y GENOTYPES. REMEMBER THAT MALES, SPECIALLY OLD, CAN LOSE Y GENOTYPES AND PRESENT MOSAICISM")
-
-
-check_sex_only_y.loc[(check_sex_only_y["PEDSEX"]==2) & (check_sex_only_y["STATUS"] != "PROBLEM")].shape[0]
-
-
-
-only_y_problems.iloc[:,[0,1]].to_csv( \
-    "./data/genetic_data/quality_control/15_check_sex/05_clean_only_y/only_y_problems.tsv",
-    sep="\t",
-    header=False,
-    index=False \
-)
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    plink \
-        --bfile ./15_check_sex/04_changing_sex_ids/loop_maf_missing_2_pca_not_outliers_second_sex_clean \
-        --remove ./15_check_sex/05_clean_only_y/only_y_problems.tsv \
-        --make-bed \
-        --out ./15_check_sex/05_clean_only_y/loop_maf_missing_2_pca_not_outliers_third_sex_clean"
-)
-
-only_y_problems.iloc[:,[0,1]]
-
-
-
-
-
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/15_check_sex; \
-    plink \
-        --bfile ./06_final_update/loop_maf_missing_2_pca_not_outliers_sex_full_clean \
-        --check-sex y-only 0 1 \
-        --out ./06_final_update/final_sex_check \
-")
-
-
-hh_final_report = pd.read_csv("./data/genetic_data/quality_control/15_check_sex/06_final_update/final_sex_check.hh", sep="\s+", header=None, low_memory=False)
-loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim = pd.read_csv("./data/genetic_data/quality_control/15_check_sex/06_final_update/loop_maf_missing_2_pca_not_outliers_sex_full_clean.bim", sep="\s+", header=None, low_memory=False)
-loop_maf_missing_2_pca_not_outliers_sex_full_clean_fam = pd.read_csv("./data/genetic_data/quality_control/15_check_sex/06_final_update/loop_maf_missing_2_pca_not_outliers_sex_full_clean.fam", sep="\s+", header=None, low_memory=False)
-
-
-(loop_maf_missing_2_pca_not_outliers_sex_full_clean_fam.loc[loop_maf_missing_2_pca_not_outliers_sex_full_clean_fam.iloc[:,1].isin(hh_final_report[1]), 4]!=1).sum() == 0
-    #all males
-
-hh_final_report.iloc[:,2].value_counts().describe()
+check_sex_y_only_hh.iloc[:,2].value_counts().describe()
     #most of the SNPs are repeated 1 time and no more
-hh_final_report.iloc[:,1].value_counts().describe()
+check_sex_y_only_hh.iloc[:,1].value_counts().describe()
     #Some samples are repeated several times, but most of them just 1 time
 
-pos_hh_problems = loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim.loc[loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim[1].isin(hh_final_report[2]), :]
+samples_hh_problems = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam.loc[loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam[1].isin(check_sex_y_only_hh.iloc[:,1]), :]
 
 
+#all males
+(samples_hh_problems.iloc[:,4]==1).sum()==samples_hh_problems.shape[0]
+
+##check this is all X
 
 
-pos_hh_problems.iloc[:,1].unique().shape[0]/(loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim.iloc[:,0]==23).sum()*100
+loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update.bim",
+    sep="\t", \
+    header=None, \
+    low_memory=False \
+)
+
+snps_hh_problems = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim.loc[loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim[1].isin(check_sex_y_only_hh.iloc[:,2]), :]
+
+
+((snps_hh_problems.iloc[:,0]==23) | (snps_hh_problems.iloc[:,0]==24)).sum()==snps_hh_problems.shape[0]
+
+#there is also 1 PAR case in the HH file
+
+snps_hh_problems.loc[snps_hh_problems.iloc[:,0]==24,:]
+    #  combat_ILGSA24-17873   1198LKSM            1            1           OK            1
+        #F=1, selfreported male
+    #287831  24  JHU_Y.24444621  0  22298475  C  T
+    #if it is PAR region, should be possible to have two copies, is not haploid...
+    #this SNP should not ve noted as PAR!!!
+
+    #run again PAR check in the bim file? see previos section with that exact test
+
+
+#pos_hh_problems.iloc[:,1].unique().shape[0]/(loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim.iloc[:,0]==23).sum()*100
 
 
 
@@ -5384,9 +5359,13 @@ run_bash(
 
 #After removing the samples we decided to remove due to sex problems, I detected that plink was still giving me errors regarding the sex chromosomes. Apparently, as the calculation of the F statistic has to be performed in a subset of SNPs in linkage equilibrium, I did not count the number of Y genotypes for all SNPs present in the Y chromsome. When consindering all SNPs in the Y chromosome, there are 35 additional female samples that have at least 1 genotype in that chromosome. This made me to have second thoughs about removing female samples that are apparently females (F value around 0) but have a few Y genotype. Even so after finding that this technical is fairly common apparently.
 
-#Another reason to give a though to this was the fact that we have the opposite problem in some males. Some have a few heterozygous genotypes in the X chromosome, i.e., two different copies of the same SNPs. Given that males only have 1 X chromosome, this is techincally not possible. There around 200 males with this problem. 
+#Another reason to give a though to this was the fact that we have the opposite problem in some males. Some have a few heterozygous genotypes in the X chromosome, i.e., two different copies of the same SNPs. Given that males only have 1 X chromosome, this is techincally not possible. There 285 males with this problem.
 
+#Given we have information about the correct sex determination of the samples according to the X chromosome (F statistic), I think that it would make sense to save all these samples and just remove the specific genotypes implicated in this.
 
+#To recap from this and the previous email, we have to decide about the following:
+    #1. Wether we are ok with the correlation between our data and the TOPMed panel after the last change I made.
+    #2. Whether to keep the 235 samples with technical issues in a few genotypes but ok regarding sex determination, just removing the specific genotypes implicated in the error.
 
 
 #maybe we do no have to remove females with 1 Y genotype????
