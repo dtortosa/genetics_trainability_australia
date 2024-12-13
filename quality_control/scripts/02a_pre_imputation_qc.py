@@ -4809,14 +4809,14 @@ run_bash(" \
             #https://phoenixnap.com/kb/bash-printf
 
  
-print_text("First run check sex", header=3)
+print_text("Run first check sex, mostly based on F", header=3)
 #Run –check-sex once without additional parameters, just to see the distribution of F (inbreeding) coefficients.
 run_bash(" \
     cd ./data/genetic_data/quality_control/15_check_sex; \
     mkdir -p ./01_first_check_sex; \
     plink \
         --bfile ./00_ld_prunning/loop_maf_missing_2_pca_not_outliers_ldpruned \
-        --check-sex ycount \
+        --check-sex \
         --out ./01_first_check_sex/f_distribution \
 ")
     #--check-sex normally compares sex assignments in the input dataset with those imputed from X chromosome inbreeding coefficients, and writes a report to plink.sexcheck. So you estimate sex from the genetic data.
@@ -4861,23 +4861,6 @@ run_bash(" \
         #As a concrete example, if you ignore the Y chromosome and don't first perform LD-based pruning, --check-sex makes flat-out incorrect calls on several 1000 Genomes phase 1 female samples: NA19332 has an F estimate just under 0.88, and there are others with F > 0.8. However, if you first run "--indep-pairphase 20000 2000 0.5", the largest female F estimate drops to about 0.66. 0.66 is, of course, still much larger than 0.2, and in most contexts it still justifies a female call. We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
         #Due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution, you may need to process the rare-ancestry samples separately.
             #Our data is already homogeneus in terms of ancestry, we already remove PCA outliers.
-    #--check-sex has now two modes which consider Y chromosome data.
-        #In 'ycount' mode
-            #gender is still imputed from the X chromosome, but female calls are downgraded to ambiguous whenever more than 0 nonmissing Y genotypes are present.
-                #In other words, if a female call has 1 or more call in the Y genotype (i.e., non-missing), then it is downgraded to unknown. This makes sense because if a sample reported as female has a Y genotype, then it is female or male? Probably a sample to be removed.
-            #male calls are downgraded when fewer than 0 are present.
-                #A male can never have less than 0 Y genotype calls, thus a male is not going to be downgraded because of this. 
-                #By default, plink does not downgraded males that have zero Y genotype calls.
-                #It seems that for imputing sex from scratch, it is not a good idea to discard males without Y genotypes because older males seems to suffer a decrease of the chromosome in some cells. So it would not be a very useful marker (see y-only mode section). If some actual males suffer Y losses in some cells, you could wrongly assigned them to "unknown when they are actual males".
-            #Note that these thresholds are counts, not rates. These thresholds are controllable with --check-sex ycount's optional 3rd and 4th numeric parameters.
-                #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
-            #We want the default behaviour of "y-count" as this let us to consider both X and Y chromosomes in order to impute sex, while avoiding problems with the mosaic-loss of the Y chromosome. 
-        #In 'y-only' mode
-            #gender is imputed from nonmissing Y genotype counts, and the X chromosome is ignored. 
-            #The male minimum threshold defaults to 1 instead of zero in this case. 
-                #Now males with no Y genotypes are downgraded
-            #IMPORTANT: This is intended to recover previously-determined gender, rather than determine it from scratch, since Y chromosome data may be scarce for older males: see e.g. Dumanski JP et al. (2014) Smoking is associated with mosaic loss of chromosome Y.
-                #I guess that if you already have your dataset clean where strange cases like males with no Y genotypes being removed, you can count Y genotype calls and consider as males those with a given number of genotype Y calls.
 
 print_text("check the F distribution", header=4)
 #We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
@@ -4898,7 +4881,6 @@ f_distribution = pd.read_csv( \
             #STATUS	'OK' if PEDSEX and SNPSEX match and are nonzero, 'PROBLEM' otherwise
             #F	Inbreeding coefficient, considering only X chromosome. Not present with 'y-only'.
                 #we are using "y-count", so we still use X data, and we should have the F coefficient
-            #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
 
 print_text("explore the F distribution", header=4)
 print("make a plot of the F distribution")
@@ -4927,7 +4909,7 @@ if(samples_between_f.shape[0]!=1):
         #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
         #In 'ycount' mode, gender is still imputed from the X chromosome, but female calls are downgraded to ambiguous whenever more than 0 nonmissing Y genotypes are present, and male calls are downgraded when fewer than 0 are present. (Note that these are counts, not rates.) These thresholds are controllable with --check-sex ycount's optional 3rd and 4th numeric parameters.
         #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
-    #Therefore, as we are going to still use eveything as it is, our previous analysis is like "--check-sex ycount 0.2 0.8 0 0"
+    #Therefore, as we are going to still use eveything as it is, our previous analysis is like "--check-sex 0.2 0.8"
 
 print_text("Explore the rest of results, i.e., STATUS column", header=4)
 print("see samples with STATUS==PROBLEM")
@@ -4970,7 +4952,7 @@ print(f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(sam
 print("this was the case that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA insted of 2397LDJA")
 
 print("Add samples without pheno in excel to be removed")
-samples_remove_due_sex = samples_no_pheno["IID"].to_list()
+samples_remove_first_round = samples_no_pheno["IID"].to_list()
 
 print("see now cases that are not included in the list of samples without pheno but still have a problem in sex. These are the real problems because if we have sex data and still have an error, it means there is a mismatch between selfreported sex and genetics")
 real_sex_problems = f_distribution.loc[(~f_distribution["IID"].isin(samples_without_pheno)) & (f_distribution["STATUS"]=="PROBLEM"), :]
@@ -4992,109 +4974,449 @@ with pd.option_context('display.max_columns', None):
     print(real_sex_problems)
     #This will display all columns of the real_sex_problems DataFrame for this single print operation without changing the global pandas settings.
 #13 sex-problematic cases, the rest of problems are caused because they do not have pheno data at all
-#Self-reported females, with F value around 0, and female names, but having 1 Y genotype. Probably technical errors. REMOVING.
-samples_remove_due_sex = samples_remove_due_sex + ["0295AMSM", "7692EOOO", "1390JMJM", "2197JWDM", "2282SODJ", "3400ISOM", "6796HGJS", "7300ECNO"]
 
 #there are three cases (7699ISMO, 8244GBJJ, 8702EBMF) with very low F and no Y genotypes that are consdered male by the pheno data
-#8244GBJJ and 8702EBMF were identified as males, but they have very low F, no Y genotypes and their names are one of females, so they are likely females. We retain BOTH BUT CHANGING THE SEX.
+#8244GBJJ and 8702EBMF were identified as males, but they have very low F, no Y genotypes and their names are one of females, so they are likely females. We retain BOTH BUT CHANGING THE SEX TO FEMALE.
 samples_change_sex = ["8244GBJJ", "8702EBMF"]
 #7699ISMO has F value close to 0, no Y genotypes, but it has a male name so this is really strange. It seems a biological female with a male name. We are going to REMOVE.
-samples_remove_due_sex.append("7699ISMO")
+samples_remove_first_round.append("7699ISMO")
 
 #A self-reported male (8500JADJ) and is considered unknow by plink because his F value is below 0.8. It has 64 Y genotypes, a male name, but the problem is that the F values is far below 0.99 (expected for males) and below our threshold, it is not included in any of the F peaks. Tis sample has lower homozygosity in the X than expected for a male, meaning that if could have two alleles for several positions in the X. We are REMOVING.
-samples_remove_due_sex.append("8500JADJ")
+samples_remove_first_round.append("8500JADJ")
 
-#one case (2397LDJA) do not have sex, but genetic data is very clear: F=0.99 and 64 Y genotypes, plus male name. This strongly suggesting male
+#one case (2397LDJA) do not have sex, but genetic data is very clear: F=0.99 and 64 Y genotypes, plus male name. This strongly suggesting male. CHANGE TO MALE.
     #this was the cases not present in the excel. There is a sample in the excel with a very similar ID (2399LDJA). Lo an behold, that sample in the excel is reported as a male. So, as David postdoc suggested, this is likely a mislabelled sample. We are going to set the sex as male and change the ID to the one in the excel file.
 samples_change_sex.append("2397LDJA")
 
 print("check we have the correct number of samples to remove")
-if(len(samples_remove_due_sex)+len(samples_change_sex)!=f_distribution.loc[f_distribution["STATUS"]=="PROBLEM", :].shape[0]):
+if(len(samples_remove_first_round)+len(samples_change_sex)!=f_distribution.loc[f_distribution["STATUS"]=="PROBLEM", :].shape[0]):
     raise ValueError("ERROR! FALSE! THE NUMBER OF SAMPLES TO REMOVE IS NOT OK")
 else:
     print("OK")
 
 #Aside note about names
-#I have checked the names of these 13 samples to see if some names were showing a very different ancestry. We should have similar ancestries given we have already filtered the samples by population structure.
+#I have checked the names of the 13 samples checked by David (sex_mismatches_bishop.xlsx) to see if some names were showing a very different ancestry. We should have similar ancestries given we have already filtered the samples by population structure.
 #Most of the first and last names are of European origin, suggesting that our sample is possibly of European ancestry.
 #There are two cases with a hispanic first name, but it seems these names are also used for non-hispanic people. Also note that the last names are English. So very unlikely these are people from the Americas or Phillipines. Note that Hispanic-americans and Filipinos usually have both first and last names from hispanic origin.
 #There are two cases with Turkish names. One have a last name that is of Turkish origin and the other has a last name that is frequently used in Arabic-speaking and Muslim countries but also very frequent in Turkey probably due to historic (associated with Carlos). From what I have seen, it seems these persons are possibly of turkish origin, which is not far off from European ancestry.
 #Therefore, in general, it seems that our filtering has possibly removed samples that are far away from European ancestries.
 
-
-print_text("Remove samples", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/15_check_sex; \
-    mkdir -p ./03_removing_samples; \
-")
-print_text("Create file ready for plink", header=4)
-
-
+print_text("remove samples for this step", header=4)
+#load the fam file
 loop_maf_missing_2_pca_not_outliers_fam = pd.read_csv( \
     "./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers.fam",
     sep=" ", \
     header=None, \
     low_memory=False \
 )
+print(loop_maf_missing_2_pca_not_outliers_fam)
 
-batch_sample_id_samples_remove = loop_maf_missing_2_pca_not_outliers_fam.loc[loop_maf_missing_2_pca_not_outliers_fam.iloc[:,1].isin(samples_remove_due_sex), [0, 1]]
+#extract family and individual IDs to be removed
+id_samples_first_removal = loop_maf_missing_2_pca_not_outliers_fam.loc[ \
+    loop_maf_missing_2_pca_not_outliers_fam.iloc[:,1].isin(samples_remove_first_round), \
+    [0, 1] \
+]
+#check
+if(len(samples_remove_first_round)!=id_samples_first_removal.shape[0]):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE FIRST REMOVAL OF SAMPLES")
 
-len(samples_remove_due_sex)==batch_sample_id_samples_remove.shape[0]
-
-
-batch_sample_id_samples_remove.to_csv( \
-    "./data/genetic_data/quality_control/15_check_sex/03_removing_samples/samples_remove.tsv",
+#save
+id_samples_first_removal.to_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/01_first_check_sex/id_samples_first_removal.tsv",
     sep="\t",
     header=False,
     index=False \
 )
 
-batch_sample_id_samples_remove
-
+#remove
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
         --bfile ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers \
-        --remove ./15_check_sex/03_removing_samples/samples_remove.tsv \
+        --remove ./15_check_sex/01_first_check_sex/id_samples_first_removal.tsv \
         --make-bed \
-        --out ./15_check_sex/03_removing_samples/loop_maf_missing_2_pca_not_outliers_first_sex_clean"
+        --out ./15_check_sex/01_first_check_sex/loop_maf_missing_2_pca_not_outliers_first_sex_removal"
 )
-
     #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
 
-
-pd.read_csv("./data/genetic_data/quality_control/15_check_sex/03_removing_samples/loop_maf_missing_2_pca_not_outliers_first_sex_clean.fam", sep=" ", header=None, low_memory=False)[1].isin(batch_sample_id_samples_remove[1]).sum()
-
-
-
-
-
-#change sex
-samples_change_sex
-#also update ID of 2397LDJA to 2399LDJA
-
-#AFTER REMOVING ANYTHING, WE SHOULD NOT SEE ANY WARNING ABOUT .HH OR .NOSEX
-
-
+#check we removed the correct samples
+first_sex_clean = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/01_first_check_sex/loop_maf_missing_2_pca_not_outliers_first_sex_removal.fam", \
+    sep=" ", \
+    header=None, \
+    low_memory=False \
+)
+if( \
+    (first_sex_clean[1].isin(id_samples_first_removal[1]).sum()!=0) | \
+    (first_sex_clean.shape[0] + id_samples_first_removal.shape[0] != f_distribution.shape[0]) \
+):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE FIRST SEX REMOVAL OF SAMPLES")    
 
 
+print_text("change sex and update IDs", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    mkdir -p ./02_sex_change_id_update; \
+")
+
+print_text("change sex samples", header=4)
+#load the fam file
+loop_maf_missing_2_pca_not_outliers_first_sex_removal = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/01_first_check_sex/loop_maf_missing_2_pca_not_outliers_first_sex_removal.fam",
+    sep=" ", \
+    header=None, \
+    low_memory=False \
+)
+
+#extract family and individual IDs to be changed
+id_samples_sex_change = loop_maf_missing_2_pca_not_outliers_first_sex_removal.loc[ \
+    loop_maf_missing_2_pca_not_outliers_first_sex_removal.iloc[:,1].isin(samples_change_sex), \
+    [0, 1] \
+]
+#check we have selected the correct samples
+if( \
+    (id_samples_sex_change[1].isin(samples_change_sex).sum()!=id_samples_sex_change.shape[0]) | \
+    (pd.Series(samples_change_sex).isin(id_samples_sex_change[1]).sum()!=len(samples_change_sex)) \
+):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE FIRST REMOVAL OF SAMPLES")
+
+#add the new sex to the DF
+id_samples_sex_change[2] = pd.Series(dtype='int')
+id_samples_sex_change.loc[id_samples_sex_change.iloc[:,1]=="8244GBJJ",2] = 2
+id_samples_sex_change.loc[id_samples_sex_change.iloc[:,1]=="8702EBMF",2] = 2
+id_samples_sex_change.loc[id_samples_sex_change.iloc[:,1]=="2397LDJA",2] = 1
+    #Notation for --update-sex: (1 or M = male, 2 or F = female, 0 = missing)
+    #See above about the decisions to change sex
+id_samples_sex_change[2] = id_samples_sex_change[2].astype('int')
+print(id_samples_sex_change)
+id_samples_sex_change.to_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/id_samples_sex_change.tsv",
+    sep="\t",
+    header=False,
+    index=False \
+)
+
+#update sex
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./15_check_sex/01_first_check_sex/loop_maf_missing_2_pca_not_outliers_first_sex_removal \
+        --update-sex ./15_check_sex/02_sex_change_id_update/id_samples_sex_change.tsv \
+        --make-bed \
+        --out ./15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update"
+)
+    #--update-sex expects a file with FIDs and IIDs in the first two columns, and sex information (1 or M = male, 2 or F = female, 0 = missing) in the (n+2)th column. If no second parameter is provided, n defaults to 1. It is frequently useful to set n=3, since sex defaults to the 5th column in .ped and .fam files.
+
+print_text("update IDs", header=4)
+#load the fam file
+loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update.fam",
+    sep=" ", \
+    header=None, \
+    low_memory=False \
+)
+
+#extract family and individual IDs to be changed
+id_samples_id_update = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update.loc[ \
+    loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update.iloc[:,1]=="2397LDJA", \
+    [0, 1] \
+]
+
+#add the new ID
+id_samples_id_update[2] = id_samples_id_update[0].to_numpy()[0]
+id_samples_id_update[3] = "2399LDJA"
+print("New ID: ")
+print(id_samples_id_update)
+
+#save
+id_samples_id_update.to_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/id_samples_id_update.tsv",
+    sep="\t",
+    header=False,
+    index=False \
+)
+
+#update the ID
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update \
+        --update-ids ./15_check_sex/02_sex_change_id_update/id_samples_id_update.tsv \
+        --make-bed \
+        --out ./15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update"
+)
+    #--update-ids expects input with the following four fields:
+        #Old family ID
+        #Old within-family ID
+        #New family ID
+        #New within-family ID
+
+#check
+loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update.fam",
+    sep=" ", \
+    header=None, \
+    low_memory=False \
+)
+if( \
+    (loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam.iloc[:,1]=="2397LDJA").sum()!=0 | \
+    (loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam.iloc[:,1]=="2399LDJA").sum()!=1
+):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM UPDATING THE ID OF 2397LDJA TO 2399LDJA")
 
 
-#REMOVE!!!!
-#the cases without phenotype and the cases decided to be removed from the 13 real problems
-#remove now from the general dataset
-#from here:
-    #loop_maf_missing_2_pca_not_outliers
+print_text("check sex using Y chromosome", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    mkdir -p ./03_second_check_sex; \
+")
+
+#run Y check
+
+"loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update"
 
 
-##contig=<ID=1,length=248916509>
+
+###y would be the next step
+    #--check-sex has now two modes which consider Y chromosome data.
+        #In 'ycount' mode
+            #gender is still imputed from the X chromosome, but female calls are downgraded to ambiguous whenever more than 0 nonmissing Y genotypes are present.
+                #In other words, if a female call has 1 or more call in the Y genotype (i.e., non-missing), then it is downgraded to unknown. This makes sense because if a sample reported as female has a Y genotype, then it is female or male? Probably a sample to be removed.
+            #male calls are downgraded when fewer than 0 are present.
+                #A male can never have less than 0 Y genotype calls, thus a male is not going to be downgraded because of this. 
+                #By default, plink does not downgraded males that have zero Y genotype calls.
+                #It seems that for imputing sex from scratch, it is not a good idea to discard males without Y genotypes because older males seems to suffer a decrease of the chromosome in some cells. So it would not be a very useful marker (see y-only mode section). If some actual males suffer Y losses in some cells, you could wrongly assigned them to "unknown when they are actual males".
+            #Note that these thresholds are counts, not rates. These thresholds are controllable with --check-sex ycount's optional 3rd and 4th numeric parameters.
+                #The docs indicates "--check-sex ycount [female max F] [male min F] [female max Y obs] [male min Y obs]". Therefore, after "--check-sex ycount", the first two numbers indicate the F threshold used to impute female/male calls and the next two are used to control the max number of Y genotype calls are tolerated for females and the minimum for males.
+            #We want the default behaviour of "y-count" as this let us to consider both X and Y chromosomes in order to impute sex, while avoiding problems with the mosaic-loss of the Y chromosome. 
+        #In 'y-only' mode
+            #gender is imputed from nonmissing Y genotype counts, and the X chromosome is ignored. 
+            #The male minimum threshold defaults to 1 instead of zero in this case. 
+                #Now males with no Y genotypes are downgraded
+            #IMPORTANT: This is intended to recover previously-determined gender, rather than determine it from scratch, since Y chromosome data may be scarce for older males: see e.g. Dumanski JP et al. (2014) Smoking is associated with mosaic loss of chromosome Y.
+                #I guess that if you already have your dataset clean where strange cases like males with no Y genotypes being removed, you can count Y genotype calls and consider as males those with a given number of genotype Y calls.
 
 
 
-###liftover to hg19
-#https://github.com/RitchieLab/GWAS-QC
+
+        #.sexcheck: A text file with a header line, and then one line per sample with the following 6-7 fields:
+            #FID	Family ID
+            #IID	Within-family ID
+            #PEDSEX	Sex code in input file (1 = male, 2 = female, 0 = unknown according the fam file)
+            #SNPSEX	Imputed sex code (1 = male, 2 = female, 0 = unknown)
+            #STATUS	'OK' if PEDSEX and SNPSEX match and are nonzero, 'PROBLEM' otherwise
+                #we are using "y-count", so we still use X data, and we should have the F coefficient
+            #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
 
 
+#problems
+#Self-reported females, with F value around 0, and female names, but having 1 Y genotype. Probably technical errors. REMOVING.
+samples_y_problem =  ["0295AMSM", "7692EOOO", "1390JMJM", "2197JWDM", "2282SODJ", "3400ISOM", "6796HGJS", "7300ECNO"]
+
+
+
+###AFTER Y CHECK, THEN CHECK HETEROZYGOUS HAPLOD CASES MALE IN .HH FILE
+
+
+
+
+loop_maf_missing_2_pca_not_outliers_first_sex_clean_fam = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/03_removing_samples/loop_maf_missing_2_pca_not_outliers_first_sex_clean.fam",
+    sep=" ", \
+    header=None, \
+    low_memory=False \
+)
+
+
+
+print_text("last check sex round with y only", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    mkdir -p ./05_clean_only_y; \
+")
+print_text("Create file ready for plink", header=4)
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    plink \
+        --bfile ./04_changing_sex_ids/loop_maf_missing_2_pca_not_outliers_second_sex_clean \
+        --check-sex y-only 0 1 \
+        --out ./05_clean_only_y/check_sex_only_y \
+")
+
+check_sex_only_y = pd.read_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/05_clean_only_y/check_sex_only_y.sexcheck", \
+    sep="\s+", \
+    header=0, \
+    low_memory=False)
+
+
+only_y_problems = check_sex_only_y.loc[check_sex_only_y["STATUS"] == "PROBLEM"]
+
+if((only_y_problems["PEDSEX"] == 1).sum()!=0):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM, THE Y-ONLY MODE GIVE AS ERRORS MALES. WE PUT AS 1 THE MINIMUM NUMBER OF Y GENOTYPES FOR MALES AND 0 FOR FEMALES BECAUSE FEMALE THRESHOLD HAS TO BE LOWER THAN MALE THRESHOLD, BUT IT HAS DETECTED MALES WITH LOW Y GENOTYPES. REMEMBER THAT MALES, SPECIALLY OLD, CAN LOSE Y GENOTYPES AND PRESENT MOSAICISM")
+
+
+check_sex_only_y.loc[(check_sex_only_y["PEDSEX"]==2) & (check_sex_only_y["STATUS"] != "PROBLEM")].shape[0]
+
+
+
+only_y_problems.iloc[:,[0,1]].to_csv( \
+    "./data/genetic_data/quality_control/15_check_sex/05_clean_only_y/only_y_problems.tsv",
+    sep="\t",
+    header=False,
+    index=False \
+)
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./15_check_sex/04_changing_sex_ids/loop_maf_missing_2_pca_not_outliers_second_sex_clean \
+        --remove ./15_check_sex/05_clean_only_y/only_y_problems.tsv \
+        --make-bed \
+        --out ./15_check_sex/05_clean_only_y/loop_maf_missing_2_pca_not_outliers_third_sex_clean"
+)
+
+only_y_problems.iloc[:,[0,1]]
+
+
+
+
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    plink \
+        --bfile ./06_final_update/loop_maf_missing_2_pca_not_outliers_sex_full_clean \
+        --check-sex y-only 0 1 \
+        --out ./06_final_update/final_sex_check \
+")
+
+
+hh_final_report = pd.read_csv("./data/genetic_data/quality_control/15_check_sex/06_final_update/final_sex_check.hh", sep="\s+", header=None, low_memory=False)
+loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim = pd.read_csv("./data/genetic_data/quality_control/15_check_sex/06_final_update/loop_maf_missing_2_pca_not_outliers_sex_full_clean.bim", sep="\s+", header=None, low_memory=False)
+loop_maf_missing_2_pca_not_outliers_sex_full_clean_fam = pd.read_csv("./data/genetic_data/quality_control/15_check_sex/06_final_update/loop_maf_missing_2_pca_not_outliers_sex_full_clean.fam", sep="\s+", header=None, low_memory=False)
+
+
+(loop_maf_missing_2_pca_not_outliers_sex_full_clean_fam.loc[loop_maf_missing_2_pca_not_outliers_sex_full_clean_fam.iloc[:,1].isin(hh_final_report[1]), 4]!=1).sum() == 0
+    #all males
+
+hh_final_report.iloc[:,2].value_counts().describe()
+    #most of the SNPs are repeated 1 time and no more
+hh_final_report.iloc[:,1].value_counts().describe()
+    #Some samples are repeated several times, but most of them just 1 time
+
+pos_hh_problems = loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim.loc[loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim[1].isin(hh_final_report[2]), :]
+
+
+
+
+pos_hh_problems.iloc[:,1].unique().shape[0]/(loop_maf_missing_2_pca_not_outliers_sex_full_clean_bim.iloc[:,0]==23).sum()*100
+
+
+
+
+
+pos_hh_problems[((pos_hh_problems.iloc[:,3]>=10001) & (pos_hh_problems.iloc[:,3]<=2781479)) | ((pos_hh_problems.iloc[:,3]>=155701383) & (pos_hh_problems.iloc[:,3]<=156030895))].shape[0]==0
+    #Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2,781,479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156,030,895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
+
+#all cases outside of the PAR regions
+
+#therefore, males that have heterozygous calls in non-PAR regions of the X chromosome. We know these are males because we have already checked the sex with F and Y genotypes and now that SNPs in the PAR regions are clearly note like that, thus these seems to be genotyping error. We have to remove. 
+    #The question is whether to just remove these specific genotypes or remove these SNPs for all samples altogether
+
+
+print_text("additional step removein het haplpoid calls", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    mkdir -p ./07_final_update_no_hap_errors; \
+")
+print_text("Create file ready for plink", header=4)
+
+
+#remove the snps
+snps_hh_problems = pos_hh_problems.iloc[:,1]
+
+if(snps_hh_problems.shape[0]>500):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM, WE HAVE MORE THAN 500 SNPS WITH HETEROZYGOUS HAPLOIDY")
+
+
+snps_hh_problems.to_csv(
+    "./data/genetic_data/quality_control/15_check_sex/07_final_update_no_hap_errors/snps_hh_problems.tsv",
+    sep="\t",
+    header=False,
+    index=False \
+)
+
+
+
+
+
+run_bash(
+    "cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./15_check_sex/06_final_update/loop_maf_missing_2_pca_not_outliers_sex_full_clean \
+        --exclude ./15_check_sex/07_final_update_no_hap_errors/snps_hh_problems.tsv \
+        --make-bed \
+        --out ./15_check_sex/07_final_update_no_hap_errors/loop_maf_missing_2_pca_not_outliers_sex_full_clean_no_hap_errors \
+")
+
+
+
+
+#--split-sex still shows 756 het. haploid meaning that the problem is not just SNPs that are in PAR regions but are not correctly noted, but SNPs that are outside both PAR regions but some males have heterozigosy, i.e., 2 alleles for these X genotypes, which it should not be the case
+
+
+#We hgave to tell David about the new samples removed due to Y and the 500 SNPs removed.
+
+
+
+#These warnings from PLINK indicate issues with your genotype data:
+#1. **Heterozygous Haploid Genotypes**: This warning suggests that there are 650 instances where haploid genotypes (typically found on sex chromosomes) are showing heterozygous calls. This often happens with male samples on the X chromosome. You can check the `.hh` file mentioned for specific details. Using the `--split-x` command might help if these errors are in the pseudo-autosomal regions[1](https://www.biostars.org/p/9601535/).
+#2. **Nonmissing Nonmale Y Chromosome Genotypes**: This warning indicates that there are genotypes on the Y chromosome that are not missing in non-male samples. This could be due to 
+# incorrect sex assignments or genotyping errors. You might need to verify the sex information in your dataset and correct any discrepancies[2](https://www.biostars.org/p/98211/).
+
+
+
+
+#After removing the samples we decided to remove due to sex problems, I detected that plink was still giving me errors regarding the sex chromosomes. Apparently, as the calculation of the F statistic has to be performed in a subset of SNPs in linkage equilibrium, I did not count the number of Y genotypes for all SNPs present in the Y chromsome. When consindering all SNPs in the Y chromosome, there are 35 additional female samples that have at least 1 genotype in that chromosome. This made me to have second thoughs about removing female samples that are apparently females (F value around 0) but have a few Y genotype. Even so after finding that this technical is fairly common apparently.
+
+#Another reason to give a though to this was the fact that we have the opposite problem in some males. Some have a few heterozygous genotypes in the X chromosome, i.e., two different copies of the same SNPs. Given that males only have 1 X chromosome, this is techincally not possible. There around 200 males with this problem. 
+
+
+
+
+#maybe we do no have to remove females with 1 Y genotype????
+#https://groups.google.com/g/plink2-users/c/4bpdLMdH2KA
+    #If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
+
+
+
+
+
+
+
+
+
+
+# endregion
+
+
+
+
+
+
+################################
+# region IMPUTATION PREP #######
+################################
+
+
+
+#In case you need to liftover the data, you can use the script of Ritchie, but they say that you do not needed in general because TOPMed accepts both hg38 and hg19
+    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-7----liftover-the-data
 
 
 #create a DF including the current and the new chromosome names required for michigan under hg38
@@ -5400,416 +5722,8 @@ run_bash(" \
     plink --bfile ../../../12_loop_maf_missing/loop_maf_missing_2 --chr 1 --recode vcf-iid --out chr1_fileset; bgzip chr1_fileset.vcf;  \
 ")
 
-
-
-
-#si no lo hacemos y aqluigne pregunta en revision, se puede decir que usamos los PCAs.... dudo que nos pregunten más despues de haber aplciado ese pedazo de QC.... no es lo ideal, pero...
-
-#load the first column (FAM IDs) from the family file without outliers
-pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", \
-    sep=" ", \
-    header=None, \
-    low_memory=False)[0].to_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop", sep="\t",header=False, index=False)
-
-#run pong
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
-    pong \
-        --filemap ./admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.multiplerun.Qfilemap \
-        --greedy \
-        --sim_threshold 0.95 \
-        --ind2pop ./admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop \
-")
-
-loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.multiplerun.Qfilemap
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture; \
-    /bin/admixture ../01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.bed 2")
-    #ADMIXTURE basic usage:  (see manual for complete reference) % admixture [options] inputFile K
-        #where: K is the number of populations; and inputFile may be: a PLINK .bed file or a PLINK "12" coded .ped file.
-    #After running, ADMIXTURE produces two major output files. 
-        #The file with suffix .P contains an L × K table of the allele frequencies inferred for each SNP in each population. 
-        #The file with suffix .Q contains an N × K table of inferred individual ancestry proportions from the K ancestral populations, with one row per individual.
-
-
-
-
-
-admixture_q_file = pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/02_admixture/admixture_out/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.K10r1.Q", \
-    sep=" ", \
-    header=None, \
-    low_memory=False)
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Convert to matrix and transpose it
-
-# Plotting the stacked bar plot
-admixture_q_file.plot(kind='bar', stacked=True, colormap='rainbow')
-
-# Adding labels and title
-plt.ylabel('Ancestry Proportions')
-plt.title('Ancestry Proportions for Individuals')
-plt.legend(loc='upper right', bbox_to_anchor=(1.15, 1))
-#save and close
-plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/02_admixture/eso.png", \
-    dpi=300) #dpi=300 for better resolution
-plt.close()
-
-
-
-
-print("use pong to vizualice results with k=12")
-#pong was installed using "python3.9 -m pip install pong"
-    #https://github.com/ramachandran-lab/pong
-
-#To run pong requires setting up a few files: 
-#(1) an ind2pop file that maps individuals to populations. The example in pong github (https://github.com/ramachandran-lab/pong/blob/master/example_data_1kG-p3/ind2pop.txt) shows that is just one column with a row per sample and the population code. In our case, we do not have labelled populations, so we can just use CRTL or the batch name
-
-
-##por aquiii
-
-###con 6SD the removal (default the smart pca y lo que hicierin en train-predict) se nos van 100 individuos y ahora se ve que el eje 1 es la clave, explica casi todo y muestra tres grupos diferenciados. Se puede hacer varias iteraciones de admixutre para K=3 y si hay consistencia across iterations aceptamos la hipotesis de tres grupos. Eso es un argumento para aceptaro segun el tutorial, ademas se puede mirar la signification de los p-values, a nosotros nos saltan 8 ejes, pero es que casi toda la viaraiblidad viene del 1, es el que rompe los grupos. El resto de ejes muestra nube. Y no vamos a correr varias iteraciones para varios K. IMPORTANTE: Podemos evaluar el output de admixture con EvalAdmix! si sale correlation 0, la separaición va bien. Tendríamos 3 piezas de evidencia: el PC1, que explica la grandísima mayor parte de la variabilidad, diferencia tres grupos, pero a lo largo de los otros ejes hay continuidad. Hay consistencia a lo largo de las diferentes iteraciones de admixture, sale lo mismo mas o menos y los tres grupos quedan bien diferenciados. Y además cada iteración muestra resultado positivo con Evalmix, entonces podemos aceptar K=3. Podemos haer K=1 and K=2, to compare with less repetitions, and then we could also compare the likelihood between the three treatments. We ar basically using the most explicative PCA xis as a prior.
-    #https://speciationgenomics.github.io/ADMIXTURE/
-    #http://www.popgen.dk/software/index.php/EvalAdmix
-
-#si esto sale, se divide en tres grupos usando el PCA, y se confirma que los de cada grupo tienen más de la mitad de ancestria del grupo que le corresponde. aqui ya tenemos dos fuentes de information para clasificar, no es como antes. 
-
-# se cogen dos primeros PCAs para ocrregir en los analisis. Esto es lo estnadar y tenemos arugmetnos dada lo que explcian los dos, y que a partir del eje 3 hay una acumulacion de weights en el cromosoma 6 en una region muy concreta indicando que pueden estar capturando variacion estructural y no poblacional...
-
-#creo que ya hacemos mas que la mayoria de papers, por ejemplo, en el paper de traing-predict simplemente quitan ancestry outliers usando PCAs, we do that and more. Going for the most orthodox approach it is worth at this point.
-
-#compare 1,2,3 groups and see.
-
-
-
-
-
-
-#https://github.com/ramachandran-lab/pong/tree/master
-#https://github.com/ramachandran-lab/pong/blob/master/pong-manual.pdf
-
-#load the first column (FAM IDs) from the family file without outliers
-pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", \
-    sep=" ", \
-    header=None, \
-    low_memory=False)[0].to_csv("./data/genetic_data/quality_control/14_pop_strat/02_admixture/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop", sep="\t",header=False, index=False)
-
-#(2) a Qfilemap file that points pong towards which “.Q” files to display; these are easy to build up from the command-line using the Euro.clst.txt file we built above, and an awk command to output tab-separated text to a file with the Qfilemap suffix added to whatever file prefix we’re using to organize our runs:
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
-    FILEPREFIX=loop_maf_missing_2_ldprunned_autosome_pca_not_outliers; \
-    K=3; \
-    awk \
-        -v K=$K \
-        -v file=$FILEPREFIX \
-        'BEGIN{ \
-            printf(\"ExampleRun\\t%d\\t%s.%d.Q\\n\", K, file, K) \
-        }' > $FILEPREFIX.Qfilemap\
-")
-    #The %d and %s are format specifiers used in the printf function in awk (and many other languages). They are placeholders for variables that you want to insert into a string.
-        #%d is a placeholder for a decimal integer.
-        #%s is a placeholder for a string.
-    #In your code, printf(\"ExampleRun\\t%d\\t%s.%d.Q\\n\", K, file, K):
-        #The first %d is replaced by the value of K.
-        #The %s is replaced by the value of file.
-        #The second %d is again replaced by the value of K.
-    #So if K is 2 and file is "filename", the output would be: ExampleRun\t2\tfilename.2.Q\n.
-    #The reason K is used twice is because the format of the output string requires the value of K in two places: once after the tab (\t) and once before the .Q in the filename.
-
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/02_admixture/; \
-    pong -m ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.Qfilemap -i ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.ind2pop")
-
-
-###mira help pong in github, very clear
-
-
-
-
-#USE THE PLINK FILES FOR THE PCA WITHOUT OUTLIERS!
-
-
-
-
-
-
-
-
-
-
-
-
-##admixture tutorial uses number of PCs as  another indication of the number of gruops, each pc split a different group.... so using traci test to get a p-value for PCs would be really interesting... also eigeinsoft due automatic outlier removal
-#We have aorund 11 significant axes, meaning we really have structure on the data!!!
-#we really need to do admixture analyses after this? CHECK ADMIXTURE TUTORIAL, a prioir, the only interesting thing is to have CV error for K, numbr of groups and compare with the number of significant axes...
-
-
-
-#PLAN:
-    #Base the stratificaciton analysis using admixture tutoriral by Jhon Novembre
-        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
-    #From there, took info to improve the PCA analyses of plink (althoug he used eigensoft). For example, calculate teh explained variance as they do, we did it wrong In think. Check the removal of outliers and the selection of PCs. Think if eigensoft is needed or not.
-        #from here, keep in mind the number of PC axis that are relevant because we will check if that matches the number of subpops predicted by admixture. maybe eigensoft is worth it for this because it calculate a p-value for PCs.
-    #then, we follow the tutorial in admixtuure doing several steps to define the subpopulations, selecting the best number of them. Admixture label them (.Q file), so we can split the next two QC steps within each subpop.
-        #think it is worth to merge our data with the 1KGDP to use as anchor. If you do that you have to check for strand flips. see admixture tutorial.
-
-
-
-
-IMPORTANT HERE!!!! WE NEED TO REMOVE THE PCA OUTLIERS FROM THE PLINK FILES THAT WILL BE USED IN THE NEXT STEPS, WE HAVE ONLY REMOVED THEM FROM THE PCA PLINK FILES
-
-INDIVIDUOS VAN A SER ADMIXED SEGURAMENTE, MADRE EUROPEA, PADRE ASIATOC...
-
-APUNTA QUE K FOLD DAVID!! PARA TRAINING!!!
-
-
-
-    plink \
-        --bfile ./loop_maf_missing_2_ldprunned_autosome_pca \
-        --remove ./eigen_out/smartpca_outliers.txt \
-        --make-bed \
-        --out ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers"
-
-
-
-#Marees uses MDS analysis form plink, remove outliers, repeat mds and use the first axes in the glms..
-
-#look this cool tutorial, they use anchoring and MDS slike marees 
-    #https://gwas-intro-bajicv.readthedocs.io/en/latest/05_pop_stratification/
-
-#eigensof tor ritchie?
-#Occasionally, the new principal components will reveal another bad sample, and you have to repeat these two steps, etc. EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure.)
-#I have downloaded Eigensoft, the latest version at the time of writting (3/07/2024), which is the release 8.0.0:
-    #https://github.com/DReichLab/EIG/archive/refs/tags/v8.0.0.tar.gz
-    #https://github.com/DReichLab/EIG/releases
-
-
-
-
-
-#SELECT THE AXES BASED ON EXPLAINED VARIANCE
-    #you can use eigensoft
-
-
-#it seesm you have to use the PCA axes in the glms even if there is not different ancestries becasue you coudl still ahve structure within an homogeneous pop, i think this is from ritchies...
-
-#It is also a good idea to throw out gross outliers at this point; any sample which is more than, say, 8 standard deviations out on any top principal component is likely to have been genotyped/sequenced improperly; you can remove such samples by creating a text file with the bad sample IDs, and then using –remove +  –make-bed:
-
-    #SNPs with Minor Allele Frequency (MAF)>0.05 were then used to perform principal component analysis (PCA) for ethnicity identification using SHELLFISH [45]. Ethnic and ancestry outliers (more than 6 standard deviations from the mean on either of the two first principal components (PCs)) were excluded (n=10). 
-        #paper VO2 max
-
-#plink recommend to remove outlier indicaitng genotyping errors and then check for clusters, it ehse are present, then perofmr a promer admixutre analysis to define the groups... or maybe just use eigensoft to define significant groups?
-
-##we have to decide whetehr to maintain the groups or to remove ancestry oultiers like trainibiltiy paper
-    #it depends of the number lost....
-    #Different ethnicities can be included in the same study, as long as the population substructure is considered to avoid false positive results
-        #general tutorial gwas
-    #Christopher:
-        #Population structure is typically accounted for by using top principal components (computed via plink --pca, or a similar function in another software package) as covariates.  Unfortunately, plink 1.07's haplotype association analysis does not support covariates; but the main allelic association command (--linear/--logistic, or --glm in plink 2.0) does support them.
-            #https://groups.google.com/g/plink2-users/c/938B07i8AXQ/m/dMFI8-GLAwAJ
-
-
-
-#If you do this, follow it up by repeating the PCA, since the bad samples might have distorted the principal components:
-
-#(Occasionally, the new principal components will reveal another bad sample, and you have to repeat these two steps, etc. EIGENSOFT [7, 8] has some additional built-in principal component analysis options, including automated iterated outlier removal, and a top-eigenvalue-based test for significant population structure.)
-
-#Anyway, once there is nothing obviously wrong with the PCA results, you can load the table in R and plot the top pairs of principal components against each other:
-
-#If there are obvious clusters in the first few plots (i.e., first PCs plotted against each other), I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding.
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#author-information
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
-
-#but how much is this? we should check in the conext of 1000 KGP....
-
-
-
-
-#THINK ABOUT THIS, because maybe we have to do imptuation in each group separately?
-    #michina imputation sever says we have to Choose a reference panel
-    #it seems that the reference panel is something like hapmap or the 1KGP, so it shoudl ahndle different ancestries, but check
-        #A simple alternative is to use a “cosmopolitan” reference set that includes all available haplotypes, each of which is assigned an equal chance of being copied a priori. This approach produces relatively accurate results in a variety of human populations and has therefore been proposed as a good fallback choice when the optimal panel composition is unclear (Guan and Stephens 2008; Huang et al. 2009a; Li et al. 2010). Another class of methods tries to maximize accuracy by weighting reference panels through cross-validation (Huang et al. 2009a) or ancestry estimation (Egyud et al. 2009; Pasaniuc et al. 2010); the Pasaniuc et al. approach differs from the others in that it uses local ancestry estimates to provide customized reference weights for each study individual. As an alternative, Jostins et al. (2011) suggested balancing accuracy and computation by using reference panels that “approximately cluster” with the study individuals on a plot of principal components (PC) that capture genetic ancestry.
-        #https://academic.oup.com/g3journal/article/1/6/457/5986469
-
-
-
-##USE OTHER TECHINES TO CHECK FOR OUTLIERS AND POP STRATIFICATION?
-    #look tutorials
-    #https://www.cog-genomics.org/plink/1.9/strat
-
-
-##clustering
-#https://www.cog-genomics.org/plink/1.9/strat#clustering
-
-
-##clustering is IMCOMPLETE, there are clusterions otpions that change a lot and create different clusters
-#https://www.cog-genomics.org/plink2/strat
-#https://zzz.bwh.harvard.edu/plink/strat.shtml#options
-
-
-##one of the options is PPC
-#Pairwise Population Concordance (PPC) in PLINK is a method used to determine whether two individuals belong to the same random-mating population. It's a significance test used during the clustering process in population stratification analysis¹.
-#The PPC test is applied as a restriction during the clustering process. The clustering process is based on pairwise identity-by-state (IBS) distance and uses complete linkage agglomerative clustering¹. The PPC test ensures that clusters are not merged if they contain individuals that significantly differ, implying they belong to different populations¹.
-#The PPC test is invoked with a p-value threshold. For example, to only merge clusters that do not contain individuals differing at a p-value of 0.0001, you would use the command --ppc 0.0001¹.
-#This approach helps ensure that the subsequent association tests are valid, as they would implicitly match every case with its nearest control, as long as the case and control do not show evidence of belonging to different populations¹.
-#Please note that this explanation is a high-level overview of the PPC test in PLINK. For a more detailed understanding, you may want to refer to the official PLINK documentation or relevant genetic analysis textbooks.
-#Source: Conversation with Copilot, 6/25/2024
-#(1) PLINK: Whole genome data analysis toolset - Harvard University. https://zzz.bwh.harvard.edu/plink/strat.shtml.
-#(2) Second-generation PLINK: rising to the challenge of larger and richer .... https://gigascience.biomedcentral.com/articles/10.1186/s13742-015-0047-8.
-#(3) How to study runs of homozygosity using PLINK? A guide for analyzing .... https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-020-6463-x.
-
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./XX_cluster; \
-    ls -l")
-
-
-run_bash("\
-    cd ./data/genetic_data/quality_control/; \
-    plink \
-        --cluster \
-        --family \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
-        --out ./XX_cluster/cluster_after_logR_filter")
-    #--cluster uses IBS values calculated via "--distance ibs"/--ibs-matrix/--genome to perform complete linkage clustering. The clustering process can be customized in a variety of ways.
-        #IBD calculations are not LD-aware! It is usually a good idea to perform some form of LD-based pruning before invoking them
-            #https://www.cog-genomics.org/plink/1.9/ibd
-    #In the context of population stratification, the `--cluster` function in PLINK is used to identify and account for population structure in genetic data (1). This is important in genetic association studies because population structure can lead to false positive results if not properly accounted for.
-    #PLINK uses a method called **complete-linkage hierarchical clustering** to assess population stratification³. This method starts by considering every individual as a separate cluster of size 1, then repeatedly merges the two closest clusters³. 
-    #By default, the distance between two clusters is defined as the maximum pairwise distance between a member of the first cluster and a member of the second cluster. The 'group-avg' modifier causes average pairwise distance to be used instead, i.e., we took the distance between earch pair of samples (sample form cluster 1 and sample from cluster 2) and calculate the average across all pairs.
-    #The distance between clusters is calculated based on pairwise identity-by-state (IBS) distance¹. Identity-by-state (IBS) refers to the genetic similarity between two individuals. Two individuals are said to be identical by state at a particular genetic locus if they have the same alleles at that locus, regardless of whether those alleles were inherited from a common ancestor¹.
-    #By clustering individuals based on IBS distance, PLINK can identify groups of individuals that are genetically similar to each other. These groups can then be used to account for population structure in genetic association analyses¹.
-    #The 'missing' modifier causes clustering to be based on identity-by-missingness instead of identity-by-state. In other words, samples are clustered based on their missing data so we create groups of samples with the same pattern of missing genotypes, instead of obtaining groups of similar genotypes.
-    #"cc" and "within/family" flags
-        #By default, in PLINK, each individual starts in their own cluster. However, if the `--within` or `--family` flag is present, that cluster assignment is used as the starting point instead. For example, all samples of the batch 1 start together while samples of batch 2 start together.
-        #the `cc` modifier in the `--cluster` function of PLINK is used to control how clusters are merged during the clustering process.
-        #When the `cc` modifier is used with `--cluster`, it prevents two all-case or two all-control clusters from being merged². This means that each cluster will contain at least one case and one control. This can be particularly useful in case-control studies, where you want to ensure that each cluster contains a mix of cases and controls. For consistency with --mcc, missing-phenotype samples are treated as controls (this is a change from PLINK 1.07).
-        #This approach can help to account for population stratification in genetic association studies, by ensuring that the genetic similarities identified by the clustering process are not simply due to similarities in case or control status. In our case, this would mean that the cluster are not just caused by the batch.
-    #(1) PLINK: Whole genome data analysis toolset - Harvard University. https://zzz.bwh.harvard.edu/plink/strat.shtml.
-    #(2) PLINK: a tool set for whole-genome association and population-based .... https://europepmc.org/article/MED/17701901.
-    #(3) Using PLINK for Genome-Wide Association Studies (GWAS) and ... - Springer. https://link.springer.com/protocol/10.1007/978-1-62703-447-0_8.
-    #(4) https://www.cog-genomics.org/plink/1.9/strat#clustering
-
-#results clustering after exploring the different flags and modifiers
-    #Default mode puts all samples in the same cluster
-    #Adding the "--family" (i.e., batch) flag makes no difference
-    #Also adding the "cc" modifier force the separation between batches, but this seems to be an artifact. If we just use "cc" without "--family", every sample is put in a diferent cluster, i.e., we get 1446 clusters. Also note that when looking the PCA (see above), there is no clear grouping based on the batch, and the clustering without "cc" suggests that. Therefore, I do not think we have reasons to think we have batch effects.
-    #group-avg does not change anything.
-    #clustering by missing genotypes does not create new groups.
-    #In summary, it seems we do not have clusters of samples with similar genotypes/missing genotypes.
-
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./XX_mds; \
-    ls -l")
-
-
-run_bash("\
-    cd ./data/genetic_data/quality_control/; \
-    plink \
-        --cluster \
-        --ppc 0.0005 \
-        --mds-plot 4 \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
-        --out ./XX_mds/cluster_after_logR_filter")
-
-    #ppc=0.0005 makes very difficult to decided NOT to merge two clusters, so if the clusters are still not merged, it means that there is a lot of difference. For example, ppc=0.0005 makes no difference between han chinese and japenese, as we increase to 0.05, now the threshold is stringent enough to make difficult to combine japanese and chinese. 
-        #you have to study the ppc test
-            #https://zzz.bwh.harvard.edu/plink/strat.shtml#options
-            #https://zzz.bwh.harvard.edu/plink/strat.shtml#outlier
-    #in our case, ppc=0.0005 already is able to detect differences and create clusters, so it means we have samples with more difference than chinese and japanese.
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/XX_mds/; \
-    awk \
-        'BEGIN{ \
-            FS=\" \"; \
-            OFS=\"\t\"};\
-        { \
-            if(NR>1){ \
-                print $1, $2, $3, $4, $5, $6, $7 \
-            } \
-        }' \
-        ./cluster_after_logR_filter.mds > cluster_after_logR_filter_tab.mds"
-)
-
-
-
-
-mds_results = pd.read_csv("./data/genetic_data/quality_control/XX_mds/cluster_after_logR_filter_tab.mds", sep="\t", header=None)
-mds_results
-
-import plotly.express as px
-fig = px.scatter(\
-    data_frame=mds_results, \
-    x=3, \
-    y=4, \
-    color=2, #the family/batch (0) or the cluster (2)
-    hover_data=[\
-        0,1,2,3])
-        #you can use columns of DF to add axis data, but also modify color, size, and show data per sample in a desplegable box
-        #https://plotly.com/python/line-and-scatter/
-        #https://plotly.com/python-api-reference/generated/plotly.express.scatter.html
-#fig.show()
-fig.write_html("./data/genetic_data/quality_control/XX_mds/mds_after_logR_filter_plot.html")
-    #https://plotly.com/python/interactive-html-export/
-
-#it is like the PCA
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir \
-        --parents \
-        ./XX_neighbour; \
-    ls -l")
-
-
-run_bash("\
-    cd ./data/genetic_data/quality_control/; \
-    plink \
-        --neighbour 1 5 \
-        --cluster \
-        --ppc 0.0005 \
-        --bfile ./09_remove_related_samples/loop_maf_missing_3_ld_pruned_autosomals \
-        --out ./XX_neighbour/cluster_after_logR_filter")
-
-    #https://www.cog-genomics.org/plink/1.9/strat#neighbour
-    #https://www.cog-genomics.org/plink/1.9/formats#nearest
-    #https://zzz.bwh.harvard.edu/plink/strat.shtml#outlier
-
-    #check --ppc in cluster above! explore this in the future?
-        #for ppc we need LD pruned? if this is using IBD, then it shoudl be LD prunned
-        #we get hudnreds of cluster with --ppc of 0.0005 or 0.05
-
-
-
-
-
 # endregion
+
 
 
 
@@ -5818,123 +5732,14 @@ run_bash("\
 # region HWE SECOND ROUND
 ###########################
 
+#I do not think we need this step because we only have 1 population, but check
 
-#After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
+#The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner (so the fewer-hets-than-expected variants that one would expect from population stratification would not be filtered out by this command), and the 1e-25 threshold is extreme enough that we are unlikely to remove anything legitimate. (Unless the dataset is primarily composed of F1 hybrids from an artificial breeding program.) After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
 
 # endregion
 
 
-
-
-######################################################
-# region heterozygosity wihting ancestry groups ######
-######################################################
-
-#Ritchie's tutorial says "in downstream analyuses .... less than expected heterozygosity (mean – 3 SD) suggests possible inbreeding and greater than expected heterozygosity (mean + 3 SD) suggests possible sample contamination. However, these thresholds should take into account the expected heterozygosity rates in the ancestry group under study, as some diverse populations may exhibit different rates of heterozygosity than other populations."
-
-##important
-#check if you have to use prunned LD data
-
-#do plot hetero - missingness
-#use the information to remove samples due to contamination (high hetero) or inbreeding (low hetero)
-
-# endregion
-
-
-
-
-##################################
-# region SEX INCONSISTENCES ######
-##################################
-
-
-    #check sex uses allele frequencies, so you can have problems with different ancestries, yo have to prepare the data... so maybe is bettter to see the PCA for outliers and batch effects, filtering and then go to see sex once we have cleaner data
-        #"Due to the use of allele frequencies, if your dataset has a highly imbalanced ancestry distribution, you may need to process the rare-ancestry samples separately."
-        #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
-
-    #check-sex has to be used on LD-pruned data, so we can use the previous data
-        #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
-    #This isn't implemented yet in plink2 since there would be little practical difference from the plink 1.9 implementation.  Use "--make-bed --chr X,Y" to export a .bed fileset with only chrX and chrY, and run plink 1.9 --check-sex on that.
-
-    #BUT OF COURSE WE NEED DATA OF SEX CHROMOSOMES, select the prunnn ed dataset with sex chromosomes
-
-#sex inconsistences on ld_pruned
-    #In the tutorial of plink Chirstopher checks sex on the prunned dataset
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec18
-    #https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
-
-
-
-#By default, –check-sex/–impute-sex and several other PLINK commands assume that your dataset is representative of a single population, and all samples are members of that population; population allele frequencies and F coefficients are estimated under these assumptions.
-
-#Thus, if you identified multiple subpopulations in the previous section, you should perform sex validation/imputation on one subpopulation at a time. PLINK’s –filter flag provides one way to do this; put sample IDs in the first two columns of subpops.txt and subpopulation IDs in the third column, then
-
-#Plink says that, due to the use of allele frequencies we may need to check sex within ancestry groups, and he did that in the tutorial, so we are doing this after pop structure analysis
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec19
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/10_remove_low_maf_snps; \
-    plink \
-        --bfile ./merged_batches_hwe_par_callrate_LogRDev_maf \
-        --check-sex; \
-    ls -l")
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/10_remove_low_maf_snps/; \
-    awk \
-        'BEGIN{FS=\" \"; OFS=\"\t\"}{print $1, $2, $3, $4, $5, $6}'\
-        plink.sexcheck > plink.sexcheck_awk_processed.tsv; \
-    head plink.sexcheck_awk_processed.tsv")
-
-
-sex_check_report = pd.read_csv( \
-    "./data/genetic_data/quality_control/10_remove_low_maf_snps/plink.sexcheck_awk_processed.tsv", \
-    sep="\t", 
-    header=0, 
-    low_memory=False)
-print(sex_check_report)
-
-
-
-
-import matplotlib.pyplot as plt
-
-plt.hist(sex_check_report["F"], 50, density=True, alpha=0.4, label='Observed iHS')
-plt.savefig( \
-    fname="./data/genetic_data/quality_control/09_remove_related_samples/check_sex_f_distribution.png")
-plt.close()
-    
-    #density?
-
-    #from plink doc
-        ##0.66 is, of course, still much larger than 0.2, and in most contexts it still justifies a female call. We suggest running --check-sex once without parameters, eyeballing the distribution of F estimates (there should be a clear gap between a very tight male clump at the right side of the distribution and the females everywhere else), and then rerunning with parameters corresponding to the empirical gap.
-    #this is exactly what we have, a tight peak close to 10 and then, below 0.2 we have a wider peak and a small.
-    #therefore, the default F thresholds work for us
-        #By default, F estimates smaller than 0.2 yield female calls, and values larger than 0.8 yield male calls. If you pass numeric parameter(s) to --check-sex (without 'y-only'), the first two control these thresholds.
-
-
-sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] !=0), :]
-
-sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_report["PEDSEX"] ==0), :]
-    #42 cases here with unknown sex, but in the excel the number of samples without sex is 41
-    #there are also 42 cases with sex zero in the fam file of the second batch before merging
-    #the origin of the fam file is the map file!
-    #The problem is 2399LDJA/2397LDJA, this mislabeled sample. 2397LDJA is present in the first batch but not in the pheno data so it is sex is "0". In contrast, 2399LDJA is present in the pheno data, having sex as M, but not in the first batch. Therefore, when we count the number of NaN sex in pheno data is only 41 (2399LDJA has sex data), while the genetic data has 42 (2397LDJA has no sex data).
-    #we should change the name of this sample, probably easier to do it in the excel...
-
-#OJO MINORITIES
-    #the results seems to make sense with most females below 0.2, CHECK THAT!
-    #we need to check ancestry? see ritchie
-
-
-#https://groups.google.com/g/plink2-users/c/4bpdLMdH2KA
-    #If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
-
-
-# endregion
 
 
 
@@ -5945,7 +5750,7 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 
 #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
 
-#do it within each ancestry group?
+#note sure about this step. It will be another round after imputation anyways
 
 
 
@@ -5958,18 +5763,12 @@ sex_check_report.loc[(sex_check_report["STATUS"] == "PROBLEM") & (sex_check_repo
 
 
 
-#check differences in pheno between batches?
-#do case-control study for batch effects AFTER all pre-QC steps?
 
 
-
-###should be check for strand differences between the batches? See to_do_combat_genes.md for programs to do strand checks.
-
-
-###imputation separated between ancestry groups?
-## there is about a cosmopolitan imputation panel above
 
 # endregion
+
+
 
 
 
@@ -6222,6 +6021,8 @@ pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype("float64"
 pheno_data["body_mass_diff"] = pheno_data["Week 8 Body Mass"] - pheno_data["Week 1 Body Mass"]
 pheno_data["beep_test_diff"] = pheno_data["Week 8 beep test"] - pheno_data["Week 1 Beep test"]
 pheno_data["vo2max_diff"] = pheno_data["Week 8 Pred VO2max"] - pheno_data["Week 1 Pred VO2max"]
+
+first_pca = "WHERE THIS CAME FROM??"
 
 #merge genetic and phenotypic data
 pca_pheno = pd.merge(

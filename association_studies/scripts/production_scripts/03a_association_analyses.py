@@ -285,6 +285,10 @@ print_text("prepare covariates", header=1)
     #Baseline V̇O2peak, the individual study and PC6 (the 6th principal components from the PCA analysis, which was significantly associated with the phenotype) were included as covariates.
 
 
+###check differences in pheno between batches?
+#do case-control study for batch effects AFTER all pre-QC steps?
+
+
 print_text("load pheno data", header=2)
 print_text("This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv", header=3)
 run_bash(" \
