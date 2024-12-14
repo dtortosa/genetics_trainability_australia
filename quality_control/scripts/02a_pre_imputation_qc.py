@@ -5170,24 +5170,6 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/15_check_sex; \
     mkdir -p ./03_second_check_sex; \
 ")
-#After removing the samples we decided to remove due to sex problems, I detected that plink was still giving me errors regarding the sex chromosomes.
-    #These warnings from PLINK indicate issues with your genotype data:
-        #1. **Heterozygous Haploid Genotypes**: This warning suggests that there are 650 instances where haploid genotypes (typically found on sex chromosomes) are showing heterozygous calls. This often happens with male samples on the X chromosome. You can check the `.hh` file mentioned for specific details. Using the `--split-x` command might help if these errors are in the pseudo-autosomal regions[1](https://www.biostars.org/p/9601535/).
-        #2. **Nonmissing Nonmale Y Chromosome Genotypes**: This warning indicates that there are genotypes on the Y chromosome that are not missing in non-male samples. This could be due to incorrect sex assignments or genotyping errors. You might need to verify the sex information in your dataset and correct any discrepancies[2](https://www.biostars.org/p/98211/).
-#As the calculation of the F statistic has to be performed in a subset of SNPs in linkage equilibrium, I did not count the number of Y genotypes for all SNPs present in the Y chromosome. When considering all SNPs in the Y chromosome, there are 35 additional female samples that have at least 1 genotype in that chromosome. This made me have second thoughts about removing female samples that are apparently females (F value around 0) but have a few Y genotypes. Even so after finding that this technical error is apparently fairly common.
-    #From Christopher: If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
-    #https://groups.google.com/g/plink2-users/c/4bpdLMdH2KA
-
-#Another reason to give this a thought is the fact that we also have the opposite problem in some males. Some have a few heterozygous genotypes in the X chromosome, i.e., two different copies of the same SNP. Given that males only have one X chromosome, this is technically not possible. There are 285 males with this problem.
-#Remember these (both male and female) are samples with the correct F value (0 for females and 1 for males), so the sample should be ok for the remaining genotypes. Considering this, I think that it would make sense to save all these samples and just remove the specific genotypes implicated in this.
-
-#Christopher seems to concur with me:
-    #I have multiple nonmissing female genotype calls on the Y chromosome. Assuming that these female samples have a F value around 0 (I checked that with --check-sex), the existence of a non-missing Y genotype would justify the removal of the whole sample? Or would it make sense to just remove that genotype but retain the rest of genotypes for these samples? As far as I know, this is a common problem, but I am not sure if this completely invalidates a sample.
-    #Then, the .hh file include multiple male samples that have a few (between 1 to 9) heterozygous calls in non-PAR regions of the X chromosome. My question is the same, would it make sense to remove altogether these samples and their SNPs? Or could we just use --set-hh-missing to only remove these specific genotypes? Of course, this is assuming that these males have a F value above my threshold (i.e., 0.8).
-    #In case it is relevant for the question in place: My .hh file includes the male samples with heterzygous haploid calls but not the nonmissing female genotype calls on the Y chromosome. However, "--set-hh-missing" remove all these genotypes, both the het. haploid and non-missing Y calls.
-    #I am sure I am dealing with non-missing Y genotypes because I have checked the Y counts across all SNPs using "--check-sex y-only".
-    #Chris: It’s a warning, not an error.  If you know your variant caller makes a few female chrY genotype calls, just use —set-hh-missing (which was renamed to —set-invalid-haploid-missing in recent plink 2.0 builds for the reason you describe).
-        #It seems that "—set-hh-missing" has been changed to "—set-invalid-haploid-missing" because this command remove problematic haploid genotypes related to both heterozigous haploids in X males (non-PAR X regions that do not have counter part in the Y) and non-missing Y genotypes in females.
 
 print_text("run check-sex only with Y", header=4)
 run_bash(" \
@@ -5219,13 +5201,15 @@ run_bash(" \
         #Given we are not calculating F, we do not good MAF falues nor LD. We are just counting the number of Y genotypes, so we are going to use the whole sample without LD prunning and see the number of Y genotypes in the samples across all Y SNPs.
             #Since this function is based on the same F coefficient as --het/--ibc, it requires reasonable MAF estimates (so it's essential to use --read-freq if there are very few samples in your immediate fileset), and it's best used on marker sets in approximate linkage equilibrium.
 
-#load the checksex file
+print_text("explore checksex file and non-missing Y genotypes in females", header=4)
+print("load the checksex file")
 check_sex_y_only = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/check_sex_y_only.sexcheck", \
     sep="\s+", \
     header=0, \
     low_memory=False \
 )
+print(check_sex_y_only)
     #.sexcheck: A text file with a header line, and then one line per sample with the following 6-7 fields:
         #FID	Family ID
         #IID	Within-family ID
@@ -5235,14 +5219,7 @@ check_sex_y_only = pd.read_csv( \
             #we are using "y-count", so non-zero y-counts for females results in SNPSEX=1 and hence PROBLEM.
         #YCOUNT	Number of nonmissing genotype calls on Y chromosome. Requires 'ycount'/'y-only'.
 
-
-
-
-###POR AQUIII
-
-
-
-#extract problematic cases and check
+print("extract problematic cases and check that these are females")
 check_sex_y_only_problems = check_sex_y_only.loc[check_sex_y_only.iloc[:,4]=="PROBLEM"]
 if( \
     (check_sex_y_only_problems.loc[ \
@@ -5254,22 +5231,21 @@ if( \
     ].shape[0] != check_sex_y_only_problems.shape[0]) \
 ):
     raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SAMPLES ACCORDING TO Y CHROMOSOME")
+else:
+    print("OK")
 
-#check the original problematic cases due to non-missing Y genotypes are included in this new list
+print("check the original problematic cases due to non-missing Y genotypes are included in this new list")
 original_samples_y_problem =  pd.Series(["0295AMSM", "7692EOOO", "1390JMJM", "2197JWDM", "2282SODJ", "3400ISOM", "6796HGJS", "7300ECNO"])
-#Self-reported females, with F value around 0, and female names, but having 1 Y genotype. Probably technical errors. REMOVING.
-
+    #Self-reported females, with F value around 0, and female names, but having 1 Y genotype. Probably technical errors. REMOVING.
 if( \
     original_samples_y_problem.isin(check_sex_y_only_problems.iloc[:,1]).sum() != original_samples_y_problem.shape[0] \
 ):
     raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SAMPLES ACCORDING TO Y CHROMOSOME")
+else:
+    print("OK")
 
-
-
-
-
-##HH file
-
+print_text("Explore the problematic cases in the HH file, i.e., heterzigous alls in regions of the X chrosomoe that are not PAR and hence should be homozygous and haploid, i.e., heterozygous haploids", header=4)
+print("load the HH file")
 check_sex_y_only_hh = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/check_sex_y_only.hh", \
     sep="\s+", \
@@ -5277,58 +5253,95 @@ check_sex_y_only_hh = pd.read_csv( \
     low_memory=False \
 )
 
+print("count the number of unique SNPs and samples impicates")
+print("snps")
+print(check_sex_y_only_hh.iloc[:,2].value_counts().describe())
+print("most of the SNPs are repeated 1 time and no more (percentile 75 is 1)") 
+print("samples")
+print(check_sex_y_only_hh.iloc[:,1].value_counts().describe())
+print("Some samples are repeated several times, but most of them just 2 times (percentile 75 is 2")
+print("Therefore, there is no single SNP/sample very badly affected")
 
-check_sex_y_only_hh.iloc[:,2].value_counts().describe()
-    #most of the SNPs are repeated 1 time and no more
-check_sex_y_only_hh.iloc[:,1].value_counts().describe()
-    #Some samples are repeated several times, but most of them just 1 time
-
+print("check that all affected samples are males")
 samples_hh_problems = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam.loc[loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam[1].isin(check_sex_y_only_hh.iloc[:,1]), :]
+    #get the FAM data of the het. haploids
+if((samples_hh_problems.iloc[:,4]==1).sum()!=samples_hh_problems.shape[0]):
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SAMPLES ACCORDING TO HETEROZYGOUS HAPLOIDS SOME OF THE SAMPLES ARE NOT MALES")
+else:
+    print("OK")
 
-
-#all males
-(samples_hh_problems.iloc[:,4]==1).sum()==samples_hh_problems.shape[0]
-
-##check this is all X
+print("check that all affected SNPs are in X plus 1 case in the Y")
+#load bim file
 loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update.bim",
     sep="\t", \
     header=None, \
     low_memory=False \
 )
-
 snps_hh_problems = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim.loc[loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim[1].isin(check_sex_y_only_hh.iloc[:,2]), :]
+    #get the chromosome of all SNPs included in the HH file
+
+if( \
+    ((snps_hh_problems.iloc[:,0]==23) | (snps_hh_problems.iloc[:,0]==24)).sum()!=snps_hh_problems.shape[0] \
+):
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SNPS ACCORDING TO HETEROZYGOUS HAPLOIDS: SOME SNPS ARE NOT IN THE X (we should only have 1 case in the Y chromosome)")
+else:
+    print("OK")
 
 
-((snps_hh_problems.iloc[:,0]==23) | (snps_hh_problems.iloc[:,0]==24)).sum()==snps_hh_problems.shape[0]
-
-#there is also 1 Y case in the HH file
-y_male_problem = snps_hh_problems.loc[snps_hh_problems.iloc[:,0]==24,:]
-print(check_sex_y_only_hh.loc[check_sex_y_only_hh.iloc[:,2].isin(y_male_problem.iloc[:,1]),:])
+print("there is also 1 Y case in the HH file")
+y_male_problem = pd.concat( \
+    [ \
+        snps_hh_problems.loc[snps_hh_problems.iloc[:,0]==24,:].reset_index(drop=True), \
+        check_sex_y_only_hh.loc[ \
+            check_sex_y_only_hh.iloc[:,2].isin(snps_hh_problems.loc[snps_hh_problems.iloc[:,0]==24,1]), : \
+        ].reset_index(drop=True) \
+    ], \
+    axis=1)
+    #concatenate columns of: 
+        #the ID of the problematic HH snp of chromosome Y 
+        #the Id of the sample implicated in the problem
 print(y_male_problem)
-    #This is self-reported male with F=1 that has two different alleles for a SNP located in the non-PAR region of the Y chromosome. 
-    #287831  24  JHU_Y.24444621  0  22,298,475  C  T
+    #This is self-reported male (1198LKSM) with F=1 that has two different alleles for a SNP located in the non-PAR region of the Y chromosome.
+    #combat_ILGSA24-17873  1198LKSM  JHU_Y.24444621
+    #24  JHU_Y.24444621  0  22,298,475  C  T
     #this is the same than the rest of males that have heterzygous calls in non-PAR regions of the X chromosome, so the same logic applies.
 
-#all cases outside or PAR regions?
-snps_hh_problems[ \
-    ((snps_hh_problems.iloc[:,3]>=10001) & (snps_hh_problems.iloc[:,3]<=2781479)) | \
-    ((snps_hh_problems.iloc[:,3]>=155701383) & (snps_hh_problems.iloc[:,3]<=156030895)) \
-].shape[0]==0
-    #Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2,781,479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156,030,895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
-    #all cases outside of the PAR regions
+print("all cases outside or PAR regions?")
+if( \
+    snps_hh_problems[ \
+        ((snps_hh_problems.iloc[:,3]>=10001) & (snps_hh_problems.iloc[:,3]<=2781479)) | \
+        ((snps_hh_problems.iloc[:,3]>=155701383) & (snps_hh_problems.iloc[:,3]<=156030895)) \
+    ].shape[0]!=0 \
+):
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SNPS ACCORDING TO HETEROZYGOUS HAPLOIDS: SOME SNPS ARE IN THE PAR REGIONS")
+else:
+    print("OK")
+    #Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
 
+print("If all the previous checka are OK, it means we have males that have heterozygous calls in non-PAR regions of the X or Y chromosome. We know these are males because we have already checked the sex with F and Y genotypes and know that SNPs in the PAR regions are clearly noted like that, thus these seems to be genotyping error. We have to remove. The question is whether to just remove these specific genotypes or remove these SNPs for all samples altogether. We are going to remove only the specific genotypes implicated in this problem. See the script for further details about the decision")
 
-#therefore, males that have heterozygous calls in non-PAR regions of the X or Y chromosome. We know these are males because we have already checked the sex with F and Y genotypes and now that SNPs in the PAR regions are clearly note like that, thus these seems to be genotyping error. We have to remove. 
-    #The question is whether to just remove these specific genotypes or remove these SNPs for all samples altogether
-    #We are going to remove only the specific genotypes implicated.
+#After removing the samples we decided to remove due to sex problems, I detected that plink was still giving me errors regarding the sex chromosomes.
+    #These warnings from PLINK indicate issues with your genotype data:
+        #1. **Heterozygous Haploid Genotypes**: This warning suggests that there are 650 instances where haploid genotypes (typically found on sex chromosomes) are showing heterozygous calls. This often happens with male samples on the X chromosome. You can check the `.hh` file mentioned for specific details. Using the `--split-x` command might help if these errors are in the pseudo-autosomal regions[1](https://www.biostars.org/p/9601535/).
+        #2. **Nonmissing Nonmale Y Chromosome Genotypes**: This warning indicates that there are genotypes on the Y chromosome that are not missing in non-male samples. This could be due to incorrect sex assignments or genotyping errors. You might need to verify the sex information in your dataset and correct any discrepancies[2](https://www.biostars.org/p/98211/).
+#As the calculation of the F statistic has to be performed in a subset of SNPs in linkage equilibrium, I did not count the number of Y genotypes for all SNPs present in the Y chromosome. When considering all SNPs in the Y chromosome, there are 35 additional female samples that have at least 1 genotype in that chromosome. This made me have second thoughts about removing female samples that are apparently females (F value around 0) but have a few Y genotypes. Even so after finding that this technical error is apparently fairly common.
+    #From Christopher: If heterozygous haploid calls still remain, the most likely cause is nonmissing female genotype calls on the Y chromosome; others have reported that this is fairly common.  A quick way to check the number of these is to just load the Y chromosome with e.g. "plink --bfile semi_clean_fileset --chr 24 --freq".  If all the heterozygous haploid errors are on the Y chromosome, you can safely clobber them with --make-bed + --set-hh-missing.  (If some are on the X, --set-hh-missing *might* still be okay, but I'd need to know more about the data source and the --check-sex report to be sure.)
+    #https://groups.google.com/g/plink2-users/c/4bpdLMdH2KA
 
+#Another reason to give this a thought is the fact that we also have the opposite problem in some males. Some have a few heterozygous genotypes in the X chromosome, i.e., two different copies of the same SNP. Given that males only have one X chromosome, this is technically not possible. There are 285 males with this problem.
+#Remember these (both male and female) are samples with the correct F value (0 for females and 1 for males), so the sample should be ok for the remaining genotypes. Considering this, I think that it would make sense to save all these samples and just remove the specific genotypes implicated in this.
 
+#Christopher seems to concur with me:
+    #I have multiple nonmissing female genotype calls on the Y chromosome. Assuming that these female samples have a F value around 0 (I checked that with --check-sex), the existence of a non-missing Y genotype would justify the removal of the whole sample? Or would it make sense to just remove that genotype but retain the rest of genotypes for these samples? As far as I know, this is a common problem, but I am not sure if this completely invalidates a sample.
+    #Then, the .hh file include multiple male samples that have a few (between 1 to 9) heterozygous calls in non-PAR regions of the X chromosome. My question is the same, would it make sense to remove altogether these samples and their SNPs? Or could we just use --set-hh-missing to only remove these specific genotypes? Of course, this is assuming that these males have a F value above my threshold (i.e., 0.8).
+    #In case it is relevant for the question in place: My .hh file includes the male samples with heterzygous haploid calls but not the nonmissing female genotype calls on the Y chromosome. However, "--set-hh-missing" remove all these genotypes, both the het. haploid and non-missing Y calls.
+    #I am sure I am dealing with non-missing Y genotypes because I have checked the Y counts across all SNPs using "--check-sex y-only".
+    #Chris: It’s a warning, not an error.  If you know your variant caller makes a few female chrY genotype calls, just use —set-hh-missing (which was renamed to —set-invalid-haploid-missing in recent plink 2.0 builds for the reason you describe).
+        #It seems that "—set-hh-missing" has been changed to "—set-invalid-haploid-missing" because this command remove problematic haploid genotypes related to both heterozigous haploids in X males (non-PAR X regions that do not have counter part in the Y) and non-missing Y genotypes in females.
 
-
-#use "--set-hh-missing" to remove these problematic cases
-    #https://www.cog-genomics.org/plink/1.9/data
-
+print_text("use --set-hh-missing to remove these problematic genotypes", header=4)
+print("Run plink")
 run_bash(" \
     cd ./data/genetic_data/quality_control/15_check_sex; \
     plink \
@@ -5337,8 +5350,12 @@ run_bash(" \
         --make-bed \
         --out ./03_second_check_sex/loop_maf_missing_2_pca_not_outliers_sex_full_clean \
 ")
+    #Normally, heterozygous haploid and nonmale Y chromosome genotype calls are logged to plink.hh (In my case nonmale Ys are not included in HH and Chris seems to be aware) and treated as missing by all analysis commands, but left undisturbed by --make-bed and --recode (since, once gender and/or chromosome code errors have been fixed, the calls are often valid). If you actually want --make-bed/--recode to erase this information, use --set-hh-missing. (The scope of this flag is a bit wider than for PLINK 1.07, since commands like --list and --recode-rlist which previously did not respect --set-hh-missing have been consolidated under --recode.)
+    #Note that the most common source of heterozygous haploid errors is imported data which doesn't follow PLINK's convention for representing the X chromosome pseudo-autosomal region. This should be addressed with --split-x below, not --set-hh-missing.
+        #https://www.cog-genomics.org/plink/1.9/data
+    #We have already checked that the autosomal regions follow Plink´s convention and we know the cause of these problems, as previously disucssed we are going to remove only the genotypes implicated but not the rest of the data for the samples and snps implicated.
 
-
+print("run again a sex check to ensure we do not have more nonmale Y and het. haploid cases")
 run_bash(" \
     cd ./data/genetic_data/quality_control/15_check_sex; \
     plink \
@@ -5348,7 +5365,21 @@ run_bash(" \
 ")
     #IMPORTANT: Note that F values without LD prunning are not completely reliable, so you may have some PROBLEMs generated by this. We are not prunning SNPs because we need to count Y genotypes across all SNPs
 
+print("check the log file that does not contain any warning anymore")
+run_bash(" \
+    awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($0 ~/^Warning/){ \
+                print $0; \
+                exit 1; \
+            } \
+        }' \
+        ./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/last_check_sex.log \
+")
+print("OK")
 
+print("explore the last checksex file to do a few more checks")
+#load the file
 last_check_sex = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/last_check_sex.sexcheck", \
     sep="\s+", \
@@ -5356,36 +5387,30 @@ last_check_sex = pd.read_csv( \
     low_memory=False \
 )
 
+#calculate the checks
 first_check = (not last_check_sex["STATUS"].isna().any()) & (last_check_sex["STATUS"]=="OK").all()
+    #in the STATUS column
+        #we do not have NAs
+        #all cases are OK
 second_check = last_check_sex.loc[last_check_sex["PEDSEX"]==2, "YCOUNT"].sum()==0
-
 third_check = (last_check_sex.loc[last_check_sex["PEDSEX"]==2, "F"]<0.2).sum()==(last_check_sex["PEDSEX"]==2).sum()
-
+    #check all females have
+        #0 Y genotypes
+        #F value below 0.2
 fourth_check = (last_check_sex.loc[last_check_sex["PEDSEX"]==1, "YCOUNT"]>100).sum()==(last_check_sex["PEDSEX"]==1).sum()
-    #Most samples have more than 400 Y genotypes, there is only one smaple that has less, specifically 142. It is a self-reported male (F=1) without any special characteristic.... Given the possibility of reduced Y genotypes in males and the high F value (it is 1 also in the prunned dataset), we are going to maintain this sample. Also the X seems to be ok, and the Y is not going to be used after imputation, so...
+    #check males have multiple Y genotypes
+    #Most samples have more than 400 Y genotypes, there is only one smaple that has less, specifically 142. It is a self-reported male (F=1) without any other special characteristic.... Given the possibility of reduced Y genotypes in males (although this is more frequent in old people and this is a young) and the high F value (it is 1 also in the prunned dataset), we are going to maintain this sample. Also the X seems to be ok, and the Y is not going to be used after imputation, so...
         #last_check_sex.loc[(last_check_sex["PEDSEX"]==1) & (last_check_sex["YCOUNT"]<400),:]
-
 fifth_check = (last_check_sex.loc[last_check_sex["PEDSEX"]==1, "F"]>0.8).sum()==(last_check_sex["PEDSEX"]==1).sum()
+    #all males have an F value above 0.8
 
-
-
-
+#apply the checks in an IF
 if first_check & second_check & third_check & fourth_check & fifth_check:
     print("WE HAVE CORRECTLY CLEANED OUR DATA OF SEX ISSUES")
 else:
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM CLEANING THE SEX PROBLEMS")
 
     #IMPORTANT: Note that F values without LD prunning are not completely reliable, so you may have some PROBLEMs generated by this. We are not prunning SNPs because we need to count Y genotypes across all SNPs
-
-
-
-
-
-
-
-
-
-
 
 # endregion
 
