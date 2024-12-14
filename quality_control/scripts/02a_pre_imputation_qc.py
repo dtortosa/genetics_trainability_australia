@@ -4950,6 +4950,8 @@ print("there is 1 sample with unknown sex in plink that it is NOT included in th
 print(f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(samples_without_pheno)])
     #"~" is used to negate
 print("this was the case that is not present in the excel but there is a sample in the excel with a very similar ID: 2399LDJA insted of 2397LDJA")
+if(f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(samples_without_pheno),"IID"].to_numpy()[0] != "2397LDJA"):
+    raise ValueError("ERROR! FALSE! PROBLEM WITH THE SAMPLE 2397LDJA")
 
 print("Add samples without pheno in excel to be removed")
 samples_remove_first_round = samples_no_pheno["IID"].to_list()
@@ -5306,6 +5308,12 @@ print(y_male_problem)
     #combat_ILGSA24-17873  1198LKSM  JHU_Y.24444621
     #24  JHU_Y.24444621  0  22,298,475  C  T
     #this is the same than the rest of males that have heterzygous calls in non-PAR regions of the X chromosome, so the same logic applies.
+if( \
+    (y_male_problem.iloc[:,1].to_numpy()[0]!="JHU_Y.24444621") | \
+    (y_male_problem.iloc[:,8].to_numpy()[0]!="JHU_Y.24444621") | \
+    (y_male_problem.iloc[:,7].to_numpy()[0]!="1198LKSM") \
+):
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SNPS ACCORDING TO HETEROZYGOUS HAPLOIDS IN THE Y CHROMOSOME")
 
 print("all cases outside or PAR regions?")
 if( \
