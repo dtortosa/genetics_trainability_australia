@@ -4955,10 +4955,14 @@ if(f_distribution_unknown_fam.loc[~f_distribution_unknown_fam["IID"].isin(sample
 
 print("Add samples without pheno in excel to be removed")
 samples_remove_first_round = samples_no_pheno["IID"].to_list()
+if(len(samples_remove_first_round)!=35):
+    raise ValueError("ERROR! FALSE! THE NUMBER OF SAMPLES TO REMOVE IN THE FIRST SEX CLEANING ROUND IS NOT OK")
 
-print("see now cases that are not included in the list of samples without pheno but still have a problem in sex. These are the real problems because if we have sex data and still have an error, it means there is a mismatch between selfreported sex and genetics")
+print("see now cases that are not included in the list of samples without pheno but still have a problem in sex. These are the real problems because if we have sex data and still have an error, it means there is a mismatch between self-reported sex and imputed sex using genetics genetics")
 real_sex_problems = f_distribution.loc[(~f_distribution["IID"].isin(samples_without_pheno)) & (f_distribution["STATUS"]=="PROBLEM"), :]
 print("Number of real problems: " + str(real_sex_problems.shape[0]))
+if(real_sex_problems.shape[0]!=5):
+    raise ValueError("ERROR! FALSE! THE NUMBER OF REAL SEX PROBLEMS IS NOT OK")
 
 print("check we have the correct number of problematic cases")
 #concatenate the problematic cases due to the lack of SEX in the pheno data PLUS the real problematic cases, i.e., cases with SEX reported but with a mismatch with the genetics
@@ -4972,22 +4976,23 @@ if(combined_problematic.shape[0] - n_duplicates != f_distribution.loc[(f_distrib
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM, THE NUMBER OF PROBLEMATIC CASES RELATED TO SEX DO NOT MATCH")
 
 #Results:
-with pd.option_context('display.max_columns', None):
+with pd.option_context("display.max_columns", None):
     print(real_sex_problems)
     #This will display all columns of the real_sex_problems DataFrame for this single print operation without changing the global pandas settings.
-#13 sex-problematic cases, the rest of problems are caused because they do not have pheno data at all
+#5 sex-problematic cases, the rest of problems are caused because they do not have pheno data at all
 
-#there are three cases (7699ISMO, 8244GBJJ, 8702EBMF) with very low F and no Y genotypes that are consdered male by the pheno data
+#there are three cases (7699ISMO, 8244GBJJ, 8702EBMF) with very low F and no Y genotypes that are consdered male by the pheno data.
 #8244GBJJ and 8702EBMF were identified as males, but they have very low F, no Y genotypes and their names are one of females, so they are likely females. We retain BOTH BUT CHANGING THE SEX TO FEMALE.
 samples_change_sex = ["8244GBJJ", "8702EBMF"]
+    #We will run Y genotype counts later, but we are considering that here. If, for any reason, we are wrong, the script would eventually fail because these samples are going to become females, so we would have female samples with Y genotypes, this will create a PROBLEM when running -check-sex y-count
 #7699ISMO has F value close to 0, no Y genotypes, but it has a male name so this is really strange. It seems a biological female with a male name. We are going to REMOVE.
 samples_remove_first_round.append("7699ISMO")
 
-#A self-reported male (8500JADJ) and is considered unknow by plink because his F value is below 0.8. It has 64 Y genotypes, a male name, but the problem is that the F values is far below 0.99 (expected for males) and below our threshold, it is not included in any of the F peaks. Tis sample has lower homozygosity in the X than expected for a male, meaning that if could have two alleles for several positions in the X. We are REMOVING.
+#A self-reported male (8500JADJ) and is considered unknow by plink because his F value is below 0.8. It has 64 Y genotypes, a male name, but the problem is that the F values is far below 0.99 (expected for males) and below our threshold, it is not included in any of the F peaks. This sample has lower homozygosity in the X than expected for a male, meaning that if could have two alleles for several positions in the X. We are REMOVING.
 samples_remove_first_round.append("8500JADJ")
 
 #one case (2397LDJA) do not have sex, but genetic data is very clear: F=0.99 and 64 Y genotypes, plus male name. This strongly suggesting male. CHANGE TO MALE.
-    #this was the cases not present in the excel. There is a sample in the excel with a very similar ID (2399LDJA). Lo an behold, that sample in the excel is reported as a male. So, as David postdoc suggested, this is likely a mislabelled sample. We are going to set the sex as male and change the ID to the one in the excel file.
+    #this was the cases not present in the excel. There is a sample in the excel with a very similar ID (2399LDJA). Lo an behold, that sample in the excel is reported as a male. So, as David´s postdoc suggested, this is likely a mislabelled sample. We are going to set the sex as male and change the ID to the one in the excel file.
 samples_change_sex.append("2397LDJA")
 
 print("check we have the correct number of samples to remove")
@@ -5004,7 +5009,7 @@ else:
 #Therefore, in general, it seems that our filtering has possibly removed samples that are far away from European ancestries.
 
 print_text("remove samples for this step", header=4)
-#load the fam file
+print("load the fam file")
 loop_maf_missing_2_pca_not_outliers_fam = pd.read_csv( \
     "./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers.fam",
     sep=" ", \
@@ -5013,7 +5018,7 @@ loop_maf_missing_2_pca_not_outliers_fam = pd.read_csv( \
 )
 print(loop_maf_missing_2_pca_not_outliers_fam)
 
-#extract family and individual IDs to be removed
+print("extract family and individual IDs to be removed")
 id_samples_first_removal = loop_maf_missing_2_pca_not_outliers_fam.loc[ \
     loop_maf_missing_2_pca_not_outliers_fam.iloc[:,1].isin(samples_remove_first_round), \
     [0, 1] \
@@ -5030,7 +5035,7 @@ id_samples_first_removal.to_csv( \
     index=False \
 )
 
-#remove
+print("remove")
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
@@ -5041,7 +5046,7 @@ run_bash(" \
 )
     #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
 
-#check we removed the correct samples
+print("check we removed the correct samples")
 first_sex_clean = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/01_first_check_sex/loop_maf_missing_2_pca_not_outliers_first_sex_removal.fam", \
     sep=" ", \
@@ -5062,17 +5067,17 @@ run_bash(" \
 ")
 
 print_text("change sex samples", header=4)
-#load the fam file
-loop_maf_missing_2_pca_not_outliers_first_sex_removal = pd.read_csv( \
+print("load the fam file")
+loop_maf_missing_2_pca_not_outliers_first_sex_removal_fam = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/01_first_check_sex/loop_maf_missing_2_pca_not_outliers_first_sex_removal.fam",
     sep=" ", \
     header=None, \
     low_memory=False \
 )
 
-#extract family and individual IDs to be changed
-id_samples_sex_change = loop_maf_missing_2_pca_not_outliers_first_sex_removal.loc[ \
-    loop_maf_missing_2_pca_not_outliers_first_sex_removal.iloc[:,1].isin(samples_change_sex), \
+print("extract family and individual IDs to be changed")
+id_samples_sex_change = loop_maf_missing_2_pca_not_outliers_first_sex_removal_fam.loc[ \
+    loop_maf_missing_2_pca_not_outliers_first_sex_removal_fam.iloc[:,1].isin(samples_change_sex), \
     [0, 1] \
 ]
 #check we have selected the correct samples
@@ -5082,12 +5087,12 @@ if( \
 ):
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE FIRST REMOVAL OF SAMPLES")
 
-#add the new sex to the DF
+print("add the new sex to the DF")
 id_samples_sex_change[2] = pd.Series(dtype='int')
 id_samples_sex_change.loc[id_samples_sex_change.iloc[:,1]=="8244GBJJ",2] = 2
 id_samples_sex_change.loc[id_samples_sex_change.iloc[:,1]=="8702EBMF",2] = 2
 id_samples_sex_change.loc[id_samples_sex_change.iloc[:,1]=="2397LDJA",2] = 1
-    #Notation for --update-sex: (1 or M = male, 2 or F = female, 0 = missing)
+    #--update-sex expects a file with FIDs and IIDs in the first two columns, and sex information (1 or M = male, 2 or F = female, 0 = missing) in the (n+2)th column. If no second parameter is provided, n defaults to 1. It is frequently useful to set n=3, since sex defaults to the 5th column in .ped and .fam files.
     #See above about the decisions to change sex
 id_samples_sex_change[2] = id_samples_sex_change[2].astype('int')
 print(id_samples_sex_change)
@@ -5110,7 +5115,7 @@ run_bash(" \
     #--update-sex expects a file with FIDs and IIDs in the first two columns, and sex information (1 or M = male, 2 or F = female, 0 = missing) in the (n+2)th column. If no second parameter is provided, n defaults to 1. It is frequently useful to set n=3, since sex defaults to the 5th column in .ped and .fam files.
 
 print_text("update IDs", header=4)
-#load the fam file
+print("load the fam file")
 loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update.fam",
     sep=" ", \
@@ -5118,19 +5123,19 @@ loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update = pd.read_csv( 
     low_memory=False \
 )
 
-#extract family and individual IDs to be changed
+print("extract family and individual IDs to be changed")
 id_samples_id_update = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update.loc[ \
     loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update.iloc[:,1]=="2397LDJA", \
     [0, 1] \
 ]
 
-#add the new ID
+print("add the new ID")
 id_samples_id_update[2] = id_samples_id_update[0].to_numpy()[0]
 id_samples_id_update[3] = "2399LDJA"
 print("New ID: ")
 print(id_samples_id_update)
 
-#save
+print("save")
 id_samples_id_update.to_csv( \
     "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/id_samples_id_update.tsv",
     sep="\t",
@@ -5138,7 +5143,7 @@ id_samples_id_update.to_csv( \
     index=False \
 )
 
-#update the ID
+print("update the ID")
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
@@ -5153,7 +5158,7 @@ run_bash(" \
         #New family ID
         #New within-family ID
 
-#check
+print("check")
 loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam = pd.read_csv( \
     "./data/genetic_data/quality_control/15_check_sex/02_sex_change_id_update/loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update.fam",
     sep=" ", \
@@ -5238,7 +5243,7 @@ else:
 
 print("check the original problematic cases due to non-missing Y genotypes are included in this new list")
 original_samples_y_problem =  pd.Series(["0295AMSM", "7692EOOO", "1390JMJM", "2197JWDM", "2282SODJ", "3400ISOM", "6796HGJS", "7300ECNO"])
-    #Self-reported females, with F value around 0, and female names, but having 1 Y genotype. Probably technical errors. REMOVING.
+    #Self-reported females, with F value around 0, and female names, but having 1 Y genotype.
 if( \
     original_samples_y_problem.isin(check_sex_y_only_problems.iloc[:,1]).sum() != original_samples_y_problem.shape[0] \
 ):
@@ -5262,7 +5267,7 @@ print("most of the SNPs are repeated 1 time and no more (percentile 75 is 1)")
 print("samples")
 print(check_sex_y_only_hh.iloc[:,1].value_counts().describe())
 print("Some samples are repeated several times, but most of them just 2 times (percentile 75 is 2")
-print("Therefore, there is no single SNP/sample very badly affected")
+print("Therefore, there are no SNPs/samples very badly affected")
 
 print("check that all affected samples are males")
 samples_hh_problems = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam.loc[loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_fam[1].isin(check_sex_y_only_hh.iloc[:,1]), :]
@@ -5282,7 +5287,6 @@ loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim =
 )
 snps_hh_problems = loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim.loc[loop_maf_missing_2_pca_not_outliers_first_sex_removal_sex_update_id_update_bim[1].isin(check_sex_y_only_hh.iloc[:,2]), :]
     #get the chromosome of all SNPs included in the HH file
-
 if( \
     ((snps_hh_problems.iloc[:,0]==23) | (snps_hh_problems.iloc[:,0]==24)).sum()!=snps_hh_problems.shape[0] \
 ):
@@ -5315,19 +5319,26 @@ if( \
 ):
     raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SNPS ACCORDING TO HETEROZYGOUS HAPLOIDS IN THE Y CHROMOSOME")
 
-print("all cases outside or PAR regions?")
+print("all cases (for X and Y) are outside or PAR regions?")
 if( \
     snps_hh_problems[ \
         ((snps_hh_problems.iloc[:,3]>=10001) & (snps_hh_problems.iloc[:,3]<=2781479)) | \
         ((snps_hh_problems.iloc[:,3]>=155701383) & (snps_hh_problems.iloc[:,3]<=156030895)) \
     ].shape[0]!=0 \
 ):
-    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SNPS ACCORDING TO HETEROZYGOUS HAPLOIDS: SOME SNPS ARE IN THE PAR REGIONS")
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SNPS ACCORDING TO HETEROZYGOUS HAPLOIDS: SOME SNPS ARE IN THE X PAR REGIONS")
 else:
     print("OK")
     #Accoring to hg38 data (https://www.ncbi.nlm.nih.gov/grc/human), in chrX, the first pseudo-autosomal region starts at basepair 10001 and ends at basepair 2781479, being the latter the first boundary used by plink. The second region starts at basepair 155701383 and ends at basepair 156030895, being the former the second boundary indicated by Plink. In other words, plink considers the end of the first PAR region and the start of the second PAR region.
+if( \
+    ((y_male_problem.iloc[:,3][0]>=10001) & (y_male_problem.iloc[:,3][0]<=2781479)) | \
+    ((y_male_problem.iloc[:,3][0]>=56887903) & (y_male_problem.iloc[:,3][0]<=57217415)) \
+):
+    raise ValueError("ERROR! FALSE! PROBLEM SELECTING THE PROBLEMATIC SNPS ACCORDING TO HETEROZYGOUS HAPLOIDS: SOME SNPS ARE IN THE Y PAR REGIONS")
+else:
+    print("OK")
 
-print("If all the previous checka are OK, it means we have males that have heterozygous calls in non-PAR regions of the X or Y chromosome. We know these are males because we have already checked the sex with F and Y genotypes and know that SNPs in the PAR regions are clearly noted like that, thus these seems to be genotyping error. We have to remove. The question is whether to just remove these specific genotypes or remove these SNPs for all samples altogether. We are going to remove only the specific genotypes implicated in this problem. See the script for further details about the decision")
+print("If all the previous checka are OK, it means we have males that have heterozygous calls in non-PAR regions of the X or Y chromosome. We know these are males because we have already checked the sex with F and Y genotypes and know that SNPs in the PAR regions are clearly noted like that, thus these seems to be genotyping errors. We have to remove. The question is whether to just remove these specific genotypes or remove these SNPs for all samples altogether. We are going to remove only the specific genotypes implicated in this problem. See the script for further details about the decision")
 
 #After removing the samples we decided to remove due to sex problems, I detected that plink was still giving me errors regarding the sex chromosomes.
     #These warnings from PLINK indicate issues with your genotype data:
@@ -5417,328 +5428,7 @@ if first_check & second_check & third_check & fourth_check & fifth_check:
     print("WE HAVE CORRECTLY CLEANED OUR DATA OF SEX ISSUES")
 else:
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM CLEANING THE SEX PROBLEMS")
-
     #IMPORTANT: Note that F values without LD prunning are not completely reliable, so you may have some PROBLEMs generated by this. We are not prunning SNPs because we need to count Y genotypes across all SNPs
-
-# endregion
-
-
-
-
-
-
-################################
-# region IMPUTATION PREP #######
-################################
-
-
-
-#In case you need to liftover the data, you can use the script of Ritchie, but they say that you do not needed in general because TOPMed accepts both hg38 and hg19
-    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-7----liftover-the-data
-
-
-#create a DF including the current and the new chromosome names required for michigan under hg38
-new_chromosomes = ["chr"+str(x) for x in list(range(1, 27)) if x not in [23,24,25,26]]
-
-[new_chromosomes.append(x) for x in ["chrX", "chrY", "chrX", "chrM"]]
-
-
-new_chromosomes_final = pd.DataFrame([list(range(1, 27)), new_chromosomes]).T
-new_chromosomes_final
-
-new_chromosomes_final.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/new_chromosomes.tsv", index=False, header=False, sep=" ")
-
-
-#preparation for michigan
-#download the reference genome and the 1000 Genomes allele frequency annotations
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
-    mkdir -p ./michigan_prep/; cd ./michigan_prep/; \
-    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.fa.gz; \
-    gunzip --keep hg38.p13.fa.gz; \
-    wget -O af.vcf.gz http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5c.20130502.sites.vcf.gz; \
-    bcftools index af.vcf.gz; \
-")
-    #I am using the fasta file for hg38.p13. We know from AGRF that our data is in hg38, they did not mention the patch, but given David contacted us with in My 2022, probably the genotyping was done during 2021, and p13 patch was released in feb 2019, so it is likely they used hg38.p13.
-        #https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.39/
-    #We are going to use the fasta file of hg38.p13 to solve the strand issues, but I also did it with the latest (hg38.p14) and got the same results.
-    #Also according to copilot, we should not use the masked versions present in "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips"
-        #For using bcftools fixref, you should use the unmasked reference FASTA file. In this case, you should use hg38.fa from the UCSC server1. The masked versions (e.g., hg38.fa.masked.gz) are not suitable for this purpose as they contain modifications that can interfere with the reference checking process.
-    #we are also downloading the allele frequency annotations from 1000 Genomes Project to use Plugin af-dist for additiona strand checks
-        #the URL is exactly the same showed in bcftools page (http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/), but just changing http by ftp. Also in the name of the file "ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites.vcf.gz", change "v5b" by "v5c", it seems to be a newer version, because v5b is not longer present.
-        #http://samtools.github.io/bcftools/howtos/plugin.af-dist.html
-
-
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/chr1; \
-    bcftools view \
-        -H ../hg38.fa \
-        ./chr1.vcf.gz")
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
-    i=1; \
-    cd ./hg19/chr${i}; \
-    awk \
-        -v chr=${i} \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1==\"NS\" && index($2, \"ref mismatch\")){ \
-                gsub(/%/, \"\", $4); \
-                print \"chr_\"chr, $3, $4; \
-            } \
-        }' \
-        fixref_stats_chr${i}.txt; \
-")
-
-
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
-    rs_number=$(awk \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1==12 && $4==8514205){ \
-                print $2; \
-            } \
-        }' \
-        loop_maf_missing_2_pca_not_outliers.bim); \
-    echo ${rs_number}; \
-    plink \
-        --bfile loop_maf_missing_2_pca_not_outliers \
-        --snp ${rs_number} \
-        --freq \
-        --out allele_freq_checks \
-")
-
-
-##Some SNPs that show opposite frequency were OK before doing the swaps. Note that you have checked and solved flips assuming your data was TOP compatible, but indeed I am sure I used the foward strand, we used pyspark to be sure about this.
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
-    for genom_ref in \"hg19\" \"hg38.p13\"; do \
-        mkdir -p ./${genom_ref}/; cd ./${genom_ref}/; \
-        mkdir -p ./vcfs_chr ; \
-        for i in {1..23}; do \
-            mkdir -p ./chr${i}; cd ./chr${i}; \
-            if [ ${i} -eq 23 ]; then \
-                plink \
-                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
-                    --chr 23,25 \
-                    --recode vcf-iid \
-                    --out ./chr${i}; \
-            else \
-                plink \
-                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
-                    --chr ${i} \
-                    --recode vcf-iid \
-                    --out ./chr${i}; \
-            fi; \
-            bcftools annotate \
-                --rename-chrs ../../../new_chromosomes.tsv \
-                ./chr${i}.vcf | \
-            bcftools sort -Oz -o ./chr${i}.vcf.gz;  \
-            bcftools +fixref \
-                ./chr${i}.vcf.gz \
-                -Oz -o chr${i}_flips_solved.vcf.gz -- \
-                --fasta-ref ../../${genom_ref}.fa \
-                --discard \
-                --mode flip &> ./fixref_stats_chr${i}.txt; \
-            if [ ${i} -eq 1 ]; then \
-                > ../count_mismatch_${genom_ref}.tsv; \
-            fi; \
-            awk \
-                -v chr=${i} \
-                'BEGIN{OFS=FS=\"\t\"}{ \
-                    if($1==\"NS\" && index($2, \"ref mismatch\")){ \
-                        gsub(/%/, \"\", $4); \
-                        print \"chr_\"chr, $3, $4; \
-                    } \
-                }' \
-                ./fixref_stats_chr${i}.txt >> ../count_mismatch_${genom_ref}.tsv; \
-            cp ./chr${i}_flips_solved.vcf.gz ../vcfs_chr/; \
-            cd ../; \
-        done; \
-        cd ../; \
-    done; \
-")
-    #run a bash loop from for hg19 and hg38 and from chromosome 1 to chromosome 23 (i.e., X). Michigan imputation server does not accept Y nor M. 
-        #Respect to XY: For phasing and imputation, chrX is divided into three independent chunks (PAR1, non-PAR, PAR2). These chunks are then automatically merged by the Michigan Imputation Server 2 and returned as a single complete chromosome X file. Therefore, we are generating a VCF file with the X and the PAR regions together, being all their SNPs named as "chrX".
-            #https://genepi.github.io/michigan-imputationserver/pipeline/
-    #For each genome reference:
-        #create and enter a folder for the genome reference
-        #create a new folder to save the final VCFs
-        #For each chromosome:
-            #create a folder and go inside
-            #using plink, convert the fileset without PCA outliers to VCF
-            #using bcftools annotate
-        #MISSING STEPS
-        #Use bcftools +fixref to detect and remove allele switches
-            #WARNING FROM BCFTOOLS:
-                #Do not use the program blindly, make an effort to understand what strand convention your data uses! Make sure the reason for mismatching REF alleles is not a different reference build!! Also do NOT use bcftools norm --check-ref s for this purpose, as it will result in nonsense genotypes!!
-                #strand
-                    #I know the strand reference of my data, I completely sure I used the foward strand notation, not top/bot or other. You can check that in "01b_illumina_report_to_plink.py", where I used pyspark to ensure I selected the correct that from all FinalReports. 
-                    #This should the strand used by the imputation server as it is the one used by ncbi, see "01b_illumina_report_to_plink.py" about details.
-                #I am also sure about the reference build, our data has hg38 as confirmed by AGRF. So we can use hg38 in the imptuation server.
-                    #Thank you for reaching out with your detailed query regarding the reference genome for project "CAGRF20093767". I can confirm that the reference genome used to generate your data is hg38
-                    #It’s great to hear that you achieved a high overlap (~98%) using the 1000 Genomes Project hg38 high-coverage panel. While the strand issues you encountered with the initial imputation are not uncommon when reconciling different datasets, using bcftools to address allele switches is a sound approach, and the resulting reduction in median allele switches for hg38 aligns with the reference genome used for this project.
-                    #Regarding the ~4K SNPs with differing allele frequencies, this may reflect population-specific differences or residual inconsistencies in strand alignment between panels. 
-                    #Also the page of TOPMED says the reference build is hg38
-                        #https://topmedimpute.readthedocs.io/en/latest/getting-started/#build
-                #Therefore, we can be sure that any strand issue between our dataset and the reference panel in the imputation server is not caused by the reference build or the strand. In other words, we do not have allele flips because I have made a mistake and I am comparing two genetic datasets that are using different strand formats or different builds.
-            #we use the flip model ("-m flip") to swap or flip REF/ALT columns and GTs for non-ambiguous SNPs to foward and ignore the rest.
-                #According to the manual, this is the following: Assuming the reference build is correct, just flip to fwd, discarding the rest
-                    #This is ok, I selected foward notation in our data, so all our SNPs should be foward. SNPs that are not in foward, are errors and we should solve fliping to foward if possible.
-                    #Also, the imputation server is going to check for flips, if more than 10000 obvious strand flips are detected, TOPMED stops the imputation, so we are ok.
-                #We avoid ambiguous sites (A/T, C/G). According to chatGTP:
-                    #Strand Ambiguity: For non-palindromic SNPs, the reverse complement will change the alleles (e.g., A/C becomes T/G). However, for A/T and C/G SNPs, the reverse complement is identical, making it difficult to ascertain if the strand needs correction.
-            #---discard: To remove the cases that have been deemed problematic but have not been solved due to ambiguity.
-                #THIS IS THE KEY: Doing this removes all the strange SNPs whose allele frequencies were negatively correlated between our dataset and the refenrece panel of the imputation server.
-    
-###CHECK ALL THE STEPS OF TOPMED PIPELINE AND CHECK WE ARE NOT MISSING STEPS FROM RITCHIE
-    #https://topmedimpute.readthedocs.io/en/latest/pipeline/#quality-control
-
-
-#From the total number of SNPS (SNPs: 285114), remove SNP not present in the reference panel (only type: 9,707) and Allele mismatches (204), giving the total number of SNPs used in imputation (275,203).
-    #https://www.biostars.org/p/446894/
-
-
-###see this sentence from the manual:
-    #Assuming the reference build is correct, just flip to fwd, discarding the rest
-    #we are already in foward! maybe we could just remove problematic cases using --discard?
-
-
-
-###we are doing imputation with 1000G hg38 deep that does not require to speciify a pop, so we are ok, the only problem here is that 1000G hg38 is beta and second not sure if a 0.8 of R2 between ref allele frequency of reference and my dataset is enough. We have 14K snps that differ in freuqnecy accorindg to chisq test.
-
-#maybe you can write to them, and tell that hg19 do not work because of allele flips, And yes, you checked for allele flips and swaps using the latest version of the hg38 fasta using bcftools. The problem seems to be with the lifover, because I have this problem with any hg19 problem, but I can run imputation with 1000G hg38 deep, with that you have more overal (>98%) and no flips/swaps. I had just 300 allele mismatches and 4K of snps just typed (what are these two cases?). Using 1000G low imputaton still runs, but with less overlap (93%) and more only typed SNPs (20K). First question here, 1000G deep is usable? beucase it says beta... secondly despite being able to run the imptation, the pooligenc score analyses do not run. This is not because the polygenic score per se, if I disable ancetry estimation, the analysis run, but I would like to do the nacstry esitmation. My sample is very likely European, but I would like to have more insgihts about that.
-
-#OJO, que usango los datos de prueba de michinga que son europes con 1000G pahse 3 v5 les sale R2=96.8 and only 1451 snps with allelel mismatch, but of course, we are selecting european, while in our case we are selecting ALL global, so maybe is normal? we should ask this to support also.
-
-
-count_mismatches = pd.merge( \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg19/count_mismatch_hg19.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg38.p13/count_mismatch_hg38.p13.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
-    on="chr", \
-    suffixes=("_hg19", "_hg38.p13") \
-)
-
-count_mismatches["count_diff"] = count_mismatches["count_hg19"] - count_mismatches["count_hg38.p13"]
-count_mismatches["percent_diff"] = count_mismatches["percent_hg19"] - count_mismatches["percent_hg38.p13"]
-
-print(count_mismatches)
-
-count_mismatches.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/count_mismatches.tsv", sep="\t", index=False)
-
-
-##probably the problem with the scores in michiga ins the ancestry calculation because we are using global panel 1000gh hg38 instead of 1000G hg19?
-
-
-
-    #Calculate the chi-square for each variant (reference panel vs. study data).: WE HAVE DIFFERENCE FOR 14k SNPS, but this is using hg38 1000G all pops global, not EUR specifically
-
-    #check reference genome!
-
-
-    #I have manually checked several cases in chromsome 20. In all cases, both the flips and the swaps are done correctly. A flip means to change the strand (AC is changed to TG) while a swap means to change REF for ALT. For example:
-        #rs13831
-            #Our data: REF=C; ALT=T
-            #NCBI: REF=A; ALT=G
-            #fixref:
-                #converts C to G and T to A to flip between strands: REF=G; ALT=A
-                #Then it swaps REF and ALT: REF=A; ALT=G
-                #this matches NCBI
-            #I have checked several cases in it does correctly.
-    
-
-    
-    #last strand check:
-        #after downloading allele frequency from 1000G, annotate your data file and stream the result through the af-dist plugin to create the genotype frequency distribution
-        #The output should something like this
-            #PROB_DIST   0.000000    0.100000    100618
-            #PROB_DIST   0.100000    0.200000    144103
-            #PROB_DIST   0.200000    0.300000    214923
-            #PROB_DIST   0.300000    0.400000    320721
-            #PROB_DIST   0.400000    0.500000    817965
-            #PROB_DIST   0.500000    0.600000    84027
-            #PROB_DIST   0.600000    0.700000    86531
-            #PROB_DIST   0.700000    0.800000    97986
-            #PROB_DIST   0.800000    0.900000    108776
-            #PROB_DIST   0.900000    1.000000    176755
-        #Finally plot the distribution to check whether there are only few unlikely genotypes.
-
-
-
-
-
-
-    #the changes SHOULD BE INCLUDED IN THE FINAL DATASET! It is ok, because we are going to use the data coming out of the imputation server, the VCF files will be converted to plink after imputation
-
-
-
-#interesting tool for all this cleaning
-    #https://imputation.sanger.ac.uk/?resources=1
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
-    mkdir ./vcfs_chr/; \
-    cd ./vcfs_chr; \
-    for i in {1..26}; do \
-        if [ $i -eq 23 ]; then \
-            chr=chrX; \
-            chr_name=chrX; \
-        elif [ $i -eq 24 ]; then \
-            chr=chrY; \
-            chr_name=chrY; \
-        elif [ $i -eq 25 ]; then \
-            chr=chrXY; \
-            chr_name=chrXY; \
-        elif [ $i -eq 26 ]; then \
-            chr=chrM; \
-            chr_name=chrM; \
-        else \
-            chr=chr$i; \
-            chr_name=chr$i; \
-        fi; \
-        plink \
-            --bfile ../loop_maf_missing_2_pca_not_outliers \
-            --chr $chr \
-            --recode vcf-iid \
-            --out fileset_$chr_name; \
-        bcftools annotate \
-            --rename-chrs \
-            ../new_chromosomes.tsv \
-            fileset_$chr_name.vcf | \
-        bcftools sort -Oz -o fileset_$chr_name.vcf.gz;  \
-        rm fileset_$chr_name.vcf; \
-    done; \
-    mkdir ./final_vcfs/; \
-    cp *.vcf.gz ./final_vcfs; \
-")
-    #think that plink merge X and XY when you convert ot vcf in the whole dataset, checl
-        #check you can add severla chromsome slike this with comma, and that XY is the PAR.
-    #MIRA RECOMENDACIONSS DE MIGHICHAN TO CHEC VCFS..
-        #https://genepi.github.io/michigan-imputationserver/prepare-your-data/#convert-pedmap-files-to-vcf-files
-
-
-    #we could also do it with all the samples of the other ancestries
-
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
-    mkdir ./vcfs_chr_pca_outliers/; \
-    cd ./vcfs_chr_pca_outliers; \
-    plink --bfile ../../../12_loop_maf_missing/loop_maf_missing_2 --chr 1 --recode vcf-iid --out chr1_fileset; bgzip chr1_fileset.vcf;  \
-")
 
 # endregion
 
@@ -6070,4 +5760,329 @@ print("It is ok to have False in this check, because we already knew that some s
     #Another method involves coding case/control status by batch followed by running the GWAS analysis testing each batch against all other batches. For example, the status of all samples on batch 1 will be coded as case, while the status of every other sample is to be coded control. A GWAS analysis is performed (e.g., using the --assoc option in PLINK), and both the average p-value and the number of results significant at a given threshold (e.g., p <1 × 10-4) can be recorded. SNPs with low minor allele frequency (i.e., <5%) should be removed before this analysis is performed to improve the stability of test statistics. This procedure should be repeated for each batch in the study. If any single batch has many more or many fewer significant results or has an average p-value <0.5 (under the null, the average p-value will be 0.5 over many tests), then this batch should be further inves tigated for genotyping, imputation, or compo sition problems. If batch effects are present, methods like those employed for population stratification (e.g., genomic control) may be used to mitigate the confounding effects.
 
 # endregion
+
+
+
+
+
+################################
+# region IMPUTATION PREP #######
+################################
+
+
+"./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/loop_maf_missing_2_pca_not_outliers_sex_full_clean"
+
+
+#In case you need to liftover the data, you can use the script of Ritchie, but they say that you do not needed in general because TOPMed accepts both hg38 and hg19
+    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-7----liftover-the-data
+
+
+#create a DF including the current and the new chromosome names required for michigan under hg38
+new_chromosomes = ["chr"+str(x) for x in list(range(1, 27)) if x not in [23,24,25,26]]
+
+[new_chromosomes.append(x) for x in ["chrX", "chrY", "chrX", "chrM"]]
+
+
+new_chromosomes_final = pd.DataFrame([list(range(1, 27)), new_chromosomes]).T
+new_chromosomes_final
+
+new_chromosomes_final.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/new_chromosomes.tsv", index=False, header=False, sep=" ")
+
+
+#preparation for michigan
+#download the reference genome and the 1000 Genomes allele frequency annotations
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
+    mkdir -p ./michigan_prep/; cd ./michigan_prep/; \
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.fa.gz; \
+    gunzip --keep hg38.p13.fa.gz; \
+    wget -O af.vcf.gz http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5c.20130502.sites.vcf.gz; \
+    bcftools index af.vcf.gz; \
+")
+    #I am using the fasta file for hg38.p13. We know from AGRF that our data is in hg38, they did not mention the patch, but given David contacted us with in My 2022, probably the genotyping was done during 2021, and p13 patch was released in feb 2019, so it is likely they used hg38.p13.
+        #https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.39/
+    #We are going to use the fasta file of hg38.p13 to solve the strand issues, but I also did it with the latest (hg38.p14) and got the same results.
+    #Also according to copilot, we should not use the masked versions present in "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips"
+        #For using bcftools fixref, you should use the unmasked reference FASTA file. In this case, you should use hg38.fa from the UCSC server1. The masked versions (e.g., hg38.fa.masked.gz) are not suitable for this purpose as they contain modifications that can interfere with the reference checking process.
+    #we are also downloading the allele frequency annotations from 1000 Genomes Project to use Plugin af-dist for additiona strand checks
+        #the URL is exactly the same showed in bcftools page (http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/), but just changing http by ftp. Also in the name of the file "ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites.vcf.gz", change "v5b" by "v5c", it seems to be a newer version, because v5b is not longer present.
+        #http://samtools.github.io/bcftools/howtos/plugin.af-dist.html
+
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/chr1; \
+    bcftools view \
+        -H ../hg38.fa \
+        ./chr1.vcf.gz")
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
+    i=1; \
+    cd ./hg19/chr${i}; \
+    awk \
+        -v chr=${i} \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1==\"NS\" && index($2, \"ref mismatch\")){ \
+                gsub(/%/, \"\", $4); \
+                print \"chr_\"chr, $3, $4; \
+            } \
+        }' \
+        fixref_stats_chr${i}.txt; \
+")
+
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
+    rs_number=$(awk \
+        'BEGIN{FS=\"\t\"}{ \
+            if($1==12 && $4==8514205){ \
+                print $2; \
+            } \
+        }' \
+        loop_maf_missing_2_pca_not_outliers.bim); \
+    echo ${rs_number}; \
+    plink \
+        --bfile loop_maf_missing_2_pca_not_outliers \
+        --snp ${rs_number} \
+        --freq \
+        --out allele_freq_checks \
+")
+
+
+##Some SNPs that show opposite frequency were OK before doing the swaps. Note that you have checked and solved flips assuming your data was TOP compatible, but indeed I am sure I used the foward strand, we used pyspark to be sure about this.
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
+    for genom_ref in \"hg19\" \"hg38.p13\"; do \
+        mkdir -p ./${genom_ref}/; cd ./${genom_ref}/; \
+        mkdir -p ./vcfs_chr ; \
+        for i in {1..23}; do \
+            mkdir -p ./chr${i}; cd ./chr${i}; \
+            if [ ${i} -eq 23 ]; then \
+                plink \
+                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
+                    --chr 23,25 \
+                    --recode vcf-iid \
+                    --out ./chr${i}; \
+            else \
+                plink \
+                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
+                    --chr ${i} \
+                    --recode vcf-iid \
+                    --out ./chr${i}; \
+            fi; \
+            bcftools annotate \
+                --rename-chrs ../../../new_chromosomes.tsv \
+                ./chr${i}.vcf | \
+            bcftools sort -Oz -o ./chr${i}.vcf.gz;  \
+            bcftools +fixref \
+                ./chr${i}.vcf.gz \
+                -Oz -o chr${i}_flips_solved.vcf.gz -- \
+                --fasta-ref ../../${genom_ref}.fa \
+                --discard \
+                --mode flip &> ./fixref_stats_chr${i}.txt; \
+            if [ ${i} -eq 1 ]; then \
+                > ../count_mismatch_${genom_ref}.tsv; \
+            fi; \
+            awk \
+                -v chr=${i} \
+                'BEGIN{OFS=FS=\"\t\"}{ \
+                    if($1==\"NS\" && index($2, \"ref mismatch\")){ \
+                        gsub(/%/, \"\", $4); \
+                        print \"chr_\"chr, $3, $4; \
+                    } \
+                }' \
+                ./fixref_stats_chr${i}.txt >> ../count_mismatch_${genom_ref}.tsv; \
+            cp ./chr${i}_flips_solved.vcf.gz ../vcfs_chr/; \
+            cd ../; \
+        done; \
+        cd ../; \
+    done; \
+")
+    #run a bash loop from for hg19 and hg38 and from chromosome 1 to chromosome 23 (i.e., X). Michigan imputation server does not accept Y nor M. 
+        #Respect to XY: For phasing and imputation, chrX is divided into three independent chunks (PAR1, non-PAR, PAR2). These chunks are then automatically merged by the Michigan Imputation Server 2 and returned as a single complete chromosome X file. Therefore, we are generating a VCF file with the X and the PAR regions together, being all their SNPs named as "chrX".
+            #https://genepi.github.io/michigan-imputationserver/pipeline/
+    #For each genome reference:
+        #create and enter a folder for the genome reference
+        #create a new folder to save the final VCFs
+        #For each chromosome:
+            #create a folder and go inside
+            #using plink, convert the fileset without PCA outliers to VCF
+            #using bcftools annotate
+        #MISSING STEPS
+        #Use bcftools +fixref to detect and remove allele switches
+            #WARNING FROM BCFTOOLS:
+                #Do not use the program blindly, make an effort to understand what strand convention your data uses! Make sure the reason for mismatching REF alleles is not a different reference build!! Also do NOT use bcftools norm --check-ref s for this purpose, as it will result in nonsense genotypes!!
+                #strand
+                    #I know the strand reference of my data, I completely sure I used the foward strand notation, not top/bot or other. You can check that in "01b_illumina_report_to_plink.py", where I used pyspark to ensure I selected the correct that from all FinalReports. 
+                    #This should the strand used by the imputation server as it is the one used by ncbi, see "01b_illumina_report_to_plink.py" about details.
+                #I am also sure about the reference build, our data has hg38 as confirmed by AGRF. So we can use hg38 in the imptuation server.
+                    #Thank you for reaching out with your detailed query regarding the reference genome for project "CAGRF20093767". I can confirm that the reference genome used to generate your data is hg38
+                    #It’s great to hear that you achieved a high overlap (~98%) using the 1000 Genomes Project hg38 high-coverage panel. While the strand issues you encountered with the initial imputation are not uncommon when reconciling different datasets, using bcftools to address allele switches is a sound approach, and the resulting reduction in median allele switches for hg38 aligns with the reference genome used for this project.
+                    #Regarding the ~4K SNPs with differing allele frequencies, this may reflect population-specific differences or residual inconsistencies in strand alignment between panels. 
+                    #Also the page of TOPMED says the reference build is hg38
+                        #https://topmedimpute.readthedocs.io/en/latest/getting-started/#build
+                #Therefore, we can be sure that any strand issue between our dataset and the reference panel in the imputation server is not caused by the reference build or the strand. In other words, we do not have allele flips because I have made a mistake and I am comparing two genetic datasets that are using different strand formats or different builds.
+            #we use the flip model ("-m flip") to swap or flip REF/ALT columns and GTs for non-ambiguous SNPs to foward and ignore the rest.
+                #According to the manual, this is the following: Assuming the reference build is correct, just flip to fwd, discarding the rest
+                    #This is ok, I selected foward notation in our data, so all our SNPs should be foward. SNPs that are not in foward, are errors and we should solve fliping to foward if possible.
+                    #Also, the imputation server is going to check for flips, if more than 10000 obvious strand flips are detected, TOPMED stops the imputation, so we are ok.
+                #We avoid ambiguous sites (A/T, C/G). According to chatGTP:
+                    #Strand Ambiguity: For non-palindromic SNPs, the reverse complement will change the alleles (e.g., A/C becomes T/G). However, for A/T and C/G SNPs, the reverse complement is identical, making it difficult to ascertain if the strand needs correction.
+            #---discard: To remove the cases that have been deemed problematic but have not been solved due to ambiguity.
+                #THIS IS THE KEY: Doing this removes all the strange SNPs whose allele frequencies were negatively correlated between our dataset and the refenrece panel of the imputation server.
+    
+###CHECK ALL THE STEPS OF TOPMED PIPELINE AND CHECK WE ARE NOT MISSING STEPS FROM RITCHIE
+    #https://topmedimpute.readthedocs.io/en/latest/pipeline/#quality-control
+
+
+#From the total number of SNPS (SNPs: 285114), remove SNP not present in the reference panel (only type: 9,707) and Allele mismatches (204), giving the total number of SNPs used in imputation (275,203).
+    #https://www.biostars.org/p/446894/
+
+
+###see this sentence from the manual:
+    #Assuming the reference build is correct, just flip to fwd, discarding the rest
+    #we are already in foward! maybe we could just remove problematic cases using --discard?
+
+
+
+###we are doing imputation with 1000G hg38 deep that does not require to speciify a pop, so we are ok, the only problem here is that 1000G hg38 is beta and second not sure if a 0.8 of R2 between ref allele frequency of reference and my dataset is enough. We have 14K snps that differ in freuqnecy accorindg to chisq test.
+
+#maybe you can write to them, and tell that hg19 do not work because of allele flips, And yes, you checked for allele flips and swaps using the latest version of the hg38 fasta using bcftools. The problem seems to be with the lifover, because I have this problem with any hg19 problem, but I can run imputation with 1000G hg38 deep, with that you have more overal (>98%) and no flips/swaps. I had just 300 allele mismatches and 4K of snps just typed (what are these two cases?). Using 1000G low imputaton still runs, but with less overlap (93%) and more only typed SNPs (20K). First question here, 1000G deep is usable? beucase it says beta... secondly despite being able to run the imptation, the pooligenc score analyses do not run. This is not because the polygenic score per se, if I disable ancetry estimation, the analysis run, but I would like to do the nacstry esitmation. My sample is very likely European, but I would like to have more insgihts about that.
+
+#OJO, que usango los datos de prueba de michinga que son europes con 1000G pahse 3 v5 les sale R2=96.8 and only 1451 snps with allelel mismatch, but of course, we are selecting european, while in our case we are selecting ALL global, so maybe is normal? we should ask this to support also.
+
+
+count_mismatches = pd.merge( \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg19/count_mismatch_hg19.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
+    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg38.p13/count_mismatch_hg38.p13.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
+    on="chr", \
+    suffixes=("_hg19", "_hg38.p13") \
+)
+
+count_mismatches["count_diff"] = count_mismatches["count_hg19"] - count_mismatches["count_hg38.p13"]
+count_mismatches["percent_diff"] = count_mismatches["percent_hg19"] - count_mismatches["percent_hg38.p13"]
+
+print(count_mismatches)
+
+count_mismatches.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/count_mismatches.tsv", sep="\t", index=False)
+
+
+##probably the problem with the scores in michiga ins the ancestry calculation because we are using global panel 1000gh hg38 instead of 1000G hg19?
+
+
+
+    #Calculate the chi-square for each variant (reference panel vs. study data).: WE HAVE DIFFERENCE FOR 14k SNPS, but this is using hg38 1000G all pops global, not EUR specifically
+
+    #check reference genome!
+
+
+    #I have manually checked several cases in chromsome 20. In all cases, both the flips and the swaps are done correctly. A flip means to change the strand (AC is changed to TG) while a swap means to change REF for ALT. For example:
+        #rs13831
+            #Our data: REF=C; ALT=T
+            #NCBI: REF=A; ALT=G
+            #fixref:
+                #converts C to G and T to A to flip between strands: REF=G; ALT=A
+                #Then it swaps REF and ALT: REF=A; ALT=G
+                #this matches NCBI
+            #I have checked several cases in it does correctly.
+    
+
+    
+    #last strand check:
+        #after downloading allele frequency from 1000G, annotate your data file and stream the result through the af-dist plugin to create the genotype frequency distribution
+        #The output should something like this
+            #PROB_DIST   0.000000    0.100000    100618
+            #PROB_DIST   0.100000    0.200000    144103
+            #PROB_DIST   0.200000    0.300000    214923
+            #PROB_DIST   0.300000    0.400000    320721
+            #PROB_DIST   0.400000    0.500000    817965
+            #PROB_DIST   0.500000    0.600000    84027
+            #PROB_DIST   0.600000    0.700000    86531
+            #PROB_DIST   0.700000    0.800000    97986
+            #PROB_DIST   0.800000    0.900000    108776
+            #PROB_DIST   0.900000    1.000000    176755
+        #Finally plot the distribution to check whether there are only few unlikely genotypes.
+
+
+
+
+
+
+    #the changes SHOULD BE INCLUDED IN THE FINAL DATASET! It is ok, because we are going to use the data coming out of the imputation server, the VCF files will be converted to plink after imputation
+
+
+
+#interesting tool for all this cleaning
+    #https://imputation.sanger.ac.uk/?resources=1
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
+    mkdir ./vcfs_chr/; \
+    cd ./vcfs_chr; \
+    for i in {1..26}; do \
+        if [ $i -eq 23 ]; then \
+            chr=chrX; \
+            chr_name=chrX; \
+        elif [ $i -eq 24 ]; then \
+            chr=chrY; \
+            chr_name=chrY; \
+        elif [ $i -eq 25 ]; then \
+            chr=chrXY; \
+            chr_name=chrXY; \
+        elif [ $i -eq 26 ]; then \
+            chr=chrM; \
+            chr_name=chrM; \
+        else \
+            chr=chr$i; \
+            chr_name=chr$i; \
+        fi; \
+        plink \
+            --bfile ../loop_maf_missing_2_pca_not_outliers \
+            --chr $chr \
+            --recode vcf-iid \
+            --out fileset_$chr_name; \
+        bcftools annotate \
+            --rename-chrs \
+            ../new_chromosomes.tsv \
+            fileset_$chr_name.vcf | \
+        bcftools sort -Oz -o fileset_$chr_name.vcf.gz;  \
+        rm fileset_$chr_name.vcf; \
+    done; \
+    mkdir ./final_vcfs/; \
+    cp *.vcf.gz ./final_vcfs; \
+")
+    #think that plink merge X and XY when you convert ot vcf in the whole dataset, checl
+        #check you can add severla chromsome slike this with comma, and that XY is the PAR.
+    #MIRA RECOMENDACIONSS DE MIGHICHAN TO CHEC VCFS..
+        #https://genepi.github.io/michigan-imputationserver/prepare-your-data/#convert-pedmap-files-to-vcf-files
+
+
+    #we could also do it with all the samples of the other ancestries
+
+
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
+    mkdir ./vcfs_chr_pca_outliers/; \
+    cd ./vcfs_chr_pca_outliers; \
+    plink --bfile ../../../12_loop_maf_missing/loop_maf_missing_2 --chr 1 --recode vcf-iid --out chr1_fileset; bgzip chr1_fileset.vcf;  \
+")
+
+# endregion
+
+
+
+
 
