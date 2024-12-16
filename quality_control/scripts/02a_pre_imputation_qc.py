@@ -4982,7 +4982,9 @@ with pd.option_context("display.max_columns", None):
 #5 sex-problematic cases, the rest of problems are caused because they do not have pheno data at all
 
 #there are three cases (7699ISMO, 8244GBJJ, 8702EBMF) with very low F and no Y genotypes that are consdered male by the pheno data.
-#8244GBJJ and 8702EBMF were identified as males, but they have very low F, no Y genotypes and their names are one of females, so they are likely females. We retain BOTH BUT CHANGING THE SEX TO FEMALE.
+#8702EBMF was identified as male, but it has very low F, no Y genotypes and its name is one of females, so it is likely female.
+#8244GBJJ is the same case but just one Y genotype. As we will discuss below, just 1 Y genotype is not enough reason to remove a sample that is ok in the rest of aspects
+#We retain BOTH BUT CHANGING THE SEX TO FEMALE.
 samples_change_sex = ["8244GBJJ", "8702EBMF"]
     #We will run Y genotype counts later, but we are considering that here. If, for any reason, we are wrong, the script would eventually fail because these samples are going to become females, so we would have female samples with Y genotypes, this will create a PROBLEM when running -check-sex y-count
 #7699ISMO has F value close to 0, no Y genotypes, but it has a male name so this is really strange. It seems a biological female with a male name. We are going to REMOVE.
@@ -5439,11 +5441,98 @@ else:
 ##########################
 # region HWE SECOND ROUND
 ###########################
+print_text("start check sex", header=2)
+print_text("open folder", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir -p ./16_hwe_second_round; \
+")
 
-#I do not think we need this step because we only have 1 population, but check
+#To remove variants calling errors, we initially applied a HWE filtering but it was one-sided. This means that SNPs with fewer than expected variantes are not removed. These desviations from the expectation would be expected in the case of population stratification, which we had before analyizing population structure. Therefore, we could remove legitime SNPs if we would apply this filter before considering population structure.
+    #The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner (so the fewer-hets-than-expected variants that one would expect from population stratification would not be filtered out by this command), and the 1e-25 threshold is extreme enough that we are unlikely to remove anything legitimate. (Unless the dataset is primarily composed of F1 hybrids from an artificial breeding program.) 
+#After having a clear and homogeneous population, We apply a second round of HWE filtering. Within a population, violations of HWE fewer-hets-than-expected direction are also likely to be variant calling errors, so we are going to remove them.
+    #After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
 
-#The “keep-fewhet” modifier causes this filter to be applied in a one-sided manner (so the fewer-hets-than-expected variants that one would expect from population stratification would not be filtered out by this command), and the 1e-25 threshold is extreme enough that we are unlikely to remove anything legitimate. (Unless the dataset is primarily composed of F1 hybrids from an artificial breeding program.) After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+#Regarding the threshold we are using now, Plink tutorial suggest using “ridiculous” high thresholds "1e-25 or 1e-50" for QC qhen having at least 1K samples, which is our case. Normal thresholds like 1e-4 should be used for specific analyses that assume HWE. Here we are just removing genotyping errors. WE USE 1e-25, LIKE IN THE PREVIOUS HWE STEP.
+    #What p-value threshold does “large” correspond to, you may ask? Well, this depends on the size of your dataset and some other characteristics of your data. But a good rule of thumb is to use “ridiculous” thresholds like 1e-25 or 1e-50 for quality control when you have at least a thousand samples (or even 1e-200 if you have many more), while only using “normal” thresholds like 1e-4 or 1e-7 when you are preparing data for an analysis which actually assumes all your SNPs are in Hardy–Weinberg equilibrium.
+
+print_text("Check we have at least 1K samples as this is relevant for the HWE threshold used", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/15_check_sex; \
+    n_sample_after_sex_cleaning=$( \
+        awk \
+            'BEGIN{\" \"}END{print NR}'\
+            ./03_second_check_sex/loop_maf_missing_2_pca_not_outliers_sex_full_clean.fam \
+    ); \
+    printf \"Number of samples after complete sex clean is: %s\n\" $n_sample_after_sex_cleaning; \
+    if [[ $n_sample_after_sex_cleaning -lt 1000 ]]; then \
+        exit 1; \
+    fi; \
+")
+    #load the FAM file after fully clean sex issues and count the rows
+    #if the number is lower than 1K, stop
+
+print_text("Check we have at least 1K samples as this is relevant for the HWE threshold used", header=3)
+print_text("run plink to filter by HWE", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink2 \
+        --bfile ./15_check_sex/03_second_check_sex/loop_maf_missing_2_pca_not_outliers_sex_full_clean \
+        --hwe 1e-25 midp \
+        --make-bed \
+        --out ./16_hwe_second_round/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe \
+")
+    #--hwe filters out all variants which have Hardy-Weinberg equilibrium exact test p-value below the provided threshold. 
+        #https://www.cog-genomics.org/plink/1.9/filter#hwe
+        #We recommend setting a low threshold. Serious genotyping errors often yield extreme p-values like 1e-50 which are detected by any reasonable configuration of this test, while genuine SNP-trait associations can be expected to deviate slightly from Hardy-Weinberg equilibrium (so it's dangerous to choose a threshold that filters out too many variants).
+        #Therefore, using a very low p-value would only remove SNPs extremely deviates from HWE and hence, being potential genotpying errors.
+        #According to the plink tutorial: The 1e-25 threshold is extreme enough that we are unlikely to remove anything legitimate. (Unless the dataset is primarily composed of F1 hybrids from an artificial breeding program.). 
+    #--hwe's 'midp' modifier applies the mid-p adjustment described in Graffelman J, Moreno V (2013) The mid p-value in exact tests for Hardy-Weinberg equilibrium. The mid-p adjustment tends to bring the null rejection rate in line with the nominal p-value, and also reduces the filter's tendency to favor retention of variants with missing data. We recommend its use.
+        #We are using it, but it seems it does not change anything using it or not.
+    #Because of the missing data issue, you should not apply a single p-value threshold across a batch of variants with highly variable missing call rates. A warning is now given whenever observation counts vary by more than 10%.
+        #we should not have this problem because we have already clean the SNPs based on missingness
+    #Note the notation of non-autosomal chromosomes si changed here from 23 to X, 24 to Y and so on... This is because we are using here plink2 to filter by HWE. Adding this step with plink2 changes the chromosome notation.
+
+print_text("check the number of SNPs removed", header=4)
+
+###POR AQUIII
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/16_hwe_second_round; \
+    n_snps_remove=$( \
+        awk \
+            'BEGIN{\" \"}{ \
+                if($0 ~/^--hwe midp:/){ \
+                    print $3; \
+                }; \
+            }' \
+        ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe.log \
+    ); \
+    printf \"The number of SNPs removed in the second HWE round is %s\" $n_snps_remove; \
+    if [[ $n_snps_remove -gt 2 ]]; then \
+        exit 1; \
+    fi; \
+")
+
+
+# Create the update_chr.txt file
+with open('./data/genetic_data/quality_control/16_hwe_second_round/update_chr.txt', 'w') as f:
+    f.write("X 23\n")
+    f.write("Y 24\n")
+    f.write("XY 25\n")
+    f.write("MT 26\n")
+
+# Run the PLINK command to update chromosome names and make a new bed file
+run_bash(" \
+    cd ./data/genetic_data/quality_control/16_hwe_second_round/; \
+    plink \
+        --bfile ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe \
+        --update-chr ./update_chr.txt\
+        --make-bed \
+        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_2 \
+")
+    #--update-chr, --update-cm, --update-map, and --update-name update variant chromosomes, centimorgan positions, base-pair positions, and IDs, respectively. By default, the new value is read from column 2 and the (old) variant ID from column 1, but you can adjust these positions with the second and third parameters. The optional fourth 'skip' parameter is either a nonnegative integer, in which case it indicates the number of lines to skip at the top of the file, or a single nonnumeric character, which causes each line with that leading character to be skipped. (Note that, if you want to specify '#' as the skip character, you need to surround it with single- or double-quotes in some Unix shells.)
+
 
 # endregion
 
@@ -5458,7 +5547,7 @@ else:
 
 #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
 
-#note sure about this step. It will be another round after imputation anyways
+#note sure about this step. there will be another round after imputation anyways
 
 
 
@@ -5770,6 +5859,9 @@ print("It is ok to have False in this check, because we already knew that some s
 ################################
 
 
+#in ritchie github they do several steps when preparing for the imputation server
+    #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
+
 "./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/loop_maf_missing_2_pca_not_outliers_sex_full_clean"
 
 
@@ -5801,6 +5893,9 @@ run_bash(" \
 ")
     #I am using the fasta file for hg38.p13. We know from AGRF that our data is in hg38, they did not mention the patch, but given David contacted us with in My 2022, probably the genotyping was done during 2021, and p13 patch was released in feb 2019, so it is likely they used hg38.p13.
         #https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.39/
+    #AGRF said we have hg38.p13!
+        #Thank you for your patience whilst I confirmed the patch information.  I can confirm the manifest file version is hg38.p13.
+        #https://mail.google.com/mail/u/1/#inbox/FMfcgzQXKWgNjbBcBnqPzcPbxfJNVzsq
     #We are going to use the fasta file of hg38.p13 to solve the strand issues, but I also did it with the latest (hg38.p14) and got the same results.
     #Also according to copilot, we should not use the masked versions present in "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips"
         #For using bcftools fixref, you should use the unmasked reference FASTA file. In this case, you should use hg38.fa from the UCSC server1. The masked versions (e.g., hg38.fa.masked.gz) are not suitable for this purpose as they contain modifications that can interfere with the reference checking process.
