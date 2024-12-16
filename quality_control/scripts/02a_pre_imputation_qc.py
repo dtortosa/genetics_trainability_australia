@@ -5456,6 +5456,7 @@ run_bash(" \
 #Regarding the threshold we are using now, Plink tutorial suggest using “ridiculous” high thresholds "1e-25 or 1e-50" for QC qhen having at least 1K samples, which is our case. Normal thresholds like 1e-4 should be used for specific analyses that assume HWE. Here we are just removing genotyping errors. WE USE 1e-25, LIKE IN THE PREVIOUS HWE STEP.
     #What p-value threshold does “large” correspond to, you may ask? Well, this depends on the size of your dataset and some other characteristics of your data. But a good rule of thumb is to use “ridiculous” thresholds like 1e-25 or 1e-50 for quality control when you have at least a thousand samples (or even 1e-200 if you have many more), while only using “normal” thresholds like 1e-4 or 1e-7 when you are preparing data for an analysis which actually assumes all your SNPs are in Hardy–Weinberg equilibrium.
 
+
 print_text("Check we have at least 1K samples as this is relevant for the HWE threshold used", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/15_check_sex; \
@@ -5472,8 +5473,8 @@ run_bash(" \
     #load the FAM file after fully clean sex issues and count the rows
     #if the number is lower than 1K, stop
 
-print_text("Check we have at least 1K samples as this is relevant for the HWE threshold used", header=3)
-print_text("run plink to filter by HWE", header=4)
+
+print_text("run plink to filter by HWE", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink2 \
@@ -5493,10 +5494,8 @@ run_bash(" \
         #we should not have this problem because we have already clean the SNPs based on missingness
     #Note the notation of non-autosomal chromosomes si changed here from 23 to X, 24 to Y and so on... This is because we are using here plink2 to filter by HWE. Adding this step with plink2 changes the chromosome notation.
 
-print_text("check the number of SNPs removed", header=4)
 
-###POR AQUIII
-
+print_text("check the number of SNPs removed", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/16_hwe_second_round; \
     n_snps_remove=$( \
@@ -5513,27 +5512,30 @@ run_bash(" \
         exit 1; \
     fi; \
 ")
+    #Just load the log file and, in the row with the results of HWE filtering, extract the third fields (assuming space as delimiter) which is the number of SNPs removed.
+    #print the number and if it is higher than 2, stop
 
 
-# Create the update_chr.txt file
+print_text("update the chromosome names. in the previous step we used plink2 and the output files have X,Y,XY and MT as chromosome names, instead of number, which is what this script expects", header=3)
+print_text("Create the update_chr.txt file", header=4)
 with open('./data/genetic_data/quality_control/16_hwe_second_round/update_chr.txt', 'w') as f:
     f.write("X 23\n")
     f.write("Y 24\n")
     f.write("XY 25\n")
     f.write("MT 26\n")
+    #by default, --update-chr expects the old chromosome name in the first column and the new one in the second one.
 
-# Run the PLINK command to update chromosome names and make a new bed file
+print_text("Run the PLINK command to update chromosome names and make a new bed file", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/16_hwe_second_round/; \
     plink \
         --bfile ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe \
         --update-chr ./update_chr.txt\
         --make-bed \
-        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_2 \
+        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr \
 ")
     #--update-chr, --update-cm, --update-map, and --update-name update variant chromosomes, centimorgan positions, base-pair positions, and IDs, respectively. By default, the new value is read from column 2 and the (old) variant ID from column 1, but you can adjust these positions with the second and third parameters. The optional fourth 'skip' parameter is either a nonnegative integer, in which case it indicates the number of lines to skip at the top of the file, or a single nonnumeric character, which causes each line with that leading character to be skipped. (Note that, if you want to specify '#' as the skip character, you need to surround it with single- or double-quotes in some Unix shells.)
 
-
 # endregion
 
 
@@ -5541,314 +5543,87 @@ run_bash(" \
 
 
 
-#####################################
-# region LAST MAF-MISSING LOOP ######
-#####################################
+######################################
+# region LAST MAF-MISSING CHECK ######
+######################################
+print_text("start last maf-missing check before imputation", header=2)
+print_text("open folder", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir -p ./17_last_maf_missing_check; \
+")
 
-#We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
+#We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples (due to sample relatedness, population structure and sex problems) did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples. We removed samples, this could make some SNPs to have now MAF lower the threshold, you remove SNPs and then this in turn can make some samples to go below the missinginess threshold.
 
-#note sure about this step. there will be another round after imputation anyways
+print_text("Remove SNPs that have low MAFs or high missingness", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./16_hwe_second_round/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr \
+        --geno 0.01 \
+        --maf 0.05 \
+        --make-bed \
+        --out ./17_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean \
+")
+    #we apply the same threshold than in the previous times that this filter was applied
+    #It is ok to apply these filters together. You remove SNPs fue to one criteria and then SNPs due to the second criteria. The removal of one SNP due to low MAF is not going to influence the missingness of other SNP. The removal of SNPs can influence the missingness of the samples, because of that we apply the sample missingness filter at the end.
+    #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
+    #--maf filters out all variants with minor allele frequency below the provided threshold (default 0.01), while --max-maf imposes an upper MAF bound. Similarly, --mac and --max-mac impose lower and upper minor allele count bounds, respectively.
+        #https://www.cog-genomics.org/plink/1.9/filter
+
+print_text("check we did not lose so many SNPs", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/17_last_maf_missing_check; \
+        awk \
+        'BEGIN{\" \"}{ \
+            if($0 ~ /variants removed due to missing genotype data \\(--geno\\)/) { \
+                n_snps_missing_removed=$1; \
+            }; \
+            if($0 ~ /variants removed due to minor allele threshold\\(s\\)/) { \
+                n_snps_maf_removed_maf=$1; \
+            }; \
+        }END{ \
+            if(n_snps_missing_removed > 100 || n_snps_maf_removed_maf > 10000){ \
+                exit 1; \
+            } \
+        }' \
+        ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean.log \
+")
+    #extract the number of SNPs removed due to missing and maf from the log file. You have to use \\ to scape the parenthesis. You look for rows that END with the strings we are interested to extract there the first field, i.e., the number of SNPs removed.
 
 
+print_text("Remove samples with high missingness", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/17_last_maf_missing_check/; \
+    plink \
+        --bfile ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean \
+        --mind 0.01 \
+        --make-bed \
+        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean_sample_miss_clean \
+")
+    #we apply the same threshold than in the previous times that this filter was applied
+    #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
+        #https://www.cog-genomics.org/plink/1.9/filter
 
-
-
-
-
-
-
-
-
-
-
-
+print_text("check we did not lose ANY sample at all", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/17_last_maf_missing_check; \
+        awk \
+        'BEGIN{\" \"}{ \
+            if($0 ~ /people removed due to missing genotype data \\(--mind\\)/) { \
+                n_samples_removed=$1; \
+            }; \
+        }END{ \
+            if(n_samples_removed != 0){ \
+                exit 1; \
+            } \
+        }' \
+        ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean_sample_miss_clean.log \
+")
+    #extract the number of samples removed due to missing from the log file. You have to use \\ to scape the parenthesis. You look for rows that END with the strings we are interested to extract there the first field, i.e., the number of samples removed.
 
 # endregion
 
-
-
-
-
-
-#############################
-# region CODE TO CHECK ######
-#############################
-
-
-
-##THIS IS IMPORTANT, CHECK THIS
-
-#create temporary folder to save
-import tempfile
-temp_dir = tempfile.TemporaryDirectory()
-#print(temp_dir.name)
-
-
-#read only the zip and get list of files in it
-import numpy as np
-import pandas as pd
-import zipfile
-
-list_sample_maps = []
-#batch="ILGSA24-17873"
-for batch in ["ILGSA24-17303", "ILGSA24-17873"]:
-
-    if batch == "ILGSA24-17303":
-        zip_name = "ILGSA24-17303"
-    else:
-        zip_name = "CAGRF20093767"
-
-    zipdata = zipfile.ZipFile("data/genetic_data/illumina_batches/" + zip_name + ".zip")
-    zipinfos = zipdata.infolist()
-    zipinfos_subset = zipinfos[np.where([zipinfo.filename == zip_name + "/Sample_Map.txt" for zipinfo in zipinfos])[0][0]]
-    #extract the file in the temp dict
-    zipdata.extract(zipinfos_subset, temp_dir.name)
-    #
-
-    selected_sample_map = pd.read_csv(temp_dir.name+ "/" + zip_name + "/Sample_Map.txt",
-            delimiter="\t",
-            header=0,
-            low_memory=False)
-
-    selected_sample_map["batch"] = batch
-
-    list_sample_maps.append(selected_sample_map)
-
-[all(sample_map.columns == list_sample_maps[0].columns) for sample_map in list_sample_maps]
-
-sample_map_illumina = pd.concat(list_sample_maps)
-
-
-sample_map_illumina.shape[0] == 1248+216
-
-
-
-########################################################################
-#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
-########################################################################
-
-
-#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
-pheno_data = pd.read_excel(
-    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
-    header=0,
-    sheet_name="All DNA samples")
-print(pheno_data)
-
-
-pheno_data.loc[pheno_data["Gender"] == "M", "Gender"] = "Male"
-pheno_data.loc[pheno_data["Gender"] == "F", "Gender"] = "Female"
-
-
-merge_sample_pheno = sample_map_illumina[["batch", "ID", "Gender"]].merge(
-    pheno_data[["AGRF code", "Gender"]],
-    left_on="ID", #use the column with IDs in sample_map
-    right_on="AGRF code", #use the column with IDs in pheno_data
-    suffixes=["_illumina", "_pheno_excel"], #set the suffix for repeated columns
-    how="outer")
-
-#cases with NA for IDs
-print(merge_sample_pheno.loc[merge_sample_pheno["ID"].isna(), :])
-print(merge_sample_pheno.loc[merge_sample_pheno["AGRF code"].isna(), :])
-
-#2397LDJA is in ILGSA24-17303 but not in the pheno data, while 2399LDJA is in the pheno data but not in any illumina report.
-
-subset_mismatch = merge_sample_pheno.loc[
-    (merge_sample_pheno["Gender_illumina"] != merge_sample_pheno["Gender_pheno_excel"]) &
-    (~merge_sample_pheno["ID"].isna()) & 
-    (~merge_sample_pheno["AGRF code"].isna()) & 
-    (~merge_sample_pheno["Gender_pheno_excel"].isna()), :]
-
-subset_mismatch.loc[subset_mismatch["Gender_illumina"] == "Unknown", :].shape
-subset_mismatch.loc[subset_mismatch["Gender_illumina"] != "Unknown", :].shape
-
-subset_mismatch.loc[subset_mismatch["Gender_illumina"] != "Unknown", :]
-
-subset_mismatch.to_csv("sample_sex_mimatch.txt",
-    sep="\t",
-    header=True,
-    index=False)
-
-#sex (--check-sex) and hetero (--het) should be checked after PCA because accorindg to plink info, it can be problems if we have a sample with most of samples from one ancestry and then a few from another ancestry
-    #https://www.cog-genomics.org/plink/1.9/basic_stats
-
-    #R log is present in our data, so we could check prob intensity in X for a full detail sex determination, think about it.
-
-    #with sex check done, tell David about mismatches
-
-    #Warning: 30589 het. haploid genotypes present (see
-    #./04_inspect_snp_dup/01_remove_dup/ILGSA24-17873_merged_data_no_snp_dup.hh );
-    #many commands treat these as missing.
-    #Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands treat these as missing.
-
-
-##CHECK ALL OF THIS
-
-#sex-check plink, compare reported sex with genetics
-#https://www.cog-genomics.org/plink/1.9/basic_stats#check_sex
-#https://www.biostars.org/p/218520/
-
-#PIENSA CASOS IN .HH FILES OF BOTH BATHCES
-    #son casos que parecen tener Xx?
-    #SI HICIERAN FALTA TENDRIAS QUE CORRER AMBOS BATCHS SIN ELEMINAR HH, Y EVITANDO CORTAR EL SEGUNDO CON EL ERROR
-
-##nosex
-    #List of samples with ambiguous sex codes
-    #https://www.cog-genomics.org/plink/1.9/output
-
-'''
-#see the file
-nosex_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.nosex",
-    names=["FID", "ID"],
-    delimiter="\t", 
-    low_memory=False) 
-    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
-print(nosex_plink)
-
-#check
-print("The IDs in nosex are the same than those IDs of the fam file with unknown sex?")
-print(all(nosex_plink["ID"].isin(fam_file.loc[fam_file["Gender"]=="0", "ID"])))
-print(all(fam_file.loc[fam_file["Gender"]=="0", "ID"].isin(nosex_plink["ID"])))
-
-'''
-
-##check hetero cases that should be homo
-
-'''
-##.hh
-    #Produced automatically when the input data contains heterozygous calls where they shouldn't be possible (haploid chromosomes, male X/Y), or there are nonmissing calls for nonmales on the Y chromosome.
-    #A text file with one line per error (sorted primarily by variant ID, secondarily by sample ID) with the following three fields:
-        #Family ID
-        #Within-family ID
-        #Variant ID
-    #https://www.cog-genomics.org/plink/1.9/formats#hh
-
-#see the file
-hh_plink = pd.read_csv("data/plink_inputs_example/batch1_example_plink.hh",
-    names=["FID", "ID", "snp_name"],
-    delimiter="\t", 
-    low_memory=False) 
-    #low_memory: Internally process the file in chunks, resulting in lower memory use while parsing, but possibly mixed type inference. To ensure no mixed types either set False, or specify the type with the dtype parameter. 
-print(hh_plink)
-
-#check
-print("heterozygous calls are caused by samples with problematic sex?")
-print(unmatched_sex["AGRF code"].isin(hh_plink["ID"]))
-print(hh_plink["ID"].isin(unmatched_sex["AGRF code"]))
-
-#see the cases
-#for each heterozygous and problematic case
-for row_index, hh_case in hh_plink.iterrows():
-
-    #see case
-    print("###################################")
-    print("Problematic case number " + str(row_index))
-    print("###################################")
-    print(hh_case)
-
-    #See gender
-    print("##########\nGender of the case according to sample map:\n##########")
-    gender_case = fam_file.loc[fam_file["ID"] == hh_case["ID"], ["ID", "Gender"]]
-    print(gender_case)
-
-    #see genotype
-    print("##########\nGenotype according to lgen file:\n##########")
-    lgen_case = lgen_file.loc[(lgen_file["Sample ID"] == hh_case["ID"]) & (lgen_file["SNP Name"] == hh_case["snp_name"]), :]
-    print(lgen_case)
-
-    #see chromosome
-    print("##########\nChromosome according map file:\n##########")
-    map_case = map_file.loc[map_file["Name"] == hh_case["snp_name"], :]
-    print(map_case)
-
-    #check
-    print("##########\nthe problematic case is male and X chromosome, but it has two genotypes, which is not possible for a male?\n##########")
-    print(
-        (gender_case["Gender"].values == "1") & 
-        (map_case["Chromosome"].values == "X") & 
-        (~lgen_case[["Allele1 - Forward", "Allele2 - Forward"]].isna().values).all())
-
-'''
-
-
-
-##then PCA with pheno to check correlation pheno - genetic structure?
-#you can use your plotting approach in python to see pheno and genetic structure
-
-#if you are going to use pheno data, clean the file using a different script!!!
-    #change the name of the 2399LDJA for 2397LDJA in the excel file with phenotype data.
-        #if we change the ID in illumina, we would have to change the FinalReport, SampleMap, sample_sheet.... and the new data we receive from illumina (IDAT files of the first batch) would need to be changed also. Therefore, it is much more complicated.
-    #check if the fact you did not change dtype of week 8 test beep to float in script 1, could be a problem
-        #save pheno_data after the cleaning?
-    #CHECK THE QUESTIONS TO DAVID about pheno
-
-
-#load pheno data, this include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
-pheno_data = pd.read_excel(
-    "data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
-    header=0,
-    sheet_name="All DNA samples")
-print(pheno_data)
-
-#there are several phenotypes, see 01a_illumina_report_to_plink_DEV.py for details about possible errors.
-#here we are only going to modify an entry that is clearly wrong and do some checks with the sample map. Also, we are going to use the sex indicated in pheno_data because there are some samples with differences between illumina estimated sex and the one showed in the pheno_data
-
-#beep test 8 has an error, "o" letter instead "0" number in one sample
-print("\n#####################\n#####################")
-print("Week 8 beep test for a sample is 11.1O, i.e., letter O instead number 0")
-print("#####################\n#####################")
-import numpy as np
-index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
-index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
-print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
-print(pheno_data.iloc[index_problematic_sample,:])
-
-#change 11.1O for 11.10
-print("\n#####################\n#####################")
-print("error solved")
-print("#####################\n#####################")
-pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
-print(pheno_data.iloc[index_problematic_sample,:])
-
-#change the type of phenotype that is not float but it should be
-pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype("float64")
-    #this column had a row with 11.1O, i.e., letter "O" instead of number "0", so python did not consider this column as float.
-
-#calculate differences
-pheno_data["body_mass_diff"] = pheno_data["Week 8 Body Mass"] - pheno_data["Week 1 Body Mass"]
-pheno_data["beep_test_diff"] = pheno_data["Week 8 beep test"] - pheno_data["Week 1 Beep test"]
-pheno_data["vo2max_diff"] = pheno_data["Week 8 Pred VO2max"] - pheno_data["Week 1 Pred VO2max"]
-
-first_pca = "WHERE THIS CAME FROM??"
-
-#merge genetic and phenotypic data
-pca_pheno = pd.merge(
-    right=first_pca,
-    left=pheno_data,
-    how="right",
-    right_on="IID",
-    left_on="AGRF code")
-    #merge genetic data with phenotypes, selecting only those samples for which we have genetic data, now we are interested in cleaning genetic data
-        #https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
-
-#
-samples_lost_in_pheno = pca_pheno.loc[pca_pheno["AGRF code"].isna(), "IID"]
-print("All IDs in illumina data are in pheno data? " + str(samples_lost_in_pheno.shape[0] == 0))
-print("How many? " + str(samples_lost_in_pheno.shape[0]))
-print("It is ok to have False in this check, because we already knew that some samples had illumina report but where not included in pheno_data. The output script for the first batch shows that 1 sample has genetic data but it is not present in pheno_data (2397LDJA). In the second batch, the output script shows 6 samples with genetic but no pheno_data. In the PCA, we only have one 1 missing sample, so I guess the 6 missing samples of the second batch were those duplicated, i.e., those named as ID_1 and ID_2....")
-
-
-
-#CHECK STRAND BEFORE IMPUTATON
-#PHASING BEFORE IMPUTATION
-    #check ritchie paper
-
-
-
-############run case-control study to check for batch effects once you have pre-imputation QC done
-    #Another method involves coding case/control status by batch followed by running the GWAS analysis testing each batch against all other batches. For example, the status of all samples on batch 1 will be coded as case, while the status of every other sample is to be coded control. A GWAS analysis is performed (e.g., using the --assoc option in PLINK), and both the average p-value and the number of results significant at a given threshold (e.g., p <1 × 10-4) can be recorded. SNPs with low minor allele frequency (i.e., <5%) should be removed before this analysis is performed to improve the stability of test statistics. This procedure should be repeated for each batch in the study. If any single batch has many more or many fewer significant results or has an average p-value <0.5 (under the null, the average p-value will be 0.5 over many tests), then this batch should be further inves tigated for genotyping, imputation, or compo sition problems. If batch effects are present, methods like those employed for population stratification (e.g., genomic control) may be used to mitigate the confounding effects.
-
-# endregion
 
 
 
@@ -5859,10 +5634,37 @@ print("It is ok to have False in this check, because we already knew that some s
 ################################
 
 
+########################################################################
+#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
+########################################################################
+
+
 #in ritchie github they do several steps when preparing for the imputation server
     #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
 
-"./data/genetic_data/quality_control/15_check_sex/03_second_check_sex/loop_maf_missing_2_pca_not_outliers_sex_full_clean"
+
+#Step 10 -- Calculate frequency files and compare to TOPMed panel
+    #Step 10 -- Calculate frequency files and compare to TOPMed panel
+
+#Step 11 - Sort and zip files to create VCF files for imputation
+    #they do here like ask with flip mode! and the fasta! 
+    #check if they do something specific for the sort
+        #they do it
+            #for i in {1..22}; do vcf-sort ALL.wgs.nhgri_coriell_affy_6.20140825.genotypes_has_ped_Updated_withsex_checked_noDots_QC_b38-updated_flipped_chr$i.vcf | bgzip -c > VCFfiles/ALL.wgs.nhgri_coriell_affy_6.20140825_ImputationInput_TOPMED_chr$i.vcf.gz; done
+    #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
+
+
+# Pruning down to 99,999
+#plink --bfile prefix_maf --indep-pairwise 50 5 0.12831 --out prune_100k
+
+# Keep those samples (Around 97k are autosomal)
+#plink --bfile prefix_maf --extract prune_100k.prune.in --make-bed --out prefix_pruned
+
+
+#Several tools exist specifically for genotype imputation such as the Michigan and Trans-Omics for Precision Medicine (TOPMed) Imputation Servers where one uploads the phased or unphased GWAS genotypes in order to receive the imputed genomes in return. Each imputation server varies in terms of speed and accuracy. One of the most important considerations in imputation is the composition of the reference panel. For our study, we selected the TOPMed Imputation Reference panel (version r2) because it is one of the most diverse reference panels available and contains information from 97,256 deeply sequenced human genomes containing 308,107085 genetic variants distributed across the 22 autosomes and the X chromosome.
+    #we have here the best correlation between datasets.
+
+"./data/genetic_data/quality_control/17_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean_sample_miss_clean"
 
 
 #In case you need to liftover the data, you can use the script of Ritchie, but they say that you do not needed in general because TOPMed accepts both hg38 and hg19
