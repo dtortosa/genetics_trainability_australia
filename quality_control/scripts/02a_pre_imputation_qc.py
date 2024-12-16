@@ -5633,12 +5633,6 @@ run_bash(" \
 # region IMPUTATION PREP #######
 ################################
 
-
-########################################################################
-#DO NOT FORGET TO ASK DAVID QUESIONS ABOUT PHENO IN TODO.MD
-########################################################################
-
-
 #in ritchie github they do several steps when preparing for the imputation server
     #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
 
@@ -5666,6 +5660,8 @@ run_bash(" \
 
 "./data/genetic_data/quality_control/17_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean_sample_miss_clean"
 
+#check pipeleine performed by topmed
+#https://topmedimpute.readthedocs.io/en/latest/pipeline/
 
 #In case you need to liftover the data, you can use the script of Ritchie, but they say that you do not needed in general because TOPMed accepts both hg38 and hg19
     #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-7----liftover-the-data
@@ -5673,13 +5669,22 @@ run_bash(" \
 
 #create a DF including the current and the new chromosome names required for michigan under hg38
 new_chromosomes = ["chr"+str(x) for x in list(range(1, 27)) if x not in [23,24,25,26]]
-
-[new_chromosomes.append(x) for x in ["chrX", "chrY", "chrX", "chrM"]]
-
-
+    #add the chromosome except for 23 to 26
+[new_chromosomes.append(x) for x in ["chrX", "chrY", "chrXY", "chrM"]]
+    #add the special chromosomes manually
 new_chromosomes_final = pd.DataFrame([list(range(1, 27)), new_chromosomes]).T
-new_chromosomes_final
+    #add the IDs of each chromosome
 
+#check
+if( \
+    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrX",:].iloc[:,0].to_numpy()[0]!=23) | \
+    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrY",:].iloc[:,0].to_numpy()[0]!=24) | \
+    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrXY",:].iloc[:,0].to_numpy()[0]!=25) | \
+    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrM",:].iloc[:,0].to_numpy()[0]!=26) \
+):
+    raise ValueError("ERROR! FALSE! PROBLEM UPDATING CHROMOSOME CODES FOR VCF FILES")
+
+#save
 new_chromosomes_final.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/new_chromosomes.tsv", index=False, header=False, sep=" ")
 
 

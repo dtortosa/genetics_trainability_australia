@@ -134,7 +134,8 @@ run_bash("ls")
 
 
 
-
+#Remove MT, X, Y and XY?
+    #for imputation only 1-22 and X are used. Should be use the X chromosome for the PRS?
 
 
 
