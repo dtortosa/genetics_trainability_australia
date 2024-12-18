@@ -5543,6 +5543,58 @@ run_bash(" \
 
 
 
+####################################
+# region REMOVE NON-AUTOSOMAL ######
+####################################
+print_text("remove non-autosomal", header=2)
+print_text("open folder", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir -p ./17_remove_non_autosomal; \
+")
+
+#Checking the multiple protocols I am following, I have detected that they usually remove all sex chromosomes after sex problems have been assesed. This is despite the potential increase in power if sex chromosomes are added. This is also the case for the Predict-HIIT study. It seems that the use of sex chromosomes for associations (and Polygenic Risk Scores; PRSs) requires different analyses starting from the beginning in the QC, for example, applying filters in a diferent way, and this continues in the "association stage". I honestly did not know about that and I have found out probably too late. At this stage, I do think it is worth it to go back multiple steps just to include the X chromosome (remember that Y and Mitochrondrial SNPs are not supported in TOPMed). The bulk of the data is in the autosomals and this is, for now, the norm in the GWAS studies. So I would just remove non-autosomal variants as a last step before imputation and move foward with that. Let me know if this makes sense for you!
+    #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-8----exclude-data
+    #https://pmc.ncbi.nlm.nih.gov/articles/pmid/32709988/
+    #https://onlinelibrary.wiley.com/doi/10.1002/gepi.21782
+
+print_text("select autosomals", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./16_hwe_second_round/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr \
+        --autosome \
+        --make-bed \
+        --out ./17_remove_non_autosomal/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals \
+")
+        #--autosome excludes all unplaced and non-autosomal variants, while --autosome-xy does not exclude the pseudo-autosomal region of X
+            #https://www.cog-genomics.org/plink/1.9/filter
+
+print_text("check we only have autosomals", header=3)
+print_text("load BIM file", header=4)
+loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_bim = pd.read_csv( \
+    "./data/genetic_data/quality_control/17_remove_non_autosomal/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals.bim", \
+    sep="\t", \
+    header=None \
+)
+print_text("check we go from 1 to 22", header=4)
+import numpy as np
+test_autosomals = np.array_equal( \
+    loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_bim.iloc[:,0].unique(), \
+    np.array([i for i in range(1,23)]) \
+)
+if(test_autosomals == False):
+    raise ValueError("ERROR! FALSE! WE HAVE NON-AUTOSOMAL SNPS")
+else:
+    print("OK")
+
+# endregion
+
+
+
+
+
+
 ######################################
 # region LAST MAF-MISSING CHECK ######
 ######################################
@@ -5550,7 +5602,7 @@ print_text("start last maf-missing check before imputation", header=2)
 print_text("open folder", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
-    mkdir -p ./17_last_maf_missing_check; \
+    mkdir -p ./18_last_maf_missing_check; \
 ")
 
 #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples (due to sample relatedness, population structure and sex problems) did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples. We removed samples, this could make some SNPs to have now MAF lower the threshold, you remove SNPs and then this in turn can make some samples to go below the missinginess threshold.
@@ -5559,11 +5611,11 @@ print_text("Remove SNPs that have low MAFs or high missingness", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     plink \
-        --bfile ./16_hwe_second_round/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr \
+        --bfile ./17_remove_non_autosomal/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals \
         --geno 0.01 \
         --maf 0.05 \
         --make-bed \
-        --out ./17_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean \
+        --out ./18_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean \
 ")
     #we apply the same threshold than in the previous times that this filter was applied
     #It is ok to apply these filters together. You remove SNPs fue to one criteria and then SNPs due to the second criteria. The removal of one SNP due to low MAF is not going to influence the missingness of other SNP. The removal of SNPs can influence the missingness of the samples, because of that we apply the sample missingness filter at the end.
@@ -5573,7 +5625,7 @@ run_bash(" \
 
 print_text("check we did not lose so many SNPs", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/17_last_maf_missing_check; \
+    cd ./data/genetic_data/quality_control/18_last_maf_missing_check; \
         awk \
         'BEGIN{\" \"}{ \
             if($0 ~ /variants removed due to missing genotype data \\(--geno\\)/) { \
@@ -5587,19 +5639,19 @@ run_bash(" \
                 exit 1; \
             } \
         }' \
-        ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean.log \
+        ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean.log \
 ")
     #extract the number of SNPs removed due to missing and maf from the log file. You have to use \\ to scape the parenthesis. You look for rows that END with the strings we are interested to extract there the first field, i.e., the number of SNPs removed.
 
 
 print_text("Remove samples with high missingness", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/17_last_maf_missing_check/; \
+    cd ./data/genetic_data/quality_control/18_last_maf_missing_check/; \
     plink \
-        --bfile ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean \
+        --bfile ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean \
         --mind 0.01 \
         --make-bed \
-        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean_sample_miss_clean \
+        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean \
 ")
     #we apply the same threshold than in the previous times that this filter was applied
     #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
@@ -5607,7 +5659,7 @@ run_bash(" \
 
 print_text("check we did not lose ANY sample at all", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/17_last_maf_missing_check; \
+    cd ./data/genetic_data/quality_control/18_last_maf_missing_check; \
         awk \
         'BEGIN{\" \"}{ \
             if($0 ~ /people removed due to missing genotype data \\(--mind\\)/) { \
@@ -5618,9 +5670,48 @@ run_bash(" \
                 exit 1; \
             } \
         }' \
-        ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean_sample_miss_clean.log \
+        ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean.log \
 ")
     #extract the number of samples removed due to missing from the log file. You have to use \\ to scape the parenthesis. You look for rows that END with the strings we are interested to extract there the first field, i.e., the number of samples removed.
+
+
+print_text("check we do not have SNPs without ID", header=3)
+#I have taken the code from Ritchie´s github
+    #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-5----remove-snp-variants-that-do-not-have-snp-ids
+print_text("create new fileset", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/18_last_maf_missing_check; \
+    echo . > noSNP; \
+    plink \
+        --bfile loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean \
+        --exclude noSNP \
+        --make-bed \
+        --out check_snp_ids; \
+")
+    #Creating the noSNP File: The command echo . > noSNP creates a file named noSNP with a single dot (.) in it. This file is not truly empty, but it effectively serves the purpose of an empty list for PLINK.
+    #Then use that list to exclude SNPs. As the list is empty, no SNP is excluded. I understand that Ritchie is doing this because this will remove any SNP that does not have ID. If a SNP does not have ID, you cannot filter it by ID.
+
+print_text("check we did not lose any variants because of this", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/18_last_maf_missing_check; \
+        awk \
+        'BEGIN{\" \"}{ \
+            if($0 ~ /variants loaded from .bim file./) { \
+                variants_loaded=$1; \
+            }; \
+            if($0 ~ /variants remaining./) { \
+                variants_remaining=$2; \
+            }; \
+        }END{ \
+            n_snps_removed=variants_loaded-variants_remaining; \
+            if(n_snps_removed != 0){ \
+                exit 1; \
+            } \
+        }' \
+        ./check_snp_ids.log \
+")
+    #in the log file
+    #extract the number of variants loaded and the number of variants remaining (rows ending with the relevant strings...). Calculate the difference and if it is different from 0, stop.
 
 # endregion
 
@@ -5632,13 +5723,321 @@ run_bash(" \
 ################################
 # region IMPUTATION PREP #######
 ################################
+print_text("start last maf-missing check before imputation", header=2)
+print_text("open folder", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir -p ./19_topmed_prep/00_first_step; \
+    mkdir -p ./19_topmed_prep/01_second_step; \
+")
 
-#in ritchie github they do several steps when preparing for the imputation server
+#Several tools exist specifically for genotype imputation such as the Michigan and Trans-Omics for Precision Medicine (TOPMed) Imputation Servers where one uploads the phased or unphased GWAS genotypes in order to receive the imputed genomes in return. Each imputation server varies in terms of speed and accuracy. One of the most important considerations in imputation is the composition of the reference panel. Ritchie tutorial selected the TOPMed Imputation Reference panel (version r2) because it is one of the most diverse reference panels available and contains information from 97,256 deeply sequenced human genomes containing 308,107085 genetic variants distributed across the 22 autosomes and the X chromosome.
+    #we have here the best correlation between datasets.
+
+#We are following steps they follow in Ritchie´s Github to prepare files for imputation
     #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
 
 
-#Step 10 -- Calculate frequency files and compare to TOPMed panel
-    #Step 10 -- Calculate frequency files and compare to TOPMed panel
+print_text("Compare our list of SNPs with that of TOPMed", header=3)
+print_text("download the tool and the data", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    rm HRC-1000G-check-bim-v4.3.0.zip; \
+    rm HRC-1000G-check-bim.pl; \
+    wget https://www.chg.ox.ac.uk/~wrayner/tools/HRC-1000G-check-bim-v4.3.0.zip; \
+    unzip HRC-1000G-check-bim-v4.3.0.zip HRC-1000G-check-bim.pl; \
+")
+    #perl script to compare TOPMed with our data. This is created by the Wayner Tools group: https://www.well.ox.ac.uk/~wrayner/tools/
+    #Make sure you've downloaded the following file: HRC-1000G-check-bim-v4.3.0.zip
+    #Unzip and add the HRC-1000G-check-bim.pl script to your rawData/ directory
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    rm CreateTOPMed.zip; \
+    rm CreateTOPMed.pl; \
+    wget https://www.chg.ox.ac.uk/~wrayner/tools/CreateTOPMed.zip; \
+    unzip ./CreateTOPMed.zip CreateTOPMed.pl \
+")
+    #tool to prepare the TOPMed for the comparison
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    curl 'https://legacy.bravo.sph.umich.edu/freeze5/hg38/download/all' -H 'Accept-Encoding: gzip, deflate, br' -H 'Cookie: remember_token=\"dftortosa@gmail.com|2125b70190312bfc64a943a0456dfbc630cc3856dd85552aba56c127958adc3e11d23977abd902f24ca341720136ef859c6e3538e480da356ea1dd9ea51cc31a\"; _ga=GA1.2.873450708.1734410353; _gid=GA1.2.1563090310.1734410353; _ga_HD76LS6C66=GS1.1.1734410353.1.1.1734410660.0.0.0' --compressed > bravo-dbsnp-all.vcf.gz; \
+")
+    #The TOPMed reference panel is not available for direct download from this site, it needs to be created from the VCF of dbSNP submitted sites (currently ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz). This can be downloaded from the Bravo Website https://legacy.bravo.sph.umich.edu/freeze5/hg38/download
+    #the file downlodad is not named as "ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz" because we used curl instead direct downloading by clicking from the website.
+
+print_text("confirm we have the exact checksum")
+#calculate first the check sum and save as a file
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    checksum=$( \
+        md5sum bravo-dbsnp-all.vcf.gz; \
+    ); \
+    echo $checksum > checksum_bravo-dbsnp-all.vcf.txt; \
+")
+#then do the check
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    awk \
+        'BEGIN{\" \"}{ \
+            if($0 ~ /bravo-dbsnp-all.vcf.gz/){ \
+                checksum=$1; \
+            } \
+        }END{ \
+            if(checksum != \"773e9e97759a4a5b4555c5d7e1e14313\"){ \
+                exit 1; \
+            } \
+        }' \
+        checksum_bravo-dbsnp-all.vcf.txt \
+")
+    #in the row with the name of the file, extract the first field with the checksum
+    #MD5 checksum: 773e9e97759a4a5b4555c5d7e1e14313
+        #https://legacy.bravo.sph.umich.edu/freeze5/hg38/download
+
+print_text("prepare the TOPMed data", header=4)
+#run the pearl script to do the prep
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    ./CreateTOPMed.pl -i bravo-dbsnp-all.vcf.gz \
+")
+    #once downloaded the VCF can be converted to an HRC formatted reference legend using the code here: CreateTOPMed.zip.
+        #Usage: ./CreateTOPMed.pl -i ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz 
+    #If the shabang "./" doesn't work, you may need to run the command with "perl" instead. If you get an error in the above step, try this variation. Both were run successfully on a local computer and server using perl/5.30.0. Depending on your setup, this may take a few hours to run:  perl CreateTOPMed.pl -i bravo-dbsnp-all.vcf.gz	
+    #By default this will create a file filtered for variants flagged as PASS only, if you wish to use all variants the -a flag overrides this. To override the default output file naming use -o filename.
+    #the output should be: PASS.Variants.TOPMed_freeze5_hg38_dbSNP.tab.gz
+#unzip
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    gunzip --keep PASS.Variantsbravo-dbsnp-all.tab.gz \
+")
+
+print_text("obtain freq file from our data", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    input_file_set_name=loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean; \
+    cp ./18_last_maf_missing_check/${input_file_set_name}.bim ./19_topmed_prep/00_first_step/; \
+    cp ./18_last_maf_missing_check/${input_file_set_name}.fam ./19_topmed_prep/00_first_step/; \
+    cp ./18_last_maf_missing_check/${input_file_set_name}.bed ./19_topmed_prep/00_first_step/; \
+    cd ./19_topmed_prep/00_first_step/; \
+    plink \
+        --bfile ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean \
+        --freq \
+        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean_freq; \
+    head ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean_freq.frq \
+")
+
+print_text("do the actual comparison using HRC-1000G-check-bim.pl", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step/; \
+    perl ./HRC-1000G-check-bim.pl \
+        -b ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean.bim \
+        -f ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean_freq.frq \
+        -r ./PASS.Variantsbravo-dbsnp-all.tab \
+        -h \
+")
+    #HRC-1000G-check-bim.pl is a program developed by Wayner Tools group to check a BIM file (from plink) against the HRC, 1000G or CAAPA reference SNP list in advance of imputation.
+        #https://www.chg.ox.ac.uk/~wrayner/tools/ 
+    #Usage:
+        #Requires the unzipped tab delimited HRC reference (currently v1.1 HRC.r1-1.GRCh37.wgs.mac5.sites.tab) from the Haplotype Reference Consortium Website here: http://www.haplotype-reference-consortium.org/site
+        #Usage: perl HRC-1000G-check-bim.pl -b <bim file> -f <Frequency file> -r <Reference panel> -h
+    #Summary
+        #Checks:
+            #Strand, alleles, position, Ref/Alt assignments and frequency differences. In addition to the reference file v4 and above require the plink .bim and (from the plink --freq command) .frq files.
+        #Produces:
+            #A set of plink commands to update or remove SNPs (see below and changes to V4.2.2) based on the checks as well as a file (FreqPlot) of cohort allele frequency vs reference panel allele frequency.
+        #Updates:
+            #Strand, position, ref/alt assignment
+        #Removes:
+            #A/T & G/C SNPs if MAF > 0.4, SNPs with differing alleles, SNPs with > 0.2 allele frequency difference (can be removed/changed in V4.2.2), SNPs not in reference panel 
+    #This tool is recommended by the TOPMed docs!
+        #https://topmedimpute.readthedocs.io/en/latest/prepare-your-data/
+
+
+print_text("run the bash script generated by TOPMED tool to solve problems found during the checks", header=3)
+#The TOPMed tool generates a plink script with the changes to be made, so I have taken that script and manually included here understanding all the steps followed.
+#My understanding is that the script is always the same because there are two steps (chromosome and position update) that are not necessary in our case but they are still aplied, only with empty input files for snps to be modified.
+
+print_text("move to the next step folder the required files generated during the checks", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    fileset_name=loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean; \
+    mv ./00_first_step/${fileset_name}.bim ./01_second_step/; \
+    mv ./00_first_step/${fileset_name}.bed ./01_second_step/; \
+    mv ./00_first_step/${fileset_name}.fam ./01_second_step/; \
+    mv ./00_first_step/Exclude-${fileset_name}-HRC.txt ./01_second_step/; \
+    mv ./00_first_step/Chromosome-${fileset_name}-HRC.txt ./01_second_step/; \
+    mv ./00_first_step/Position-${fileset_name}-HRC.txt ./01_second_step/; \
+    mv ./00_first_step/Strand-Flip-${fileset_name}-HRC.txt ./01_second_step/; \
+    mv ./00_first_step/Force-Allele1-${fileset_name}-HRC.txt ./01_second_step/; \
+")
+
+print_text("remove files not required", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step/; \
+    rm ./PASS.Variantsbravo-dbsnp-all.tab \
+")
+
+print_text("exclude SNPs required to be removed by TOPMed", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/01_second_step/; \
+    plink \
+        --bfile ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean \
+        --exclude ./Exclude-loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-HRC.txt \
+        --make-bed \
+        --out ./TEMP1 \
+")
+    #Use as input the fileset with the name of the bim file used as input for the topmed script. Exclude those SNPs considered as problematic by the checks of the topmed tool. Generate a temporal file (TEMP1)
+
+print_text("update chromosome if needed", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/01_second_step/; \
+    plink \
+        --bfile ./TEMP1 \
+        --update-map ./Chromosome-loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-HRC.txt \
+        --update-chr \
+        --make-bed \
+        --out ./TEMP2\
+")
+    #Use temporal file of the previous step as input, update the chromosomes that need to be updated.
+    #--update-chr, --update-cm, --update-map, and --update-name update variant chromosomes, centimorgan positions, base-pair positions, and IDs, respectively.
+    #You can combine --update-chr, --update-cm, and/or --update-map in the same run. So I understand that the TOPMed tools would create a file with chromosomes and positions, but not sure because in the next step they use update-map just with a position file
+    #In our case it seems to be empty anyways, so no problem.
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/01_second_step; \
+    awk \
+        'END{ \
+            if(NR!=0){ \
+                exit 1; \
+            } \
+        }' \
+        Chromosome-loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-HRC.txt \
+")
+
+print_text("update positions if needed", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/01_second_step/; \
+    plink \
+        --bfile ./TEMP2 \
+        --update-map ./Position-loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-HRC.txt \
+        --make-bed \
+        --out ./TEMP3\
+")
+    #Use temporal file of the previous step as input, update the positions that need to be updated.
+    #--update-chr, --update-cm, --update-map, and --update-name update variant chromosomes, centimorgan positions, base-pair positions, and IDs, respectively.
+    #In our case it seems to be empty anyways.
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/01_second_step; \
+    awk \
+        'END{ \
+            if(NR!=0){ \
+                exit 1; \
+            } \
+        }' \
+        Position-loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-HRC.txt \
+")
+
+print_text("solve flips", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/01_second_step/; \
+    plink \
+        --bfile ./TEMP3 \
+        --flip ./Strand-Flip-loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-HRC.txt \
+        --make-bed \
+        --out ./TEMP4\
+")
+    #Flip alleles that the TOPMed tools pointed need to be flipped when comapring with the panel. Given a file containing a list of SNPs with A/C/G/T alleles, --flip swaps A↔T and C↔G. A warning will be given if any alleles are not named A, C, G, or T. To save the results instead of only applying the swap to the current run, combine this with --make-bed/--make-just-bim. If --make-bed is the only other operation in the run, you can also use --flip-subset, which only flips alleles for samples in the given ID list ('FID' family IDs in the first column, and 'IID' within-family IDs in the second column), and fails if any SNPs are not A/T or C/G.
+
+print_text("force A2 alleles", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/01_second_step/; \
+    plink \
+        --bfile ./TEMP4 \
+        --a2-allele ./Force-Allele1-loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-HRC.txt \
+        --make-bed \
+        --out ./loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated \
+")
+    #Force A1/A2 alleles using the list generated by the tool to match HRC: With --a1-allele, all alleles in the provided file are set to A1; --a2-allele does the reverse, i.e., all the alleles in the provided file are set to A2. If the original .bim file only has a single allele code and the --a1-allele/--a2-allele file names a second allele, a concurrent --make-bed will save both allele codes. If there are already two allele codes loaded and --a1-allele/--a2-allele names a third, a warning with the variant ID will be printed (you will usually want to resolve this with --exclude or --flip).
+
+print_text("remove the TEMP files and create new folders for the next step", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    rm ./01_second_step/TEMP*; \
+    mkdir -p ./02_third_step/00_filesets; \
+    mkdir -p ./02_third_step/01_vcf_files; \
+")
+
+print_text("create files for each chromosome", header=4)
+print("get the unique chromosomes")
+unique_chromosomes = pd.read_csv(
+    "./data/genetic_data/quality_control/19_topmed_prep/01_second_step/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated.bim", \
+    header=None, \
+    sep="\t"
+).iloc[:,0].sort_values().unique()
+print(unique_chromosomes)
+
+print("obtain filesets and VCF files for each chromosome")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    for i in {"+str(np.min(unique_chromosomes))+".."+str(np.max(unique_chromosomes))+"}; do \
+        plink \
+            --bfile ./01_second_step/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated \
+            --real-ref-alleles \
+            --make-bed \
+            --chr ${i} \
+            --out ./02_third_step/00_filesets/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated-chr${i}; \
+        plink \
+            --bfile ./01_second_step/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated \
+            --real-ref-alleles \
+            --recode vcf \
+            --output-chr chrM \
+            --chr ${i} \
+            --out ./02_third_step/01_vcf_files/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated-chr${i}; \
+    done; \
+")
+    #From here, two steps are repeated across chromosomes
+        #step 1
+            #Generate a plink fileset of the interest chromsome but preserving the order of the alleles is preserved as we have changed in the last step to match that of HRC: If a binary fileset was originally loaded, --keep-allele-order forces the original A1/A2 allele encoding to be preserved; otherwise, the major allele is set to A2. --real-ref-alleles has that effect as well, and also removes 'PR' from the INFO values emitted by "--recode vcf{,-fid,-iid}".
+        #step 2
+            #Generate a VCF of the interest chromsome but preserving the order of the alleles is preserved as we have changed in the last step to match that of HRC: Note that --real-ref-alleles also removes 'PR' from the INFO values emitted by "--recode vcf{,-fid,-iid}", so I guess they want to remove this field. Also specify the notation for chromosome names that is accepted by TOPMed using --output-chr chrM. PLINK 1.9 and 2.0 support seven chromosome coding schemes in output files. You can select between them by providing the desired human mitochondrial code. chrM: Autosomes are 'chr' followed by a numeric code, X/Y/XY/M are preceded by 'chr', PAR1/PAR2 as usual. This is required for TOPMed.
+                #We added this step following Ritchie github 
+                    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-10----calculate-frequency-files-and-compare-to-topmed-panel
+            #Note that the 'vcf', 'vcf-fid', and 'vcf-iid' modifiers in --recode result in production of a VCFv4.2 file. 'vcf-fid' and 'vcf-iid' cause family IDs and within-family IDs respectively to be used for the sample IDs in the last header row, while 'vcf' merges both IDs and puts an underscore between them (in this case, a warning will be given if an ID already contains an underscore).
+    #Note about the warning: "Underscore(s) present in sample IDs."
+            #When using --recode vcf, sample IDs are formed by merging the FID and IID and placing an underscore between them. When the FID or IID already contains an underscore, this may make it difficult to reconstruct them from the VCF file; you may want to replace underscores with a different character in PLINK files (Unix tr is handy here).
+            #this is ok. I prefer to maintain the format "combat_ILGSA...." for backwards compatibility. We will just use awk to split the FAM and IDs using two delimiters ("_" and "-")
+
+print("check that we have the correct number of files generated")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    filesets_count=$(ls -1 ./02_third_step/00_filesets | wc -l); \
+    vcfs_count=$(ls -1 ./02_third_step/01_vcf_files | wc -l); \
+    expected_fileset="+str(np.max(unique_chromosomes)*4)+"; \
+    expected_vcfs="+str(np.max(unique_chromosomes)*5)+"; \
+    if [[ $filesets_count -ne $expected_fileset || $vcfs_count -ne $expected_vcfs ]]; then \
+        exit 1; \
+    else \
+        echo \"OK\"; \
+    fi; \
+")
+    #count the number of files in each folder
+        #ls -1 /path/to/folder: Lists all files in the specified folder, one per line.
+        #wc -l: Counts the number of lines, which corresponds to the number of files.
+    #calculate the expected number of files, per each chromosome
+        #4 files in fileset folder
+        #5 files in the VCF folder
+    #if any of the counts is not as expected, stop execution
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #Step 11 - Sort and zip files to create VCF files for imputation
     #they do here like ask with flip mode! and the fasta! 
@@ -5654,11 +6053,21 @@ run_bash(" \
 # Keep those samples (Around 97k are autosomal)
 #plink --bfile prefix_maf --extract prune_100k.prune.in --make-bed --out prefix_pruned
 
+#requeriments for inputs to the TOPMed server
+    #Create a separate vcf.gz file for each chromosome.
+    #Variants must be sorted by genomic position.
+    #GRCh37 or GRCh38 coordinates are required.
+    #If your input data is GRCh37/hg19, please ensure chromosomes are encoded without prefix (e.g. 20).
+    #If your input data is GRCh38/hg38, please ensure chromosomes are encoded with prefix 'chr' (e.g. chr20).
+    #VCF files need to be version 4.2 (or lower). This is specified in the VCF file header section.
+    #Must contain GT field in the FORMAT column. All other FORMAT fields will be ignored. (if you are seeing problems with very large uploads, it may help to remove other FORMAT fields)
+    #Due to server resource requirements, there is a maximum of 25k samples per chromosome per job (and a minimum of 20 samples). Please see the FAQ for details.
 
-#Several tools exist specifically for genotype imputation such as the Michigan and Trans-Omics for Precision Medicine (TOPMed) Imputation Servers where one uploads the phased or unphased GWAS genotypes in order to receive the imputed genomes in return. Each imputation server varies in terms of speed and accuracy. One of the most important considerations in imputation is the composition of the reference panel. For our study, we selected the TOPMed Imputation Reference panel (version r2) because it is one of the most diverse reference panels available and contains information from 97,256 deeply sequenced human genomes containing 308,107085 genetic variants distributed across the 22 autosomes and the X chromosome.
-    #we have here the best correlation between datasets.
 
-"./data/genetic_data/quality_control/17_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_miss_maf_snp_clean_sample_miss_clean"
+
+
+
+
 
 #check pipeleine performed by topmed
 #https://topmedimpute.readthedocs.io/en/latest/pipeline/
@@ -5981,6 +6390,14 @@ run_bash(" \
     cd ./vcfs_chr_pca_outliers; \
     plink --bfile ../../../12_loop_maf_missing/loop_maf_missing_2 --chr 1 --recode vcf-iid --out chr1_fileset; bgzip chr1_fileset.vcf;  \
 ")
+
+
+##PREGUNTA JONATAN AND DAVID BEFORE MOVING FOWARD!!!!
+#Checking the multiple protocols I am following, I have detected that they usually remove all sex chromosomes after sex problems have been assesed. This is despite the potential increase in power if sex chromosomes are added. This is also the case for the Predict-HIIT study. It seems that the use of sex chromosomes for associations (and Polygenic Risk Scores; PRSs) requires different analyses starting from the beginning in the QC, for example, applying filters in a diferent way, and this continues in the "association stage". I honestly did not know about that and I have found out probably too late. At this stage, I do think it is worth it to go back multiple steps just to include the X chromosome (remember that Y and Mitochrondrial SNPs are not supported in TOPMed). The bulk of the data is in the autosomals and this is, for now, the norm in the GWAS studies. So I would just remove non-autosomal variants as a last step before imputation and move foward with that. Let me know if this makes sense for you!
+    #https://pmc.ncbi.nlm.nih.gov/articles/pmid/32709988/
+    #https://onlinelibrary.wiley.com/doi/10.1002/gepi.21782
+
+
 
 # endregion
 
