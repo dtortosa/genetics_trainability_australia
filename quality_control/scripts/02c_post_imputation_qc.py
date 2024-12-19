@@ -133,9 +133,17 @@ run_bash("ls")
 
 
 
+##PREGUNTA JONATAN AND DAVID BEFORE MOVING FOWARD!!!!
+#Checking the multiple protocols I am following, I have detected that they usually remove all sex chromosomes after sex problems have been assesed. This is despite the potential increase in power if sex chromosomes are added. This is also the case for the Predict-HIIT study. It seems that the use of sex chromosomes for associations (and Polygenic Risk Scores; PRSs) requires different analyses starting from the beginning in the QC, for example, applying filters in a diferent way, and this continues in the "association stage". I honestly did not know about that and I have found out probably too late. At this stage, I do think it is worth it to go back multiple steps just to include the X chromosome (remember that Y and Mitochrondrial SNPs are not supported in TOPMed). The bulk of the data is in the autosomals and this is, for now, the norm in the GWAS studies. So I would just remove non-autosomal variants as a last step before imputation and move foward with that. Let me know if this makes sense for you!
+    #https://pmc.ncbi.nlm.nih.gov/articles/pmid/32709988/
+    #https://onlinelibrary.wiley.com/doi/10.1002/gepi.21782
 
-#Remove MT, X, Y and XY?
-    #for imputation only 1-22 and X are used. Should be use the X chromosome for the PRS?
 
+
+#check pipeleine performed by topmed
+#https://topmedimpute.readthedocs.io/en/latest/pipeline/
+
+#From the total number of SNPS, the type SNPs are SNP not present in the reference panel (only type: 9,707)
+    #typed only: https://www.biostars.org/p/446894/
 
 

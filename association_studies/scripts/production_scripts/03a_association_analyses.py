@@ -280,6 +280,19 @@ run_bash(" \
 print_text("prepare covariates", header=1)
 
 
+###LOOK MARES TUTORIAL AND PRSice TO DO THIS FAST
+#There are multiple resources at the end of the Ritchie tutorial to perform GWAS, including plink and hail tutorials
+    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#gwas-related-resources
+
+#WORTH TO MENTION MAREES:
+    #It has a quick tutorial to do association and p-value correction (needed for PRS?)
+    #Then recommends PRSice to calculate PRS across different thresholds and select the best using traiinng and evaluation! very simple!!!
+        #https://github.com/MareesAT/GWA_tutorial/
+        #https://choishingwan.github.io/PRSice/step_by_step/
+
+
+
+
 ##IMPORTANT!!
 ###PC1 and PC2> only? HIIT study used PC6 becuase it was correlated with VO2 max response
     #Baseline V̇O2peak, the individual study and PC6 (the 6th principal components from the PCA analysis, which was significantly associated with the phenotype) were included as covariates.

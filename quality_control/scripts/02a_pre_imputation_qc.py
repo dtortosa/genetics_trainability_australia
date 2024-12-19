@@ -5728,7 +5728,6 @@ print_text("open folder", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
     mkdir -p ./19_topmed_prep/00_first_step; \
-    mkdir -p ./19_topmed_prep/01_second_step; \
 ")
 
 #Several tools exist specifically for genotype imputation such as the Michigan and Trans-Omics for Precision Medicine (TOPMed) Imputation Servers where one uploads the phased or unphased GWAS genotypes in order to receive the imputed genomes in return. Each imputation server varies in terms of speed and accuracy. One of the most important considerations in imputation is the composition of the reference panel. Ritchie tutorial selected the TOPMed Imputation Reference panel (version r2) because it is one of the most diverse reference panels available and contains information from 97,256 deeply sequenced human genomes containing 308,107085 genetic variants distributed across the 22 autosomes and the X chromosome.
@@ -5750,6 +5749,10 @@ run_bash(" \
     #perl script to compare TOPMed with our data. This is created by the Wayner Tools group: https://www.well.ox.ac.uk/~wrayner/tools/
     #Make sure you've downloaded the following file: HRC-1000G-check-bim-v4.3.0.zip
     #Unzip and add the HRC-1000G-check-bim.pl script to your rawData/ directory
+    #Changes V4.2.13 to V4.3.0
+        #Updated the program to rework the reference panel loading so as to reduce runtime memory usage and time
+        #It is highly recommended to use this version for TOPMed, previous versions will also work with TOPMed but will require >300GB RAM
+        #This version still works with all reference panels listed below again with the reduction in memory usage
 run_bash(" \
     cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
     rm CreateTOPMed.zip; \
@@ -5834,25 +5837,163 @@ run_bash(" \
         -r ./PASS.Variantsbravo-dbsnp-all.tab \
         -h \
 ")
-    #HRC-1000G-check-bim.pl is a program developed by Wayner Tools group to check a BIM file (from plink) against the HRC, 1000G or CAAPA reference SNP list in advance of imputation.
-        #https://www.chg.ox.ac.uk/~wrayner/tools/ 
-    #Usage:
+    #Usage with the TOPMed reference panel:
+        #HRC-1000G-check-bim.pl is a program developed by Wayner Tools group to check a BIM file (from plink) against the HRC, 1000G or CAAPA reference SNP list in advance of imputation.
+            #https://www.chg.ox.ac.uk/~wrayner/tools/ 
         #Requires the unzipped tab delimited HRC reference (currently v1.1 HRC.r1-1.GRCh37.wgs.mac5.sites.tab) from the Haplotype Reference Consortium Website here: http://www.haplotype-reference-consortium.org/site
-        #Usage: perl HRC-1000G-check-bim.pl -b <bim file> -f <Frequency file> -r <Reference panel> -h
+        #Usage: 
+            #-b <bim file> 
+            #-f <Frequency file> 
+            #-r <Reference panel> 
+            #-h
+            #-t <difference>, -n
+                #two options for allele frequency thresholds (-t <difference>, -n)
+                #-t 0.3 sets the allele difference threshold to 0.3, the default if not set is 0.2. Use this to change the allele frequency difference used to exclude SNPs in the final file, range 0 - 1, the larger the difference the fewer SNPs that will be excluded. I guess this removes SNPs that differ in allele frequency between input data and the reference panel.
+                #-n flag to specify that you do not wish to exclude any SNPs based on allele frequency difference, if -n is used -t has no effect.
+                #we are using the default as Ritchie.
+            #-c 
+                #Added new flag -c to specify checking individual chromosome(s) rather than assuming genome wide
+                #Uisng default as Ritchie
+            #-a
+                #Added -a flag to disable automatic removal of palindromic SNPs with MAF > 0.4
     #Summary
         #Checks:
             #Strand, alleles, position, Ref/Alt assignments and frequency differences. In addition to the reference file v4 and above require the plink .bim and (from the plink --freq command) .frq files.
+            #Implemented a check to ensure the same number of variants are present in the .bim and .frq files
         #Produces:
             #A set of plink commands to update or remove SNPs (see below and changes to V4.2.2) based on the checks as well as a file (FreqPlot) of cohort allele frequency vs reference panel allele frequency.
         #Updates:
             #Strand, position, ref/alt assignment
         #Removes:
-            #A/T & G/C SNPs if MAF > 0.4, SNPs with differing alleles, SNPs with > 0.2 allele frequency difference (can be removed/changed in V4.2.2), SNPs not in reference panel 
+            #A/T & G/C SNPs if MAF > 0.4
+            #SNPs with differing alleles
+            #SNPs with > 0.2 allele frequency difference (can be removed/changed in V4.2.2) between input data and reference panel
+            #SNPs not in reference panel 
     #This tool is recommended by the TOPMed docs!
         #https://topmedimpute.readthedocs.io/en/latest/prepare-your-data/
 
+print_text("check we have used the correct version of the tool, panel, plink executable... using the LOG file", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step/; \
+    fileset_name=loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean; \
+    awk \
+        -v fileset_name=${fileset_name} \
+        'BEGIN{\" \"; count=0}{ \
+            if($0 ~ /^Version/){ \
+                if($2 != \"4.3\"){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Reference Panel:/){ \
+                if($3 != \"HRC\"){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Bim filename:/){ \
+                if($3 != \"./\" fileset_name \".bim\"){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Reference filename:/){ \
+                if($3 != \"./PASS.Variantsbravo-dbsnp-all.tab\"){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Allele frequencies filename:/){ \
+                if($4 != \"./\" fileset_name \"_freq.frq\"){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Plink executable to use:/){ \
+                if($5 != \"plink\"){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Chromosome flag set:/){ \
+                if($4 != \"No\"){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Allele frequency threshold:/){ \
+                if($4 != 0.2){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ fileset_name){ \
+                count++; \
+            } \
+        }END{ \
+            if(count != 10){ \
+                exit 1; \
+            } else { \
+                print \"OK\"; \
+            } \
+        }' \
+        LOG-${fileset_name}-HRC.txt \
+")
+    #check in several rows we have the correct reference panel, thresholds, etc....
+    #also count how many times we have the fileset name, that should be 10
+
+print_text("check we do not have so many SNPs changed, lost... using the LOG file", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step/; \
+    fileset_name=loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean; \
+    awk \
+        -v fileset_name=${fileset_name} \
+        'BEGIN{\" \"}{ \
+            if($0 ~ /^ Position different from HRC/){ \
+                if($5 != 0){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^No Match to HRC/){ \
+                if($5 > 7500){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^SNPs to change ref alt/){ \
+                if($6 > 180000){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Strand to change/){ \
+                if($4 > 31000){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Total removed for allele Frequency diff > 0.2/){ \
+                if($9 > 2200){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Palindromic SNPs with Freq > 0.4/){ \
+                if($7 > 400){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^Non Matching alleles/){ \
+                if($4 > 4700){ \
+                    exit 1; \
+                } \
+            } \
+            if($0 ~ /^ID and allele mismatching/){ \
+                if($5 > 4700){ \
+                    exit 1; \
+                } \
+            } \
+        }END{print \"OK\"}' \
+        LOG-${fileset_name}-HRC.txt \
+")
+    #check we do not more than expected SNPs to be removed, changed, etc...
+    #if everything is ok, do not stop and print OK at the end
+
 
 print_text("run the bash script generated by TOPMED tool to solve problems found during the checks", header=3)
+print_text("make dir", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir -p ./19_topmed_prep/01_second_step; \
+")
 #The TOPMed tool generates a plink script with the changes to be made, so I have taken that script and manually included here understanding all the steps followed.
 #My understanding is that the script is always the same because there are two steps (chromosome and position update) that are not necessary in our case but they are still aplied, only with empty input files for snps to be modified.
 
@@ -5868,12 +6009,17 @@ run_bash(" \
     mv ./00_first_step/Position-${fileset_name}-HRC.txt ./01_second_step/; \
     mv ./00_first_step/Strand-Flip-${fileset_name}-HRC.txt ./01_second_step/; \
     mv ./00_first_step/Force-Allele1-${fileset_name}-HRC.txt ./01_second_step/; \
+    mv ./00_first_step/FreqPlot-${fileset_name}-HRC.txt ./01_second_step/; \
+    mv ./00_first_step/ID-${fileset_name}-HRC.txt ./01_second_step/; \
+    mv ./00_first_step/Run-plink.sh ./01_second_step/; \
 ")
 
 print_text("remove files not required", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step/; \
-    rm ./PASS.Variantsbravo-dbsnp-all.tab \
+    rm ./PASS.Variantsbravo-dbsnp-all.tab; \
+    rm HRC-1000G-check-bim.pl; \
+    rm CreateTOPMed.pl \
 ")
 
 print_text("exclude SNPs required to be removed by TOPMed", header=4)
@@ -5967,6 +6113,7 @@ run_bash(" \
 
 print_text("create files for each chromosome", header=4)
 print("get the unique chromosomes")
+import numpy as np
 unique_chromosomes = pd.read_csv(
     "./data/genetic_data/quality_control/19_topmed_prep/01_second_step/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated.bim", \
     header=None, \
@@ -6000,7 +6147,7 @@ run_bash(" \
             #Generate a VCF of the interest chromsome but preserving the order of the alleles is preserved as we have changed in the last step to match that of HRC: Note that --real-ref-alleles also removes 'PR' from the INFO values emitted by "--recode vcf{,-fid,-iid}", so I guess they want to remove this field. Also specify the notation for chromosome names that is accepted by TOPMed using --output-chr chrM. PLINK 1.9 and 2.0 support seven chromosome coding schemes in output files. You can select between them by providing the desired human mitochondrial code. chrM: Autosomes are 'chr' followed by a numeric code, X/Y/XY/M are preceded by 'chr', PAR1/PAR2 as usual. This is required for TOPMed.
                 #We added this step following Ritchie github 
                     #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-10----calculate-frequency-files-and-compare-to-topmed-panel
-            #Note that the 'vcf', 'vcf-fid', and 'vcf-iid' modifiers in --recode result in production of a VCFv4.2 file. 'vcf-fid' and 'vcf-iid' cause family IDs and within-family IDs respectively to be used for the sample IDs in the last header row, while 'vcf' merges both IDs and puts an underscore between them (in this case, a warning will be given if an ID already contains an underscore).
+            #Note that the 'vcf', 'vcf-fid', and 'vcf-iid' modifiers in --recode result in production of a VCFv4.2 file. 'vcf-fid' and 'vcf-iid' cause family IDs and within-family IDs respectively to be used for the sample IDs in the last header row. In other words, 'vcf-iid' takes the individual ID to be used as ID in the VCF file, while 'vcf-fid' does the same but for the family ID. In contrast, 'vcf' merges both IDs and puts an underscore between them (in this case, a warning will be given if an ID already contains an underscore). We prefer the latter so we keep track of the batch and sample IDs.
     #Note about the warning: "Underscore(s) present in sample IDs."
             #When using --recode vcf, sample IDs are formed by merging the FID and IID and placing an underscore between them. When the FID or IID already contains an underscore, this may make it difficult to reconstruct them from the VCF file; you may want to replace underscores with a different character in PLINK files (Unix tr is handy here).
             #this is ok. I prefer to maintain the format "combat_ILGSA...." for backwards compatibility. We will just use awk to split the FAM and IDs using two delimiters ("_" and "-")
@@ -6027,377 +6174,184 @@ run_bash(" \
     #if any of the counts is not as expected, stop execution
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-#Step 11 - Sort and zip files to create VCF files for imputation
-    #they do here like ask with flip mode! and the fasta! 
-    #check if they do something specific for the sort
-        #they do it
-            #for i in {1..22}; do vcf-sort ALL.wgs.nhgri_coriell_affy_6.20140825.genotypes_has_ped_Updated_withsex_checked_noDots_QC_b38-updated_flipped_chr$i.vcf | bgzip -c > VCFfiles/ALL.wgs.nhgri_coriell_affy_6.20140825_ImputationInput_TOPMED_chr$i.vcf.gz; done
-    #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
-
-
-# Pruning down to 99,999
-#plink --bfile prefix_maf --indep-pairwise 50 5 0.12831 --out prune_100k
-
-# Keep those samples (Around 97k are autosomal)
-#plink --bfile prefix_maf --extract prune_100k.prune.in --make-bed --out prefix_pruned
-
-#requeriments for inputs to the TOPMed server
-    #Create a separate vcf.gz file for each chromosome.
-    #Variants must be sorted by genomic position.
-    #GRCh37 or GRCh38 coordinates are required.
-    #If your input data is GRCh37/hg19, please ensure chromosomes are encoded without prefix (e.g. 20).
-    #If your input data is GRCh38/hg38, please ensure chromosomes are encoded with prefix 'chr' (e.g. chr20).
-    #VCF files need to be version 4.2 (or lower). This is specified in the VCF file header section.
-    #Must contain GT field in the FORMAT column. All other FORMAT fields will be ignored. (if you are seeing problems with very large uploads, it may help to remove other FORMAT fields)
-    #Due to server resource requirements, there is a maximum of 25k samples per chromosome per job (and a minimum of 20 samples). Please see the FAQ for details.
-
-
-
-
-
-
-
-#check pipeleine performed by topmed
-#https://topmedimpute.readthedocs.io/en/latest/pipeline/
-
-#In case you need to liftover the data, you can use the script of Ritchie, but they say that you do not needed in general because TOPMed accepts both hg38 and hg19
-    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-7----liftover-the-data
-
-
-#create a DF including the current and the new chromosome names required for michigan under hg38
-new_chromosomes = ["chr"+str(x) for x in list(range(1, 27)) if x not in [23,24,25,26]]
-    #add the chromosome except for 23 to 26
-[new_chromosomes.append(x) for x in ["chrX", "chrY", "chrXY", "chrM"]]
-    #add the special chromosomes manually
-new_chromosomes_final = pd.DataFrame([list(range(1, 27)), new_chromosomes]).T
-    #add the IDs of each chromosome
-
-#check
-if( \
-    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrX",:].iloc[:,0].to_numpy()[0]!=23) | \
-    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrY",:].iloc[:,0].to_numpy()[0]!=24) | \
-    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrXY",:].iloc[:,0].to_numpy()[0]!=25) | \
-    (new_chromosomes_final.loc[new_chromosomes_final.iloc[:,1]=="chrM",:].iloc[:,0].to_numpy()[0]!=26) \
-):
-    raise ValueError("ERROR! FALSE! PROBLEM UPDATING CHROMOSOME CODES FOR VCF FILES")
-
-#save
-new_chromosomes_final.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/new_chromosomes.tsv", index=False, header=False, sep=" ")
-
-
-#preparation for michigan
-#download the reference genome and the 1000 Genomes allele frequency annotations
+print_text("Solve flips and order SNPS", header=3)
+print_text("make dir", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink; \
-    mkdir -p ./michigan_prep/; cd ./michigan_prep/; \
-    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.fa.gz; \
-    gunzip --keep hg38.p13.fa.gz; \
-    wget -O af.vcf.gz http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5c.20130502.sites.vcf.gz; \
-    bcftools index af.vcf.gz; \
+    cd ./data/genetic_data/quality_control/; \
+    mkdir -p ./19_topmed_prep/03_fourth_step; \
 ")
-    #I am using the fasta file for hg38.p13. We know from AGRF that our data is in hg38, they did not mention the patch, but given David contacted us with in My 2022, probably the genotyping was done during 2021, and p13 patch was released in feb 2019, so it is likely they used hg38.p13.
-        #https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.39/
-    #AGRF said we have hg38.p13!
+
+print("download the reference genome and the check sum", header=4)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/03_fourth_step; \
+    rm hg38.p13.fa; rm md5sum.txt; \
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/hg38.p13.fa.gz; \
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/p13/md5sum.txt; \
+    gunzip --keep hg38.p13.fa.gz \
+")
+    #I am using the fasta file for hg38.p13 according to UCSC. AGRF said we have hg38.p13!
         #Thank you for your patience whilst I confirmed the patch information.  I can confirm the manifest file version is hg38.p13.
         #https://mail.google.com/mail/u/1/#inbox/FMfcgzQXKWgNjbBcBnqPzcPbxfJNVzsq
     #We are going to use the fasta file of hg38.p13 to solve the strand issues, but I also did it with the latest (hg38.p14) and got the same results.
+    #I downloadad the fasta from "broad resources". It seems that the Ritchie tutorial used Broad resources (resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta) but the file is not present in github. The closest thing I found in the bundle of Broad was "Homo_sapiens_assembly38.fasta", but when you compared (cmp wise) with the original hg38 fasta from USCS, there are differences. Broad it is suppose to use the original version, not patches, but still no match, so we are not suing this.
+        #https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta
+        #https://gatk.broadinstitute.org/hc/en-us/articles/360035890811-Resource-bundle
     #Also according to copilot, we should not use the masked versions present in "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips"
         #For using bcftools fixref, you should use the unmasked reference FASTA file. In this case, you should use hg38.fa from the UCSC server1. The masked versions (e.g., hg38.fa.masked.gz) are not suitable for this purpose as they contain modifications that can interfere with the reference checking process.
-    #we are also downloading the allele frequency annotations from 1000 Genomes Project to use Plugin af-dist for additiona strand checks
-        #the URL is exactly the same showed in bcftools page (http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/), but just changing http by ftp. Also in the name of the file "ALL.wgs.phase3_shapeit2_mvncall_integrated_v5b.20130502.sites.vcf.gz", change "v5b" by "v5c", it seems to be a newer version, because v5b is not longer present.
-        #http://samtools.github.io/bcftools/howtos/plugin.af-dist.html
+    #Indeed, the Ritchie tutorial does not use masked fasta
 
-
-
-
-
+print("do checksum of the file")
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/chr1; \
-    bcftools view \
-        -H ../hg38.fa \
-        ./chr1.vcf.gz")
+    cd ./data/genetic_data/quality_control/19_topmed_prep/03_fourth_step; \
+    checksum=$( \
+        md5sum hg38.p13.fa.gz; \
+    ); \
+    echo $checksum > checksum_fasta_hg38_p13.txt; \
+")
 
-
+print("compare with the original checksum")
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
-    i=1; \
-    cd ./hg19/chr${i}; \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/03_fourth_step; \
     awk \
-        -v chr=${i} \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1==\"NS\" && index($2, \"ref mismatch\")){ \
-                gsub(/%/, \"\", $4); \
-                print \"chr_\"chr, $3, $4; \
+        'BEGIN{\" \"}{ \
+            if(FILENAME==\"md5sum.txt\"){ \
+                if($0 ~ /hg38.p13.fa.gz/){ \
+                    original_checksum=$1; \
+                } \
+            } \
+            if(FILENAME==\"checksum_fasta_hg38_p13.txt\"){ \
+                if($0 ~ /hg38.p13.fa.gz/){ \
+                    new_checksum=$1; \
+                } \
+            } \
+        }END{ \
+            if(new_checksum != original_checksum){ \
+                exit 1; \
             } \
         }' \
-        fixref_stats_chr${i}.txt; \
+        md5sum.txt checksum_fasta_hg38_p13.txt \
 ")
+    #first process md5sum.txt, and get the checksum (first field) of hg38.p13.fa.gz (if row ends with that name), which is the reference
+    #first process checksum_fasta_hg38_p13.txt, and get the checksum (first field) of hg38.p13.fa.gz (if row ends with that name), which is the new checksum
+    #stop if the new checksums are not identical
 
-
-
-
-
+print_text("run a loop to solve flips using the USCS fasta as reference", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
-    rs_number=$(awk \
-        'BEGIN{FS=\"\t\"}{ \
-            if($1==12 && $4==8514205){ \
-                print $2; \
-            } \
-        }' \
-        loop_maf_missing_2_pca_not_outliers.bim); \
-    echo ${rs_number}; \
-    plink \
-        --bfile loop_maf_missing_2_pca_not_outliers \
-        --snp ${rs_number} \
-        --freq \
-        --out allele_freq_checks \
-")
-
-
-##Some SNPs that show opposite frequency were OK before doing the swaps. Note that you have checked and solved flips assuming your data was TOP compatible, but indeed I am sure I used the foward strand, we used pyspark to be sure about this.
-
-
-
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep; \
-    for genom_ref in \"hg19\" \"hg38.p13\"; do \
-        mkdir -p ./${genom_ref}/; cd ./${genom_ref}/; \
-        mkdir -p ./vcfs_chr ; \
-        for i in {1..23}; do \
-            mkdir -p ./chr${i}; cd ./chr${i}; \
-            if [ ${i} -eq 23 ]; then \
-                plink \
-                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
-                    --chr 23,25 \
-                    --recode vcf-iid \
-                    --out ./chr${i}; \
-            else \
-                plink \
-                    --bfile ../../../loop_maf_missing_2_pca_not_outliers \
-                    --chr ${i} \
-                    --recode vcf-iid \
-                    --out ./chr${i}; \
-            fi; \
-            bcftools annotate \
-                --rename-chrs ../../../new_chromosomes.tsv \
-                ./chr${i}.vcf | \
-            bcftools sort -Oz -o ./chr${i}.vcf.gz;  \
-            bcftools +fixref \
-                ./chr${i}.vcf.gz \
-                -Oz -o chr${i}_flips_solved.vcf.gz -- \
-                --fasta-ref ../../${genom_ref}.fa \
-                --discard \
-                --mode flip &> ./fixref_stats_chr${i}.txt; \
-            if [ ${i} -eq 1 ]; then \
-                > ../count_mismatch_${genom_ref}.tsv; \
-            fi; \
-            awk \
-                -v chr=${i} \
-                'BEGIN{OFS=FS=\"\t\"}{ \
-                    if($1==\"NS\" && index($2, \"ref mismatch\")){ \
-                        gsub(/%/, \"\", $4); \
-                        print \"chr_\"chr, $3, $4; \
-                    } \
-                }' \
-                ./fixref_stats_chr${i}.txt >> ../count_mismatch_${genom_ref}.tsv; \
-            cp ./chr${i}_flips_solved.vcf.gz ../vcfs_chr/; \
-            cd ../; \
-        done; \
-        cd ../; \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    mkdir -p ./03_fourth_step/vcf_files_flipped; \
+    mkdir -p ./03_fourth_step/fixref_stats; \
+    input_fileset_name=loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated; \
+    for i in {"+str(np.min(unique_chromosomes))+".."+str(np.max(unique_chromosomes))+"}; do \
+        bcftools +fixref \
+            ./02_third_step/01_vcf_files/${input_fileset_name}-chr${i}.vcf \
+            -Ov -o ./03_fourth_step/vcf_files_flipped/${input_fileset_name}_flipped_chr${i}.vcf -- \
+            --discard \
+            --fasta-ref ./03_fourth_step/hg38.p13.fa \
+            --mode flip &> ./03_fourth_step/fixref_stats/fixref_stats_chr${i}.txt; \
     done; \
 ")
-    #run a bash loop from for hg19 and hg38 and from chromosome 1 to chromosome 23 (i.e., X). Michigan imputation server does not accept Y nor M. 
-        #Respect to XY: For phasing and imputation, chrX is divided into three independent chunks (PAR1, non-PAR, PAR2). These chunks are then automatically merged by the Michigan Imputation Server 2 and returned as a single complete chromosome X file. Therefore, we are generating a VCF file with the X and the PAR regions together, being all their SNPs named as "chrX".
-            #https://genepi.github.io/michigan-imputationserver/pipeline/
-    #For each genome reference:
-        #create and enter a folder for the genome reference
-        #create a new folder to save the final VCFs
-        #For each chromosome:
-            #create a folder and go inside
-            #using plink, convert the fileset without PCA outliers to VCF
-            #using bcftools annotate
-        #MISSING STEPS
-        #Use bcftools +fixref to detect and remove allele switches
-            #WARNING FROM BCFTOOLS:
-                #Do not use the program blindly, make an effort to understand what strand convention your data uses! Make sure the reason for mismatching REF alleles is not a different reference build!! Also do NOT use bcftools norm --check-ref s for this purpose, as it will result in nonsense genotypes!!
-                #strand
-                    #I know the strand reference of my data, I completely sure I used the foward strand notation, not top/bot or other. You can check that in "01b_illumina_report_to_plink.py", where I used pyspark to ensure I selected the correct that from all FinalReports. 
-                    #This should the strand used by the imputation server as it is the one used by ncbi, see "01b_illumina_report_to_plink.py" about details.
-                #I am also sure about the reference build, our data has hg38 as confirmed by AGRF. So we can use hg38 in the imptuation server.
-                    #Thank you for reaching out with your detailed query regarding the reference genome for project "CAGRF20093767". I can confirm that the reference genome used to generate your data is hg38
-                    #It’s great to hear that you achieved a high overlap (~98%) using the 1000 Genomes Project hg38 high-coverage panel. While the strand issues you encountered with the initial imputation are not uncommon when reconciling different datasets, using bcftools to address allele switches is a sound approach, and the resulting reduction in median allele switches for hg38 aligns with the reference genome used for this project.
-                    #Regarding the ~4K SNPs with differing allele frequencies, this may reflect population-specific differences or residual inconsistencies in strand alignment between panels. 
-                    #Also the page of TOPMED says the reference build is hg38
-                        #https://topmedimpute.readthedocs.io/en/latest/getting-started/#build
-                #Therefore, we can be sure that any strand issue between our dataset and the reference panel in the imputation server is not caused by the reference build or the strand. In other words, we do not have allele flips because I have made a mistake and I am comparing two genetic datasets that are using different strand formats or different builds.
-            #we use the flip model ("-m flip") to swap or flip REF/ALT columns and GTs for non-ambiguous SNPs to foward and ignore the rest.
-                #According to the manual, this is the following: Assuming the reference build is correct, just flip to fwd, discarding the rest
-                    #This is ok, I selected foward notation in our data, so all our SNPs should be foward. SNPs that are not in foward, are errors and we should solve fliping to foward if possible.
-                    #Also, the imputation server is going to check for flips, if more than 10000 obvious strand flips are detected, TOPMED stops the imputation, so we are ok.
-                #We avoid ambiguous sites (A/T, C/G). According to chatGTP:
-                    #Strand Ambiguity: For non-palindromic SNPs, the reverse complement will change the alleles (e.g., A/C becomes T/G). However, for A/T and C/G SNPs, the reverse complement is identical, making it difficult to ascertain if the strand needs correction.
-            #---discard: To remove the cases that have been deemed problematic but have not been solved due to ambiguity.
-                #THIS IS THE KEY: Doing this removes all the strange SNPs whose allele frequencies were negatively correlated between our dataset and the refenrece panel of the imputation server.
-    
-###CHECK ALL THE STEPS OF TOPMED PIPELINE AND CHECK WE ARE NOT MISSING STEPS FROM RITCHIE
-    #https://topmedimpute.readthedocs.io/en/latest/pipeline/#quality-control
+    #I initially decided this approach after reading in detail the docs of bcftools +fixref (see below), but then I checked the github of Ritchie, and they apply exactly the same approach!
+    #-O, --output-type b|u|z|v[0-9]
+        #Output compressed BCF (b), uncompressed BCF (u), compressed VCF (z), uncompressed VCF (v). Use the -Ou option when piping between bcftools subcommands to speed up performance by removing unnecessary compression/decompression and VCF←→BCF conversion. The compression level of the compressed formats (b and z) can be set by by appending a number between 0-9.
+        #We are using -Ov to output uncompressed VCF so we can use it in the next step for sorting
+        #https://samtools.github.io/bcftools/bcftools.html
+    #-d, --discard: Discard sites which could not be resolved
+    #-f, --fasta-ref FILE.fa: Reference sequence
+    #-mode flip: swap or flip REF/ALT columns and GTs for non-ambiguous SNPs and ignore the rest
+        #WARNING FROM BCFTOOLS:
+            #Do not use the program blindly, make an effort to understand what strand convention your data uses! Make sure the reason for mismatching REF alleles is not a different reference build!! Also do NOT use bcftools norm --check-ref s for this purpose, as it will result in nonsense genotypes!!
+            #strand
+                #I know the strand reference of my data, I completely sure I used the foward strand notation, not top/bot or other. You can check that in "01b_illumina_report_to_plink.py", where I used pyspark to ensure I selected the correct that from all FinalReports. 
+                #This should the strand used by the imputation server as it is the one used by ncbi, see "01b_illumina_report_to_plink.py" about details.
+            #I am also sure about the reference build, our data has hg38 as confirmed by AGRF. So we can use hg38 in the imptuation server.
+                #Thank you for reaching out with your detailed query regarding the reference genome for project "CAGRF20093767". I can confirm that the reference genome used to generate your data is hg38
+                #It’s great to hear that you achieved a high overlap (~98%) using the 1000 Genomes Project hg38 high-coverage panel. While the strand issues you encountered with the initial imputation are not uncommon when reconciling different datasets, using bcftools to address allele switches is a sound approach, and the resulting reduction in median allele switches for hg38 aligns with the reference genome used for this project.
+                #Regarding the ~4K SNPs with differing allele frequencies, this may reflect population-specific differences or residual inconsistencies in strand alignment between panels. 
+                #Also the page of TOPMED says the reference build is hg38
+                    #https://topmedimpute.readthedocs.io/en/latest/getting-started/#build
+            #Therefore, we can be sure that any strand issue between our dataset and the reference panel in the imputation server is not caused by the reference build or the strand. In other words, we do not have allele flips because I have made a mistake and I am comparing two genetic datasets that are using different strand formats or different builds.
+        #we use the flip model ("-m flip") to swap or flip REF/ALT columns and GTs for non-ambiguous SNPs to foward and ignore the rest.
+            #According to the manual, this is the following: Assuming the reference build is correct, just flip to fwd, discarding the rest
+                #This is ok, I selected foward notation in our data, so all our SNPs should be foward. SNPs that are not in foward, are errors and we should solve fliping to foward if possible.
+                #Also, the imputation server is going to check for flips, if more than 10000 obvious strand flips are detected, TOPMED stops the imputation, so we are ok.
+            #We avoid ambiguous sites (A/T, C/G). According to chatGTP:
+                #Strand Ambiguity: For non-palindromic SNPs, the reverse complement will change the alleles (e.g., A/C becomes T/G). However, for A/T and C/G SNPs, the reverse complement is identical, making it difficult to ascertain if the strand needs correction.
+        #---discard: To remove the cases that have been deemed problematic but have not been solved due to ambiguity.
+            #THIS IS THE KEY: Doing this removes all the strange SNPs whose allele frequencies were negatively correlated between our dataset and the refenrece panel of the imputation server.
 
-
-#From the total number of SNPS (SNPs: 285114), remove SNP not present in the reference panel (only type: 9,707) and Allele mismatches (204), giving the total number of SNPs used in imputation (275,203).
-    #https://www.biostars.org/p/446894/
-
-
-###see this sentence from the manual:
-    #Assuming the reference build is correct, just flip to fwd, discarding the rest
-    #we are already in foward! maybe we could just remove problematic cases using --discard?
-
-
-
-###we are doing imputation with 1000G hg38 deep that does not require to speciify a pop, so we are ok, the only problem here is that 1000G hg38 is beta and second not sure if a 0.8 of R2 between ref allele frequency of reference and my dataset is enough. We have 14K snps that differ in freuqnecy accorindg to chisq test.
-
-#maybe you can write to them, and tell that hg19 do not work because of allele flips, And yes, you checked for allele flips and swaps using the latest version of the hg38 fasta using bcftools. The problem seems to be with the lifover, because I have this problem with any hg19 problem, but I can run imputation with 1000G hg38 deep, with that you have more overal (>98%) and no flips/swaps. I had just 300 allele mismatches and 4K of snps just typed (what are these two cases?). Using 1000G low imputaton still runs, but with less overlap (93%) and more only typed SNPs (20K). First question here, 1000G deep is usable? beucase it says beta... secondly despite being able to run the imptation, the pooligenc score analyses do not run. This is not because the polygenic score per se, if I disable ancetry estimation, the analysis run, but I would like to do the nacstry esitmation. My sample is very likely European, but I would like to have more insgihts about that.
-
-#OJO, que usango los datos de prueba de michinga que son europes con 1000G pahse 3 v5 les sale R2=96.8 and only 1451 snps with allelel mismatch, but of course, we are selecting european, while in our case we are selecting ALL global, so maybe is normal? we should ask this to support also.
-
-
-count_mismatches = pd.merge( \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg19/count_mismatch_hg19.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/hg38.p13/count_mismatch_hg38.p13.tsv", sep="\t", header=None, names=["chr", "count", "percent"]), \
-    on="chr", \
-    suffixes=("_hg19", "_hg38.p13") \
-)
-
-count_mismatches["count_diff"] = count_mismatches["count_hg19"] - count_mismatches["count_hg38.p13"]
-count_mismatches["percent_diff"] = count_mismatches["percent_hg19"] - count_mismatches["percent_hg38.p13"]
-
-print(count_mismatches)
-
-count_mismatches.to_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/michigan_prep/count_mismatches.tsv", sep="\t", index=False)
-
-
-##probably the problem with the scores in michiga ins the ancestry calculation because we are using global panel 1000gh hg38 instead of 1000G hg19?
-
-
-
-    #Calculate the chi-square for each variant (reference panel vs. study data).: WE HAVE DIFFERENCE FOR 14k SNPS, but this is using hg38 1000G all pops global, not EUR specifically
-
-    #check reference genome!
-
-
-    #I have manually checked several cases in chromsome 20. In all cases, both the flips and the swaps are done correctly. A flip means to change the strand (AC is changed to TG) while a swap means to change REF for ALT. For example:
-        #rs13831
-            #Our data: REF=C; ALT=T
-            #NCBI: REF=A; ALT=G
-            #fixref:
-                #converts C to G and T to A to flip between strands: REF=G; ALT=A
-                #Then it swaps REF and ALT: REF=A; ALT=G
-                #this matches NCBI
-            #I have checked several cases in it does correctly.
-    
-
-    
-    #last strand check:
-        #after downloading allele frequency from 1000G, annotate your data file and stream the result through the af-dist plugin to create the genotype frequency distribution
-        #The output should something like this
-            #PROB_DIST   0.000000    0.100000    100618
-            #PROB_DIST   0.100000    0.200000    144103
-            #PROB_DIST   0.200000    0.300000    214923
-            #PROB_DIST   0.300000    0.400000    320721
-            #PROB_DIST   0.400000    0.500000    817965
-            #PROB_DIST   0.500000    0.600000    84027
-            #PROB_DIST   0.600000    0.700000    86531
-            #PROB_DIST   0.700000    0.800000    97986
-            #PROB_DIST   0.800000    0.900000    108776
-            #PROB_DIST   0.900000    1.000000    176755
-        #Finally plot the distribution to check whether there are only few unlikely genotypes.
-
-
-
-
-
-
-    #the changes SHOULD BE INCLUDED IN THE FINAL DATASET! It is ok, because we are going to use the data coming out of the imputation server, the VCF files will be converted to plink after imputation
-
-
-
-#interesting tool for all this cleaning
-    #https://imputation.sanger.ac.uk/?resources=1
-
-
+print_text("check all REF allele match and we have a reduced number of unsolved problems", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
-    mkdir ./vcfs_chr/; \
-    cd ./vcfs_chr; \
-    for i in {1..26}; do \
-        if [ $i -eq 23 ]; then \
-            chr=chrX; \
-            chr_name=chrX; \
-        elif [ $i -eq 24 ]; then \
-            chr=chrY; \
-            chr_name=chrY; \
-        elif [ $i -eq 25 ]; then \
-            chr=chrXY; \
-            chr_name=chrXY; \
-        elif [ $i -eq 26 ]; then \
-            chr=chrM; \
-            chr_name=chrM; \
-        else \
-            chr=chr$i; \
-            chr_name=chr$i; \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    for i in {"+str(np.min(unique_chromosomes))+".."+str(np.max(unique_chromosomes))+"}; do \
+        awk \
+            -v chr_name=${i}\
+            'BEGIN{\"\t\"}{ \
+                if($1==\"NS\" &&  $2==\"total\"){ \
+                    total_n_sites=$3; \
+                } \
+                if($1==\"NS\" &&  $2==\"ref\" &&  $3==\"match\"){ \
+                    total_ref_match=$4; \
+                } \
+                if($1==\"NS\" &&  $2==\"unresolved\"){ \
+                    n_unresolved=$3; \
+                } \
+            }END{ \
+                if(total_n_sites != total_ref_match || n_unresolved>500){ \
+                    exit 1; \
+                } else { \
+                    print \"Chr\" chr_name \" is OK\";\
+                } \
+            }' \
+            ./03_fourth_step/fixref_stats/fixref_stats_chr${i}.txt; \
+        if [[ $? -ne 0 ]]; then \
+            exit 1; \
         fi; \
-        plink \
-            --bfile ../loop_maf_missing_2_pca_not_outliers \
-            --chr $chr \
-            --recode vcf-iid \
-            --out fileset_$chr_name; \
-        bcftools annotate \
-            --rename-chrs \
-            ../new_chromosomes.tsv \
-            fileset_$chr_name.vcf | \
-        bcftools sort -Oz -o fileset_$chr_name.vcf.gz;  \
-        rm fileset_$chr_name.vcf; \
     done; \
-    mkdir ./final_vcfs/; \
-    cp *.vcf.gz ./final_vcfs; \
 ")
-    #think that plink merge X and XY when you convert ot vcf in the whole dataset, checl
-        #check you can add severla chromsome slike this with comma, and that XY is the PAR.
-    #MIRA RECOMENDACIONSS DE MIGHICHAN TO CHEC VCFS..
-        #https://genepi.github.io/michigan-imputationserver/prepare-your-data/#convert-pedmap-files-to-vcf-files
+    #In the file with fixref stats, extract the total number of sites, the number of alleles with matching REF and the number of unsolved SNPs.
+    #All alleles have to have their REF matching and the number of unsolved should be small.
+    #if this is not met, stop. Given we are in a loop, this will stop the current chromosome, but the loop will continue. We have to check the exit stauts
+    #if [ $? -ne 0 ]: checks the exit status of the awk command, if not zero, it means we had an error in at least one chromosome and we stop the execution.
 
-
-    #we could also do it with all the samples of the other ancestries
-
-
-
-
+print_text("sort by position and compress", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/; \
-    mkdir ./vcfs_chr_pca_outliers/; \
-    cd ./vcfs_chr_pca_outliers; \
-    plink --bfile ../../../12_loop_maf_missing/loop_maf_missing_2 --chr 1 --recode vcf-iid --out chr1_fileset; bgzip chr1_fileset.vcf;  \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    mkdir -p ./04_fifth_step/; \
 ")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    for i in {"+str(np.min(unique_chromosomes))+".."+str(np.max(unique_chromosomes))+"}; do \
+        bcftools sort \
+            ./03_fourth_step/vcf_files_flipped/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated_flipped_chr${i}.vcf \
+            -Oz -o ./04_fifth_step/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated_flipped_sorted_chr${i}.vcf.gz; \
+    done; \
+")
+    #Sort VCF/BCF file. 
+        #-o, --output FILE: output file name
+        #-O, --output-type b|u|z|v: b: compressed BCF, u: uncompressed BCF, z: compressed VCF, v: uncompressed VCF [v]
+    #The Ritche tutorial used "vcf-sort" (from VCFtools) instead of bcftools sort. I am not sure why, because "bcftools sort" just sorts the VCF file using the genomic position. 
+        #The bcftools sort command is used to sort the variants in a VCF or BCF file based on their chromosomal positions, and the basic and only syntax of the bcftools sort command is the following one.
+            #https://www.biocomputix.com/post/bcftools-sort
+            #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
 
 
-##PREGUNTA JONATAN AND DAVID BEFORE MOVING FOWARD!!!!
-#Checking the multiple protocols I am following, I have detected that they usually remove all sex chromosomes after sex problems have been assesed. This is despite the potential increase in power if sex chromosomes are added. This is also the case for the Predict-HIIT study. It seems that the use of sex chromosomes for associations (and Polygenic Risk Scores; PRSs) requires different analyses starting from the beginning in the QC, for example, applying filters in a diferent way, and this continues in the "association stage". I honestly did not know about that and I have found out probably too late. At this stage, I do think it is worth it to go back multiple steps just to include the X chromosome (remember that Y and Mitochrondrial SNPs are not supported in TOPMed). The bulk of the data is in the autosomals and this is, for now, the norm in the GWAS studies. So I would just remove non-autosomal variants as a last step before imputation and move foward with that. Let me know if this makes sense for you!
-    #https://pmc.ncbi.nlm.nih.gov/articles/pmid/32709988/
-    #https://onlinelibrary.wiley.com/doi/10.1002/gepi.21782
-
-
+print_text("check all requeriments of TOPMed are already met", header=3)
+#CHECK requeriments for inputs to the TOPMed server
+    #Create a separate vcf.gz file for each chromosome.
+        #DONE
+    #Variants must be sorted by genomic position.
+        #DONE
+    #GRCh37 or GRCh38 coordinates are required.
+        #DONE
+    #If your input data is GRCh37/hg19, please ensure chromosomes are encoded without prefix (e.g. 20). If your input data is GRCh38/hg38, please ensure chromosomes are encoded with prefix 'chr' (e.g. chr20).
+        #DONE (chrM mode of plink)
+    #VCF files need to be version 4.2 (or lower). This is specified in the VCF file header section.
+        #DONE (output format of "vcf" in plink)
+    #Must contain GT field in the FORMAT column. All other FORMAT fields will be ignored. (if you are seeing problems with very large uploads, it may help to remove other FORMAT fields)
+        #DONE (just checked the VCF files)
+    #Due to server resource requirements, there is a maximum of 25k samples per chromosome per job (and a minimum of 20 samples). Please see the FAQ for details.
+        #DONE
+    #https://topmedimpute.readthedocs.io/en/latest/prepare-your-data/
 
 # endregion
 
@@ -6405,3 +6359,16 @@ run_bash(" \
 
 
 
+
+##############################
+# region IN CASE NEEDED ######
+##############################
+
+#In case you need to liftover the data, you can use the script of Ritchie, but they say that you do not needed in general because TOPMed accepts both hg38 and hg19
+    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-7----liftover-the-data
+
+#if you need to use X, you can combine X and PAR in one VCF file ("--chr 23,25")
+        #Respect to XY: For phasing and imputation, chrX is divided into three independent chunks (PAR1, non-PAR, PAR2). These chunks are then automatically merged by the Michigan Imputation Server 2 and returned as a single complete chromosome X file. Therefore, we are generating a VCF file with the X and the PAR regions together, being all their SNPs named as "chrX".
+            #https://genepi.github.io/michigan-imputationserver/pipeline/
+
+# endregion
