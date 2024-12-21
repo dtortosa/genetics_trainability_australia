@@ -15,10 +15,13 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-[1] TRUE
+[1] FALSE
+Warning message:
+In file.remove(".RData") :
+  cannot remove file '.RData', reason 'No such file or directory'
          used (Mb) gc trigger (Mb) max used (Mb)
-Ncells 128494  6.9     350000 18.7   200070 10.7
-Vcells 251478  2.0    8388608 64.0  1032385  7.9
+Ncells 129485    7     350000 18.7   201401 10.8
+Vcells 253060    2    8388608 64.0  1041181  8.0
 Loading required package: colorout
 > #!/usr/bin/env Rscript
 > 
@@ -42,7 +45,7 @@ Loading required package: colorout
 >     #http://popgen.dk/software/index.php/EvalAdmix#Run_command_example # nolint
 > 
 > #load the R script with the required functions
-> source("./scripts/02ba_pre_imputation_qc_eval_admix_plot.R")
+> source("/opt/scripts/02ba_pre_imputation_qc_eval_admix_plot.R")
 >     #the source script for the functions was obtained from the evalAdmix: # nolint
 >         #https://github.com/GenisGE/evalAdmix/blob/master/visFuns.R # nolint
 > 
@@ -67,11 +70,11 @@ Loading required package: colorout
 > 
 > #plot the correlation of residuals
 > pdf(file = "./data/genetic_data/quality_control/14_pop_strat/02_admixture/eval_admix/evaladmix_plot.pdf") # nolint
-> plotCorRes(cor_mat = r, pop = as.vector(pop[,1]), ord=ord, title="Evaluation of 1000G admixture proportions with K=3", max_z=0.1, min_z=-0.1) # nolint
+> plotCorRes(cor_mat = r, pop = as.vector(pop[,1]), ord=ord, title="Evaluation of Admixture proportions assuming K=1", max_z=0.1, min_z=-0.1) # nolint
 > dev.off()
 null device 
           1 
 > 
 > proc.time()
    user  system elapsed 
-  2.621   2.459   1.492 
+  2.219   2.576   1.085 

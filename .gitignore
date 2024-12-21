@@ -2,7 +2,10 @@
 *.ipynb_checkpoints
 *.json
 *.log 
+*.RData
 
+australian_army_bishop.code-workspace
+hrc_panel_versions/
 admixture_versions/
 evalAdmix_versions/
 /.vscode/

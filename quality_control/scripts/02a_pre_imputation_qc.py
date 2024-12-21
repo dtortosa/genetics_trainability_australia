@@ -5761,17 +5761,21 @@ run_bash(" \
     unzip ./CreateTOPMed.zip CreateTOPMed.pl \
 ")
     #tool to prepare the TOPMed for the comparison
-run_bash(" \
-    cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
-    curl 'https://legacy.bravo.sph.umich.edu/freeze5/hg38/download/all' -H 'Accept-Encoding: gzip, deflate, br' -H 'Cookie: remember_token=\"dftortosa@gmail.com|2125b70190312bfc64a943a0456dfbc630cc3856dd85552aba56c127958adc3e11d23977abd902f24ca341720136ef859c6e3538e480da356ea1dd9ea51cc31a\"; _ga=GA1.2.873450708.1734410353; _gid=GA1.2.1563090310.1734410353; _ga_HD76LS6C66=GS1.1.1734410353.1.1.1734410660.0.0.0' --compressed > bravo-dbsnp-all.vcf.gz; \
+run_bash("\
+    cd ./data/genetic_data/; \
+    cp \
+        ./hrc_panel_data/bravo-dbsnp-all.vcf.gz \
+        ./quality_control/19_topmed_prep/00_first_step/; \
 ")
-    #The TOPMed reference panel is not available for direct download from this site, it needs to be created from the VCF of dbSNP submitted sites (currently ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz). This can be downloaded from the Bravo Website https://legacy.bravo.sph.umich.edu/freeze5/hg38/download
-    #the file downlodad is not named as "ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz" because we used curl instead direct downloading by clicking from the website.
+    #The TOPMed reference panel is not available for direct download from this site, it needs to be created from the VCF of dbSNP submitted sites (currently ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz). This can be downloaded from the Bravo Website 
+        #https://legacy.bravo.sph.umich.edu/freeze5/hg38/download
+    #the file downlodad is not named as "ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz" because we used curl instead direct downloading by clicking from the website. See origin folder containing this file for further details.
 
 print_text("confirm we have the exact checksum")
 #calculate first the check sum and save as a file
 run_bash(" \
     cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
+    rm checksum_bravo-dbsnp-all.vcf.txt; \
     checksum=$( \
         md5sum bravo-dbsnp-all.vcf.gz; \
     ); \
@@ -5806,7 +5810,7 @@ run_bash(" \
         #Usage: ./CreateTOPMed.pl -i ALL.TOPMed_freeze5_hg38_dbSNP.vcf.gz 
     #If the shabang "./" doesn't work, you may need to run the command with "perl" instead. If you get an error in the above step, try this variation. Both were run successfully on a local computer and server using perl/5.30.0. Depending on your setup, this may take a few hours to run:  perl CreateTOPMed.pl -i bravo-dbsnp-all.vcf.gz	
     #By default this will create a file filtered for variants flagged as PASS only, if you wish to use all variants the -a flag overrides this. To override the default output file naming use -o filename.
-    #the output should be: PASS.Variants.TOPMed_freeze5_hg38_dbSNP.tab.gz
+    #the output should be: PASS.Variantsbravo-dbsnp-all.tab.gz
 #unzip
 run_bash(" \
     cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step; \
@@ -6018,8 +6022,8 @@ print_text("remove files not required", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/19_topmed_prep/00_first_step/; \
     rm ./PASS.Variantsbravo-dbsnp-all.tab; \
-    rm HRC-1000G-check-bim.pl; \
-    rm CreateTOPMed.pl \
+    rm ./HRC-1000G-check-bim.pl; \
+    rm ./CreateTOPMed.pl \
 ")
 
 print_text("exclude SNPs required to be removed by TOPMed", header=4)
@@ -6158,7 +6162,7 @@ run_bash(" \
     filesets_count=$(ls -1 ./02_third_step/00_filesets | wc -l); \
     vcfs_count=$(ls -1 ./02_third_step/01_vcf_files | wc -l); \
     expected_fileset="+str(np.max(unique_chromosomes)*4)+"; \
-    expected_vcfs="+str(np.max(unique_chromosomes)*5)+"; \
+    expected_vcfs="+str(np.max(unique_chromosomes)*2)+"; \
     if [[ $filesets_count -ne $expected_fileset || $vcfs_count -ne $expected_vcfs ]]; then \
         exit 1; \
     else \
@@ -6169,8 +6173,8 @@ run_bash(" \
         #ls -1 /path/to/folder: Lists all files in the specified folder, one per line.
         #wc -l: Counts the number of lines, which corresponds to the number of files.
     #calculate the expected number of files, per each chromosome
-        #4 files in fileset folder
-        #5 files in the VCF folder
+        #4 files in fileset folder (bed, bim, fam and log files)
+        #2 files in the VCF folder (vcf and log files)
     #if any of the counts is not as expected, stop execution
 
 
@@ -6181,7 +6185,7 @@ run_bash(" \
     mkdir -p ./19_topmed_prep/03_fourth_step; \
 ")
 
-print("download the reference genome and the check sum", header=4)
+print_text("download the reference genome and the check sum", header=4)
 run_bash(" \
     cd ./data/genetic_data/quality_control/19_topmed_prep/03_fourth_step; \
     rm hg38.p13.fa; rm md5sum.txt; \
@@ -6329,10 +6333,24 @@ run_bash(" \
     #Sort VCF/BCF file. 
         #-o, --output FILE: output file name
         #-O, --output-type b|u|z|v: b: compressed BCF, u: uncompressed BCF, z: compressed VCF, v: uncompressed VCF [v]
+    #This is the approach recommended by TOPMed docs.
+        #https://topmedimpute.readthedocs.io/en/latest/prepare-your-data/
     #The Ritche tutorial used "vcf-sort" (from VCFtools) instead of bcftools sort. I am not sure why, because "bcftools sort" just sorts the VCF file using the genomic position. 
         #The bcftools sort command is used to sort the variants in a VCF or BCF file based on their chromosomal positions, and the basic and only syntax of the bcftools sort command is the following one.
             #https://www.biocomputix.com/post/bcftools-sort
             #https://github.com/RitchieLab/GWAS-QC-Internal?tab=readme-ov-file#step-11---sort-and-zip-files-to-create-vcf-files-for-imputation
+
+print("check that we have the correct number of files generated")
+run_bash(" \
+    cd ./data/genetic_data/quality_control/19_topmed_prep/; \
+    vcfs_count=$(ls -1 ./04_fifth_step | wc -l); \
+    expected_vcfs="+str(np.max(unique_chromosomes))+"; \
+    if [[ $vcfs_count -ne $expected_vcfs ]]; then \
+        exit 1; \
+    else \
+        echo \"OK\"; \
+    fi; \
+")
 
 
 print_text("check all requeriments of TOPMed are already met", header=3)
