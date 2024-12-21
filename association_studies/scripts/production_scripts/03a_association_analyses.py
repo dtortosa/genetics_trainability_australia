@@ -292,7 +292,6 @@ print_text("prepare covariates", header=1)
 
 
 
-
 ##IMPORTANT!!
 ###PC1 and PC2> only? HIIT study used PC6 becuase it was correlated with VO2 max response
     #Baseline V̇O2peak, the individual study and PC6 (the 6th principal components from the PCA analysis, which was significantly associated with the phenotype) were included as covariates.
