@@ -253,37 +253,6 @@ print_text("starting with the pre-imputation QC using " + str(n_cores) + " cores
 
 
 
-############################################
-# region summary steps #####################
-############################################
-
-#0. Removal of duplicated SNPs:
-#1. MAF, missingnes and initial HWE filtering
-    #The most important argument I have found to do MAF before sample relatedenss is the following:
-        #The methods we are gonna use to remove related samples (KING-robust) in plink2 seems to require decent MAF. See this from plink2 help:
-            #"The relationship matrix computed by --make-rel/--make-grm-list/--make-grm-bin can be used to reliably identify close relations within a single population, IF YOUR MAFS ARE DECENT". However, if you continue reading, they say that "Manichaikul et al.'s KING-robust estimator can also be mostly trusted on mixed-population datasets (with one uncommon exception noted below), and doesn't require MAFs at all. Therefore, we have added this computation to PLINK 2, and the relationship-based pruner is now based on KING-robust."
-                #The exception is that KING-robust underestimates kinship when the parents are from very different populations. You may want to have some special handling of this case; --pca can help detect it.
-                #We should not have parents here....
-        #Therefore, we do not need good MAFs, but we are doing it after MAF filtering still because we have already prepared the script for that and it should not be a problem, and Ritchie do it after maf filterint (see Figure 5). 
-    #So we are going to make an initial clean of SNPs and then do sample removals. If we clean by MAF and then clean by HWE there is no change in the MAF, because we are removing SNPs, not samples.
-#2. Sample call rate and relatedness:
-    #We remove related samples after we have decent MAF data (for KING) and done some SNP cleaning and then we can remove samples with low genotyping rate. The previous removal of samples is not going to influenec the genotypiing rate of a sample because we removed samples, not SNPs...
-    #We can do this before pop stratification becuase we are using King robust
-#3. MAF loop to ensure we have OK MAF and genotyping rate
-    #We repeat in two steps the MAF-missing snps filters and then sample filter to check that the previous removal of samples did not change allele frequencies in a way that after applying MAF + missing filters again, we lose more samples.
-#2. Population stratification: It is strongly recommended by Plink´s author to check subgroups and then perform checks like sex-imbalances inside each group. Besides this, we will use the PCAs as covariates in the analyses.
-#4. HWE
-    #This is recommnded to be done also withjing ancestry groups
-        #After you have a good idea of population structure in your dataset, you may want to follow up with a round of two-sided –hwe filtering, since large (see Note 5) violations of Hardy–Weinberg equilibrium in the fewer-hets-than-expected direction within a subpopulation are also likely to be variant calling errors; with multiple subpopulations, the –write-snplist and –extract flags can help you keep just the SNPs which pass all subpopulation HWE filters.
-        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
-#5. Sex determination. The differences in allele frequencies between ancestry groups can influence the check for sex imbalances, so we have to do it after population stratification analyses. This should be ok, because the problem with sex imbalances could be that the phenotype of one sample is ineed the phenotype or other sample, i.e., they are swapped, but it should influence if we just do analyses with only genotypes like the PCA.
-#6. MAF-Missing loop
-    #We ahve removed SNPs (HWE) and samples (sex problems), this MAFs and genotyping rates can be changed, so we have to ensure again that MAF and geno rates are ok
-
-# endregion
-
-
-
 
 ##############################################
 # region MERGING BATCHES #####################

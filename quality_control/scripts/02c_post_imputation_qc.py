@@ -12,13 +12,11 @@
 
 
 
-########################################################
-######## MERGE BATCHES AND ASSESS BATCH EFFECTS ########
-########################################################
+####################################
+######## POST IMPUTATION QC ########
+####################################
 
-#This script will merge the plink binary files of both batches and then perform post imputation QC
-
-#This and next scripts are based on the following tutorials:
+#This script is based on the following tutorials:
     #1. Quality Control Procedures for Genome-Wide Association Studies
         #https://github.com/RitchieLab/GWAS-QC
         #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
@@ -40,6 +38,14 @@
     #9. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
         #https://www.mdpi.com/2073-4425/14/2/248
 
+
+
+
+
+
+#######################################
+# region INITIAL ANOTATIONS AND STEPS #
+#######################################
 
 
 ########################################
@@ -130,12 +136,176 @@ run_bash("pwd")
 print_text("list files/folders there", header=2)
 run_bash("ls")
 
+# endregion
 
 
 
 
-#check pipeleine performed by topmed
-#https://topmedimpute.readthedocs.io/en/latest/pipeline/
+
+
+##########################################
+# region STEPS FOLLOWED IN TOPMED SERVER #
+##########################################
+
+######################
+## options selected ##
+######################
+
+#Run/Genotype Imputation (Minimac4) 2.0.0-beta3
+    #Minimac4 is a lower memory and more computationally efficient implementation of the genotype imputation algorithms in minimac/mininac2/minimac3.
+    #https://github.com/statgen/Minimac4
+
+#TOPMed Imputation Server provides a free genotype imputation service using Minimac4. You can upload phased or unphased GWAS genotypes and receive PHASED and IMPUTED genomes in return. This server offers imputation from the TOPMed reference panel. For all uploaded datasets an extensive QC is performed.
+
+#Citation:
+    #Das S, Forer L, Schönherr S, Sidore C, Locke AE, Kwong A, Vrieze S, Chew EY, Levy S, McGue M, Schlessinger D, Stambolian D, Loh PR, Iacono WG, Swaroop A, Scott LJ, Cucca F, Kronenberg F, Boehnke M, Abecasis GR, Fuchsberger C. Next-generation genotype imputation service and methods. Nature Genetics 48, 1284–1287 (2016).
+
+#Reference panel: TOPMed (Version R3 on GRC38). 
+    #The TOPMed Imputation Server offers genotype imputation for the TOPMed reference panel, which is the largest and most accurate panel available amongst the two imputation servers.
+    #Number of Samples: 133,597
+    #Sites (chr1-22): 445,600,184
+    #Chromosomes: 1-22, X
+    #Imputation Server: https://imputation.biodatacatalyst.nhlbi.nih.gov
+    #Website: https://www.nhlbiwgs.org/
+
+#Input files: TOPMed Imputation Server accepts VCF files compressed with bgzip. Please make sure the following requirements are met:
+    #Create a separate vcf.gz file for each chromosome.
+        #YES
+    #Variants must be sorted by genomic position.
+        #YES
+    #GRCh37 or GRCh38 coordinates are required.
+        #HG38
+    #If your input data is GRCh37/hg19, please ensure chromosomes are encoded without prefix (e.g. 20). If your input data is GRCh38/hg38, please ensure chromosomes are encoded with prefix 'chr' (e.g. chr20).
+        #chr20 as we are using hg38
+    #VCF files need to be version 4.2 (or lower). This is specified in the VCF file header section.
+        #VCF4.2, plink´s default
+    #Must contain GT field in the FORMAT column. All other FORMAT fields will be ignored. (if you are seeing problems with very large uploads, it may help to remove other FORMAT fields)
+        #YES
+    #Due to server resource requirements, there is a maximum of 25k samples per chromosome per job (and a minimum of 20 samples). Please see the FAQ for details.
+        #1203 samples.
+
+#Build
+    #Please select the build of your data. Currently, the options hg19 and hg38 are supported. The TOPMed Imputation Server automatically updates the genome positions of your data (liftOver). The TOPMed reference panel is based on hg38 coordinates.
+    #HG38 in our case.
+
+#rsq filter
+    #To minimize the file size, the Imputation Server includes a r2 filter option, excluding all imputed SNPs with a r2-value (= imputation quality) smaller than the specified value.
+    #It seems this is applied after imputation. So I guess this calculate the correlation between the genotypes of the imputed SNP and the SNP in the reference, which would be the true genotype. According to Ritiche "the Rsq filter must be set, which computes the estimated value of squared correlations between imputed genotypes and true genotypes"
+        #https://genome.sph.umich.edu/wiki/MaCH_FAQ
+    #Detailed definition:
+        #This is the estimated value of the squared correlation between imputed genotypes and true, unobserved genotypes. Since true genotypes are not available, this calculation is based on the idea that poorly imputed genotype counts will shrink towards their expectations based on population allele frequencies alone; specifically 2p where p is the frequency of the allele being imputed.
+        #https://genome.sph.umich.edu/wiki/Minimac3_Info_File
+    #We are using 0.3: This removes >70% of poorly-imputed SNPs at the cost of <0.5% well-imputed SNPs. This is the recommendation of TOPMed and of Ritchies tutorial.
+        #https://genome.sph.umich.edu/wiki/MaCH_FAQ
+
+#Phasing
+    #If your uploaded data is unphased, Eagle v2.4 will be used for phasing. In case your uploaded VCF file already contains phased genotypes, please select the "No phasing" option.
+    #The Eagle algorithm estimates haplotype phase using the HRC reference panel. This method is also suitable for single sample imputation. After phasing or imputation you will receive phased genotypes in your VCF files.
+        #For haplotype phasing Eagle2 is used. Eagle2 attains high accuracy across a broad range of cohort sizes by efficiently leveraging information from large external reference panels (such as the Haplotype Reference Consortium; HRC).
+    #Historically, whole-genome sequencing generated a single consensus sequence without distinguishing between variants on homologous chromosomes. Phased sequencing, or genome phasing, addresses this limitation by identifying alleles on maternal and paternal chromosomes.
+    #Therefore, we not have phased data. We selected Eagle v2.4, phased output because our data should not be phased.
+
+#Population
+    #Please select whether to compare allele frequencies between your data and the reference panel. In case your samples are mixed from different populations, please select Skip to skip the allele frequency check. For mixed populations, no QC-Report will be created.
+    #In our case, we have an homogeneus population after cleaning the dataset, so we did the allele frequency comparison with the TOPMed Panel.
+
+#Mode
+    #Please select if you want to run Quality Control & Imputation, Quality Control & Phasing Only or Quality Control Only.
+    #We select quality control and imputation, everything (this also includes phasing).
+
+#AES 256 encryption
+    #All Imputation Server results are returned as an encrypted .zip file by default. If you select this option, we will use stronger AES 256 encryption instead of the default encryption method. However, note that AES encryption does not work with standard unzip programs. If this option is selected, we recommend using 7-zip to open your results.
+    #We used this option to enhance security.
+
+
+
+####################
+## steps followed ##
+####################
+
+#https://topmedimpute.readthedocs.io/en/latest/
+
+#Quality Control steps performed by the Imputation Server
+    #Create chunks with a size of 10 Mb
+    #For each 10Mb chunk we perform the following checks:
+        #On Sample level:
+            #For chr1-22, a chunk is excluded if one sample has a call rate < 50 %. Only complete chunks are excluded, not samples (see "On Chunk level" above)
+        #On Chunk level:
+            #Determine amount of valid variants: A variant is valid if it is included in the reference panel. At least 3 variants must be included.
+                #This is the absolute number of variants
+            #Determine amount of variants found in the reference panel: At least 50% of the variants must be included in the reference panel.
+                #While this is in terms of percentage. You could have 3 variants of the chunk present in the reference panel, but having 4 additional variants in that chunk that are not in the panel, so more than 50% of the variants would not be in the panel, i.e., overlap<50%.
+            #Determine sample call rate: At least 50 % of the variants must be called for each sample.
+            #Chunk exclusion: if (#variants < 3 || overlap < 50% || sampleCallRate < 50%)
+        #On Variant level:
+            #Check alleles: Only A,C,G,T are allowed
+            #Calculate alternative allele frequency (AF): Mark all with a AF > 0.5.
+            #Calculate SNP call rate
+            #Calculate chi square for each variant (reference panel vs. study data)
+                #Difference of allele frequencies between reference panel and our data
+            #Determine allele switches: Compare ref and alt of reference panel with study data (A/T and C/G variants are ignored).
+            #Determine strand flips: After eliminating possible allele switches, flip and compare ref/alt from reference panel with study data.
+            #Determine allele switches in combination with strand flips: Combine the two rules from above.
+            #Variant exclusion: Variants are excluded in case of: [a] invalid alleles occur (!(A,C,G,T)), [b] duplicates (DUP filter or (pos - 1 == pos)), [c] indels, [d] monomorphic sites, [e] allele mismatch between reference panel and study, [f] SNP call rate < 90%.
+        #Perform a liftOver step, if build of input data and reference panel does not match (b37 vs b38).
+        #Our case
+            #1 Chunk(s) excluded: reference overlap < 50.0%
+            #4 Chunk(s) excluded: < 20 SNPs
+            #Remaining chunk(s): 288
+
+#Phasing
+    #Execute for each chunk eagle2.4 is used (we use an overlap of 5 Mb). For example, chr20:1-20000000 and reference population EUR:
+        #./eagle
+            #--vcfRef HRC.r1-1.GRCh37.chr20.shapeit3.mac5.aa.genotypes.bcf
+            #--vcfTarget chunk_20_0000000001_0020000000.vcf.gz  
+            #--geneticMapFile genetic_map_chr20_combined_b37.txt
+                #this is an old example, but they are now using hg38
+            #--outPrefix chunk_20_0000000001_0020000000.phased
+            #--bpStart 1 
+            #--bpEnd 25000000
+            #--allowRefAltSwap
+            #--vcfOutFormat z
+    #Please note: Target-only sites for unphased data are not included in the final output.
+
+#Imputation
+    #For each chunk, run minimac in order to impute the phased data (we use a window of 500 kb):
+        #./Minimac4 
+            #--refHaps HRC.r1-1.GRCh38.chr1.shapeit3.mac5.aa.genotypes.m3vcf.gz
+            #--haps chunk_1_0000000001_0020000000.phased.vcf
+            #--start 1
+            #--end 20000000
+            #--window 500000
+            #--prefix chunk_1_0000000001_0020000000
+            #--cpus 4
+            #--chr 20
+            #--noPhoneHome
+            #--format GT,DS,GP
+            #--allTypedSites
+            #--meta
+            #--minRatio 0.00001
+            #--referenceEstimates
+            #--map B38_MAP_FILE.map
+
+#Compression and Encryption
+    #Merge all chunks of one chromosome into one single vcf.gz
+    #Encrypt data with one-time password
+    #Unzip command is not working
+        #Please check the following points:
+            #(1) When selecting AES256 encryption, please use 7z to unzip your files (Debian: sudo apt-get install p7zip-full). For the default encryption option, all common .zip decompression programs should work. 
+            #(2) If your password includes special characters (e.g. \), please put single or double quotes around the password when extracting it from the command line (e.g. 7z x -p"PASSWORD" chr_22.zip).
+
+#Security measures
+    #https://topmedimpute.readthedocs.io/en/latest/data-sensitivity/
+
+#FAQ:
+    #https://topmedimpute.readthedocs.io/en/latest/faq/
+
+
+
+
+
+
+
 
 #From the total number of SNPS, the type SNPs are SNP not present in the reference panel (only type: 9,707)
     #typed only: https://www.biostars.org/p/446894/
