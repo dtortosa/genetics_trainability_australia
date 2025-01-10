@@ -147,6 +147,9 @@ run_bash("ls")
 # region STEPS FOLLOWED IN TOPMED SERVER #
 ##########################################
 
+#Genotype imputation is the statistical infer- ence of unobserved genotype, which enables scientists to reconstruct the missing data in each genome and accurately evaluate the ev- idence for association at genetic markers that were not genotyped. Imputation has become an essential component of GWAS because it increases power, facilitates meta-analysis, and aids in the interpretation of signals which can directly influence the results of an analysis (Das et al., 2016; Li, Willer, Sanna, & Abecasis, 2009; Marchini & Howie, 2010; Verma et al., 2014). Genotype imputation is achieved by comparing short stretches of an individual genome against stretches of previously characterized reference genomes. It is usually performed on SNPs, which are the most com mon type of genetic variation (Verma et al., 2014).
+    #From Richies tutorial
+
 #############################################
 ## options selected and input requeriments ##
 #############################################
@@ -198,11 +201,17 @@ run_bash("ls")
     #We are using 0.3: This removes >70% of poorly-imputed SNPs at the cost of <0.5% well-imputed SNPs. This is the recommendation of TOPMed and of Ritchies tutorial.
         #https://genome.sph.umich.edu/wiki/MaCH_FAQ
 
+#checking the strand:
+    #First and foremost, high quality imputation requires that allele calls be on the same physical strand of DNA for both study and reference human genome data. The variability between study sites can yield differences in genotyping platform and calling algorithm. Thus, several algorithms and platforms exist to check strand and perform strand flip (e.g., BEAGLE, SHAPEIT2). Strand check is performed based on three criteria: a) observed alleles, b) minor allele frequencies (MAF), and c) LD pattern across 100-SNP lengths of the genome (Verma et al., 2014). SNPs are discarded from the data accordingly if inconsistent MAF and LD patterns cannot be resolved by flipping the strand. In preparation for phasing, data are subsetted by chromosome, and strand flip is executed to ensure that the SNPs correctly align with the reference panel “+” strand.
+        #We have used the Ritchie approach of their github to solve this problem.
+
 #Phasing
     #If your uploaded data is unphased, Eagle v2.4 will be used for phasing. In case your uploaded VCF file already contains phased genotypes, please select the "No phasing" option.
     #The Eagle algorithm estimates haplotype phase using the HRC reference panel. This method is also suitable for single sample imputation. After phasing or imputation you will receive phased genotypes in your VCF files.
         #For haplotype phasing Eagle2 is used. Eagle2 attains high accuracy across a broad range of cohort sizes by efficiently leveraging information from large external reference panels (such as the Haplotype Reference Consortium; HRC).
     #Historically, whole-genome sequencing generated a single consensus sequence without distinguishing between variants on homologous chromosomes. Phased sequencing, or genome phasing, addresses this limitation by identifying alleles on maternal and paternal chromosomes.
+    #info from Ritchie
+        #After checking for strand, co-localized alleles on the same copy of a chromosome need to be identified in a process known as haplotype phasing. Prior to imputation, pre-phasing can be performed where the haplotype phase is estimated for all of the alleles. The phased data improves imputation speed and can be used for any future data imputation as reference panel improve over time. Although pre-phasing can speed up the imputation process, this step can also introduce error because of any haplotype uncertainty (Howie, Fuchsberger, Stephens, Marchini, & Abecasis, 2012). On the Michigan and NHLBI Trans-Omics for Precision Medicine (TOPMed) Imputation Servers, the algorithm Eagle v2.4 is used for phasing to estimate haplotype phase using the Haplotype Reference Consortium (HRC) reference panel and returns phased genotypes in VCF format (Das et al., 2016).
     #Therefore, we not have phased data. We selected Eagle v2.4, phased output because our data should not be phased.
 
 #Population
@@ -361,6 +370,12 @@ run_bash("ls")
 #Warning: 1 Chunk(s) excluded: reference overlap < 50.0% (see chunks-excluded.txt for details).
 #Remaining chunk(s): 288
 
+#QC html report:
+    #./quality_control/data/genetic_data/quality_control/20_imputation_results/01_qc_reports/qcreport.html
+    #The plot show a correlation of 0.924 between the allele frequencies of the reference panel and our data. There are not strange data points going in opposite direction, everything is clean like Ritchie´s plot. Although they have a 0.972 correlation but, still, our correlation is pretty high. Also the highest density is in the upper right side of the plot, like in our case.
+    #We have 4326 SNPs with differences in allele frequency between the reference panel and our data. This is a half of what we got in our initial imputation tests. Ritchie nor TOPMed says anything about removing these SNPs, so we are just going to leave this as it is.
+    #The important thing is the overall high correlation between the reference panel and our data.
+
 #Summary:
     #input 246628 but matched 242778, so we lose a total of 3850
     #from there, we lose 13 variants due to allele mismatches
@@ -369,11 +384,22 @@ run_bash("ls")
         #typed only: https://www.biostars.org/p/446894/
     #this means that the 13 mismatches and the typed sites should not be included in the final count of 242778
     #In other words: 242778+13+3837=246628
+    #lose 5 chunks due to low overlap or less than 20 SNPs
+    #I have checked this is the case in the corresponding files in 
+        #./quality_control/data/genetic_data/quality_control/20_imputation_results/01_qc_reports/
+    #The correlation between the reference panel and our data is high.
+
+# endregion
 
 
 
 
 
+
+###############################################
+# region INITIAL RESULTS OF IMPUTATION - TEXT #
+###############################################
 
 #inputs in imputation results
+    #./quality_control/data/genetic_data/quality_control/20_imputation_results/04_uncompressed_vcf_files/
 #create folder ./21_post_imputation_qc

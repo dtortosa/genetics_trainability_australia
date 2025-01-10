@@ -1,4 +1,13 @@
 #!/bin/bash
+	#to run this script: chmod +x script.sh; ./script.sh
+	#!/bin/sh does not work with my terminal en msi of David.
+	#if you are using "$" to paste the path of the executable, you do not need to use "./" for running the executable.
+	#you can save the output and the errors
+		#./script.sh > script.out #only output
+		#./script.sh 2> error.out #only error
+		#./script.sh > script.out 2> error.out #both in different files
+		#./script.sh > script.out 2>&1 #both in the same file
+		#https://www.cyberciti.biz/faq/linux-redirect-error-output-to-file/
 
 #Bash script to download files and decompress
 
