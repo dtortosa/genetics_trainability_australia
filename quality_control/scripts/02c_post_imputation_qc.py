@@ -147,9 +147,9 @@ run_bash("ls")
 # region STEPS FOLLOWED IN TOPMED SERVER #
 ##########################################
 
-######################
-## options selected ##
-######################
+#############################################
+## options selected and input requeriments ##
+#############################################
 
 #Run/Genotype Imputation (Minimac4) 2.0.0-beta3
     #Minimac4 is a lower memory and more computationally efficient implementation of the genotype imputation algorithms in minimac/mininac2/minimac3.
@@ -300,14 +300,80 @@ run_bash("ls")
 #FAQ:
     #https://topmedimpute.readthedocs.io/en/latest/faq/
 
+# endregion
+
+
+
+
+
+###############################################
+# region INITIAL RESULTS OF IMPUTATION - TEXT #
+###############################################
+
+######################
+## input validation ##
+######################
+
+#22 valid VCF file(s) found
+#Samples: 1203
+#Chromosomes: 1 10 11 12 13 14 15 16 17 18 19 2 20 21 22 3 4 5 6 7 8 9
+#SNPs: 246628
+#Chunks: 293
+#Datatype: unphased
+#Build: hg38
+#Reference Panel: apps@topmed-r3@1.0.0 (hg38)
+#Population: all
+#Phasing: eagle
+#Mode: imputation
+#Rsq filter: 0.3
+
+#Summary: these are the options selected in Ritchies tutorial
+    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#step-14----imputation-using-topmed-imputation-server
+
+
+###################
+## QC Statistics ##
+###################
+
+#Alternative allele frequency > 0.5 sites: 68,904
+#Reference Overlap: 98.44 %
+#Match: 242,778
+#Allele switch: 0
+#Strand flip: 0
+#Strand flip and allele switch: 0
+#A/T, C/G genotypes: 0
+#Filter flag set: 0
+#Invalid alleles: 0
+#Multiallelic sites: 0
+#Duplicated sites: 0
+#NonSNP sites: 0
+#Monomorphic sites: 0
+#Allele mismatch: 13
+#SNPs call rate < 90%: 0
+
+#Excluded sites in total: 13
+#Remaining sites in total: 242,778
+#See snps-excluded.txt for details
+#Typed only sites: 3,837
+#See typed-only.txt for details
+
+#Warning: 4 Chunk(s) excluded: < 20 SNPs (see chunks-excluded.txt for details).
+#Warning: 1 Chunk(s) excluded: reference overlap < 50.0% (see chunks-excluded.txt for details).
+#Remaining chunk(s): 288
+
+#Summary:
+    #input 246628 but matched 242778, so we lose a total of 3850
+    #from there, we lose 13 variants due to allele mismatches
+    #therefore, typed only sites are 3837
+        #From the total number of SNPS, the type SNPs are SNP not present in the reference panel
+        #typed only: https://www.biostars.org/p/446894/
+    #this means that the 13 mismatches and the typed sites should not be included in the final count of 242778
+    #In other words: 242778+13+3837=246628
 
 
 
 
 
 
-
-#From the total number of SNPS, the type SNPs are SNP not present in the reference panel (only type: 9,707)
-    #typed only: https://www.biostars.org/p/446894/
-
-
+#inputs in imputation results
+#create folder ./21_post_imputation_qc
