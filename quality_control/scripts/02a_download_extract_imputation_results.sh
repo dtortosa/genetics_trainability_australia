@@ -37,5 +37,20 @@ for file in *.zip; do
         #e: This option stands for "extract". It extracts files from the archive without preserving the directory structure.
         #-p: This option specifies the password for the encrypted ZIP file. The password is "8k&1zJRWVuPpdf".
         #-o: This option specifies the output directory where the extracted files will be saved. In this case, the files will be extracted to the ./04_uncompressed_vcf_files/ directory.
-done
+done > ./04_uncompressed_vcf_files/output_decompression.txt
 
+#check decompression
+count_ok_decompression=$( \
+    awk \
+        'BEGIN{FS="\t"}{ \
+            if($0 ~ /Everything is Ok/){ \
+                count++ \
+            } \
+        }END{print count}' \
+        ./04_uncompressed_vcf_files/output_decompression.txt \
+)
+if [[ $count_ok_decompression -eq 22 ]]; then
+    echo "Decompression was successful"
+else
+    echo "ERROR! FALSE! Decompression failed"
+fi
