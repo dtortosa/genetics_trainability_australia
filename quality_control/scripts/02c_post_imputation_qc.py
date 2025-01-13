@@ -150,6 +150,9 @@ run_bash("ls")
 #Genotype imputation is the statistical infer- ence of unobserved genotype, which enables scientists to reconstruct the missing data in each genome and accurately evaluate the ev- idence for association at genetic markers that were not genotyped. Imputation has become an essential component of GWAS because it increases power, facilitates meta-analysis, and aids in the interpretation of signals which can directly influence the results of an analysis (Das et al., 2016; Li, Willer, Sanna, & Abecasis, 2009; Marchini & Howie, 2010; Verma et al., 2014). Genotype imputation is achieved by comparing short stretches of an individual genome against stretches of previously characterized reference genomes. It is usually performed on SNPs, which are the most com mon type of genetic variation (Verma et al., 2014).
     #From Richies tutorial
 
+#If you check the slides from the TOPMed server, you can see how they are basically matching haplotypes of our data with haplotypes in the reference panel to fill the gaps. In other words, if you have A....A....G in your sample, and in the reference panel these A - A - G are included in the haplotype ATATG, you can fill the gaps in your data saying that you ATATG. This is of course base in the linkage disqueilibrium between SNPs found in a given ancestry. Because of that it is important to use a reference panel that correctlty matches our data.
+    #https://raw.githubusercontent.com/genepi/imputationserver-ashg/main/slides/MIS_Workshop_2023.pdf
+
 #############################################
 ## options selected and input requeriments ##
 #############################################
@@ -192,6 +195,7 @@ run_bash("ls")
     #HG38 in our case.
 
 #rsq filter
+    #For each variant, how confident can we be that the imputation dosages are sufficiently “accurate” for association analyses? Measure of confidence in imputed dosages: “Rsq” column [range 0-1]
     #To minimize the file size, the Imputation Server includes a r2 filter option, excluding all imputed SNPs with a r2-value (= imputation quality) smaller than the specified value.
     #It seems this is applied after imputation. So I guess this calculate the correlation between the genotypes of the imputed SNP and the SNP in the reference, which would be the true genotype. According to Ritiche "the Rsq filter must be set, which computes the estimated value of squared correlations between imputed genotypes and true genotypes"
         #https://genome.sph.umich.edu/wiki/MaCH_FAQ
@@ -200,6 +204,12 @@ run_bash("ls")
         #https://genome.sph.umich.edu/wiki/Minimac3_Info_File
     #We are using 0.3: This removes >70% of poorly-imputed SNPs at the cost of <0.5% well-imputed SNPs. This is the recommendation of TOPMed and of Ritchies tutorial.
         #https://genome.sph.umich.edu/wiki/MaCH_FAQ
+    #Also the TOPMed slides explain the use of Rsq as a filter after imputation. Removing cases under 0.3 makes it enough for common variants without losing a lot of variants.
+        #Minimal Rsq value for common variants
+            #≥ 0.30:
+        #Minimal Rsq value for low frequency/rare variants
+            #≥0.50: Before performing GWAS, remove variants that do not meet these thresholds
+        #https://raw.githubusercontent.com/genepi/imputationserver-ashg/main/slides/MIS_Workshop_2023.pdf
 
 #checking the strand:
     #First and foremost, high quality imputation requires that allele calls be on the same physical strand of DNA for both study and reference human genome data. The variability between study sites can yield differences in genotyping platform and calling algorithm. Thus, several algorithms and platforms exist to check strand and perform strand flip (e.g., BEAGLE, SHAPEIT2). Strand check is performed based on three criteria: a) observed alleles, b) minor allele frequencies (MAF), and c) LD pattern across 100-SNP lengths of the genome (Verma et al., 2014). SNPs are discarded from the data accordingly if inconsistent MAF and LD patterns cannot be resolved by flipping the strand. In preparation for phasing, data are subsetted by chromosome, and strand flip is executed to ensure that the SNPs correctly align with the reference panel “+” strand.
@@ -374,7 +384,7 @@ run_bash("ls")
     #./quality_control/data/genetic_data/quality_control/20_imputation_results/01_qc_reports/qcreport.html
     #The plot show a correlation of 0.924 between the allele frequencies of the reference panel and our data. There are not strange data points going in opposite direction, everything is clean like Ritchie´s plot. Although they have a 0.972 correlation but, still, our correlation is pretty high. Also the highest density is in the upper right side of the plot, like in our case.
     #We have 4326 SNPs with differences in allele frequency between the reference panel and our data. This is a half of what we got in our initial imputation tests. Ritchie nor TOPMed says anything about removing these SNPs, so we are just going to leave this as it is.
-    #The important thing is the overall high correlation between the reference panel and our data.
+    #The important thing is the overall high correlation between the reference panel and our data. Also, we will remove SNPs based on imputation quality (Estimated Imputation Accuracy (R-square)) so if these SNP generated bad imputed genomes, these will be removed.
 
 #Summary:
     #input 246628 but matched 242778, so we lose a total of 3850
@@ -396,10 +406,79 @@ run_bash("ls")
 
 
 
-###############################################
-# region INITIAL RESULTS OF IMPUTATION - TEXT #
-###############################################
+############################
+# region MERGE CHROMOSOMES #
+############################
+
+print_text("MERGE CHROMOSOMES", header=1)
+print_text("create folder", header=2)
+run_bash(" \
+    mkdir \
+        -p \
+        ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets \
+")
+
+
+print_text("decompress the VCF files of each chromosome and convert to plink fileset", header=2)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    for file in ./20_imputation_results/04_uncompressed_vcf_files/chr*.dose.vcf.gz; do \
+        gunzip \
+            --keep \
+            --stdout \
+            ${file} >  ./00_plink_filesets/$(basename \"${file%.gz}\")\
+    done \
+")
+
+
+
+
+print_text("make mergelist.txt file with the list of chromosomes to merge", header=2)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc; \
+    seq 2 22 | sed 's/^/chr/' > mergelist.txt \
+")
+    #seq 2 22 to get the numbers from 2 to 22
+    #sed is a stream editor used for text manipulation.
+        #s stands for substitution.
+        #^ is a regular expression that matches the beginning of a line.
+            #I understand this will match any row because you are looking for rows starting with "" and not pattern is used, so you are basically selecting the start of each row
+            #to substitute only rows starting with 1, you would do  sed 's/^1/chr1/'
+        #chr is the string to be inserted at the beginning of each line.
+
+print_text("check we have the correct versions of plink and plink2. We are using plink1.9 for mergning", header=2)
+plink_version=run_bash("plink --version", return_value=True).strip()
+plink2_version=run_bash("plink2 --version", return_value=True).strip()
+if((plink_version!="PLINK v1.90b7 64-bit (16 Jan 2023)") | (plink2_version!="PLINK v2.00a4.2LM 64-bit Intel (31 May 2023)")):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH PLINK VERSIONS")
+else:
+    print("PLINK VERSIONS ARE OK")
+
+print_text("Merge chromosome files into 1 bim/bed/bam file THIS TAKES A LONG TIME", header=2)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./20_imputation_results/04_uncompressed_vcf_files/chr1 \
+        --merge-list ./21_post_imputation_qc/mergelist.txt \
+        --make-bed \
+        --out ./21_post_imputation_qc/merged \
+")
+
+
+###por aquii
+### FALTA UN Step, tenemos que descomprimir los VCF de dentro y convert a bim
+
+##once merged, REMOVED DECOMPRESSED VCF FILES
+
+
+
+
+#merge chromosomes
+    #follow ritchie
+    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#part-4----post-imputation-qc
 
 #inputs in imputation results
     #./quality_control/data/genetic_data/quality_control/20_imputation_results/04_uncompressed_vcf_files/
-#create folder ./21_post_imputation_qc
+
+
+

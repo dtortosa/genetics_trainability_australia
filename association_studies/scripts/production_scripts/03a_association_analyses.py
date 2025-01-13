@@ -280,6 +280,9 @@ run_bash(" \
 print_text("prepare covariates", header=1)
 
 
+#TOPMed slides have info about different GWAS tools
+    #https://raw.githubusercontent.com/genepi/imputationserver-ashg/main/slides/MIS_Workshop_2023.pdf
+
 ###LOOK MARES TUTORIAL AND PRSice TO DO THIS FAST
 #There are multiple resources at the end of the Ritchie tutorial to perform GWAS, including plink and hail tutorials
     #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#gwas-related-resources
