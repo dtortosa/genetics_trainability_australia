@@ -422,15 +422,26 @@ run_bash(" \
 print_text("decompress the VCF files of each chromosome and convert to plink fileset", header=2)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
-    for file in ./20_imputation_results/04_uncompressed_vcf_files/chr*.dose.vcf.gz; do \
+    for file_path in ./20_imputation_results/04_uncompressed_vcf_files/chr*.dose.vcf.gz; do \
+        file_name=$(basename \"${file_path%.gz}\"); \
         gunzip \
             --keep \
+            --force \
             --stdout \
-            ${file} >  ./00_plink_filesets/$(basename \"${file%.gz}\")\
+            ${file_path} > ./21_post_imputation_qc/00_plink_filesets/${file_name}; \
+        plink \
+            --vcf ./21_post_imputation_qc/00_plink_filesets/${file_name} \
+            --make-bed \
+            --out ./21_post_imputation_qc/00_plink_filesets/${file_name}; \
+        rm ${file_name}; \
     done \
 ")
+    #for each "dose.vcf.gz" file in the folder where we decompressed the VCF files from TOPMed
+        #extract the file name. From the full path + name file, remove form the tail ".gz" using "%", then remove path from the name using "basename" and save as a variable
 
 
+#solucionar el delimitiadors para fmily and iwhiting ID, tal vez podemos usar the ID el completo batch and sample ID... y crear una variable nueva por separado para separa batchers??
+    #https://www.cog-genomics.org/plink/1.9/input#vcf
 
 
 print_text("make mergelist.txt file with the list of chromosomes to merge", header=2)

@@ -111,5 +111,5 @@ gunzip \
     #After the header, we have for each variant:
         #CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO
         #FORMAT: GT:HDS:GP:DS
-            #This is telling you that for each individual we have the genotype (GT), for example O|O, and then more information I guess related to dosage.... being separated by ":"
+            #This is telling you that for each individual we have the genotype (GT), for example O|O, and then more information I guess related to phaing and dosage .... being separated by ":"
 
