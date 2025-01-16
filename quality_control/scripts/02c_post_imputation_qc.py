@@ -422,22 +422,62 @@ run_bash(" \
 print_text("decompress the VCF files of each chromosome and convert to plink fileset", header=2)
 run_bash(" \
     cd ./data/genetic_data/quality_control/; \
-    for file_path in ./20_imputation_results/04_uncompressed_vcf_files/chr*.dose.vcf.gz; do \
-        file_name=$(basename \"${file_path%.gz}\"); \
+    for chr_numb in {1..22}; do \
         gunzip \
             --keep \
             --force \
             --stdout \
-            ${file_path} > ./21_post_imputation_qc/00_plink_filesets/${file_name}; \
+            ./20_imputation_results/04_uncompressed_vcf_files/chr${chr_numb}.dose.vcf.gz > ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}.dose.vcf; \
         plink \
-            --vcf ./21_post_imputation_qc/00_plink_filesets/${file_name} \
+            --vcf ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}.dose.vcf \
+            --double-id \
             --make-bed \
-            --out ./21_post_imputation_qc/00_plink_filesets/${file_name}; \
-        rm ${file_name}; \
+            --out ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}_post_imput; \
+        rm ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}.dose.vcf; \
     done \
 ")
-    #for each "dose.vcf.gz" file in the folder where we decompressed the VCF files from TOPMed
-        #extract the file name. From the full path + name file, remove form the tail ".gz" using "%", then remove path from the name using "basename" and save as a variable
+    #for each chromosome
+        #decompress its VCF file into the new folder
+        #create plink fileset
+            #--double-id causes both family and within-family IDs to be set to the sample ID.
+        #remove the decompressed VCF file
+
+
+import pandas as pd
+for chromosome in range(22,23):
+
+    #load the fam file of the chromosome of interest
+    fam_chrom = pd.read_csv( \
+        "./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) +"_post_imput.fam", \
+        header=None, \
+        sep=" " \
+    )
+
+    #check both ID columns are the same, this should be the case as we used the flag "--double-id" in plink
+    fam_chrom.iloc[:,0].equals(fam_chrom.iloc[:,1])
+
+    #row=fam_chrom.iloc[0,:]
+    def extract_within_fam_id(row):
+        
+        if "combat_ILGSA24-17303" in row[0]:
+            fam_id = "combat_ILGSA24-17303"
+            within_id = row[0].split("combat_ILGSA24-17303_")[1]
+        elif "combat_ILGSA24-17873" in row[0]:
+            fam_id = "combat_ILGSA24-17873"
+            within_id = row[0].split("combat_ILGSA24-17873_")[1]
+
+        return pd([fam_id, within_id])
+
+
+
+    fam_chrom[[0, 1]] = fam_chrom.apply(extract_within_fam_id, axis=1,  result_type='expand')
+
+
+
+#we have lost sex!!!
+
+##you have to update the familiny and within famoly ids by splitting here in python...
+
 
 
 #solucionar el delimitiadors para fmily and iwhiting ID, tal vez podemos usar the ID el completo batch and sample ID... y crear una variable nueva por separado para separa batchers??
