@@ -444,6 +444,7 @@ run_bash(" \
 
 
 import pandas as pd
+#chromosome=22
 for chromosome in range(22,23):
 
     #load the fam file of the chromosome of interest
@@ -454,27 +455,102 @@ for chromosome in range(22,23):
     )
 
     #check both ID columns are the same, this should be the case as we used the flag "--double-id" in plink
-    fam_chrom.iloc[:,0].equals(fam_chrom.iloc[:,1])
+    if not fam_chrom.iloc[:,0].equals(fam_chrom.iloc[:,1]):
+        raise ValueError("ERROR! FALSE! THE FAMILY AND WITHIN FAMILY IDS ARE NOT THE SAME")
 
+    #save original family ID column
+    original_fam_id = fam_chrom[[0,1]]
+
+    #define function to split family and within family ID of each row
     #row=fam_chrom.iloc[0,:]
+    #row=fam_chrom.iloc[-1,:]
     def extract_within_fam_id(row):
         
+        #if the name of the first batch is included in the family ID
         if "combat_ILGSA24-17303" in row[0]:
+
+            #save that as family ID
             fam_id = "combat_ILGSA24-17303"
+
+            #remove that from the ID and get the within family ID
             within_id = row[0].split("combat_ILGSA24-17303_")[1]
         elif "combat_ILGSA24-17873" in row[0]:
+
+            #do the same if the name of the second batch is included in the family ID
             fam_id = "combat_ILGSA24-17873"
             within_id = row[0].split("combat_ILGSA24-17873_")[1]
 
-        return pd([fam_id, within_id])
+        #return the family and within family ID
+        return ([fam_id, within_id])
+
+    #apply the function and save the result as the family and within family ID
+    fam_chrom[[0, 1]] = fam_chrom.apply( \
+        extract_within_fam_id, \
+        axis=1,  \
+        result_type="expand" \
+    )
+        #axis=1 ensures that the extract_within_fam_id function is applied to each row of the DataFrame fam_chrom.
+        #result_type='expand' parameter ensures that the returned tuple is split into separate columns.
+
+    #check that the new ID columns are the same than the original family ID when put together with "_"
+    if (not original_fam_id[0].equals(fam_chrom[0] + "_" + fam_chrom[1])) | (not original_fam_id[1].equals(fam_chrom[0] + "_" + fam_chrom[1])):
+        raise ValueError("ERROR! FALSE! PROBLEM SPLITTING FAMILY AND WITHIN FAMILY IDS")
+
+    #save the new IDs following the format that "--update-ids" expects
+    
+    new_fam = pd.concat([original_fam_id, fam_chrom[[0,1]]], axis=1)
+    
+    if (not new_fam.iloc[:,0].equals(new_fam.iloc[:,2] + "_" + new_fam.iloc[:,3])) | (not new_fam.iloc[:,1].equals(new_fam.iloc[:,2] + "_" + new_fam.iloc[:,3])):
+        raise ValueError("ERROR! FALSE! PROBLEM SPLITTING FAMILY AND WITHIN FAMILY IDS")
+
+
+    new_fam.to_csv( \
+        "./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "_new_fam_id.txt", \
+        header=None, \
+        index=None, \
+        sep=" " \
+    )
+    
+    
+
+    #update the fam file
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets; \
+        plink \
+            --bfile chr" + str(chromosome) + "_post_imput \
+            --update-ids chr" + str(chromosome) + "_new_fam_id.txt \
+            --make-bed \
+            --out chr" + str(chromosome) + "_post_imput_updated_ids \
+    ")
+        #--update-ids expects input with the following four fields:
+            #Old family ID
+            #Old within-family ID
+            #New family ID
+            #New within-family ID
+
+
+    pd.read_csv( \
+        "./data/genetic_data/quality_control/18_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean.fam", \
+        header=None, \
+        sep=" " \
+    )[[0, 1, 4]].to_csv("./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "_new_fam_sex.txt", header=None, index=None, sep=" ")
+
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets; \
+        plink \
+            --bfile chr" + str(chromosome) + "_post_imput_updated_ids \
+            --update-sex chr" + str(chromosome) + "_new_fam_sex.txt \
+            --make-bed \
+            --out chr" + str(chromosome) + "_post_imput_updated_ids_sex \
+    ")
+
+        #--update-sex expects a file with FIDs and IIDs in the first two columns, and sex information (1 or M = male, 2 or F = female, 0 = missing) in the (n+2)th column. If no second parameter is provided, n defaults to 1. It is frequently useful to set n=3, since sex defaults to the 5th column in .ped and .fam files.
+
+
+    #WE SHOULD CREATE A FOLDER FOR EACH CHROMOSOME, TOO MUCH FILES
 
 
 
-    fam_chrom[[0, 1]] = fam_chrom.apply(extract_within_fam_id, axis=1,  result_type='expand')
-
-
-
-#we have lost sex!!!
 
 ##you have to update the familiny and within famoly ids by splitting here in python...
 
