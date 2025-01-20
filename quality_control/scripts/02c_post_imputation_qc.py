@@ -415,41 +415,67 @@ print_text("create folder", header=2)
 run_bash(" \
     mkdir \
         -p \
-        ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets \
+        ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets/ \
 ")
 
 
-print_text("decompress the VCF files of each chromosome and convert to plink fileset", header=2)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    for chr_numb in {1..22}; do \
+
+#chromosome=21
+def merging_prep(chromosome):
+
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/; \
+        chr_numb=" + str(chromosome) + "; \
+        mkdir -p ./chr${chr_numb}; \
+        cd ./chr${chr_numb}; \
+        bcftools annotate \
+            --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
+            ../../../20_imputation_results/04_uncompressed_vcf_files/chr${chr_numb}.dose.vcf.gz | \
+        bcftools norm \
+            --multiallelic +snps | \
+        bcftools view \
+            --max-alleles 2 \
+            --min-alleles 2 | \
+        bcftools view \
+            --types snps \
+            --output-type z \
+            --output ./chr${chr_numb}.dose.snps_non_multi_new_snp_ids.vcf.gz; \
         gunzip \
             --keep \
             --force \
             --stdout \
-            ./20_imputation_results/04_uncompressed_vcf_files/chr${chr_numb}.dose.vcf.gz > ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}.dose.vcf; \
+            ./chr${chr_numb}.dose.snps_non_multi_new_snp_ids.vcf.gz > ./chr${chr_numb}.dose.snps_non_multi_new_snp_ids.vcf; \
         plink \
-            --vcf ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}.dose.vcf \
+            --vcf ./chr${chr_numb}.dose.snps_non_multi_new_snp_ids.vcf \
             --double-id \
             --make-bed \
-            --out ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}_post_imput; \
-        rm ./21_post_imputation_qc/00_plink_filesets/chr${chr_numb}.dose.vcf; \
-    done \
-")
+            --out ./chr${chr_numb}_post_imput; \
+        rm ./chr${chr_numb}.dose.snps_non_multi_new_snp_ids.vcf; \
+    ")
     #for each chromosome
-        #decompress its VCF file into the new folder
+        #create a specific folder and move inside
+        #join biallelic SNPs into multiallelic records: We have SNPs with the same position but different alleles, suggesting we have multiallelic variants. We want to merge them and then remove.
+            #join biallelic sites into multiallelic records (+). An optional type string can follow which controls variant types which should be split or merged together: If only SNP records should be split or merged, specify snps; if both SNPs and indels should be merged separately into two records, specify both; if SNPs and indels should be merged into a single record, specify any.
+        #remove variants with more than 2 alleles, as these are multiallelic (multiallelic SNPs were merged in the previous step)
+        #select only SNPs 
+            #some variants are indels, for example, chr21_10090492_AG_A (rs1211611360) or chr21_10088665_GC_G (rs1241342440) in chromosome 21.
+            #Also, I have detected that these indels have a position that differ in 1 based respect to NCBI matching the "Canonical SPDI:". I do not fully understand this, but the point is that the non-indel SNPs have a coordinate matching exactly NCBI hg38. Given we are removing indels, I think we are good.
+        #update the IDs of ALL variants using position and alleles: 
+            #We have many SNPs without ID (".") and then a few SNPs with different ID but the same position.
+            #In general, it is a good idea to remove rs IDs: "the rs ID system of naming variants is problematic because it's not curated sufficiently. A single rs ID can relate to multiple variants at the same position. Also, a single rs ID can relate to variants at more than 1 position in the genome. The fundamental issue being that rs IDs are not unique at all... It's too risky working with rs IDs on clinical data, where mix-ups / mess-ups just aren't allowed..."
+                #https://www.biostars.org/p/281276/#281670
+            #--set-id: assign ID on the fly. The format is the same as in the query command (see below). By default all existing IDs are replaced. If the format string is preceded by "+", only missing IDs will be set. For example, one can use: bcftools annotate --set-id +'%CHROM\_%POS\_%REF\_%FIRST_ALT' file.vcf
+            #--output-type: compressed VCF (z), uncompressed VCF (v).
         #create plink fileset
             #--double-id causes both family and within-family IDs to be set to the sample ID.
-        #remove the decompressed VCF file
+            #we will deal with this in the next steps.
+        #remove the uncompressed VCF file
+        #go to the parent folder
 
-
-import pandas as pd
-#chromosome=22
-for chromosome in range(22,23):
-
+    ##Update the IDs
     #load the fam file of the chromosome of interest
     fam_chrom = pd.read_csv( \
-        "./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) +"_post_imput.fam", \
+        "./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "/chr" + str(chromosome) +"_post_imput.fam", \
         header=None, \
         sep=" " \
     )
@@ -459,7 +485,7 @@ for chromosome in range(22,23):
         raise ValueError("ERROR! FALSE! THE FAMILY AND WITHIN FAMILY IDS ARE NOT THE SAME")
 
     #save original family ID column
-    original_fam_id = fam_chrom[[0,1]]
+    original_fam_id = fam_chrom.iloc[:, [0,1]]
 
     #define function to split family and within family ID of each row
     #row=fam_chrom.iloc[0,:]
@@ -467,24 +493,24 @@ for chromosome in range(22,23):
     def extract_within_fam_id(row):
         
         #if the name of the first batch is included in the family ID
-        if "combat_ILGSA24-17303" in row[0]:
+        if "combat_ILGSA24-17303" in row.iloc[0]:
 
             #save that as family ID
             fam_id = "combat_ILGSA24-17303"
 
             #remove that from the ID and get the within family ID
-            within_id = row[0].split("combat_ILGSA24-17303_")[1]
-        elif "combat_ILGSA24-17873" in row[0]:
+            within_id = row.iloc[0].split("combat_ILGSA24-17303_")[1]
+        elif "combat_ILGSA24-17873" in row.iloc[0]:
 
             #do the same if the name of the second batch is included in the family ID
             fam_id = "combat_ILGSA24-17873"
-            within_id = row[0].split("combat_ILGSA24-17873_")[1]
+            within_id = row.iloc[0].split("combat_ILGSA24-17873_")[1]
 
         #return the family and within family ID
         return ([fam_id, within_id])
 
     #apply the function and save the result as the family and within family ID
-    fam_chrom[[0, 1]] = fam_chrom.apply( \
+    fam_chrom.iloc[:, [0, 1]] = fam_chrom.apply( \
         extract_within_fam_id, \
         axis=1,  \
         result_type="expand" \
@@ -493,34 +519,35 @@ for chromosome in range(22,23):
         #result_type='expand' parameter ensures that the returned tuple is split into separate columns.
 
     #check that the new ID columns are the same than the original family ID when put together with "_"
-    if (not original_fam_id[0].equals(fam_chrom[0] + "_" + fam_chrom[1])) | (not original_fam_id[1].equals(fam_chrom[0] + "_" + fam_chrom[1])):
+    if (not original_fam_id.iloc[:, 0].equals(fam_chrom.iloc[:, 0] + "_" + fam_chrom.iloc[:, 1])) | (not original_fam_id[1].equals(fam_chrom.iloc[:, 0] + "_" + fam_chrom.iloc[:, 1])):
         raise ValueError("ERROR! FALSE! PROBLEM SPLITTING FAMILY AND WITHIN FAMILY IDS")
 
     #save the new IDs following the format that "--update-ids" expects
-    
-    new_fam = pd.concat([original_fam_id, fam_chrom[[0,1]]], axis=1)
-    
-    if (not new_fam.iloc[:,0].equals(new_fam.iloc[:,2] + "_" + new_fam.iloc[:,3])) | (not new_fam.iloc[:,1].equals(new_fam.iloc[:,2] + "_" + new_fam.iloc[:,3])):
+    new_fam_id = pd.concat([original_fam_id, fam_chrom.iloc[:, [0,1]]], axis=1)
+        #we have to bind columns to have the following
+            #Old family ID
+            #Old within-family ID
+            #New family ID
+            #New within-family ID
+    #check
+    if (not new_fam_id.iloc[:,0].equals(new_fam_id.iloc[:,2] + "_" + new_fam_id.iloc[:,3])) | (not new_fam_id.iloc[:,1].equals(new_fam_id.iloc[:,2] + "_" + new_fam_id.iloc[:,3])):
         raise ValueError("ERROR! FALSE! PROBLEM SPLITTING FAMILY AND WITHIN FAMILY IDS")
-
-
-    new_fam.to_csv( \
-        "./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "_new_fam_id.txt", \
+    #save
+    new_fam_id.to_csv( \
+        "./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "/chr" + str(chromosome) + "_new_fam_id.txt", \
         header=None, \
         index=None, \
         sep=" " \
     )
     
-    
-
-    #update the fam file
+    #update the IDs in the fam file
     run_bash(" \
-        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets; \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "; \
         plink \
-            --bfile chr" + str(chromosome) + "_post_imput \
-            --update-ids chr" + str(chromosome) + "_new_fam_id.txt \
+            --bfile ./chr" + str(chromosome) + "_post_imput \
+            --update-ids ./chr" + str(chromosome) + "_new_fam_id.txt \
             --make-bed \
-            --out chr" + str(chromosome) + "_post_imput_updated_ids \
+            --out ./chr" + str(chromosome) + "_post_imput_updated_ids \
     ")
         #--update-ids expects input with the following four fields:
             #Old family ID
@@ -528,50 +555,85 @@ for chromosome in range(22,23):
             #New family ID
             #New within-family ID
 
-
-    pd.read_csv( \
+    ##Update the sex
+    #load the last fam file before imputation, extract IDs and sex and then save
+    last_fam_before_imput = pd.read_csv( \
         "./data/genetic_data/quality_control/18_last_maf_missing_check/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean.fam", \
         header=None, \
         sep=" " \
-    )[[0, 1, 4]].to_csv("./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "_new_fam_sex.txt", header=None, index=None, sep=" ")
-
-    run_bash(" \
-        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets; \
-        plink \
-            --bfile chr" + str(chromosome) + "_post_imput_updated_ids \
-            --update-sex chr" + str(chromosome) + "_new_fam_sex.txt \
-            --make-bed \
-            --out chr" + str(chromosome) + "_post_imput_updated_ids_sex \
-    ")
-
+    )
+    last_fam_before_imput.iloc[:, [0, 1, 4]].to_csv("./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "/chr" + str(chromosome) + "_new_fam_sex.txt", header=None, index=None, sep=" ")
         #--update-sex expects a file with FIDs and IIDs in the first two columns, and sex information (1 or M = male, 2 or F = female, 0 = missing) in the (n+2)th column. If no second parameter is provided, n defaults to 1. It is frequently useful to set n=3, since sex defaults to the 5th column in .ped and .fam files.
 
+    #update sex
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "; \
+        plink \
+            --bfile ./chr" + str(chromosome) + "_post_imput_updated_ids \
+            --update-sex ./chr" + str(chromosome) + "_new_fam_sex.txt \
+            --make-bed \
+            --out ./chr" + str(chromosome) + "_post_imput_updated_ids_sex \
+    ")
+        #--update-sex expects a file with FIDs and IIDs in the first two columns, and sex information (1 or M = male, 2 or F = female, 0 = missing) in the (n+2)th column. If no second parameter is provided, n defaults to 1. It is frequently useful to set n=3, since sex defaults to the 5th column in .ped and .fam files.
 
-    #WE SHOULD CREATE A FOLDER FOR EACH CHROMOSOME, TOO MUCH FILES
+    #check the final fam file is identical to the last fam file before imputation
+    if not pd.read_csv("./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "/chr" + str(chromosome) + "_post_imput_updated_ids_sex.fam", header=None, sep=" ").equals(last_fam_before_imput):
+        raise ValueError("ERROR! FALSE! We have a problem creating the new fam files")
+
+    #ensure we have SNPs wit acgt
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "; \
+        plink \
+            --bfile ./chr" + str(chromosome) + "_post_imput_updated_ids_sex \
+            --make-bed \
+            --snps-only just-acgt \
+            --out ./chr" + str(chromosome) + "_post_imput_updated_ids_sex_snps_only \
+    ")
+        #--snps-only excludes all variants with one or more multi-character allele codes. With 'just-acgt', variants with single-character allele codes outside of {'A', 'C', 'G', 'T', 'a', 'c', 'g', 't', <missing code>} are also excluded.
+
+    #copy the files to the merging folder
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "/; \
+        cp ./chr" + str(chromosome) + "_post_imput_updated_ids_sex_snps_only.bim ../merged_file_sets; \
+        cp ./chr" + str(chromosome) + "_post_imput_updated_ids_sex_snps_only.bed ../merged_file_sets; \
+        cp ./chr" + str(chromosome) + "_post_imput_updated_ids_sex_snps_only.fam ../merged_file_sets; \
+    ")
+
+
+merging_prep(20)
+
+
+chromosomes = [str(i) for i in range(1, 23, 1)]
+print((len(chromosomes) == 22))
+print(chromosomes)
+
+import multiprocessing as mp
+pool = mp.Pool(len(chromosomes))
+pool.map(merging_prep, chromosomes)
+pool.close()
 
 
 
 
-##you have to update the familiny and within famoly ids by splitting here in python...
+
+#EL SIGUIENTE STEP COULD GO IN THE FUNCTION
+
+import pandas as pd
 
 
-
-#solucionar el delimitiadors para fmily and iwhiting ID, tal vez podemos usar the ID el completo batch and sample ID... y crear una variable nueva por separado para separa batchers??
-    #https://www.cog-genomics.org/plink/1.9/input#vcf
-
-
-print_text("make mergelist.txt file with the list of chromosomes to merge", header=2)
+print_text("make mergelist.txt file with the list of chromosomes to merge", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/21_post_imputation_qc; \
-    seq 2 22 | sed 's/^/chr/' > mergelist.txt \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets; \
+    seq 2 22 | sed 's/^/chr/; s/$/_post_imput_updated_ids_sex_snps_only/' > mergelist.txt  \
 ")
     #seq 2 22 to get the numbers from 2 to 22
     #sed is a stream editor used for text manipulation.
         #s stands for substitution.
-        #^ is a regular expression that matches the beginning of a line.
-            #I understand this will match any row because you are looking for rows starting with "" and not pattern is used, so you are basically selecting the start of each row
-            #to substitute only rows starting with 1, you would do  sed 's/^1/chr1/'
+        #/ is the delimiter that separates the different parts of the command.
+        #^ is a regular expression that matches the beginning of a line. If you use 's/^1/chr/', this means you are looking for rows starting with 1, and substitute 1 by chr. In our case, we are just using /^/, so that means we select all rows and nothing is substituted, we just add "chr" 
         #chr is the string to be inserted at the beginning of each line.
+        #$ is a special character that represents the end of a line. The same than "^" but for the end of the line. We add the string required.
+
 
 print_text("check we have the correct versions of plink and plink2. We are using plink1.9 for mergning", header=2)
 plink_version=run_bash("plink --version", return_value=True).strip()
@@ -583,19 +645,37 @@ else:
 
 print_text("Merge chromosome files into 1 bim/bed/bam file THIS TAKES A LONG TIME", header=2)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets/; \
     plink \
-        --bfile ./20_imputation_results/04_uncompressed_vcf_files/chr1 \
-        --merge-list ./21_post_imputation_qc/mergelist.txt \
+        --bfile ./chr1_post_imput_updated_ids_sex_snps_only \
+        --merge-list ./mergelist.txt \
         --make-bed \
-        --out ./21_post_imputation_qc/merged \
+        --out ./merged \
 ")
 
+    #parallle thi step??
 
-###por aquii
-### FALTA UN Step, tenemos que descomprimir los VCF de dentro y convert a bim
+    ##ERROR
+        #VARIANTS WITH NAME "."
+        #SOME VARIANTS HAVE MULTIPLE ALLELES! rs1343820225 IS TATCA!!!
 
-##once merged, REMOVED DECOMPRESSED VCF FILES
+    #check rs1343820225 isn its vcf, we could remove them
+        #this is an indel!
+        #https://www.ncbi.nlm.nih.gov/snp/rs1343820225
+        #        --snps-only just-acgt \
+            #do not solve the problem still 2K only with 
+
+    #si tienes dos SNPs with the name "." in two different chromsomeos, they are different but whem mergin plink puts all their alleles toegher, so you get more than 3 alleles even removing indels
+
+    #main source of error:
+        #Some SNPs have two rows in one rwo have 2 alleles and in the other row other two! list-duplicate-vars cannot detect them because they have different alleles.
+            #chr22: rs116991429
+            #chr21: rs11701254
+
+
+    ##THERE ARE A FEW CASES WITH THE SAME POSITION BUT DIFFERNET ID, ONE HAS RS AND THE OTHER "."
+    ##WE HAVE TO REMOVE SNPs just with the same positon.
+    #see biostart thread kevin and chan options
 
 
 
@@ -608,4 +688,6 @@ run_bash(" \
     #./quality_control/data/genetic_data/quality_control/20_imputation_results/04_uncompressed_vcf_files/
 
 
+
+###STOP THIS STEP HERE AND CREATE A NEW SCRIPT FOR THE QC
 
