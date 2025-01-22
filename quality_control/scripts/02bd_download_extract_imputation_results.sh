@@ -14,7 +14,7 @@
 #IMPORTANT: THIS IS A ONE TIME RUN SCRIPT! This worked while our imputation results were available in TOPMed, but this is no longer the case.
 
 #set the wd
-cd ./quality_control/data/genetic_data/quality_control/20_imputation_results/
+cd ./data/genetic_data/quality_control/20_imputation_results/
 
 #create folders
 mkdir -p ./00_screenshots

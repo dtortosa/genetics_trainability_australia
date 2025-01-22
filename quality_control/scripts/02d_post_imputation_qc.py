@@ -158,14 +158,14 @@ print_text("APPLY QC", header=1)
 print_text("prepare folders", header=2)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
-    mkdir ./01_first_qc_step; \
-    mkdir ./02_second_qc_step; \
+    mkdir -p ./01_first_qc_step; \
+    mkdir -p ./02_second_qc_step; \
+    mkdir -p ./03_third_qc_step; \
 ")
 
 
 print_text("FIRST QC STEP", header=2)
-
-
+print_text("filter", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/01_first_qc_step/; \
     plink2 \
@@ -176,17 +176,116 @@ run_bash(" \
     ls ./merged_1_geno.* \
 ")
     #Want to QC on geno 0.01 (geno filters out all variants with missing call rates exceeding the provided value to be removed)
+        #we are using the same value used in Ritchie´s tutorial
+    #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
 
-
+print_text("check we have not lost any sample", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/21_post_imputation_qc/01_first_qc_step/; \
-    n_snps_after_filtering=<(awk 'END{print NR}' merged_1_geno.bim)>; \
-    echo $n_snps_after_filtering; \
-") #ERROR HERE!!!!
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
+    n_snps_before_filtering=$(awk 'END{print NR}' ./00_plink_filesets/merged_file_sets/merged.bim); \
+    n_snps_after_filtering=$(awk 'END{print NR}' ./01_first_qc_step/merged_1_geno.bim); \
+    if [[ $n_snps_after_filtering -ne $n_snps_before_filtering ]]; then \
+        echo 'ERROR: FALSE! WE HAVE A PROBLEM WITH THE FIRST QC FILTER'; \
+    else \
+        echo 'FIRST QC FILTER WORKED FINE'; \
+    fi \
+")
 
-#check unmber SNPS removes
+
+print_text("SECOND QC STEP", header=2)
+print_text("filter", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
+    plink2 \
+        --bfile ./01_first_qc_step/merged_1_geno \
+        --mind 0.01 \
+        --maf 0.05 \
+        --hwe 0.05 \
+        --make-bed \
+        --out ./02_second_qc_step/merged_2_geno; \
+    ls ./02_second_qc_step/merged_2_geno.* \
+")
+    #Want to QC on
+        #mind 0.01 (filters out al lthe samples with missing call rates exceeding the provided value to be removed)
+        #maf 0.05 (filters out all variants with minor allele frequency below the provided threshold)
+        #hwe: filters out all variants which have Hardy-Weinberg equilibrium exact test p-value below p·10-nk, where n is the sample size, and k is 0 if unspecified.
+
+print_text("check we have the same number of samples and at least 5M SNPs", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
+    n_snps_after_filtering=$(awk 'END{print NR}' ./02_second_qc_step/merged_2_geno.bim); \
+    n_samples_before_filtering=$(awk 'END{print NR}' ./01_first_qc_step/merged_1_geno.fam); \
+    n_samples_after_filtering=$(awk 'END{print NR}' ./02_second_qc_step/merged_2_geno.fam); \
+    if [[ $n_snps_after_filtering -lt 5000000  || $n_samples_after_filtering -ne $n_samples_before_filtering ]]; then \
+        echo 'ERROR: FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER'; \
+    else \
+        echo 'SECOND QC FILTER WORKED FINE'; \
+    fi \
+")
+
+
+print_text("THIRD QC STEP", header=2)
+print_text("filter", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
+    plink2 \
+        --bfile ./02_second_qc_step/merged_2_geno \
+        --mind 0.01 \
+        --make-bed \
+        --out ./03_third_qc_step/merged_3_geno; \
+    ls ./03_third_qc_step/merged_3_geno.* \
+")
+
+print_text("check we do not lose any sample", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
+    n_samples_before_filtering=$(awk 'END{print NR}' ./02_second_qc_step/merged_2_geno.fam); \
+    n_samples_after_filtering=$(awk 'END{print NR}' ./03_third_qc_step/merged_3_geno.fam); \
+    if [[ $n_samples_after_filtering -ne $n_samples_before_filtering ]]; then \
+        echo 'ERROR: FALSE! WE HAVE A PROBLEM WITH THE THIRD QC FILTER'; \
+    else \
+        echo 'THIRD QC FILTER WORKED FINE'; \
+    fi \
+")
+    #In the previous steps no sample was removed, so the MAF and HWE of any SNP should be affected, rembember that removing a SNP becuase it has low MAF does not influence the MAF of other SNP.
+    #However, as we have removed millions of SNPs in the pervious step, it is possible that the proportion of missing could increase in some sample, so we repeat the --mind filter again to check that no sample is removed with the reduced set of SNPs.
+
+
+print_text("check that we do not have ANY snp with an RSQ equal or lower than 0.3", header=3)
+run_bash(" \
+    for chrom_numb in {1..22}; do \
+        echo \"Starting chromosome ${chrom_numb}\"; \
+        awk \
+            'BEGIN{FS=\";\"; start=\"no\"}{ \
+                if (start==\"yes\"){ \
+                    split($5, a, \"=\"); \
+                    if (a[2] <= 0.3){ \
+                        exit 1; \
+                    } \
+                }; \
+                if (/^#CHROM/){ \
+                    start=\"yes\"; \
+                } \
+            }' \
+            <(gunzip --keep --stdout ./data/genetic_data/quality_control/20_imputation_results/04_uncompressed_vcf_files/chr${chrom_numb}.info.gz); \
+        echo \"Chromosome ${chrom_numb} is OK\"; \
+    done; \
+")
+    #For each chromosome
+        #decompres the INFO file and send it to stdout on the fly, being used as input for AWK
+        #split by ";" so we can separate the INFO fields which are separated by ";". Also create a variable called start being equal to "no".
+        #do stuff only if start is "yes", and that would be only the case after we pass the row with the names of the columns of the VCF file, i.e., we skip the header.
+        #in each row, split the 5th fields (R2=...) using "=" and save the two elements, R2 and the number in "a", if a2, i.e., the value of R2 is equal or lower than 0.3, then stop the execution.
+
+
 
 
 #CHECK RITCHIE PAPER TO SEE IF MISSING STEP
+    #DECIDE WHETHER TO USE 0.05 OR 0.01 FOR MAF... IT IS PERCENTAGE?
+
+
+#CHECK THE CHROSOMOE CODES! WE HAVE USED PLINK2 AND THAT CHANGES IT
+
+
 
 # endregion
