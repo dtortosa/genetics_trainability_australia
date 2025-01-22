@@ -12,9 +12,9 @@
 
 
 
-##########################################
-######## POST IMPUTATION MERGNING ########
-##########################################
+####################################
+######## POST IMPUTATION QC ########
+####################################
 
 #This script is based on the following tutorials:
     #1. Quality Control Procedures for Genome-Wide Association Studies
@@ -145,3 +145,48 @@ run_bash("ls")
 
 # endregion
 
+
+
+
+
+
+###################
+# region APPLY QC #
+###################
+
+print_text("APPLY QC", header=1)
+print_text("prepare folders", header=2)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
+    mkdir ./01_first_qc_step; \
+    mkdir ./02_second_qc_step; \
+")
+
+
+print_text("FIRST QC STEP", header=2)
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/01_first_qc_step/; \
+    plink2 \
+        --bfile ../00_plink_filesets/merged_file_sets/merged \
+        --geno 0.01 \
+        --make-bed \
+        --out merged_1_geno; \
+    ls ./merged_1_geno.* \
+")
+    #Want to QC on geno 0.01 (geno filters out all variants with missing call rates exceeding the provided value to be removed)
+
+
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/01_first_qc_step/; \
+    n_snps_after_filtering=<(awk 'END{print NR}' merged_1_geno.bim)>; \
+    echo $n_snps_after_filtering; \
+") #ERROR HERE!!!!
+
+#check unmber SNPS removes
+
+
+#CHECK RITCHIE PAPER TO SEE IF MISSING STEP
+
+# endregion

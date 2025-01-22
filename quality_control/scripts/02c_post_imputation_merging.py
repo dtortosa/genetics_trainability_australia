@@ -446,7 +446,7 @@ def merging_prep(chromosome):
         bcftools view \
             --types snps | \
         bcftools annotate \
-            --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' | \
+            --set-id '%CHROM\_%POS\_%REF\_%FIRST_ALT' \
             --output-type z \
             --output ./chr${chr_numb}.dose.snps_non_multi_new_snp_ids.vcf.gz; \
         gunzip \
@@ -468,6 +468,9 @@ def merging_prep(chromosome):
                 #this combines snps with the same position and at least equal REF or ALT. Therefore, this makes that a SNP with three alleles is within just one row, so we can filter it in the next step.
                 #join biallelic sites into multiallelic records (+). An optional type string can follow which controls variant types which should be split or merged together: If only SNP records should be split or merged, specify snps; if both SNPs and indels should be merged separately into two records, specify both; if SNPs and indels should be merged into a single record, specify any.
         #remove variants with more than 2 alleles, as these are multiallelic (multiallelic SNPs were merged in the previous step)
+            #applying this step and removing multiallelic variants makes all the merging errors to dissappear
+                #PLINK cannot properly resolve genuine triallelic variants. We recommend exporting that subset of the data to VCF, using another tool/script to perform the merge in the way you want, and then importing the result. Note that, by default, when more than one alternate allele is present, --vcf keeps the reference allele and the most common alternate. (--[b]merge's inability to support that behavior is by design: the most common alternate allele after the first merge step may not remain so after later steps, so the outcome of multiple merges would depend on the order of execution.)
+                #https://www.cog-genomics.org/plink/1.9/data#merge
         #select only SNPs 
             #some variants are indels, for example, chr21_10090492_AG_A (rs1211611360) or chr21_10088665_GC_G (rs1241342440) in chromosome 21.
             #Also, I have detected that these indels have a position that differ in 1 based respect to NCBI matching the "Canonical SPDI:". I do not fully understand this, but the point is that the non-indel SNPs have a coordinate matching exactly NCBI hg38. Given we are removing indels, I think we are good.
@@ -601,6 +604,18 @@ def merging_prep(chromosome):
             --out ./chr" + str(chromosome) + "_post_imput_updated_ids_sex_snps_only \
     ")
         #--snps-only excludes all variants with one or more multi-character allele codes. With 'just-acgt', variants with single-character allele codes outside of {'A', 'C', 'G', 'T', 'a', 'c', 'g', 't', <missing code>} are also excluded.
+
+    #check we have the correct number of files
+    run_bash(" \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "; \
+        n_files=$(ls -1 | wc -l); \
+        expected_n_files=22; \
+        if [[ $n_files -eq $expected_n_files ]]; then \
+            echo 'CORRECT NUMBER OF FILES'; \
+        else \
+            echo 'ERROR! FALSE! WRONG NUMBER OF FILES'; \
+        fi \
+    ")
 
     #copy the files to the merging folder
     run_bash(" \
