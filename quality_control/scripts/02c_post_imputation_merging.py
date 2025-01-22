@@ -699,7 +699,12 @@ run_bash(" \
         ./merged.bim \
 ")
     
+# endregion
+
 
 
 print_text("FINISH", header=1)
-
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control
+#chmod +x ./scripts/02c_post_imputation_merging.py
+#singularity exec ./singularity_containers/02c_post_input_qc.sif ./scripts/02c_post_imputation_merging.py > 02c_post_imputation_merging.out 2>&1

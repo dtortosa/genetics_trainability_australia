@@ -66,7 +66,7 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
 	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/evalAdmix_versions/evalAdmix/evalAdmix /bin/evalAdmix
 
 	#copy scripts
-	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/scripts/02c_post_imputation_qc.py /opt/scripts/02c_post_imputation_qc.py
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/scripts/02c_post_imputation_merging.py /opt/scripts/02c_post_imputation_merging.py
 
     #From the original folder in the host, we copy a R script to a new folder in the container called scripts. NEVER PUT ANYTHING ELSE IN THE LINE WITH SOURCE AND DESTINATION, GIVES ERROR.
     #https://groups.google.com/a/lbl.gov/forum/#!topic/singularity/4NFDsohnxgg
@@ -170,69 +170,6 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
     make install
 	#go out of this directory to the directories outside the container
 	cd
-
-
-	##R installation
-	#code obtained from
-		#https://linuxize.com/post/how-to-install-r-on-ubuntu-20-04/
-		#https://cloud.r-project.org/bin/linux/ubuntu/
-
-	# update indices
-	apt update -y
-
-	#required for R installation
-	apt -y install gnupg
-	apt -y install lsb-release
-
-	#add the new key of the repo to connect in a secured way
-	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-	
-	#add the R repository for R.4 (cran40)
-	add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/"
-		#Here we use lsb_release -cs to access which Ubuntu flavor you run: bionic (18.04), focal (20.04)...
-
-	#you can check whether the correct repo has been added to sources.list
-	#cat /etc/apt/sources.list
-	
-	#update packages
-	apt-get -y update
-
-	#install R and r-base-dev, which has all the ubuntu packages needed for R package compilation
-	DEBIAN_FRONTEND=noninteractive apt-get install -y r-base r-base-dev
-
-	#install curl packages to avoid problems with R package compilation
-	apt-get -y install libcurl4-gnutls-dev libxml2-dev libssl-dev
-
-	#install R packages
-	#Rscript -e 'install.packages("devtools", repos="https://cloud.r-project.org", dep=T)' 
-	#Rscript -e 'devtools::install_github("jalvesaq/colorout")' 
-	#Rscript -e 'devtools::install_github("DanielRivasMD/SistWrapper")'
-
-	#create the .Rprofile
-	echo '
-		#specify folder with packages
-    	.libPaths("/usr/local/lib/R/site-library")
-
-		#we avoid loading the previous workspace by removing the rdata file of the last session
-		file.remove(".RData") #if no R data is present, a warning will be produced.
-		
-		#Just in case, we remove any previous object
-		rm(list=ls())
-		
-		#and liberate the space with the garbage collector
-		gc()
-		
-		#load colorout package to have colorful outputs in the R console
-		require(colorout)
-		
-		#load SystWrapper package. In that we can use the function wideScreen to change the number of columns and rows showed in the R terminal
-		require(SystWrapper)
-		
-		#For this script we want to see more than 8 digits in the terminal. 8 is the default, so for example, if you make the following division: (45959538+45965751)/2. You will get 45962644, instead of 45962644.5, which is the correct solution. This is caused becasue 45962644.5 has more than 8 numbers, so the last one it is not shown. This does not mean that the calculation is wrong, the correct calculus is made (you can check it with print(x, digits=8 or 9)), but you don´t see the complete solution in the terminal. Because of this, for this work with long numbers (genetic coordinates) we will set the a higher number of digits that are shown
-		options(digits = 10)' > /opt/.Rprofile
-		#https://www.cyberciti.biz/faq/linux-append-text-to-end-of-file/
-		#if you want more option to easily customize your R profile, check this link out:
-			#https://www.r-bloggers.com/2020/01/customising-your-rprofile/
 
 	#update repos to install python
 	#Create PPA (Personal Package Archive)
@@ -370,7 +307,7 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
 	
 	#run the python program for each batch. The programa uses python3.9 as interpreter (indicated at the top of the script)
 	#run first the smallest batch with all cores and then the second batch. If we do it in parallel both batches with half of the cores, then the smallest one will be finished early and its cores will not be used by the other batch.
-	/opt/scripts/./02c_post_imputation_qc.py --n_cores=28 > ./02c_post_imputation_qc.out 2>&1
+	#/opt/scripts/./02c_post_imputation_merging.py > ./02c_post_imputation_merging.out 2>&1
 
 
 
