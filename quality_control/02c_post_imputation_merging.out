@@ -1,0 +1,34 @@
+
+#######################################
+#######################################
+checking function to print nicely
+#######################################
+#######################################
+
+###### checking function to print nicely ######
+
+#######################################
+#######################################
+check behaviour run_bash
+#######################################
+#######################################
+
+###### see working directory ######
+/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control
+
+
+###### list files/folders there ######
+02a_pre_imputation_qc.out
+02bb_pre_imputation_qc_eval_admix_plot.Rout
+02c_post_imputation_merging.out
+data
+literature
+scripts
+singularity_containers
+
+
+#######################################
+#######################################
+FINISH
+#######################################
+#######################################

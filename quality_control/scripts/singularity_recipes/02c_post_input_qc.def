@@ -247,7 +247,7 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
 	#pip3.9 install --upgrade pandas
 	
 	#give rights to run the bash script
-	chmod +x /opt/scripts/02c_post_imputation_qc.py
+	#chmod +x /opt/scripts/02c_post_imputation_merging.py
 	
 
 
