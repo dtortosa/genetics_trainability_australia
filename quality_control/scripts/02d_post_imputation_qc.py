@@ -168,7 +168,7 @@ print_text("FIRST QC STEP", header=2)
 print_text("filter", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/01_first_qc_step/; \
-    plink2 \
+    plink \
         --bfile ../00_plink_filesets/merged_file_sets/merged \
         --geno 0.01 \
         --make-bed \
@@ -179,7 +179,7 @@ run_bash(" \
         #we are using the same value used in Ritchie´s tutorial
     #--geno filters out all variants with missing call rates exceeding the provided value (default 0.1) to be removed, while --mind does the same for samples.
 
-print_text("check we have not lost any sample", header=3)
+print_text("check we have not lost any SNP due to missingness", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
     n_snps_before_filtering=$(awk 'END{print NR}' ./00_plink_filesets/merged_file_sets/merged.bim); \
@@ -196,26 +196,41 @@ print_text("SECOND QC STEP", header=2)
 print_text("filter", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
-    plink2 \
+    plink \
         --bfile ./01_first_qc_step/merged_1_geno \
-        --mind 0.01 \
         --maf 0.05 \
-        --hwe 0.05 \
+        --hwe 1e-6 midp \
+        --mind 0.01 \
         --make-bed \
         --out ./02_second_qc_step/merged_2_geno; \
     ls ./02_second_qc_step/merged_2_geno.* \
 ")
     #Want to QC on
-        #mind 0.01 (filters out al lthe samples with missing call rates exceeding the provided value to be removed)
         #maf 0.05 (filters out all variants with minor allele frequency below the provided threshold)
-        #hwe: filters out all variants which have Hardy-Weinberg equilibrium exact test p-value below p·10-nk, where n is the sample size, and k is 0 if unspecified.
+            #0.05 is the same MAF filter used pre-imputation, which makes sense given our sample size, not small but also not very big. Check line 1835 in 02a_pre_imputation_qc.py for futher details about the reasoning behind the decision. That took into account Ritchie´s explanations for MAF filtering after imputation.
+            #If you check you will see that the question is between 0.05 and 0.01, we selected the most stringent option pre-imputation, i.e., only retaining SNPs with a MAF above 0.05, removing all SNPs between 0.05 and 0.01.
+            #If you check Figure 8 in Ritchie´s paper, you will see that the power is very low for SNPs with a MAF under 0.05 even if they have a strong odds-ratio (1.3 or more) and the sample size is big (5000 cases and 5000 controls).
+                #http://csg.sph.umich.edu/abecasis/cats/gas_power_calculator/index.html
+            #It does not make sense to retain these SNPs given their low power and the increase in computational and multiple-test burden. So we are going for 0.05.
+        #hwe:
+            #filters out all variants which have Hardy-Weinberg equilibrium exact test p-value below p·10-nk, where n is the sample size, and k is 0 if unspecified.
+            #--hwe's 'midp' modifier applies the mid-p adjustment described in Graffelman J, Moreno V (2013) The mid p-value in exact tests for Hardy-Weinberg equilibrium. The mid-p adjustment tends to bring the null rejection rate in line with the nominal p-value, and also reduces the filter's tendency to favor retention of variants with missing data. We recommend its use.
+            #I think there is an error in Ritchie´s github here, because they say they are using --hardy to test for HWE deviations but then the code show -hwe 0.05, which is a very stringent filter.
+            #In the Ritchie tutorial, they initially say that one of the steps after imputation is "Flag/Remove Variants Out of Hardy-Weinberg Equilibrium (HWE)" but then in the corresponding section, they say that the deviations should not removed as it has been consistently shown that the number of SNPs deviating from HWE at any given significance threshold than would be expected by chance. They could be indeed SNPs under selection and, hence, implicated in traits. 
+            #Maares and O´really tutorials suggest to remove cases with P lower than 1e-6, while plinkt suggests a more lower threshold (1e-25) with the idea to retain anything legit but remove clear deviations as these are likely genotyping errors. The point is that THEY ARE REFERING TO PRE-IMPUTATION! However, Augusto applied the 10−6 filter AFTER IMPUTATION.
+            #Given that there is likely an error in Ritchie´s Github due to inconsistence between Github and the paper, and the fact that Maares and O´reilly's tutorials suggest to use 10-6 and Augusto used that threshold after imputation, we are going to use that. It is also an approach that does not remove many SNPs, so we are removing likely genotyping/problematic errors while living potentially relevant SNPs.
+        #mind 0.01 (filters out al the samples with missing call rates exceeding the provided value to be removed)
+            #We are using the same value used pre-imputation. Check line 2468 in 02a_pre_imputation_qc.py for futher details about the reasoning behind the decision
+            #In any case, no sample is removed in this step, so we are good.
 
 print_text("check we have the same number of samples and at least 5M SNPs", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
+    n_snps_before_filtering=$(awk 'END{print NR}' ./01_first_qc_step/merged_1_geno.bim); \
     n_snps_after_filtering=$(awk 'END{print NR}' ./02_second_qc_step/merged_2_geno.bim); \
     n_samples_before_filtering=$(awk 'END{print NR}' ./01_first_qc_step/merged_1_geno.fam); \
     n_samples_after_filtering=$(awk 'END{print NR}' ./02_second_qc_step/merged_2_geno.fam); \
+    echo \"We had ${n_snps_before_filtering} SNPs before filtering and ${n_snps_after_filtering} after filtering, i.e., we have lost $((${n_snps_before_filtering}-${n_snps_after_filtering})) \"; \
     if [[ $n_snps_after_filtering -lt 5000000  || $n_samples_after_filtering -ne $n_samples_before_filtering ]]; then \
         echo 'ERROR: FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER'; \
     else \
@@ -223,12 +238,85 @@ run_bash(" \
     fi \
 ")
 
+print_text("check how many SNPs we retain due to setting the HWE threshold at 1-e6 instead of 0.05 and how many are under 1e-6", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/01_first_qc_step/; \
+    plink \
+        --bfile ./merged_1_geno \
+        --hardy \
+        --out ./merged_1_geno; \
+    snps_between_thresholds=$( \
+        awk \
+            'BEGIN{FS=\" \"}{ \
+                if(NR>1){ \
+                    if($9 >= 1e-6 && $9 <=0.05){ \
+                        count++; \
+                    } \
+                } \
+            }END{print count}' \
+            ./merged_1_geno.hwe; \
+    ); \
+    snps_under_06=$( \
+        awk \
+            'BEGIN{FS=\" \"}{ \
+                if(NR>1){ \
+                    if($9 < 1e-6){ \
+                        count++; \
+                    } \
+                } \
+            }END{print count}' \
+            ./merged_1_geno.hwe; \
+    ); \
+    echo \"We have ${snps_between_thresholds} SNPs with a HWE p-value between 1e-6 and 0.05\"; \
+    echo \"We have ${snps_under_06} SNPs with a HWE p-value under 1e-6\"; \
+    if [[ ${snps_between_thresholds} -lt 300000 || ${snps_under_06} -gt 200 ]]; then \
+        echo 'ERROR! FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER, WE HAVE NOT RECOVERED AS MANY SNPS AS EXPECTED BY DECREASING THE HWE THRESHOLD OR THE NUMBER OF SNPS BELOW HWE 1E-6 IS TOO HIGH'; \
+    else \
+        echo 'OK!'; \
+    fi \
+")
+    #create a hwe file with plink where the 9th column contains the HWE p-value
+    #start procesing after the first row to skip the header
+    #if the P-value columns is between 0.01 and 0.05, add 1 to the count
+    #save the count as a variable and check it is not lower than 300K
+    #do the same with the SNPs under 1-6 and check is not larger than 200
+
+print_text("check we do not lose too many SNPs for increasing MAF filter from 0.01 to 0.05", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/01_first_qc_step/; \
+    plink \
+        --bfile ./merged_1_geno \
+        --freq \
+        --out ./merged_1_geno; \
+    snps_between_01_05=$( \
+        awk \
+            'BEGIN{FS=\" \"}{ \
+                if(NR>1){ \
+                    if($5 >= 0.01 && $5 <= 0.05){ \
+                        count++; \
+                    } \
+                } \
+            }END{print count}' \
+            ./merged_1_geno.frq; \
+    ); \
+    echo \"We have ${snps_between_01_05} SNPs with a MAF between 0.01 and 0.05\"; \
+    if [[ $snps_between_01_05 -gt 3000000 ]]; then \
+        echo 'ERROR! FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER, WE LOST MORE THAN 3M OF SNPS DUE TO INCREASE MAF FROM 0.01 TO 0.05'; \
+    else \
+        echo 'OK! WE LOSE A REASONABLE AMOUNT OF SNPS DUE TO INCREASE MAF FROM 0.01 TO 0.05'; \
+    fi \
+")
+    #create a freq file with plink where the 5th column contains the MAF
+    #start procesing after the first row to skip the header
+    #if the MAF column is between 0.01 and 0.05, add 1 to the count
+    #save the count as a variable and check it is not larger than 3M
+
 
 print_text("THIRD QC STEP", header=2)
 print_text("filter", header=3)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
-    plink2 \
+    plink \
         --bfile ./02_second_qc_step/merged_2_geno \
         --mind 0.01 \
         --make-bed \
@@ -241,7 +329,7 @@ run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/; \
     n_samples_before_filtering=$(awk 'END{print NR}' ./02_second_qc_step/merged_2_geno.fam); \
     n_samples_after_filtering=$(awk 'END{print NR}' ./03_third_qc_step/merged_3_geno.fam); \
-    if [[ $n_samples_after_filtering -ne $n_samples_before_filtering ]]; then \
+    if [[ ${n_samples_after_filtering} -ne ${n_samples_before_filtering} ]]; then \
         echo 'ERROR: FALSE! WE HAVE A PROBLEM WITH THE THIRD QC FILTER'; \
     else \
         echo 'THIRD QC FILTER WORKED FINE'; \
@@ -249,7 +337,6 @@ run_bash(" \
 ")
     #In the previous steps no sample was removed, so the MAF and HWE of any SNP should be affected, rembember that removing a SNP becuase it has low MAF does not influence the MAF of other SNP.
     #However, as we have removed millions of SNPs in the pervious step, it is possible that the proportion of missing could increase in some sample, so we repeat the --mind filter again to check that no sample is removed with the reduced set of SNPs.
-
 
 print_text("check that we do not have ANY snp with an RSQ equal or lower than 0.3", header=3)
 run_bash(" \
@@ -276,16 +363,16 @@ run_bash(" \
         #split by ";" so we can separate the INFO fields which are separated by ";". Also create a variable called start being equal to "no".
         #do stuff only if start is "yes", and that would be only the case after we pass the row with the names of the columns of the VCF file, i.e., we skip the header.
         #in each row, split the 5th fields (R2=...) using "=" and save the two elements, R2 and the number in "a", if a2, i.e., the value of R2 is equal or lower than 0.3, then stop the execution.
-
-
-
-
-#CHECK RITCHIE PAPER TO SEE IF MISSING STEP
-    #DECIDE WHETHER TO USE 0.05 OR 0.01 FOR MAF... IT IS PERCENTAGE?
-
-
-#CHECK THE CHROSOMOE CODES! WE HAVE USED PLINK2 AND THAT CHANGES IT
-
-
+    #Note that Augusto applied an R2 filter under 0.9 instead of 0.7. We have used the most stringent filter option in TOPMed and the recommendation from Ritchie´s tutorial.
+        #AUGUSTO POST-IMPTUATION: Once our genomic data were imputed, a second quality control analysis was performed with PLINK 1.9 software [13]. The second quality control exclusion criteria were: low imputation quality (𝑅2<0.9); variants that did not meet the Hardy–Weinberg equilibrium (HWE-P>10−6); and low minor allele frequency (MAF<0.01) [14].
 
 # endregion
+
+
+
+
+print_text("FINISH", header=1)
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control
+#chmod +x ./scripts/02d_post_imputation_qc.py
+#singularity exec ./singularity_containers/02c_post_input_qc.sif ./scripts/02d_post_imputation_qc.py > 02d_post_imputation_qc.out 2>&1
