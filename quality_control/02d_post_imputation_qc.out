@@ -21,7 +21,6 @@ check behaviour run_bash
 02a_pre_imputation_qc.out
 02bb_pre_imputation_qc_eval_admix_plot.Rout
 02c_post_imputation_merging.out
-02c_post_imputation_qc.out
 02d_post_imputation_qc.out
 data
 literature
@@ -43,12 +42,12 @@ APPLY QC
 ## filter ##
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to merged_1_geno.log.
+Logging to ./merged_1_geno.log.
 Options in effect:
   --bfile ../00_plink_filesets/merged_file_sets/merged
   --geno 0.01
   --make-bed
-  --out merged_1_geno
+  --out ./merged_1_geno
 
 63997 MB RAM detected; reserving 31998 MB for main workspace.
 28251318 variants loaded from .bim file.
@@ -60,13 +59,11 @@ Total genotyping rate is exactly 1.
 0 variants removed due to missing genotype data (--geno).
 28251318 variants and 1203 people pass filters and QC.
 Note: No phenotypes present.
---make-bed to merged_1_geno.bed + merged_1_geno.bim + merged_1_geno.fam ...
-0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+--make-bed to ./merged_1_geno.bed + ./merged_1_geno.bim + ./merged_1_geno.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 ./merged_1_geno.bed
 ./merged_1_geno.bim
 ./merged_1_geno.fam
-./merged_1_geno.frq
-./merged_1_geno.hwe
 ./merged_1_geno.log
 
 
@@ -239,6 +236,10 @@ Starting chromosome 21
 Chromosome 21 is OK
 Starting chromosome 22
 Chromosome 22 is OK
+
+
+## See the final number of samples and variants ##
+We have 1203 samples and 5502774 SNPs after the third QC step
 
 
 #######################################
