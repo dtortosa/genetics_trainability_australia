@@ -172,7 +172,7 @@ run_bash(" \
         --bfile ../00_plink_filesets/merged_file_sets/merged \
         --geno 0.01 \
         --make-bed \
-        --out merged_1_geno; \
+        --out ./merged_1_geno; \
     ls ./merged_1_geno.* \
 ")
     #Want to QC on geno 0.01 (geno filters out all variants with missing call rates exceeding the provided value to be removed)
@@ -218,7 +218,7 @@ run_bash(" \
             #I think there is an error in Ritchie´s github here, because they say they are using --hardy to test for HWE deviations but then the code show -hwe 0.05, which is a very stringent filter.
             #In the Ritchie tutorial, they initially say that one of the steps after imputation is "Flag/Remove Variants Out of Hardy-Weinberg Equilibrium (HWE)" but then in the corresponding section, they say that the deviations should not removed as it has been consistently shown that the number of SNPs deviating from HWE at any given significance threshold than would be expected by chance. They could be indeed SNPs under selection and, hence, implicated in traits. 
             #Maares and O´really tutorials suggest to remove cases with P lower than 1e-6, while plinkt suggests a more lower threshold (1e-25) with the idea to retain anything legit but remove clear deviations as these are likely genotyping errors. The point is that THEY ARE REFERING TO PRE-IMPUTATION! However, Augusto applied the 10−6 filter AFTER IMPUTATION.
-            #Given that there is likely an error in Ritchie´s Github due to inconsistence between Github and the paper, and the fact that Maares and O´reilly's tutorials suggest to use 10-6 and Augusto used that threshold after imputation, we are going to use that. It is also an approach that does not remove many SNPs, so we are removing likely genotyping/problematic errors while living potentially relevant SNPs.
+            #Given that there is likely an error in Ritchie´s Github due to inconsistence between Github (P=0.05) and the paper, the fact that deviation from HWE can mean impact on the gentoype and the fact that Maares and O´reilly's tutorials suggest to use 1e-6 and Augusto used that threshold after imputation, we are going to use that. We apply the less stringent filter of 1e-6. It is also an approach that does not remove many SNPs, so we are removing likely genotyping/problematic errors while living potentially relevant SNPs.
         #mind 0.01 (filters out al the samples with missing call rates exceeding the provided value to be removed)
             #We are using the same value used pre-imputation. Check line 2468 in 02a_pre_imputation_qc.py for futher details about the reasoning behind the decision
             #In any case, no sample is removed in this step, so we are good.
@@ -273,13 +273,15 @@ run_bash(" \
         echo 'ERROR! FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER, WE HAVE NOT RECOVERED AS MANY SNPS AS EXPECTED BY DECREASING THE HWE THRESHOLD OR THE NUMBER OF SNPS BELOW HWE 1E-6 IS TOO HIGH'; \
     else \
         echo 'OK!'; \
-    fi \
+    fi; \
+    gzip ./merged_1_geno.hwe; \
 ")
     #create a hwe file with plink where the 9th column contains the HWE p-value
     #start procesing after the first row to skip the header
     #if the P-value columns is between 0.01 and 0.05, add 1 to the count
     #save the count as a variable and check it is not lower than 300K
     #do the same with the SNPs under 1-6 and check is not larger than 200
+    #compress the HWE file.
 
 print_text("check we do not lose too many SNPs for increasing MAF filter from 0.01 to 0.05", header=3)
 run_bash(" \
@@ -304,12 +306,14 @@ run_bash(" \
         echo 'ERROR! FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER, WE LOST MORE THAN 3M OF SNPS DUE TO INCREASE MAF FROM 0.01 TO 0.05'; \
     else \
         echo 'OK! WE LOSE A REASONABLE AMOUNT OF SNPS DUE TO INCREASE MAF FROM 0.01 TO 0.05'; \
-    fi \
+    fi; \
+    gzip ./merged_1_geno.frq; \
 ")
     #create a freq file with plink where the 5th column contains the MAF
     #start procesing after the first row to skip the header
     #if the MAF column is between 0.01 and 0.05, add 1 to the count
     #save the count as a variable and check it is not larger than 3M
+    #compress the freq file
 
 
 print_text("THIRD QC STEP", header=2)
@@ -366,8 +370,15 @@ run_bash(" \
     #Note that Augusto applied an R2 filter under 0.9 instead of 0.7. We have used the most stringent filter option in TOPMed and the recommendation from Ritchie´s tutorial.
         #AUGUSTO POST-IMPTUATION: Once our genomic data were imputed, a second quality control analysis was performed with PLINK 1.9 software [13]. The second quality control exclusion criteria were: low imputation quality (𝑅2<0.9); variants that did not meet the Hardy–Weinberg equilibrium (HWE-P>10−6); and low minor allele frequency (MAF<0.01) [14].
 
-# endregion
+print_text("See the final number of samples and variants", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/; \
+    final_n_samples=$(awk 'END{print NR}' ./merged_3_geno.fam); \
+    final_n_snps=$(awk 'END{print NR}' ./merged_3_geno.bim); \
+    echo \"We have ${final_n_samples} samples and ${final_n_snps} SNPs after the third QC step\"; \
+")
 
+# endregion
 
 
 
