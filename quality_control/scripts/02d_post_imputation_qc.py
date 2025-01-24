@@ -161,6 +161,7 @@ run_bash(" \
     mkdir -p ./01_first_qc_step; \
     mkdir -p ./02_second_qc_step; \
     mkdir -p ./03_third_qc_step; \
+    mkdir -p ./04_batch_effects; \
 ")
 
 
@@ -380,6 +381,218 @@ run_bash(" \
 
 # endregion
 
+
+
+########################
+# region BATCH EFFECTS #
+########################
+
+print_text("BATCH EFFECTS", header=1)
+#From Ritchie´s tutorial: Thousands of DNA samples are typically genotyped in a GWAS, which requires partitioning samples into small batches for genotyping in the laboratory (e.g., the set of samples on a 96-well plate). Genotype imputation strategies now provide an opportunity to impute genotypes from multiple platforms to a reference genotyping platform. Therefore, data from different sources can be merged after imputation. Notably, the imputations are not perfect, and the quality and genotyping coverage of input data affect the quality of imputed datasets (Verma et al., 2014). Therefore, it is crucial to evaluate batch effects for the merged datasets. The precise size and composition of the sample batch depends on the array and lab process used. Systematic differences among the compositions of individuals in a batch (i.e., the case to control ratio or ancestry of individuals on plates), and the within-plate accuracy and efficiency, can result in batch effects—apparent associations confounded by batch. The problem is in essence the same problem observed with population stratification—namely, if there is an imbalance of cases and controls on a plate, and there are nonrandom (unknown) biases or inaccuracies in genotyping that differ from plate to plate, spurious associations will result. Ideally, no batch effect will be present be- cause individuals with different phenotypes, sex, ancestry, and other confounders should be plated randomly or imputed, and because modern high-throughput genotyping technology is much more accurate, efficient, and con- sistent than earlier generations of genotyping assays. There are several approaches for exam- ining a dataset for potential batch effects. 
+    #not sure if this applies to us, but we are going to do a quick analysis.
+
+
+print_text("check averages", header=2)
+#One simple approach is to calculate the average minor allele frequency and average genotyping call rate across all SNPs for each batch. Gross differences in either of these on any batch can easily be identified.
+
+print_text("first MAF", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/04_batch_effects/; \
+    plink \
+        --bfile ../03_third_qc_step/merged_3_geno \
+        --family \
+        --freq \
+        --out ./merged_3_geno_batches; \
+    head ./merged_3_geno_batches.frq.strat; \
+    averages=$( \
+        awk \
+            'BEGIN{FS=\" \"; count1=0; sum1=0; count2=0; sum2=0}{ \
+                if($3==\"combat_ILGSA24-17303\"){ \
+                    sum1 += $6; \
+                    count1++; \
+                } \
+                if($3==\"combat_ILGSA24-17873\"){ \
+                    sum2 += $6; \
+                    count2++; \
+                } \
+            }END{ \
+                if(count1 > 0 && count2 > 0){ \
+                    average1=sum1/count1; \
+                    average2=sum2/count2; \
+                    print average1, average2; \
+                }else { \
+                    exit 1 \
+                } \
+            }' \
+            ./merged_3_geno_batches.frq.strat \
+    ); \
+    read average1 average2 <<< ${averages}; \
+    difference=$(echo \"${average1} - ${average2}\" | bc -l); \
+    echo \"MAF-Avg1: ${average1}; MAF-Avg2:${average2}; MAF-Diff:${difference}\"; \
+    diff_check=$(echo \"${difference} > 0.001\" | bc -l); \
+    if [[ ${diff_check} -eq 1 ]]; then \
+        echo \"ERROR! FALSE! MAF AVERAGES ARE VERY DIFFERENT\"; \
+    fi; \
+    gzip --force ./merged_3_geno_batches.frq.strat; \
+")
+    #calculate a freq file in a stratified within each batch, i.e., family
+    #calculate the average MAF for each batch using awk
+        #BEGIN by creating two empty counts and two empty sums
+        #for each row extract the MAF and add it to the sum of the corresponding batch, also count the row for the corresponding count
+        #at the END, divided sum by count to get the average MAF of each batch
+    #split the variable with the two averages
+        #read: it is used to read input from a file descriptor or standard input and assign it to one or more variables.
+        #average1 and average2 are the variables that will store the values read from the input. In this case, average1 will store the first value, and average2 will store the second value.
+        #"<<<": This is a here-string operator. It allows you to pass a string directly to the read command as if it were input from a file or standard input. The string is treated as a single line of input.
+    #calculate the difference
+        #print the math calculation and input it to bc in math mode ("-l")
+    #check if the difference is higher than 0.001 using bc again
+    #if the output of bc is 1, means the difference is higher than 0.001, so we have a problem.
+
+print_text("then call rate", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/21_post_imputation_qc/04_batch_effects/; \
+    plink \
+        --bfile ../03_third_qc_step/merged_3_geno \
+        --family \
+        --missing \
+        --out ./merged_3_geno_batches; \
+    head ./merged_3_geno_batches.lmiss; \
+    averages=$( \
+        awk \
+            'BEGIN{FS=\" \"; count1=0; sum1=0; count2=0; sum2=0}{ \
+                if($3==\"combat_ILGSA24-17303\"){ \
+                    sum1 += $7; \
+                    count1++; \
+                } \
+                if($3==\"combat_ILGSA24-17873\"){ \
+                    sum2 += $7; \
+                    count2++; \
+                } \
+            }END{ \
+                if(count1 > 0 && count2 > 0){ \
+                    average1=sum1/count1; \
+                    average2=sum2/count2; \
+                    print average1, average2; \
+                }else { \
+                    exit 1 \
+                } \
+            }' \
+            ./merged_3_geno_batches.lmiss \
+    ); \
+    read average1 average2 <<< ${averages}; \
+    difference=$(echo \"${average1} - ${average2}\" | bc -l); \
+    echo \"MISSING-Avg1: ${average1}; MISSING-Avg2:${average2}; MISSING-Diff:${difference}\"; \
+    diff_check=$(echo \"${difference} > 0.001\" | bc -l); \
+    if [[ ${diff_check} -eq 1 ]]; then \
+        echo \"ERROR! FALSE! MISSING RATE AVERAGES ARE VERY DIFFERENT\"; \
+    fi; \
+    gzip --force ./merged_3_geno_batches.lmiss; \
+    rm ./merged_3_geno_batches.imiss; \
+")
+    #the same than the previous awk script but using an lmiss file and the F_MISS column
+    #lmiss file
+        #CHR: Chromosome code
+        #SNP: Variant identifier
+        #CLST: Cluster identifier. Only present with --within/--family.
+        #N_MISS: Number of missing genotype call(s), not counting obligatory missings or het. haploids
+        #N_CLST: Cluster size (does not include nonmales on chrY). Only present with --within/--family.
+        #N_GENO: Number of potentially valid call(s)
+        #F_MISS: Missing call rate
+
+
+print_text("check about the fact that we have NO missing genotypes after imputation", header=2)
+#I noticed that we do not have any missing genotype when I was doing the batch checks
+run_bash(" \
+    cd ./data/genetic_data/quality_control/; \
+    plink \
+        --bfile ./19_topmed_prep/01_second_step/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated \
+        --missing \
+        --out ./21_post_imputation_qc/04_batch_effects/missing_before_imputation; \
+    rm ./21_post_imputation_qc/04_batch_effects/missing_before_imputation.imiss; \
+")
+    #create a missing report using the last combine plink fileset before splitting across chromosomes and sending to the imputation server
+average_missing_before_imput=pd.read_csv("./data/genetic_data/quality_control/21_post_imputation_qc/04_batch_effects/missing_before_imputation.lmiss", sep="\s+").loc[:,"F_MISS"].mean()
+    #sep="\s+" because some columns are separated by 1 space while others are separated by several spaces.
+if (average_missing_before_imput>0.00039891746854450993):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE SNP MISSING RATE BEFORE IMPUTATION")
+else:
+    print("MISSING RATE BEFORE IMPUTATION WAS: " + str(average_missing_before_imput))
+    #We have NO missing genotypes. This makes sense because the average missing rate across SNPs in the plink fileset used as input for imputation already had a very low missing rate (0.000398917 being 1 the max possible). So it makes sense that imputation has been able to fill the few remaining gaps in the SNPs used as input. Indeed, Augusto et al., did NOT apply a missingness filter after imptuation in their paper. So all this makes sense.
+        #Once our genomic data were imputed, a second quality control analysis was performed with PLINK 1.9 software [13]. The second quality control exclusion criteria were: low imputation quality (𝑅2<0.9); variants that did not meet the Hardy–Weinberg equilibrium (𝐻𝑊𝐸−𝑃>10−6); and low minor allele frequency (𝑀𝐴𝐹<0.01) [14].
+        #This behavior is expected. Genetic imputation not only predicts the genotypes of SNPs that were not originally genotyped but also fills in missing values for SNPs that were genotyped but had missing data points. This process leverages the linkage disequilibrium (LD) patterns and reference panels to infer the most likely genotypes for the missing data[1](https://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-404)[2](https://bmcproc.biomedcentral.com/articles/10.1186/1753-6561-5-S7-P61).
+        #By using imputation, you can achieve a more complete dataset, which is particularly useful for downstream analyses like genome-wide association studies (GWAS). The imputation process improves the accuracy and power of these analyses by providing a more comprehensive set of genotypic data[2](https://bmcproc.biomedcentral.com/articles/10.1186/1753-6561-5-S7-P61)[3](https://www.nature.com/articles/5201988.pdf).
+
+
+print_text("check for association between the batch assignation and SNP frquencies", header=2)
+#Another method involves coding case/control status by batch followed by running the GWAS analysis testing each batch against all other batches. For example, the status of all samples on batch 1 will be coded as case, while the status of every other sample is to be coded control. A GWAS analysis is performed (e.g., using the --assoc option in PLINK), and both the average p-value and the number of results significant at a given threshold (e.g., p <1 × 10-4 ) can be recorded. SNPs with low minor allele frequency (i.e., <5%) should be removed before this analysis is performed to improve the stability of test statistics. This procedure should be repeated for each batch in the study. If any single batch has many more or many fewer significant re- sults or has an average p-value <0.5 (under the null, the average p-value will be 0.5 over many tests), then this batch should be further inves- tigated for genotyping, imputation, or compo- sition problems. If batch effects are present, methods like those employed for population stratification (e.g., genomic control) may be used to mitigate the confounding effects.
+
+print_text("calculate the association between snp frequencies and batches ", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/;\
+    awk \
+        'BEGIN{FS=\" \"; OFS=\"\t\"}{ \
+            pheno=0; \
+            if($1 == \"combat_ILGSA24-17303\"){ \
+                pheno=1; \
+            } else if ($1 == \"combat_ILGSA24-17873\") { \
+                pheno=2; \
+            } \
+            print $1, $2, pheno; \
+        }' \
+        ./21_post_imputation_qc/03_third_qc_step/merged_3_geno.fam > ./21_post_imputation_qc/04_batch_effects/case_control.tsv; \
+    plink \
+        --bfile ./21_post_imputation_qc/03_third_qc_step/merged_3_geno \
+        --pheno ./21_post_imputation_qc/04_batch_effects/case_control.tsv \
+        --assoc \
+        --out ./21_post_imputation_qc/04_batch_effects/merged_3_geno_batch_assoc; \
+")
+    #from the last fam file, get the family and within family ID, also create a case/control variable. Initially the variable is 0 (no pheno), and then a value is assigned: 1 to samples of the first batch (control) and 2 to samples of second batch (cases). This willl be the input for --pheno
+        #Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
+    #--pheno causes phenotype values to be read from the 3rd column of the specified space- or tab-delimited file, instead of the .fam or .ped file. The first and second columns of that file must contain family and within-family IDs, respectively.
+    #--assoc:
+        #Given a case/control phenotype, --assoc writes the results of a 1df chi-square allelic test to plink.assoc (or .assoc.fisher with 'fisher'/'fisher-midp').
+
+print_text("then calculate average p-value and number of signifncant SNPs ", header=3)
+run_bash(" \
+    cd ./data/genetic_data/quality_control/;\
+    p_stats=$( \
+        awk \
+            'BEGIN{FS=\" \"; p_count=0; p_sum=0; p_signi_count=0}{ \
+                if(NR>1){ \
+                    p_sum += $9; \
+                    p_count++; \
+                    if($9 < 1e-4){ \
+                        p_signi_count++; \
+                    } \
+                } \
+            }END{ \
+                if(p_count>0){ \
+                    p_average=p_sum/p_count \
+                } else { \
+                    exit 1; \
+                } \
+                print p_average, p_signi_count; \
+            }' \
+            ./21_post_imputation_qc/04_batch_effects/merged_3_geno_batch_assoc.assoc; \
+    ); \
+    read p_average p_signi_count <<< ${p_stats}; \
+    echo \"The average p-value is ${p_average}, while the number of SNPs with P<1e-4 is ${p_signi_count}\"; \
+    if [[ $(echo \"${p_average} < 0.05\" | bc -l) -eq 1 || ${p_signi_count} -gt 1000 ]]; then \
+        echo \"ERROR! FALSE! WE HAVE SIGIFNICANT DIFFERENCES IN THE ALLELE FREQUENCIES OF THE SNPS BETWEEN BATCHES\"; \
+    else \
+        echo \"OK! WE DO NOT HAVE SIGIFNICANT DIFFERENCES IN THE ALLELE FREQUENCIES OF THE SNPS BETWEEN BATCHES\"; \
+    fi; \
+")
+    #for each row of the assoc results
+        #get the p-value and sum it to the previous values, add 1 to the count to calculate the average later
+        #also add 1 to the count if the p-value is lower than 1e-4
+        #at the END, calculate teh average p-value dividing the sum of p-values by the total number of p-values (count)
+        #print the average and the number of signifcant p-values
+    #split the two results into two different variables
+    #return error if p_average is lower than 0.05 or the number of very significant SNPs is above 1000
+
+# endregion
 
 
 print_text("FINISH", header=1)

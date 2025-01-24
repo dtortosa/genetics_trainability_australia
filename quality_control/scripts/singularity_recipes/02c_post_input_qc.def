@@ -106,6 +106,9 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
 	#install gnuplot for ploting stuff
 	apt -y install gnuplot
 
+	#install bc for math operations
+	apt -y install bc
+
 	#required for python and R
 	apt -y install software-properties-common #APT automates the retrieval, configuration and installation of software packages. Type these two commands in your terminal and hit enter each time. https://medium.com/analytics-vidhya/installing-python-3-8-3-66701d3db134
 
