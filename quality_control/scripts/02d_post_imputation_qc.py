@@ -600,3 +600,4 @@ print_text("FINISH", header=1)
 #cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control
 #chmod +x ./scripts/02d_post_imputation_qc.py
 #singularity exec ./singularity_containers/02c_post_input_qc.sif ./scripts/02d_post_imputation_qc.py > ./02d_post_imputation_qc.out 2>&1
+
