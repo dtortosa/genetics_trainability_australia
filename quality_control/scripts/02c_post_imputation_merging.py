@@ -437,9 +437,11 @@ def merging_prep(chromosome):
         chr_numb=" + str(chromosome) + "; \
         mkdir -p ./chr${chr_numb}; \
         cd ./chr${chr_numb}; \
-        bcftools norm \
-            --multiallelic +snps \
+        bcftools filter \
+            --include 'INFO/R2>=0.95' \
             ../../../20_imputation_results/04_uncompressed_vcf_files/chr${chr_numb}.dose.vcf.gz | \
+        bcftools norm \
+            --multiallelic +snps | \
         bcftools view \
             --max-alleles 2 \
             --min-alleles 2 | \
@@ -463,6 +465,11 @@ def merging_prep(chromosome):
     ")
     #for each chromosome
         #create a specific folder and move inside
+        #include only those SNPs with an imputation quality >=0.95
+            #This is more stringent than Ritchie´s but it is the recommendation of Doug Speed for using its PRS tool. Also remember Augusto used a filter of 0.9, not 0.7.
+                #AUGUSTO POST-IMPTUATION: Once our genomic data were imputed, a second quality control analysis was performed with PLINK 1.9 software [13]. The second quality control exclusion criteria were: low imputation quality (𝑅2<0.9); variants that did not meet the Hardy–Weinberg equilibrium (HWE-P>10−6); and low minor allele frequency (MAF<0.01) [14].
+            #Indeed, the removal of more SNPs using imputation quality has decreased the number of SNPs removed in the post-imputation quality control, suggesting we have targeting problematic SNPs when using the imputation quality.
+            #In "02bd_download_extract_imputation_results.sh" you can see how R2 is the imputation quality.
         #join biallelic SNPs into multiallelic records: We have SNPs with the same position but one allele different, suggesting we have multiallelic variants. We want to merge them and then remove.
             #--multiallelic +snps: 
                 #this combines snps with the same position and at least equal REF or ALT. Therefore, this makes that a SNP with three alleles is within just one row, so we can filter it in the next step.
@@ -485,6 +492,36 @@ def merging_prep(chromosome):
             #we will deal with this in the next steps.
         #remove the uncompressed VCF file
         #go to the parent folder
+
+    #check we correctly applied the imputation quality filter
+    run_bash("\
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr21; \
+        chr_numb=" + str(chromosome) + "; \
+        n_snps_under_95_imput=$( \
+            gunzip \
+                --keep \
+                --force \
+                --stdout \
+                ./chr${chr_numb}.dose.snps_non_multi_new_snp_ids.vcf.gz | \
+            bcftools query \
+                --include 'INFO/R2<0.95' \
+                --format '%TYPE %ID %CHROM %POS %REF %ALT %INFO/R2 \n' | awk 'END{print NR}' \
+        ); \
+        if [[ $n_snps_under_95_imput -ne 0 ]]; then \
+            echo \"ERROR! FALSE! WE HAVE SNPS WITH IMPUTATION QUALITY UNDER 0.95 \"; \
+        fi; \
+    ")
+
+    #check we do not have duplicated SNPs by chromosome and position
+    bim_chrom = pd.read_csv( \
+        "./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "/chr" + str(chromosome) +"_post_imput.bim", \
+        header=None, \
+        sep="\t" \
+    )
+    if (bim_chrom.duplicated(subset=[0, 3]).any()):
+        print("ERROR! FALSE! THERE ARE DUPLICATED SNPS BY CHROMOSOME AND POSITION")
+    else:
+        print("THERE ARE NO DUPLICATED SNPS BY CHROMOSOME AND POSITION")
 
     ##Update the IDs in the plink file
     #load the fam file of the chromosome of interest

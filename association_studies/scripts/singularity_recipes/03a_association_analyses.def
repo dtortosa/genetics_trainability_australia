@@ -44,6 +44,9 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	#copy the binary of plink2 (Alpha 4.2 final (31 May)) and save it in /bin so we can use the command "plink"
 	#https://www.cog-genomics.org/plink/2.0/
 	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/plink_versions/plink2_linux_x86_64_20230531/plink2 /bin/plink2
+	
+	#copy ldak
+	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/ldak_versions/ldak6.1.linux /bin/ldak6.1.linux
 
 	#copy script
 	/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/scripts/production_scripts/03a_association_analyses.py /opt/scripts/03a_association_analyses.py

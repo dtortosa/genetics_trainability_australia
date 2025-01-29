@@ -39,6 +39,11 @@
 
 
 
+#######################################
+# region INITIAL ANOTATIONS AND STEPS #
+#######################################
+
+
 ########################################
 # define function to print text nicely #
 ########################################
@@ -139,14 +144,132 @@ run_bash("ls")
 run_bash(" \
     mkdir -p ./data/pheno_data; \
     mkdir -p ./data/plink_inputs; \
-    mkdir -p ./results/prelim_results/distribution_hist; \
+    mkdir -p ./results/final_results/distribution_hist; \
     ls -l")
 
+# endregion
 
 
-#################################
-# approach to calculate the PRS #
-#################################
+
+
+########################################
+# region approach to calculate the PRS #
+########################################
+
+#The QC procedures are intentionally conservative, and particular care should be taken in performing them, because small errors can become inflated when aggregated across SNPs in PRS calculation. Researchers should follow established guidelines
+    #O´Really Nature Protocol
+        #Tutorial: a guide to performing polygenic risk score analyses. Nature protocol.
+        #(e.g., refs. 28–30) — we recommend ref. 29— to perform standard GWAS QC on the base and target data. Since the option of performing QC on the base GWAS data will typically be unavailable, researchers should ensure that high-quality QC was performed on the GWAS data that they utilize. We recommend the following QC criteria for standard analyses: genotyping rate >0.99, sample missingness <0.02, Hardy-Weinberg Equilibrium P >1 × 10−6, heterozygosity within 3 standard deviations of the mean, minor allele frequency (MAF) >1% (MAF >5% if target sample N <1000) and imputation ‘info score’ >0.8.
+        #Strand issues, duplicates, sex incosistences and removal of sex chromosomes, population structure and sample relatedness
+            #if the aim of an analysis is to model autosomal genetics only, then we recom- mend that all X and Y chromosome SNPs are removed from the base and target data to eliminate the possibility of non- autosomal sex effects influencing results
+            #A high degree of relatedness between individuals between the base and target data can also generate inflation of the associa- tion between the PRS and target phenotype. While population structure produces a correlation between genetics and envir- onmental risk factors that requires a broad solution, the pro- blem is exacerbated with inclusion of very close relatives, since they may share the same household environment as well (dis- cussed below). Thus, if genetic data from the relevant base data samples can be accessed, then any closely related individuals (e.g., first/second degree relatives) across base and target sam- ples should be removed to eliminate this risk. If this is not an option, then every effort should be made to select base and target data that are unlikely to contain highly related indivi- duals. However, statistical power can be compromised in ana- lyzing base and target samples from different populations, as discussed below, and so ideally base and target samples should be as similar as possible without risking inclusion of over- lapping or highly related samples.
+    #Doug Speed
+        #Most heritability analyses are designed for common predictors (typically MAF>0.01 or MAF>0.005), as it is not currently clear how best to include rare variants. We also generally restrict to common predictors when constructing prediction models, as it is very difficult to accurately estimate effect sizes for rare predictors. Further, both heritability and prediction analyses will usually focus on autosomal predictors, as it is not straightforward to include sex chromosomes.
+        #Our preferred measure of SNP quality is the information score from imputation, which reflects how closely a SNP's genotypes match those expected given the neighbouring SNPs. We typically exclude SNPs with information score below 0.95 or 0.99. While it is reasonable to also filter SNPs based on other metrics, such as missingness or Hardy-Weinberg Equilibrium, in general we find this is not necessary (at least for common SNPs). Note that some imputation software, such as IMPUTE2, compute multiple information scores, in which case we would filter based on all scores.
+    #We have applied all these filters
+        #snp call rate >0.99 (--geno 0.01)
+        #sample call rate >0.99 (--mind 0.01), this is more stringent than 0.02 because samples with a missinigness rate of 0.015 are removed with our threshold.
+        #Hardy-Weinberg Equilibrium P >1 × 10−6 (--hwe 1e-6 midp)
+        #heterozygosity
+            #In our case, just 13 samples are above the mean hetero plus 3 standard deviations, while 42 are below mean hetero less 3 standard deviations. It seems we are ok because in both cases, the outliers are close to the limits (see below). At least closer compared to the plot of Ritchie´s review. In that figure you can see the limits are 0.16-0.18 but there are samples at 0.22 and 0.12.
+        #MAF > 0.05 (--maf 0.05)
+        #Imputation score >= 0.95.
+            #This meets Doug and O´Reilly´s recommendations.
+        #Mismatching SNPs due to strand
+        #Duplicate SNPs
+        #Sex incosistences
+        #Population structure and sample relatedness
+
+#PRS calculation:
+    #There are several options in terms of how PRSs are calculated. GWASs are performed on finite samples drawn from particular subsets of the human population, and so the SNP effect size estimates are some combination of true effect and stochastic variation— producing ‘winner’s curse’ (see overfitting) among the top- ranking associations—and the estimated effects may not gen- eralize well to different populations (discussed below). The aggregation of SNP effects across the genome is also compli- cated by the correlation between SNPs—LD. Thus, key factors in the development of methods for calculating PRSs are: (i) the potential adjustment of GWAS estimated effect sizes via, for example, shrinkage, (ii) the tailoring of PRSs to target popu- lations and (iii) the task of accounting for LD
+    #Shrinkage (reduction) of GWAS effect size estimates
+        #PRS methods that perform shrinkage of all SNPs 19,20,45,46 generally exploit commonly used statistical shrinkage/ regularization techniques, such as LASSO or ridge regres- sion 19 , or Bayesian approaches that perform shrinkage via prior distribution specification20,45,46. Under different approaches or parameter settings, varying forms of shrinkage can be achieved: e.g., LASSO regression reduces small effects to zero, while ridge regression shrinks the largest effects more than LASSO but does not reduce any effects to zero. The most appropriate shrinkage to apply is dependent on the underlying mixture of null and true effect size distributions, which are probably a complex mixture of distributions that vary by trait. Since the optimal shrinkage parameters are unknown a priori, PRS prediction is typically optimized across a range of possible parameter values (see below for overfitting issues relating to this), which in the case of LDpred, for example, includes a parameter for the fraction of causal variants 45.
+            #This is what LDAK does.
+        #In the classic PRS calculation method 5,11,13, only those SNPs with a GWAS association P value below a certain threshold (e.g., P < 1 × 10−5 ) are included in the calculation of the PRS, while all other SNPs are excluded. This approach effectively shrinks all excluded SNPs to an effect size estimate of zero and performs no shrinkage on the effect size estimates of those SNPs included. Since the optimal P value threshold is unknown a priori, PRSs are typically calculated over a range of thresholds, association with the target trait is tested for each, and the prediction is optimized accordingly (see Overfitting in PRS-trait association testing). This process is analogous to tuning parameter optimization in the formal shrinkage methods. An alternative way to view this approach is as a parsimonious variable selection method, effectively performing forward selection ordered by GWAS P value, involving block-updates of predictors (SNPs), with size dependent on the increment between P value thresholds. Thus the ‘optimal threshold’ selected is defined as such only within the context of this forward selection process; a PRS computed from another subset of the SNPs could be more predictive of the target trait, but the number of possible subsets of SNPs is too large to feasibly test given that GWAS are based on millions of SNPs.
+            #This is what HIIT-predict did.
+    #Controlling for LD
+        #If genetic association testing is performed using joint models of multiple SNPs47 , then independent genetic effects can be esti- mated despite the presence of LD. However, association tests in GWASs are typically performed one SNP at a time, which, combined with the strong correlation structure across the genome, makes estimating the independent genetic effects (or best proxies of these if not genotyped/imputed) extremely challenging. If independent effects were estimated in the GWAS or by subsequent fine-mapping, then PRS calculation can be a simple summation of those effects. If, instead, the investigator is using a GWAS based on one-SNP-at-a-time testing, then there are two main options for approximating the PRS that would be obtained from independent effect estimates: (i) SNPs are clumped (i.e., thinned, prioritizing SNPs at the locus with the smallest GWAS P value) so that the retained SNPs are largely independent of each other, and, thus, their effects can be summed, assuming additivity; and (ii) all SNPs are included, accounting for the LD between them. In the classic PRS cal- culation method 5,11,13 , option (i) is combined with P value thresholding and called the C+T (clumping + thresholding) method, while option (ii) is generally favored in methods that implement traditional shrinkage techniques 19,20,45,46 . The rela- tively similar performance of the classic approach to more sophisticated methods14,19,20 may be due to the clumping process capturing conditionally independent effects well; note that clumping does not merely thin SNPs by LD at random (like pruning) but preferentially selects SNPs most associated with the trait under study, and retains multiple SNPs in the same genomic region if there are multiple independent effects there: clumping does not simply retain only the most-associated SNP in a region. A criticism of clumping, however, is that researchers typically select an arbitrarily chosen correlation threshold 41 for the removal of SNPs in LD, and so while no strategy is without arbitrary features, this may be an area for future development of this approach. The key benefits of the classic PRS method are that it is relatively fast to apply and is more interpretable than present alternatives. Both clumping and LD modeling require estimation of the LD between SNPs.
+        #HIIT-PREDICT used thresholding + clumping selecting SNPS by p-value and then selecting the most important (lead) SNPs in each group of correlated SNPs.
+
+#LDAK is toolbox that includes many tools and, in particular, the calculation of polygenic scores for trait prediction. This has been developed during years by Doug Speed, a reseracher at Denmark that has published his new methods in journals like Genome Research or Nature Communications, having multiple citations. His methods are indeed cited by the PRS tutorial of O´Really.
+        #https://dougspeed.com/
+    #It takes care of the Shrinkage of GWAS effect size estimates by applying the srhinkage across all SNPs. 
+    #But the great adventage over other methods is that it does not assume that all SNPs have the same influence on heritability, instead the impact of each individual SNPs is estimated consider "minor allele frequency (MAF), local levels of linkage disequilibrium and functional annotations". Therefore, I understand it also takes care of the correlation between predictors.
+    #Across +200 phenotypes, they found that with this new approach the proportion of phenotypic variance explained increases by on average 14%, which is equivalent to increasing the sample size by a quarter.
+    #The input are just plink fileset with the individual genotyping data (although you can also use summary statistics) and phenotype data (response and covariables) using plink format. 
+    #This outputs: 1) the heritability estimate of trait. This can be used as reference to see how much of that heriability is explained by the PRS; 2) The predictive model is saved in a .effect file that can be then used as input for "Calculate Scores", another tool of LDAK that predict the trait in a new set samples.
+    #The approach they use is to split the samples in two groups in training and test. The PRS is calculated in the training set using a CV approach so the hyperparameters of the model (prior distribution parameters) can be tuned. Then, the model is used to predict the trait in the test set and the correlation between predicted and obserbed is used to evaluate the predicitive power.
+
+
+#you can use --elasti en el 75%, ahí te hace automaticamente CV para seleccionar hiperparamteros usando plink filset como inputs. El output se puede usar como input para otra funcion que calcula los scores para nuevos individuaos, el 25% restante. 
+
+#toma plink fileset como input y phenotipos en plink format! solo habría que comprobar que hemos hecho todos los pasoss de QC que considera. El approach seguiría siendo limitado porque el 25% test no sería independiente 100%, son muestras del mismo estudio, pero bueno, en GWAS de enfermdeades raras se suele hacer el discovery y validation con el mismo dataset, conpcetualmente nosotros hacemos lo mismo y tenemos la misma justificacion. El problema añadido es que el QC se ha hecho en conjunto y al seleccionar o elmimninar muestras por estructura o relatives, podemos estar considrando muestras de ambos sets, pero se dice que es lo mejor que tenemos, que existe el riesgo de overfitting, y que habría que seguir investigando el score viendo su poder predictivo en futuros estudios.
+
+#repeat 10 times and see if the repsonseds are the same across iterations?
+
+
+###Our preferred measure of SNP quality is the information score from imputation, which reflects how closely a SNP's genotypes match those expected given the neighbouring SNPs. We typically exclude SNPs with information score below 0.95 or 0.99!!!!
+
+
+#you could use the estimated heritability as a mark of how high the R2 could go, the theorictical top. That can be found in .hers
+
+
+#Supplementary Fig. 6 shows that improving the heritability model also improves the accuracy of PRS when we increase the number of SNPs from 629,000 to 7.5 M by including imputed genotypes.
+
+#in their 2021 Nat Comm they use training and test from the same cohort! i.e., the UK Biobank
+
+#mira el QC que propone
+
+#tienene en cuenta MAF y LD para deterinar impacto sobre heritability of each SNP
+
+#https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7#additional-information
+#http://dougspeed.com/quality-control/
+#https://dougspeed.com/prediction/
+#https://dougspeed.com/elastic-net/
+#http://dougspeed.com/profile-scores/
+
+
+#FALTA IMPUTATION SCORE DE 0.95!!! PARA CUMPLIR CON PRS TUTORIAL Y DOUG
+#add also a quick check with python pandas to check whether we have duplicates in the bim file according chromosome and position
+
+run_bash(" \
+    mkdir -p ../ldak_versions/; \
+    cd ../ldak_versions/; \
+    wget --output-document ldak6.1.linux https://github.com/dougspeed/LDAK/raw/refs/heads/main/ldak6.1.linux; \
+    chmod +x ./ldak6.1.linux; \
+")
+    #http://dougspeed.com/downloads2/
+    #https://github.com/dougspeed/LDAK
+
+
+run_bash(" \
+    ldak6.1.linux --elastic elastic --pheno case_control.tsv --bfile merged_3_geno --LOCO NO \
+")
+
+    #thiss seems to work
+    #yoou could do a subset ot 75% for hyperparameter tunning and then predict with the other function in the 25%, you can use plinlk to subset
+
+
+
+##YOU CANNOT CALCULATE HERITABILITY, TOO SMALL NUMBER OF SAMPLES
+    #http://dougspeed.com/small-datasets/
+
+
+#David wants to show also manhatann plots (maybe just use plink or LDAK?), also repeat 10 times the 75-25% and see if the respodners are the same?
+
+
+
+###heritability estimate
+#A critical factor in the accuracy and predictive power of PRSs is the power of the base (GWAS) data 5 , and so to avoid reaching misleading conclusions from the application of PRSs, we recommend performing PRS analyses only that use GWAS data with an h2SNP > 0.05. If an h2SNP estimate has not been reported for these data, then we suggest using software for estimating h2SNP from GWAS summary statistics, such as LD Score regression 8 or SumHer 31 .
+
+
+
+
+###WHEN DONE, YOU CAN CHECK THE SECTION OF INTERPRETATION FROM ORRELLY
+    #Interpretation and presentation of results
+
+
+
 
 #Data and validation scheme
     #Integration of risk factor polygenic risk score with disease polygenic risk score for disease prediction

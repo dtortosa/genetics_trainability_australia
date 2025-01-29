@@ -232,7 +232,7 @@ run_bash(" \
     n_samples_before_filtering=$(awk 'END{print NR}' ./01_first_qc_step/merged_1_geno.fam); \
     n_samples_after_filtering=$(awk 'END{print NR}' ./02_second_qc_step/merged_2_geno.fam); \
     echo \"We had ${n_snps_before_filtering} SNPs before filtering and ${n_snps_after_filtering} after filtering, i.e., we have lost $((${n_snps_before_filtering}-${n_snps_after_filtering})) \"; \
-    if [[ $n_snps_after_filtering -lt 5000000  || $n_samples_after_filtering -ne $n_samples_before_filtering ]]; then \
+    if [[ $n_snps_after_filtering -lt 3000000  || $n_samples_after_filtering -ne $n_samples_before_filtering ]]; then \
         echo 'ERROR: FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER'; \
     else \
         echo 'SECOND QC FILTER WORKED FINE'; \
@@ -270,12 +270,12 @@ run_bash(" \
     ); \
     echo \"We have ${snps_between_thresholds} SNPs with a HWE p-value between 1e-6 and 0.05\"; \
     echo \"We have ${snps_under_06} SNPs with a HWE p-value under 1e-6\"; \
-    if [[ ${snps_between_thresholds} -lt 300000 || ${snps_under_06} -gt 200 ]]; then \
+    if [[ ${snps_between_thresholds} -lt 150000 || ${snps_under_06} -gt 10 ]]; then \
         echo 'ERROR! FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER, WE HAVE NOT RECOVERED AS MANY SNPS AS EXPECTED BY DECREASING THE HWE THRESHOLD OR THE NUMBER OF SNPS BELOW HWE 1E-6 IS TOO HIGH'; \
     else \
         echo 'OK!'; \
     fi; \
-    gzip ./merged_1_geno.hwe; \
+    gzip --force ./merged_1_geno.hwe; \
 ")
     #create a hwe file with plink where the 9th column contains the HWE p-value
     #start procesing after the first row to skip the header
@@ -303,12 +303,12 @@ run_bash(" \
             ./merged_1_geno.frq; \
     ); \
     echo \"We have ${snps_between_01_05} SNPs with a MAF between 0.01 and 0.05\"; \
-    if [[ $snps_between_01_05 -gt 3000000 ]]; then \
+    if [[ $snps_between_01_05 -gt 700000 ]]; then \
         echo 'ERROR! FALSE! WE HAVE A PROBLEM WITH THE SECOND QC FILTER, WE LOST MORE THAN 3M OF SNPS DUE TO INCREASE MAF FROM 0.01 TO 0.05'; \
     else \
         echo 'OK! WE LOSE A REASONABLE AMOUNT OF SNPS DUE TO INCREASE MAF FROM 0.01 TO 0.05'; \
     fi; \
-    gzip ./merged_1_geno.frq; \
+    gzip --force ./merged_1_geno.frq; \
 ")
     #create a freq file with plink where the 5th column contains the MAF
     #start procesing after the first row to skip the header
@@ -343,35 +343,11 @@ run_bash(" \
     #In the previous steps no sample was removed, so the MAF and HWE of any SNP should be affected, rembember that removing a SNP becuase it has low MAF does not influence the MAF of other SNP.
     #However, as we have removed millions of SNPs in the pervious step, it is possible that the proportion of missing could increase in some sample, so we repeat the --mind filter again to check that no sample is removed with the reduced set of SNPs.
 
-print_text("check that we do not have ANY snp with an RSQ equal or lower than 0.3", header=3)
-run_bash(" \
-    for chrom_numb in {1..22}; do \
-        echo \"Starting chromosome ${chrom_numb}\"; \
-        awk \
-            'BEGIN{FS=\";\"; start=\"no\"}{ \
-                if (start==\"yes\"){ \
-                    split($5, a, \"=\"); \
-                    if (a[2] <= 0.3){ \
-                        exit 1; \
-                    } \
-                }; \
-                if (/^#CHROM/){ \
-                    start=\"yes\"; \
-                } \
-            }' \
-            <(gunzip --keep --stdout ./data/genetic_data/quality_control/20_imputation_results/04_uncompressed_vcf_files/chr${chrom_numb}.info.gz); \
-        echo \"Chromosome ${chrom_numb} is OK\"; \
-    done; \
-")
-    #For each chromosome
-        #decompres the INFO file and send it to stdout on the fly, being used as input for AWK
-        #split by ";" so we can separate the INFO fields which are separated by ";". Also create a variable called start being equal to "no".
-        #do stuff only if start is "yes", and that would be only the case after we pass the row with the names of the columns of the VCF file, i.e., we skip the header.
-        #in each row, split the 5th fields (R2=...) using "=" and save the two elements, R2 and the number in "a", if a2, i.e., the value of R2 is equal or lower than 0.3, then stop the execution.
-    #Note that Augusto applied an R2 filter under 0.9 instead of 0.7. We have used the most stringent filter option in TOPMed and the recommendation from Ritchie´s tutorial.
-        #AUGUSTO POST-IMPTUATION: Once our genomic data were imputed, a second quality control analysis was performed with PLINK 1.9 software [13]. The second quality control exclusion criteria were: low imputation quality (𝑅2<0.9); variants that did not meet the Hardy–Weinberg equilibrium (HWE-P>10−6); and low minor allele frequency (MAF<0.01) [14].
 
-print_text("See the final number of samples and variants", header=3)
+print_text("WE HAVE ALSO REMOVED SNPS WITH IMPUTATION QUALITY UNDER 0.95, SEE POST-IMPUTATION MERGING FOR DETAILS", header=2)
+
+
+print_text("See the final number of samples and variants", header=2)
 run_bash(" \
     cd ./data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/; \
     final_n_samples=$(awk 'END{print NR}' ./merged_3_geno.fam); \
@@ -428,8 +404,9 @@ run_bash(" \
     ); \
     read average1 average2 <<< ${averages}; \
     difference=$(echo \"${average1} - ${average2}\" | bc -l); \
-    echo \"MAF-Avg1: ${average1}; MAF-Avg2:${average2}; MAF-Diff:${difference}\"; \
-    diff_check=$(echo \"${difference} > 0.001\" | bc -l); \
+    absolute_difference=$(echo \"if ($difference < 0) -1 * $difference else $difference\" | bc -l); \
+    echo \"MAF-Avg1: ${average1}; MAF-Avg2:${average2}; MAF-Diff:${absolute_difference}\"; \
+    diff_check=$(echo \"${absolute_difference} > 0.001\" | bc -l); \
     if [[ ${diff_check} -eq 1 ]]; then \
         echo \"ERROR! FALSE! MAF AVERAGES ARE VERY DIFFERENT\"; \
     fi; \
@@ -482,8 +459,9 @@ run_bash(" \
     ); \
     read average1 average2 <<< ${averages}; \
     difference=$(echo \"${average1} - ${average2}\" | bc -l); \
-    echo \"MISSING-Avg1: ${average1}; MISSING-Avg2:${average2}; MISSING-Diff:${difference}\"; \
-    diff_check=$(echo \"${difference} > 0.001\" | bc -l); \
+    absolute_difference=$(echo \"if ($difference < 0) -1 * $difference else $difference\" | bc -l); \
+    echo \"MISSING-Avg1: ${average1}; MISSING-Avg2:${average2}; MISSING-Diff:${absolute_difference}\"; \
+    diff_check=$(echo \"${absolute_difference} > 0.001\" | bc -l); \
     if [[ ${diff_check} -eq 1 ]]; then \
         echo \"ERROR! FALSE! MISSING RATE AVERAGES ARE VERY DIFFERENT\"; \
     fi; \
