@@ -50,16 +50,25 @@ Options in effect:
   --out ./merged_1_geno
 
 63997 MB RAM detected; reserving 31998 MB for main workspace.
+9303550 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+0 variants removed due to missing genotype data (--geno).
+9303550 variants and 1203 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./merged_1_geno.bed + ./merged_1_geno.bim + ./merged_1_geno.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+./merged_1_geno.bed
+./merged_1_geno.bim
+./merged_1_geno.fam
 ./merged_1_geno.log
-
-Error: Failed to open ../00_plink_filesets/merged_file_sets/merged.bed.
 
 
 ## check we have not lost any SNP due to missingness ##
 FIRST QC FILTER WORKED FINE
-
-awk: cannot open ./00_plink_filesets/merged_file_sets/merged.bim (No such file or directory)
-awk: cannot open ./01_first_qc_step/merged_1_geno.bim (No such file or directory)
 
 
 ###### SECOND QC STEP ######
@@ -77,20 +86,249 @@ Options in effect:
   --out ./02_second_qc_step/merged_2_geno
 
 63997 MB RAM detected; reserving 31998 MB for main workspace.
+9303550 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+--hwe: 9 variants removed due to Hardy-Weinberg exact test.
+6105936 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3197605 variants and 1203 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./02_second_qc_step/merged_2_geno.bed +
+./02_second_qc_step/merged_2_geno.bim + ./02_second_qc_step/merged_2_geno.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+./02_second_qc_step/merged_2_geno.bed
+./02_second_qc_step/merged_2_geno.bim
+./02_second_qc_step/merged_2_geno.fam
 ./02_second_qc_step/merged_2_geno.log
-
-Error: Failed to open ./01_first_qc_step/merged_1_geno.bed.
 
 
 ## check we have the same number of samples and at least 5M SNPs ##
-Traceback (most recent call last):
-  File "/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/scripts/02d_post_imputation_qc.py", line 228, in <module>
-    run_bash(" \
-  File "/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/quality_control/scripts/02d_post_imputation_qc.py", line 137, in run_bash
-    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
-ValueError: ERROR: FALSE! WE HAVE A PROBLEM RUNNING COMMAND: awk: cannot open ./01_first_qc_step/merged_1_geno.bim (No such file or directory)
-awk: cannot open ./02_second_qc_step/merged_2_geno.bim (No such file or directory)
-awk: cannot open ./01_first_qc_step/merged_1_geno.fam (No such file or directory)
-awk: cannot open ./02_second_qc_step/merged_2_geno.fam (No such file or directory)
-/bin/bash: line 1: -: syntax error: operand expected (error token is "-")
+We had 9303550 SNPs before filtering and 3197605 after filtering, i.e., we have lost 6105945 
+SECOND QC FILTER WORKED FINE
 
+
+## check how many SNPs we retain due to setting the HWE threshold at 1-e6 instead of 0.05 and how many are under 1e-6 ##
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./merged_1_geno.log.
+Options in effect:
+  --bfile ./merged_1_geno
+  --hardy
+  --out ./merged_1_geno
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+9303550 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+--hardy: Writing Hardy-Weinberg report (founders only) to ./merged_1_geno.hwe
+... 0%0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+We have 164189 SNPs with a HWE p-value between 1e-6 and 0.05
+We have 5 SNPs with a HWE p-value under 1e-6
+OK!
+
+
+## check we do not lose too many SNPs for increasing MAF filter from 0.01 to 0.05 ##
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./merged_1_geno.log.
+Options in effect:
+  --bfile ./merged_1_geno
+  --freq
+  --out ./merged_1_geno
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+9303550 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+--freq: Allele frequencies (founders only) written to ./merged_1_geno.frq .
+We have 613994 SNPs with a MAF between 0.01 and 0.05
+OK! WE LOSE A REASONABLE AMOUNT OF SNPS DUE TO INCREASE MAF FROM 0.01 TO 0.05
+
+
+###### THIRD QC STEP ######
+
+## filter ##
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./03_third_qc_step/merged_3_geno.log.
+Options in effect:
+  --bfile ./02_second_qc_step/merged_2_geno
+  --make-bed
+  --mind 0.01
+  --out ./03_third_qc_step/merged_3_geno
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+3197605 variants and 1203 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./03_third_qc_step/merged_3_geno.bed +
+./03_third_qc_step/merged_3_geno.bim + ./03_third_qc_step/merged_3_geno.fam ...
+0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+./03_third_qc_step/merged_3_geno.bed
+./03_third_qc_step/merged_3_geno.bim
+./03_third_qc_step/merged_3_geno.fam
+./03_third_qc_step/merged_3_geno.log
+
+
+## check we do not lose any sample ##
+THIRD QC FILTER WORKED FINE
+
+
+###### WE HAVE ALSO REMOVED SNPS WITH IMPUTATION QUALITY UNDER 0.95, SEE POST-IMPUTATION MERGING FOR DETAILS ######
+
+###### See the final number of samples and variants ######
+We have 1203 samples and 3197605 SNPs after the third QC step
+
+
+#######################################
+#######################################
+BATCH EFFECTS
+#######################################
+#######################################
+
+###### check averages ######
+
+## first MAF ##
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./merged_3_geno_batches.log.
+Options in effect:
+  --bfile ../03_third_qc_step/merged_3_geno
+  --family
+  --freq
+  --out ./merged_3_geno_batches
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--family: 2 clusters defined.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+--freq: Cluster-stratified allele frequencies (founders only) written to
+./merged_3_geno_batches.frq.strat .
+ CHR                  SNP     CLST   A1   A2      MAF    MAC  NCHROBS
+   1      chr1_858952_G_A combat_ILGSA24-17303    A    G  0.07143     22      308 
+   1      chr1_858952_G_A combat_ILGSA24-17873    A    G   0.0877    184     2098 
+   1      chr1_905373_T_C combat_ILGSA24-17303    C    T   0.4091    126      308 
+   1      chr1_905373_T_C combat_ILGSA24-17873    C    T    0.398    835     2098 
+   1      chr1_911428_C_T combat_ILGSA24-17303    T    C   0.1948     60      308 
+   1      chr1_911428_C_T combat_ILGSA24-17873    T    C   0.2016    423     2098 
+   1      chr1_918870_A_G combat_ILGSA24-17303    G    A   0.2078     64      308 
+   1      chr1_918870_A_G combat_ILGSA24-17873    G    A   0.2107    442     2098 
+   1      chr1_931513_T_C combat_ILGSA24-17303    T    C   0.3929    121      308 
+MAF-Avg1: 0.245478; MAF-Avg2:0.245725; MAF-Diff:.000247
+
+
+## then call rate ##
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./merged_3_geno_batches.log.
+Options in effect:
+  --bfile ../03_third_qc_step/merged_3_geno
+  --family
+  --missing
+  --out ./merged_3_geno_batches
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--family: 2 clusters defined.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+--missing: Sample missing data report written to ./merged_3_geno_batches.imiss,
+and variant-based cluster-stratified missing data report written to
+./merged_3_geno_batches.lmiss.
+ CHR                  SNP       CLST   N_MISS   N_CLST   N_GENO   F_MISS
+   1      chr1_858952_G_A combat_ILGSA24-17303        0      154      154        0
+   1      chr1_858952_G_A combat_ILGSA24-17873        0     1049     1049        0
+   1      chr1_905373_T_C combat_ILGSA24-17303        0      154      154        0
+   1      chr1_905373_T_C combat_ILGSA24-17873        0     1049     1049        0
+   1      chr1_911428_C_T combat_ILGSA24-17303        0      154      154        0
+   1      chr1_911428_C_T combat_ILGSA24-17873        0     1049     1049        0
+   1      chr1_918870_A_G combat_ILGSA24-17303        0      154      154        0
+   1      chr1_918870_A_G combat_ILGSA24-17873        0     1049     1049        0
+   1      chr1_931513_T_C combat_ILGSA24-17303        0      154      154        0
+MISSING-Avg1: 0; MISSING-Avg2:0; MISSING-Diff:0
+
+
+###### check about the fact that we have NO missing genotypes after imputation ######
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./21_post_imputation_qc/04_batch_effects/missing_before_imputation.log.
+Options in effect:
+  --bfile ./19_topmed_prep/01_second_step/loop_maf_missing_2_pca_not_outliers_sex_full_clean_hwe_updated_chr_autosomals_miss_maf_snp_clean_sample_miss_clean-updated
+  --missing
+  --out ./21_post_imputation_qc/04_batch_effects/missing_before_imputation
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+247731 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is 0.999601.
+--missing: Sample missing data report written to
+./21_post_imputation_qc/04_batch_effects/missing_before_imputation.imiss, and
+variant-based missing data report written to
+./21_post_imputation_qc/04_batch_effects/missing_before_imputation.lmiss.
+
+MISSING RATE BEFORE IMPUTATION WAS: 0.00039891746854450993
+
+###### check for association between the batch assignation and SNP frquencies ######
+
+## calculate the association between snp frequencies and batches  ##
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./21_post_imputation_qc/04_batch_effects/merged_3_geno_batch_assoc.log.
+Options in effect:
+  --assoc
+  --bfile ./21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --out ./21_post_imputation_qc/04_batch_effects/merged_3_geno_batch_assoc
+  --pheno ./21_post_imputation_qc/04_batch_effects/case_control.tsv
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+1203 phenotype values present after --pheno.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1203 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+3197605 variants and 1203 people pass filters and QC.
+Among remaining phenotypes, 1049 are cases and 154 are controls.
+Writing C/C --assoc report to
+./21_post_imputation_qc/04_batch_effects/merged_3_geno_batch_assoc.assoc ...
+0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+
+## then calculate average p-value and number of signifncant SNPs  ##
+The average p-value is 0.497593, while the number of SNPs with P<1e-4 is 419
+OK! WE DO NOT HAVE SIGIFNICANT DIFFERENCES IN THE ALLELE FREQUENCIES OF THE SNPS BETWEEN BATCHES
+
+
+#######################################
+#######################################
+FINISH
+#######################################
+#######################################

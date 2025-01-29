@@ -495,7 +495,7 @@ def merging_prep(chromosome):
 
     #check we correctly applied the imputation quality filter
     run_bash("\
-        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr21; \
+        cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/chr" + str(chromosome) + "/; \
         chr_numb=" + str(chromosome) + "; \
         n_snps_under_95_imput=$( \
             gunzip \

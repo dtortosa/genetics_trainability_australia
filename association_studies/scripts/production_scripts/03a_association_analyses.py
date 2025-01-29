@@ -201,6 +201,9 @@ run_bash(" \
     #The approach they use is to split the samples in two groups in training and test. The PRS is calculated in the training set using a CV approach so the hyperparameters of the model (prior distribution parameters) can be tuned. Then, the model is used to predict the trait in the test set and the correlation between predicted and obserbed is used to evaluate the predicitive power.
 
 
+#last chcek to QC of doug
+
+
 #you can use --elasti en el 75%, ahí te hace automaticamente CV para seleccionar hiperparamteros usando plink filset como inputs. El output se puede usar como input para otra funcion que calcula los scores para nuevos individuaos, el 25% restante. 
 
 #toma plink fileset como input y phenotipos en plink format! solo habría que comprobar que hemos hecho todos los pasoss de QC que considera. El approach seguiría siendo limitado porque el 25% test no sería independiente 100%, son muestras del mismo estudio, pero bueno, en GWAS de enfermdeades raras se suele hacer el discovery y validation con el mismo dataset, conpcetualmente nosotros hacemos lo mismo y tenemos la misma justificacion. El problema añadido es que el QC se ha hecho en conjunto y al seleccionar o elmimninar muestras por estructura o relatives, podemos estar considrando muestras de ambos sets, pero se dice que es lo mejor que tenemos, que existe el riesgo de overfitting, y que habría que seguir investigando el score viendo su poder predictivo en futuros estudios.
