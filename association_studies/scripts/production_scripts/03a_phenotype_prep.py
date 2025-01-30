@@ -1,50 +1,203 @@
+#!/usr/bin/env python3.9
+# coding: utf-8
+    #to run this script: chmod +x script.py; ./script.py
+    #!/bin/sh does not work with my terminal en msi of David.
+    #if you are using "$" to paste the path of the executable, you do not need to use "./" for running the executable.
+    #you can save the output and the errors
+        #./script.py > script.out #only output
+        #./script.py 2> error.out #only error
+        #./script.py > script.out 2> error.out #both in different files
+        #./script.py > script.out 2>&1 #both in the same file
+        #https://www.cyberciti.biz/faq/linux-redirect-error-output-to-file/
+
+
+
+#######################################
+######## PHENOTYPE PREPARATION ########
+#######################################
+
+#This script will prepare the phenotypes for the association analyses. 
+
+#This and previous scripts are based on the following tutorials:
+    #1. Quality Control Procedures for Genome-Wide Association Studies
+        #https://github.com/RitchieLab/GWAS-QC
+        #https://drive.google.com/file/d/1kxV3j_qCF_XMX47575frXhVwRMhzjqju/view
+    #2. Genome-wide association studies
+        #https://www.nature.com/articles/s43586-021-00056-9
+    #3. Data Management and Summary Statistics with PLINK
+        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+    #4. Genomics Boot Camp
+        #https://genomicsbootcamp.github.io/book/
+    #5. Tutorial: a guide to performing polygenic risk score analyses
+        #https://www.nature.com/articles/s41596-020-0353-1
+        #https://choishingwan.github.io/PRS-Tutorial/
+    #6. Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
+        #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
+    #7. Omics Data Preprocessing for Machine Learning: A Case Study in Childhood Obesity
+        #https://www.mdpi.com/2073-4425/14/2/248
+    #8. LDAK
+        #https://dougspeed.com/
+        #https://www.nature.com/articles/s41467-021-24485-y
+
+
+
+#######################################
+# region INITIAL ANOTATIONS AND STEPS #
+#######################################
+
+###########
+# imports #
+###########
+
+import pandas as pd
+
+
+
+########################################
+# define function to print text nicely #
+########################################
+
+#text="checking function to print nicely"
+#header=1
+def print_text(text, header=2):
+    if header==1:
+        print("\n#######################################\n#######################################")
+        print(text)
+        print("#######################################\n#######################################")
+    elif header==2:
+        print("\n###### " + text + " ######")
+    elif header==3:
+        print("\n## " + text + " ##")
+    elif header==4:
+        print("\n# " + text + " #")
+print_text("checking function to print nicely: header 1", header=1)
+print_text("checking function to print nicely: header 2", header=2)
+print_text("checking function to print nicely: header 3", header=3)
+print_text("checking function to print nicely: header 4", header=4)
+
+
+
+########################################
+# define function to run bash commands #
+########################################
+
+#create a wrapper for subprocess.run in order to define a set of arguments and avoid typing them each time. We will ensure that we are using bash always and not sh.
+from subprocess import run, PIPE
+#command="ls"
+def run_bash(command, return_value=False):
+
+    #run the command
+    complete_process = run(
+        command, 
+        shell=True,
+        executable="/bin/bash", 
+        stdout=PIPE,
+        stderr=PIPE, 
+        text=True)
+    #we have to use popen in order to ensure we use bash, os.system does not allow that
+        #shell=True to execute the command through the shell. This means that the command is passed as a string, and shell-specific features, such as wildcard expansion and variable substitution, can be used.
+            #THIS IS DANGEROUS IF UNTRUSTED DATA
+        #executable="/bin/bash" to ensure the use of bash instead of sh
+        #stdout=PIPE to capture the output into an python object. You can also capture the error doing stderr=PIPE. stdout and stderr are the standard output and error
+            #you could also use capture_output=True to capture both stdout and stderr
+        #text=True will return the stdout and stderr as string, otherwise as bytes
+            #https://www.datacamp.com/tutorial/python-subprocess
+            #https://docs.python.org/3/library/subprocess.html#subprocess.run
+
+    #this generated a CompletedProcess instance where you can get
+        #args: The command and arguments that were run.
+        #returncode: The return code of the subprocess.
+        #stdout: The standard output of the subprocess, as a bytes object.
+        #stderr: The standard error of the subprocess, as a bytes object.
+
+    #if the return code is 0, i.e., success 
+        #https://askubuntu.com/a/892605
+    if complete_process.returncode==0:
+
+        #if stderr is empty
+        if complete_process.stderr=="":
+
+            #print the standard output without "\n" and other characters
+            print(complete_process.stdout)
+
+            #return also the value if required
+            if return_value==True:
+                return complete_process.stdout
+        else:
+
+            #print the standard output without "\n" and other characters
+            print(complete_process.stdout)
+
+            #print the standard error without stopping
+            print(complete_process.stderr)
+
+            #return also the value if required
+            if return_value==True:
+                return complete_process.stdout
+    else:
+        #print the standard error and stop
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM RUNNING COMMAND: " + complete_process.stderr)
+
+#test it
+print_text("check behaviour run_bash", header=1)
+print_text("see working directory", header=2)
+run_bash("pwd")
+print_text("list files/folders there", header=2)
+run_bash("ls")
+
+
+
 ######################
-# prepare covariates #
+# folder preparation #
 ######################
+run_bash(" \
+    mkdir -p ./data/pheno_data; \
+    mkdir -p ./data/plink_inputs; \
+    mkdir -p ./results/final_results/distribution_hist; \
+    ls -l")
+
+# endregion
+
+
+
+
+
+
+#############################
+# region prepare covariates #
+#############################
 print_text("prepare covariates", header=1)
+print_text("prepare PCA axes", header=2)
+print_text("load axes", header=3)
+smartpca_eigenvectors = pd.read_csv(\
+    "../quality_control/data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+print(smartpca_eigenvectors)
+#check we have the correct number of columns
+if(smartpca_eigenvectors.shape[1]-1!=20):
+    raise ValueError("ERROR! FALSE! We are not considering all the interesting axes in smartpca")
+
+print_text("split IDs", header=3)
+smartpca_eigenvectors[["FID", "IID"]] = smartpca_eigenvectors.iloc[:,0].str.split(":", expand=True)
+    #splits the column at each ":" and expands the result into separate columns.
+    #df[['new_col1', 'new_col2']] assigns the split columns to new columns named new_col1 and new_col2.
+print(smartpca_eigenvectors)
+
+print_text("select the PCAs we are interested in", header=3)
+#We are going to use only the 2 first PCAs:
+    #There is a clear reduction of explained variability from 1 to and from 2 to 3, but from 3 there are small differences in explained variability. 
+    #Admixture considers that we only have ONE continental ancestry in our dataset. Moreover, the PCA plots show that if there is an axis that is spreading a bit the samples is the first one, the rest show very cloudy patterns, almost perfect.
+    #Yes, according to smartpca, we have 6 significant PCAs, but if we used that criteria we would include PCA5 which show a little bit of pattern, the loadings tend to increase a lot in one positon of chromosome 5 for this PCA. We may see a bit of that pattern in the same region for PCA 4 and 3, so I would not include any of these PCAs and just focus on the two most important.
+    #We are going to stick to 1 and 2.
+smartpca_eigenvectors_subset = smartpca_eigenvectors[["FID", "IID", 1, 2]]
+print(smartpca_eigenvectors_subset)
 
 
-#TOPMed slides have info about different GWAS tools
-    #https://raw.githubusercontent.com/genepi/imputationserver-ashg/main/slides/MIS_Workshop_2023.pdf
-
-###LOOK MARES TUTORIAL AND PRSice TO DO THIS FAST
-#There are multiple resources at the end of the Ritchie tutorial to perform GWAS, including plink and hail tutorials
-    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#gwas-related-resources
-
-#WORTH TO MENTION MAREES:
-    #It has a quick tutorial to do association and p-value correction (needed for PRS?)
-    #Then recommends PRSice to calculate PRS across different thresholds and select the best using traiinng and evaluation! very simple!!!
-        #https://github.com/MareesAT/GWA_tutorial/
-        #https://choishingwan.github.io/PRSice/step_by_step/
+print_text("load the phenotypes", header=2)
 
 
-
-##IMPORTANT!!
-###PC1 and PC2> only? HIIT study used PC6 becuase it was correlated with VO2 max response
-    #Baseline V̇O2peak, the individual study and PC6 (the 6th principal components from the PCA analysis, which was significantly associated with the phenotype) were included as covariates.
-
-
-###check differences in pheno between batches?
-#do case-control study for batch effects AFTER all pre-QC steps?
-############run case-control study to check for batch effects once you have pre-imputation QC done
-    #Another method involves coding case/control status by batch followed by running the GWAS analysis testing each batch against all other batches. For example, the status of all samples on batch 1 will be coded as case, while the status of every other sample is to be coded control. A GWAS analysis is performed (e.g., using the --assoc option in PLINK), and both the average p-value and the number of results significant at a given threshold (e.g., p <1 × 10-4) can be recorded. SNPs with low minor allele frequency (i.e., <5%) should be removed before this analysis is performed to improve the stability of test statistics. This procedure should be repeated for each batch in the study. If any single batch has many more or many fewer significant results or has an average p-value <0.5 (under the null, the average p-value will be 0.5 over many tests), then this batch should be further inves tigated for genotyping, imputation, or compo sition problems. If batch effects are present, methods like those employed for population stratification (e.g., genomic control) may be used to mitigate the confounding effects.
-
-
-##check all these pheno questions are answered
-#- pheno_data
-    #- ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
-    #- in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
-    #    - body mass week 1 and 8
-    #    - VO2 max week 1
-    #- sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
-    #- I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
-    #- some rows are coloured, there is something special about these samples it could be relevant for the analysis?
-
-
-
-
-
-print_text("load pheno data", header=2)
 print_text("This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv", header=3)
 run_bash(" \
     cp \
@@ -707,3 +860,16 @@ print("IMPORTANT: \
     Note sure if this can cause problems because we are already indicating the family ID (batch) in both covariates and phenos... In the final analyses, if you do not see batch effects, I think you can skip completely this. \
     If you add this be careful because you are using quantile transformation in all covaraites loaded from covar file in plink2, and you cannot obviously do that for a discrete variable")
 
+
+
+#ask David the last questions about the phenotypes
+#explain the selected covariates
+#decide if we are going to analyze the three training phenotypes
+#more questions
+    #- ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
+    #- in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
+    #    - body mass week 1 and 8
+    #    - VO2 max week 1
+    #- sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
+    #- I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
+    #- some rows are coloured, there is something special about these samples it could be relevant for the analysis?
