@@ -156,7 +156,9 @@ run_bash(" \
 # region approach to calculate the PRS #
 ########################################
 
-#The QC procedures are intentionally conservative, and particular care should be taken in performing them, because small errors can become inflated when aggregated across SNPs in PRS calculation. Researchers should follow established guidelines
+#The QC procedures are intentionally conservative, and particular care should be taken in performing them, because small errors can become inflated when aggregated across SNPs in PRS calculation. Researchers should follow established guidelines.
+#Prior to performing heritability analysis, it is necessary to perform very careful quality control of samples and predictors. This is because heritability analyses tend to be very sensitive to genotyping errors. Estimates of heritability represent the sum of the contributions of many predictors, so even if the error at individual predictors is small, this can accumulate across predictors to produce a large overall error. Further, estimates of heritability are sensitive to inflation due to population structure and familial relatedness; the former can result in correlations between predictors and the phenotype that are due to ancestry, not causality, while the latter leads to long-range linkage disequilibrium (meaning that we can no longer be confident that the heritability estimates reflect only the heritability contributed by the predictors in the dataset).
+#Quality control is also important when constructing prediction models. Genotyping errors, population structure and familial relatedness can all bias estimates of predictor effect sizes, meaning that the model will under perform when used to predict phenotypes for an independent set of samples.
     #O´Really Nature Protocol
         #Tutorial: a guide to performing polygenic risk score analyses. Nature protocol.
         #(e.g., refs. 28–30) — we recommend ref. 29— to perform standard GWAS QC on the base and target data. Since the option of performing QC on the base GWAS data will typically be unavailable, researchers should ensure that high-quality QC was performed on the GWAS data that they utilize. We recommend the following QC criteria for standard analyses: genotyping rate >0.99, sample missingness <0.02, Hardy-Weinberg Equilibrium P >1 × 10−6, heterozygosity within 3 standard deviations of the mean, minor allele frequency (MAF) >1% (MAF >5% if target sample N <1000) and imputation ‘info score’ >0.8.
@@ -191,30 +193,63 @@ run_bash(" \
         #If genetic association testing is performed using joint models of multiple SNPs47 , then independent genetic effects can be esti- mated despite the presence of LD. However, association tests in GWASs are typically performed one SNP at a time, which, combined with the strong correlation structure across the genome, makes estimating the independent genetic effects (or best proxies of these if not genotyped/imputed) extremely challenging. If independent effects were estimated in the GWAS or by subsequent fine-mapping, then PRS calculation can be a simple summation of those effects. If, instead, the investigator is using a GWAS based on one-SNP-at-a-time testing, then there are two main options for approximating the PRS that would be obtained from independent effect estimates: (i) SNPs are clumped (i.e., thinned, prioritizing SNPs at the locus with the smallest GWAS P value) so that the retained SNPs are largely independent of each other, and, thus, their effects can be summed, assuming additivity; and (ii) all SNPs are included, accounting for the LD between them. In the classic PRS cal- culation method 5,11,13 , option (i) is combined with P value thresholding and called the C+T (clumping + thresholding) method, while option (ii) is generally favored in methods that implement traditional shrinkage techniques 19,20,45,46 . The rela- tively similar performance of the classic approach to more sophisticated methods14,19,20 may be due to the clumping process capturing conditionally independent effects well; note that clumping does not merely thin SNPs by LD at random (like pruning) but preferentially selects SNPs most associated with the trait under study, and retains multiple SNPs in the same genomic region if there are multiple independent effects there: clumping does not simply retain only the most-associated SNP in a region. A criticism of clumping, however, is that researchers typically select an arbitrarily chosen correlation threshold 41 for the removal of SNPs in LD, and so while no strategy is without arbitrary features, this may be an area for future development of this approach. The key benefits of the classic PRS method are that it is relatively fast to apply and is more interpretable than present alternatives. Both clumping and LD modeling require estimation of the LD between SNPs.
         #HIIT-PREDICT used thresholding + clumping selecting SNPS by p-value and then selecting the most important (lead) SNPs in each group of correlated SNPs.
 
+#The problem of calculating heritability in small datasets (i.e., <5000 samples)
+    #from LDAK webpage
+        #https://dougspeed.com/small-datasets/
+        #To perform heritability analysis (e.g., estimate SNP heritability or partition heritability), requires that the samples are "unrelated" (in practice, this means at most distantly related, with no pair closer than, say, second cousins). This ensures that the heritability estimates reflect only the heritability contributed by predictors in the dataset (or predictors in local linkage disequilibrium with these). By contrast, if your dataset includes (substantial) relatedness, there will likely be long-range linkage disequilibrium (e.g., between predictors on different chromosomes), and you will end up with inflated estimates.
+            #we removed first and second degree, i.e., parent-child, siblings, grandparents, grandchildren, aunts, uncles, nieces, nephews, and half-siblings...
+            #we did not remove cousins, and we could have them. We used the threshold frequently used in GWAS studies. As you will see below, we are going to be limited for the calculation of heritability due to sample size.
+        #Furthermore, heritability analyses generally require a large sample size. For example, to reliably estimate SNP heritability (standard deviation less than 5%) using a single kinship matrix typically needs at least 7,000 unrelated samples; if you wish to use multiple kinship matrices (i.e., perform Genomic Partitioning), the required number of samples is even higher.
+    #According to Doug, the clumping and thresholding method technically assumes NO heritability model (it is classical - only bayesian methods assume a heritability model). In contrast, we will likely get noisy estimates of h2, making it hard to leverage the power of good heritability models when using 1.2K samples. So, yes, 1200 samples is typically considered small (if the trait was very simple, eg Mendelian, 1200 would be sufficient; but assuming the trait is complex, it will be challenging to get prediction with 1200 samples). Note, however, that in the same way, the sample size will affect all PRS tools. 
+    #More important, in general, individual-level data tools (e.g., .LDAK) are always better than summary statistic tools (e.g., clumping and thresholding). So even for small sample sizes, it remains better to use individual-level data tools. While the main advantage is accuracy, ind-level methods also have the advantage of reporting measures of accuracy (e.g., LDKA uses internal CV, and will report accuracy from this).
+        #Note that calculating p-values/effect sizes and then use them as input for the PRS is basically use to summary statistics, instead of taking the statistics from a previous paper, you calculate them yourself. 
+        #The alternative is to use individual-level data that, according to Doug, have more accuracy than the summary statistic approach.
+    #So if we have an acceptable training-evaluations scheme, we can just use the individual-level approach and then check the accuracy that should be higher anyways than traditional approaches.
+        #Doug: Lastly, if doing CV, make sure the training and test samples are quasi independent (normally people with 1200 samples are analyzing animal or plant datasets, with high relatedness; however, it sounds like you have unrelated humans, so all ok)
+        #Diego: Regarding the independence of the training and test set, yes, this was a study that included unrelated humans, at least on paper. Anyways, I checked for cryptic relatedness using KING and removed first and second-degree related pairs. Still, the datasets will not be completely independent as they come from the same study, but I think this is the best I can do given the particularities of my cohort.
+        #Doug: Regarding the dataset, yes, that sounds absolutely fine (even if you had not removed the first / second degree relatives, I would still think it would be fine for cross validation)
+    #It is possible the small sample size will "break" LDAK, but this will be obvious from the screen output (e.g., if it is impossible to get a meaningful estimate of total heritability) - and if this does happen, it would be interesting to see.
+    #Therefore, given the data I have (low sample size and complex trait), individual-level data is still a better option despite the limitations in the calculation of heritability. I going definitively to give a try to --elastic from LDAK and update here if the tools fails because of the sample size.
+
 #LDAK is toolbox that includes many tools and, in particular, the calculation of polygenic scores for trait prediction. This has been developed during years by Doug Speed, a reseracher at Denmark that has published his new methods in journals like Genome Research or Nature Communications, having multiple citations. His methods are indeed cited by the PRS tutorial of O´Really.
         #https://dougspeed.com/
-    #It takes care of the Shrinkage of GWAS effect size estimates by applying the srhinkage across all SNPs. 
-    #But the great adventage over other methods is that it does not assume that all SNPs have the same influence on heritability, instead the impact of each individual SNPs is estimated consider "minor allele frequency (MAF), local levels of linkage disequilibrium and functional annotations". Therefore, I understand it also takes care of the correlation between predictors.
+    #It takes care of the Shrinkage of GWAS effect size estimates by applying the srhinkage across all SNPs. As we will sue elastic net, I assume that this will be a combination of lasso (small weights go to zero) and ridge (no weight goes to zero while big weights are reduced).
+    #But the great adventage over other methods is that it does not assume that all SNPs have the same influence on heritability, instead the impact of each individual SNPs is estimated consider "minor allele frequency (MAF), local levels of linkage disequilibrium and functional annotations".
+        #We are not taking full advantage of this because of our sample size, but it is ok (see above).
     #Across +200 phenotypes, they found that with this new approach the proportion of phenotypic variance explained increases by on average 14%, which is equivalent to increasing the sample size by a quarter.
     #The input are just plink fileset with the individual genotyping data (although you can also use summary statistics) and phenotype data (response and covariables) using plink format. 
     #This outputs: 1) the heritability estimate of trait. This can be used as reference to see how much of that heriability is explained by the PRS; 2) The predictive model is saved in a .effect file that can be then used as input for "Calculate Scores", another tool of LDAK that predict the trait in a new set samples.
     #The approach they use is to split the samples in two groups in training and test. The PRS is calculated in the training set using a CV approach so the hyperparameters of the model (prior distribution parameters) can be tuned. Then, the model is used to predict the trait in the test set and the correlation between predicted and obserbed is used to evaluate the predicitive power.
 
+#The heritability model 
+    #The first heritability analyses used the GCTA Model, which assumes that all SNP contributes equally. Since then, many different models have been developed, that try to more accurately describe how heritability varies across the genome. For example, we proposed the LDAK Model, where the expected heritability contributed by a SNP depends on its minor allele frequency (MAF) and local levels of linkage disequilibrium (LD).
+        #http://dougspeed.com/technical-details/
+    #The LDAK weightings are designed to account for the fact that levels of linkage disequilibrium vary across the genome. The LDAK weightings are designed to equalize the tagging of SNPs across the genome; SNPs in regions of high linkage disquilbirum (LD) will tend to get low weightings, and vice versa. This will influence the impact of each SNP on the overall heredability (see below for the heirtability formula below). If you have 4 SNPs very close and in linakge they all are considered to tag the same underlying variation having then the same weight than a single SNP that is tagging a single source of underlying variation. HOWEVER, they only advise using them when constructing the BLD-LDAK or BLD-LDAK+Alpha Models, our recommended Heritability Models when analysing summary statistics.
+        #https://dougspeed.com/method-overview/
+    #We have spent much time investigating the best Heritability Model. We now generally recommend using the Human Default Model. Although there are more realistic heritability models (e.g., those that take into account functional annotations), we recommend the Human Default Model because it has robust performance and is easy to use.
+    #We now recommend using the Human Default Model, in which the expected heritability of a SNP depends only on its MAF. We first proposed this model in our paper LDAK-GBAT: fast and powerful gene-based association testing using summary statistics (American Journal of Human Genetics). Although there are more realistic heritability models (e.g., those that take into account functional annotations), we recommend the Human Default Model because it has robust performance and is easy to use.
 
-#last chcek to QC of doug
+#additional steps besides QC?
+    #A quick follow-up question: If I understand correctly from LDAK documentation, after applying quality control procedures (imputation quality [R2], MAF, sample and SNP missingness, population structure, sample relatedness, sex inconsistency, etc....) I would just need to use the Plink filesets as input for --elastic along with the phenotype and covariates. Then I could use the .effect file as input for --calc-scores in the test set and also assess model performance with --jackknife. So my question, which is probably obvious given what you just explained but I just want to be sure, I do not need to do additional steps besides the QC (i.e., no clumping, thresholding etc...) as I am not using the classical approach, right?
+    #Yes, your steps sound right - perform QC, then use the PLINK files with --elastic (adding --LOCO NO, because you only care about prediction) and then --calc-scores
+
+#you could also use LDAK to create the regular approach
+    #You may wish to do a classical PRS just for interest / comparison, in which case, you can run --linear (on the training samples), then the file with suffix .score gives classical PRS .corresponding to 7 p-value thresholds (that you can then provide to --calc-scores)
+    #NOT SURE IF WE HAVE TO DO CLUMPING, ASK IN THE FUTURE TO DOUG IN CASE NEEDED. 
 
 
-#you can use --elasti en el 75%, ahí te hace automaticamente CV para seleccionar hiperparamteros usando plink filset como inputs. El output se puede usar como input para otra funcion que calcula los scores para nuevos individuaos, el 25% restante. 
+
+
+
+
 
 #toma plink fileset como input y phenotipos en plink format! solo habría que comprobar que hemos hecho todos los pasoss de QC que considera. El approach seguiría siendo limitado porque el 25% test no sería independiente 100%, son muestras del mismo estudio, pero bueno, en GWAS de enfermdeades raras se suele hacer el discovery y validation con el mismo dataset, conpcetualmente nosotros hacemos lo mismo y tenemos la misma justificacion. El problema añadido es que el QC se ha hecho en conjunto y al seleccionar o elmimninar muestras por estructura o relatives, podemos estar considrando muestras de ambos sets, pero se dice que es lo mejor que tenemos, que existe el riesgo de overfitting, y que habría que seguir investigando el score viendo su poder predictivo en futuros estudios.
 
 #repeat 10 times and see if the repsonseds are the same across iterations?
 
 
-###Our preferred measure of SNP quality is the information score from imputation, which reflects how closely a SNP's genotypes match those expected given the neighbouring SNPs. We typically exclude SNPs with information score below 0.95 or 0.99!!!!
 
 
-#you could use the estimated heritability as a mark of how high the R2 could go, the theorictical top. That can be found in .hers
 
 
 #Supplementary Fig. 6 shows that improving the heritability model also improves the accuracy of PRS when we increase the number of SNPs from 629,000 to 7.5 M by including imputed genotypes.
@@ -232,8 +267,7 @@ run_bash(" \
 #http://dougspeed.com/profile-scores/
 
 
-#FALTA IMPUTATION SCORE DE 0.95!!! PARA CUMPLIR CON PRS TUTORIAL Y DOUG
-#add also a quick check with python pandas to check whether we have duplicates in the bim file according chromosome and position
+
 
 run_bash(" \
     mkdir -p ../ldak_versions/; \
@@ -245,29 +279,36 @@ run_bash(" \
     #https://github.com/dougspeed/LDAK
 
 
+
 run_bash(" \
     ldak6.1.linux --elastic elastic --pheno case_control.tsv --bfile merged_3_geno --LOCO NO \
 ")
+    #Yes, your steps sound right - perform QC, then use the PLINK files with --elastic (adding --LOCO NO, because you only care about prediction) and then --calc-scores
+    #Select the Heritability model
+        #The GCTA Model assumes E[h2j] = tau1 (i.e., that expected heritability is constant across SNPs). Note that this is the model assumed by any method that first standardizes SNPs, then assigns to each the same prior distribution or penalty function. In LDAK, this model is specified by adding the options --ignore-weights YES and --power -1 when Calculating Kinships or Calculating Taggings.
+        #The Human Default Model assumes E[h2j] = tau1 [fj(1-fj)]0.75, where fj is the minor allele frequency of SNP j. Therefore, the Human Default Model assumes that more common SNPs have higher E[h2j] than less common SNPs. In LDAK, this model is specified by adding the options --ignore-weights YES and --power -0.25 when Calculating Kinships or Calculating Taggings.
+            #THIS IS THE RECOMMENDED MODEL IN GENERAL BY DOUG
+        #The LDAK Model assumes E[h2j] = tau1 wj [fj(1-fj)]0.75, where wj are the LDAK weightings; these will tend to be lower for SNPs in regions of high linkage disequilibrium (LD), and vice versa. Therefore, the LDAK Model assumes that E[h2j] is higher for SNPs in regions of lower LD and for those with higher MAF. In LDAK, this model is specified by adding the options --weights <weightsfile> and --power -0.25 when Calculating Kinships or Calculating Taggings, where <weightsfile> provides the LDAK Weightings.
+            #Here is where the weigthings enters in action, considering not only the MAF but also the LD level in each genomic region.
 
-    #thiss seems to work
-    #yoou could do a subset ot 75% for hyperparameter tunning and then predict with the other function in the 25%, you can use plinlk to subset
 
 
 
-##YOU CANNOT CALCULATE HERITABILITY, TOO SMALL NUMBER OF SAMPLES
-    #http://dougspeed.com/small-datasets/
 
+
+#you can use --elasti en el 75%, ahí te hace automaticamente CV para seleccionar hiperparamteros usando plink filset como inputs. El output se puede usar como input para otra funcion que calcula los scores para nuevos individuaos, el 25% restante. Do function that do this for a given iteration so you can use 10 cores to do 100 iterations in 1 day. you can also calculate the regulra PRS in each iteration. at the end of paralelization, in a different script, you will combine R2, accurcy of all iteratons and calculate media and CI. Caclulate the median difference respect to the original PRS approach. you could also calculate the degree of overlap across iterations for the top 10% responders. as a previous step in a different step, use LDAK to do manhatan plot (LDAK-KVIK).
+
+
+
+#if you compare with trad-PRS, you can use log?
+    #https://dougspeed.com/compare-models/
 
 #David wants to show also manhatann plots (maybe just use plink or LDAK?), also repeat 10 times the 75-25% and see if the respodners are the same?
 
 
 
-###heritability estimate
-#A critical factor in the accuracy and predictive power of PRSs is the power of the base (GWAS) data 5 , and so to avoid reaching misleading conclusions from the application of PRSs, we recommend performing PRS analyses only that use GWAS data with an h2SNP > 0.05. If an h2SNP estimate has not been reported for these data, then we suggest using software for estimating h2SNP from GWAS summary statistics, such as LD Score regression 8 or SumHer 31 .
-
-
-
-
+##WHEN INTERPRETING THE RESULTS OF THE PRS, LOOK SLIDES FROM DOUG
+    #https://dougspeed.com/short/
 ###WHEN DONE, YOU CAN CHECK THE SECTION OF INTERPRETATION FROM ORRELLY
     #Interpretation and presentation of results
 

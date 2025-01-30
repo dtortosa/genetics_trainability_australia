@@ -466,10 +466,14 @@ def merging_prep(chromosome):
     #for each chromosome
         #create a specific folder and move inside
         #include only those SNPs with an imputation quality >=0.95
-            #This is more stringent than Ritchie´s but it is the recommendation of Doug Speed for using its PRS tool. Also remember Augusto used a filter of 0.9, not 0.7.
+            #This is more stringent than Ritchie´s but it is the recommendation of Doug Speed for using its PRS tool (0.95 or 0.99). Also remember Augusto used a filter of 0.9, not 0.7.
                 #AUGUSTO POST-IMPTUATION: Once our genomic data were imputed, a second quality control analysis was performed with PLINK 1.9 software [13]. The second quality control exclusion criteria were: low imputation quality (𝑅2<0.9); variants that did not meet the Hardy–Weinberg equilibrium (HWE-P>10−6); and low minor allele frequency (MAF<0.01) [14].
             #Indeed, the removal of more SNPs using imputation quality has decreased the number of SNPs removed in the post-imputation quality control, suggesting we have targeting problematic SNPs when using the imputation quality.
             #In "02bd_download_extract_imputation_results.sh" you can see how R2 is the imputation quality.
+            #Doug Speed: For example, when analysing the UK Biobank data, our information score threshold was 0.95. However, if in your data, almost all (very few) predictors exceed this threshold, then you should consider increasing (reducing) it. For some good advice on how to decide thresholds, see Mike Weale's Chapter on Quality Control.
+                #In our case, we have reduced from 28M to 9M SNPs by increasing the imputation score from 0.7 to 0.95. This leaves 3M after QC.
+                #If we increase the threshold to 0.99, the number of SNPs after QC reduces to 200K. This is basically the number of SNPs we have before imputation, so this is too much. 
+                #We select a stringent threshold, but not the most stringent.
         #join biallelic SNPs into multiallelic records: We have SNPs with the same position but one allele different, suggesting we have multiallelic variants. We want to merge them and then remove.
             #--multiallelic +snps: 
                 #this combines snps with the same position and at least equal REF or ALT. Therefore, this makes that a SNP with three alleles is within just one row, so we can filter it in the next step.
