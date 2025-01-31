@@ -50,6 +50,7 @@
 ###########
 
 import pandas as pd
+import numpy as np
 
 
 
@@ -163,50 +164,18 @@ run_bash(" \
 
 
 
-#############################
-# region prepare covariates #
-#############################
-print_text("prepare covariates", header=1)
-print_text("prepare PCA axes", header=2)
-print_text("load axes", header=3)
-smartpca_eigenvectors = pd.read_csv(\
-    "../quality_control/data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
-    sep="\t", \
-    header=None, \
-    low_memory=False)
-print(smartpca_eigenvectors)
-#check we have the correct number of columns
-if(smartpca_eigenvectors.shape[1]-1!=20):
-    raise ValueError("ERROR! FALSE! We are not considering all the interesting axes in smartpca")
-
-print_text("split IDs", header=3)
-smartpca_eigenvectors[["FID", "IID"]] = smartpca_eigenvectors.iloc[:,0].str.split(":", expand=True)
-    #splits the column at each ":" and expands the result into separate columns.
-    #df[['new_col1', 'new_col2']] assigns the split columns to new columns named new_col1 and new_col2.
-print(smartpca_eigenvectors)
-
-print_text("select the PCAs we are interested in", header=3)
-#We are going to use only the 2 first PCAs:
-    #There is a clear reduction of explained variability from 1 to and from 2 to 3, but from 3 there are small differences in explained variability. 
-    #Admixture considers that we only have ONE continental ancestry in our dataset. Moreover, the PCA plots show that if there is an axis that is spreading a bit the samples is the first one, the rest show very cloudy patterns, almost perfect.
-    #Yes, according to smartpca, we have 6 significant PCAs, but if we used that criteria we would include PCA5 which show a little bit of pattern, the loadings tend to increase a lot in one positon of chromosome 5 for this PCA. We may see a bit of that pattern in the same region for PCA 4 and 3, so I would not include any of these PCAs and just focus on the two most important.
-    #We are going to stick to 1 and 2.
-smartpca_eigenvectors_subset = smartpca_eigenvectors[["FID", "IID", 1, 2]]
-print(smartpca_eigenvectors_subset)
-
-
-print_text("load the phenotypes", header=2)
-
-
-print_text("This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv", header=3)
+#####################################################################
+# region process original excel file with phenotypes and covariates #
+#####################################################################
+print_text("combine the excel file, FAM file and the PCAs", header=1)
+print_text("load the excel file", header=2)
+#This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
 run_bash(" \
     cp \
         ../quality_control/data/pheno_data/'Combat gene DNA GWAS 23062022_v2.xlsx' \
         ./data/pheno_data/pheno_data.xlsx; \
-    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/Combat gene DNA GWAS 23062022_v2.xlsx, which is the second raw excel I got from D. Bishop after they add beep distance' > ./data/pheno_data/README.txt; \
+    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/'Combat gene DNA GWAS 23062022_v2.xlsx', which is the second raw excel I got from D. Bishop after they add beep distance' > ./data/pheno_data/README.txt; \
     ls -l ./data/pheno_data/")
-import pandas as pd
-import numpy as np
 pheno_data = pd.read_excel(
     "./data/pheno_data/pheno_data.xlsx",
     header=0,
@@ -214,12 +183,12 @@ pheno_data = pd.read_excel(
 print(pheno_data)
 
 
+print_text("do some checks about the variables", header=2)
 print_text("Check that the dtype of the new beep distance columns is float64", header=3)
 if (pheno_data["Week 1 Distance (m)"].dtype == "float64") & (pheno_data["Week 8 Distance (m)"].dtype == "float64"):
     print("YES! GOOD TO GO!!")
 else:
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DTYPE OF THE NEW BEEP DISTANCE COLUMNS")
-
 
 print_text("Check that the new version of the pheno_data is exactly the same than the previous one if we remove the new beep distance variables", header=3)
 print_text("load the original phenotype data", header=4)
@@ -232,16 +201,12 @@ print(pheno_data_no_beep_distance)
 print_text("make the check", header=4)
 check_pheno_versions = \
     pheno_data \
-        .loc[ \
-            :, \
-            ~pheno_data.columns \
-                .isin(["Week 1 Distance (m)", "Week 8 Distance (m)"])] \
+        .loc[:, ~pheno_data.columns.isin(["Week 1 Distance (m)", "Week 8 Distance (m)"])] \
         .equals(pheno_data_no_beep_distance)
 if check_pheno_versions:
     print("YES! GOOD TO GO!!")
 else:
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NEW VERSION OF THE PHENO DATA")
-
 
 print_text("Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0", header=3)
 print_text("see the problem", header=4)
@@ -262,16 +227,13 @@ if(pheno_data["Week 8 beep test"].dtype == "float64"):
     print("GOOD TO GO: we have correctly change the dtype of the column with beep test data week 8")
 else:
     raise ValueError("ERROR: FALSE! The dtype of the beep test week 8 column is not correct")
-print("Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number. This could be related with the missing value in that sample for week 8 distancce?")
-
-print("IMPORTANT: \
-    In the future, check the errors you initially detected in the pheno file, they are explained at to_do_combat_genes.md")
+print("Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number")
 
 
 print_text("load fam file", header=2)
-print_text("load the fam file of the current steps I am working on for QC (date 08/24/2023", header=3)
+print_text("load the last fam file", header=3)
 fam_file = pd.read_csv( \
-    "../quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2.fam", \
+    "../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno.fam", \
     sep=" ", \
     header=None, \
     low_memory=False, \
@@ -284,155 +246,164 @@ fam_file = pd.read_csv( \
         #Sex code ('1' = male, '2' = female, '0' = unknown)
         #Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
             #https://www.cog-genomics.org/plink/1.9/formats#fam
-
-print_text("see the fam file", header=3)
 print(fam_file)
 
+print_text("check the fam file do not have any duplicated IDs", header=3)
+#the plink fam file is going to be the reference because this is the result of all QC we applied, so any sample no present here, should NOT be considered in futher analyses
+print_text("see duplicated IDs in pheno data", header=4)
+dup_ids_pheno_data=pheno_data.loc[pheno_data["AGRF code"].duplicated(), "AGRF code"]
+print(dup_ids_pheno_data)
+
+print_text("check these samples are not included in the plink FAM file", header=4)
+if( \
+    (fam_file.loc[fam_file["AGRF code"].duplicated(),:].shape[0] != 0) | \
+    (fam_file.loc[fam_file["AGRF code"].isin(dup_ids_pheno_data), :].shape[0] != 0) \
+):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH DUPLICATED IDS")
+else:
+    print("GOOD TO GO: we do not have duplicated IDs in the plink FAM file, SO WE CAN MERGE PHENO DATA AND FAM FILE USING ONLY THE AGRF CODE")
 
 
-print_text("merge and create file with the final set of samples and phenotypes", header=2)
-print_text("merge pheno data and fam file", header=3)
-merged_data_raw = pheno_data.merge( \
+print_text("merge and the excel file with the FAM file", header=2)
+print_text("do the merge", header=3)
+merged_data_raw_1 = pheno_data.merge( \
     fam_file, \
     on="AGRF code", \
-    how="right")
+    how="right" \
+)
     #how="right":
         #use only keys from right frame, similar to a SQL right outer join
         #we use right, i.e., fam file (genetic data), for the keys because we only want to retain those samples that remained after the filters done in plink. We want to take advantage of the filtering work already done.
-        #the only sample we need to recover from pheno_data is 2399LDJA, because this sample is 2397LDJA in plink and it is just a mislabel problem so we can recover its phenotypic data.
+#check
+if(merged_data_raw_1.shape[0]!=1203):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE MERGE")
+
 #make a deep copy to leave the raw merged data intact
-merged_data = merged_data_raw.copy(deep=True)
+merged_data_raw_2 = merged_data_raw_1.copy(deep=True)
     #deep=True
         #Modifications to the data or indices of the copy will not be reflected in the original object (see notes below).
-print(merged_data)
-print(merged_data.describe().T)
+print(merged_data_raw_2)
+print(merged_data_raw_2.describe().T)
 
 print_text("total sum of NaNs or zero cases per column", header=4)
-nan_zeros_1 = merged_data.apply(lambda x: sum((x==0) | (x.isna())), axis=0)
+nan_zeros_1 = merged_data_raw_2.apply(lambda x: sum((x==0) | (x.isna())), axis=0)
 print(nan_zeros_1)
-
 
 print_text("check and remove cases with zero in phenotypes", header=3)
 print_text("sum the number of Zeros per column", header=4)
-print(merged_data.apply(lambda x: sum(x==0), axis=0))
-    #note that the number of zeros does NOT have to match that of the pheno_data because we have already filtered many samples using maf and call rate in plink
+print(merged_data_raw_2.apply(lambda x: sum(x==0), axis=0))
+    #note that the number of zeros does NOT have to match that of the pheno_data because we have already filtered many samples in plink
     #for example, ["8502JGMJ", "9601AVJM"] have zero for "Week 1 Pred VO2max", but they are not included in the fam file
         #merged_data.loc[merged_data["AGRF code"].isin(["8502JGMJ", "9601AVJM"]),:]
         #fam_file.loc[fam_file["AGRF code"].isin(["8502JGMJ", "9601AVJM"]),:]
+
 print_text("Weight: Given that weight is going to be used for the rest of variables as covariate, we will set as missing the weight of these samples. Importantly, a weight of zero does not make sense.", header=4)
-merged_data.loc[merged_data["Week 1 Body Mass"]==0, "Week 1 Body Mass"] = np.nan
-merged_data.loc[merged_data["Week 8 Body Mass"]==0, "Week 8 Body Mass"] = np.nan
+merged_data_raw_2.loc[merged_data_raw_2["Week 1 Body Mass"]==0, "Week 1 Body Mass"] = np.nan
+merged_data_raw_2.loc[merged_data_raw_2["Week 8 Body Mass"]==0, "Week 8 Body Mass"] = np.nan
 
 print_text("VO2 max week 1: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan", header=4)
-print(merged_data.loc[merged_data["Week 1 Pred VO2max"]==0, ["Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max",]])
-merged_data.loc[merged_data["Week 1 Pred VO2max"]==0, "Week 1 Pred VO2max"] = np.nan
+print(merged_data_raw_2.loc[merged_data_raw_2["Week 1 Pred VO2max"]==0, ["Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max",]])
+merged_data_raw_2.loc[merged_data_raw_2["Week 1 Pred VO2max"]==0, "Week 1 Pred VO2max"] = np.nan
 
-print_text("Sex_code: We have missing for 42 samples which are the ones with genetic data that are completely empty in the pheno_data (41) PLUS 2397LDJA, the misslabeled sample with different ID in geno and pheno data just by 1 number (see below). These are samples without phenotypic data, thus we cannot know the self-reported sex. Zero is ok here, so we do not do anything", header=4)
-print("Do we have exactly 42 samples with sex_code=0?")
-print(merged_data.loc[merged_data["sex_code"]==0, :].shape[0]==41+1)
-print("has 2397LDJA zero as sex code?")
-print(merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"]==0)
+print_text("Sex_code: We initially had missing for some samples, but these have been removed during the QC, also 2397LDJA was updated to 2399LDJA, so we should not have any zero for sex", header=4)
+if (merged_data_raw_2.loc[merged_data_raw_2["sex_code"]==0, :].shape[0]!=0):
+    raise ValueError("ERROR: FALSE! WE HAVE EMPTY SEX VALUES")
 
 print_text("Parents ID: We do not have any parent in the cohort, so they all should be zero", header=4)
-print(merged_data.loc[(merged_data["ID_father"]==0) & (merged_data["ID_mother"]==0), :].shape[0] == merged_data.shape[0])
+if(merged_data_raw_2.loc[(merged_data_raw_2["ID_father"]!=0) | (merged_data_raw_2["ID_mother"]!=0), :].shape[0] != 0):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE PARENTS IDs, THEY SHOULD BE ZERO")
 
 print_text("sum again the number of Zeros per column", header=4)
-print(merged_data.apply(lambda x: sum(x==0), axis=0))
-print("We only have now zeros in sex_code and parents IDs, which is ok, see above")
-
+sum_zeros_columns = merged_data_raw_2.apply(lambda x: sum(x==0), axis=0)
+print(sum_zeros_columns)
+check_zeros = np.array_equal( \
+    sum_zeros_columns.loc[sum_zeros_columns!=0].index.to_numpy(), \
+    np.array(['ID_father', 'ID_mother']) \
+)
+if (not check_zeros):
+    raise ValueError("We have zeros in columns that should not have zeros, i.e., not only in ID_father and ID_mother")
 
 
 print_text("deal with 2397LDJA/2399LDJA", header=3)
-print("This is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file")
-mislabelled_sample = merged_data.loc[merged_data["AGRF code"].isin(["2397LDJA", "2399LDJA"]), :]
-print("If we have 2397LDJA and is all missing")
-if mislabelled_sample.shape[0] == 1:
-    mislabel_all_na =  \
-        sum( \
-            mislabelled_sample.loc[:, ~mislabelled_sample.columns.isin(["AGRF code", "family_id", "ID_father", "ID_mother", "sex_code", "phenotype_value"])].isna() \
-            .values[0]) == \
-        sum( \
-            ~mislabelled_sample \
-                .columns \
-                .isin(["AGRF code", "family_id", "ID_father", "ID_mother", "sex_code", "phenotype_value"]))
-        #make the sum of phenotypic entries (not fam fields) of the mislabeled row that are missing
-        #make the sum of the columns that are not phenotypic entries (not fam fields)
-        #both sums should be same, meaning that all phenotypic entries (not fam fields) are missing
-    if (mislabelled_sample["AGRF code"]=="2397LDJA").values[0] & (mislabel_all_na):
-        print("change phenotypic values of 2397LDJA from missing to the values of 2399LDJA")
-        merged_data \
-            .iloc[ \
-                np.where(merged_data["AGRF code"] == "2397LDJA")[0], \
-                np.where(merged_data.columns.isin(pheno_data.columns))[0]] = \
-        pheno_data \
-            .loc[pheno_data["AGRF code"] == "2399LDJA", :] \
-            .squeeze(axis=0)
-            #in merged data
-                #select the row of 2397LDJA
-                #and the phenoypic columns. 
-                    #we need to use iloc to select the row to be changed, we get an error with loc
-                    #https://stackoverflow.com/questions/45241992/updating-a-row-in-a-dataframe-with-values-from-a-numpy-array-or-list
-            #as new values use the row of 2399LDJA in pheno_data and the squeeze to pandas series
-            #IMPORTANT: The pheno columns are in the same order in merged data and in pheno_data because the source DF is pheno_data, as we did pheno_data.merge(fam) We need to maintain this and not do
-        #change back the ID to have that included in plink inputs
-        merged_data.loc[merged_data["AGRF code"] == "2399LDJA", "AGRF code"] = "2397LDJA"
-        #extract the modified row
-        modified_row = merged_data \
-            .loc[ \
-                merged_data["AGRF code"] == "2397LDJA", \
-                merged_data.columns.isin(pheno_data.columns)] \
-            .squeeze()
-        #sex_code is not in pheno_data as it comes from plink, we need to update that field using the Gender info from the modified row
-        if modified_row["Gender"]=="M":  
-            merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"] = 1
-        elif modified_row["Gender"]=="F":
-            merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"] = 2
-        else:
-            merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"] = 0      
-            #The sex code in plink is 1 for male, 2 for female and 0 for unknown
-                #https://www.cog-genomics.org/plink/1.9/formats#fam
+print("This is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file. We already changed the ID during the QC, so only 2399LDJA should be present")
+if ( \
+    merged_data_raw_2.loc[merged_data_raw_2["AGRF code"] == "2397LDJA"].shape[0]!=0 | \
+    merged_data_raw_2.loc[merged_data_raw_2["AGRF code"] == "2399LDJA"].shape[0]!=1 \
+):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
 
-        print("Check the new rows is identical to 2399LDJA in pheno_data")
-        print(merged_data \
-            .iloc[ \
-                np.where(merged_data["AGRF code"] == "2397LDJA")[0], \
-                np.where( \
-                    (merged_data.columns.isin(pheno_data.columns)) & \
-                    (merged_data.columns != "AGRF code"))[0]] \
-            .squeeze() \
-            .equals( \
-                pheno_data \
-                    .iloc[ \
-                        np.where(pheno_data["AGRF code"]=="2399LDJA")[0], \
-                        np.where(pheno_data.columns!="AGRF code")[0]] \
-                    .squeeze()))
-            #from merged data, select the row of the mislabeled sample and all columns present in pheno_data except the sample IDs, then squeeze to a pandas series.
-            #This should be equal to the row of pheno_data for the mislabeled sample and considering all columns except the sample ID
-        print("Check NO NaN is in the new row")
-        print(True not in modified_row.isna().values)
-        print("Print the new row")
-        print(modified_row)
-        print("check the sex_code of the modified row is correct")
-        sex_code_check = merged_data.loc[merged_data["AGRF code"] == "2397LDJA", "sex_code"]
-        if (sex_code_check == 1).values:
-            print(pheno_data.loc[pheno_data["AGRF code"] == "2399LDJA", "Gender"] == "M")
-        elif (sex_code_check == 2).values:
-            print(pheno_data.loc[pheno_data["AGRF code"] == "2399LDJA", "Gender"] == "F")
-    else:
-        raise ValueError("ERROR: FALSE! WE DO HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
+
+print_text("bind PCA axes", header=2)
+print_text("load axes", header=3)
+smartpca_eigenvectors = pd.read_csv(\
+    "../quality_control/data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
+    sep="\t", \
+    header=None, \
+    low_memory=False)
+print(smartpca_eigenvectors)
+#check we have the correct number of columns
+if(smartpca_eigenvectors.shape[1]-1!=20):
+    raise ValueError("ERROR! FALSE! We are not considering all the interesting axes in smartpca")
+
+print_text("split IDs", header=3)
+smartpca_eigenvectors[["family_id", "AGRF code"]] = smartpca_eigenvectors.iloc[:,0].str.split(":", expand=True)
+    #splits the column at each ":" and expands the result into separate columns.
+    #df[['new_col1', 'new_col2']] assigns the split columns to new columns named new_col1 and new_col2.
+print(smartpca_eigenvectors)
+#check
+if(not smartpca_eigenvectors[0].equals(smartpca_eigenvectors["family_id"] + ":" + smartpca_eigenvectors["AGRF code"])):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM SPLITTING THE IDS IN THE PCA FILE")
+
+print_text("change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the error remains in the PCA data", header=3)
+if(
+    (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2397LDJA", :].shape[0]!=1) |
+    (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2399LDJA", :].shape[0]!=0)
+):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
 else:
-    raise ValueError("ERROR: FALSE! WE DO HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
+    smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2397LDJA", "AGRF code"] = "2399LDJA"
+
+print_text("select the PCAs we are interested in", header=3)
+#We are going to use only the 2 first PCAs:
+    #There is a clear reduction of explained variability from 1 to and from 2 to 3, but from 3 there are small differences in explained variability. 
+    #Admixture considers that we only have ONE continental ancestry in our dataset. Moreover, the PCA plots show that if there is an axis that is spreading a bit the samples is the first one, the rest show very cloudy patterns, almost perfect.
+    #Yes, according to smartpca, we have 6 significant PCAs, but if we used that criteria we would include PCA5 which show a little bit of pattern, the loadings tend to increase a lot in one positon of chromosome 5 for this PCA. We may see a bit of that pattern in the same region for PCA 4 and 3, so I would not include any of these PCAs and just focus on the two most important.
+    #We are going to stick to 1 and 2.
+smartpca_eigenvectors_subset = smartpca_eigenvectors[["family_id", "AGRF code", 1, 2]]
+print(smartpca_eigenvectors_subset)
+    #I have plotted PCA1 against PC2 and I get the same plot we saw in "eigen_vectors_pairwise.png" for PC1 agaist PC2. So, as expected, the first two columns correspond with the two first axes.
+#change the column names of the PCAs
+smartpca_eigenvectors_subset = smartpca_eigenvectors_subset.rename({1: "PCA1", 2: "PCA2"}, inplace=False, axis=1)
+print(smartpca_eigenvectors_subset)
 
 
-print_text("create new variables for the change before and after", header=3)
-print_text("make the operations", header=4)
+print_text("merge the PCA with the rest of phenotypes", header=2)
+print_text("do the merge", header=3)
+merged_data=smartpca_eigenvectors_subset.merge( \
+    merged_data_raw_2, \
+    on=["family_id", "AGRF code"], \
+    how="right" \
+)
+    #how="right":
+        #use only keys from right frame, similar to a SQL right outer join
+        #we use right, i.e., fam file (genetic data), for the keys because we only want to retain those samples that remained after the filters done in plink. We want to take advantage of the filtering work already done.
+        #Remember that we removed additional samples after the PCA, mainly because of sex inconsistences...
+#check
+if(merged_data.shape[0]!=1203):
+    raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE MERGE")
+
+
+
+print_text("process the merged file", header=1)
+print_text("create new variables for the change before and after", header=2)
+print_text("make the operations", header=3)
 merged_data["weight_change"] = merged_data["Week 8 Body Mass"]-merged_data["Week 1 Body Mass"]
 merged_data["beep_change"] = merged_data["Week 8 beep test"]-merged_data["Week 1 Beep test"]
 merged_data["distance_change"] = merged_data["Week 8 Distance (m)"]-merged_data["Week 1 Distance (m)"]
 merged_data["vo2_change"] = merged_data["Week 8 Pred VO2max"]-merged_data["Week 1 Pred VO2max"]
     #NA remains as NA
 
-print_text("check we have the correct NANs", header=4)
+print_text("check we have the correct NANs", header=3)
 print(merged_data.isna().apply(lambda x: sum(x), axis=0))
 print("Weight change")
 print( \
@@ -460,153 +431,107 @@ print( \
         (merged_data["Week 8 Pred VO2max"].isna())))
     #the total number of NAN for the change variables should be the same than the sum of cases that are NAN for week 1 or week 2 of the corresponding variable.
 
+print_text("Check we only have NA", header=3)
+print("Remember that LDAK consider missing pheno as NA, not -9, so we do not need to change the missing value. We do not have problems with the negative values because now -9 is not going to be NA, so a person losing 9Kg is going to be considered a value, not missing")
+#Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
+    #http://dougspeed.com/phenotypes-and-covariates/
 
-print_text("Change the default NaN value to a negative value that is smaller than the maximum value in absolute value of the new change variables", header=3)
-print("Note that plink considers -9 as missing, but we can have -9 as a real value because we are calculating differences between week 1 and 8. We have to deal with that and select a suitable missing value, probably a large negative number. Larger than the maximum value for the difference phenotypes")
-        #https://www.cog-genomics.org/plink/1.9/input#pheno_encoding
-print("IMPORTANT: I did this because I was initially using plink1.9, but now I am using plink2, which considers now NaN as missing!!! So you could avoid using a integer as missing and avoid problems when working with other programs!!")
-
-print_text("calculate absolute value and then get the max value skipping NaNs for each variable", header=4)
-max_weight_change = merged_data["weight_change"].abs().max(skipna=True)
-max_beep_change = merged_data["beep_change"].abs().max(skipna=True)
-max_distance_change = merged_data["distance_change"].abs().max(skipna=True)
-max_vo2_change = merged_data["vo2_change"].abs().max(skipna=True)
-print("Maximum different in weight of " + str(max_weight_change))
-print("Maximum different in beep test of " + str(max_beep_change))
-print("Maximum different in distance of " + str(max_distance_change))
-print("Maximum different in VO2 of " + str(max_vo2_change))
-
-print_text("select the max value from all three variables, sum 20 and then convert to negative. This is the new missing value", header=4)
-new_nan_value = int(-(np.round(np.max([max_weight_change, max_beep_change, max_distance_change, max_vo2_change]))+20))
-print(new_nan_value)
-    #we save it as integer, although pandas will change it to float (adding .0), we will change back that using "new_nan_value" as integer.
-
-print_text("fill NaN cases with the new missing value using 'fillna' of pandas", header=4)
-merged_data = merged_data.fillna(new_nan_value)
-print(merged_data)
-
-print_text("fill -9 cases of phenotype_value with the new missing value", header=4)
-merged_data.loc[merged_data["phenotype_value"]==-9, "phenotype_value"] = new_nan_value
-print(merged_data)
-
-print_text("check we do NOT have the row coming from the pheno excel with missing for all columns", header=4)
-all_missing_row = np.where(merged_data.apply(lambda x: x == new_nan_value, axis=0).apply(np.sum, axis=1) == len(merged_data.columns))[0]
-    #look for any value equal to the new missing across rows
-    #then sum all True cases per row
-    #check if any row has a many Trues as columns we have, i.e., a row with missing for all columns
-    #get the index of the row and extract it
-if len(all_missing_row)==0:
-    print("We do not have the row with ALL missing from the pheno excel")
+print_text("check if we have -9 cases aside from the 'change variables'", header=4)
+minus_nine_cases=merged_data.apply(lambda x: x==-9, axis=1).sum()
+print(minus_nine_cases)
+    #sum number of -9 cases per column
+#check if the columns with -9 are only "phenotype_value" coming from the FAM file and "weight_change", which is suppose to have zero values. Also check whether phenotype_value has only -9
+check_minus_nine = ( \
+    np.array_equal( \
+        minus_nine_cases.loc[minus_nine_cases>0].index.to_numpy(), \
+        np.array(["phenotype_value", "weight_change"]) \
+    ) & \
+    (bool(minus_nine_cases["phenotype_value"]==merged_data.shape[0])) \
+)
+if(check_minus_nine):
+    #if that is the case, then remove the phenotype_value column because this is basically a column filled with NAs
+    merged_data = merged_data.drop("phenotype_value", axis=1, inplace=False)
 else:
-    raise ValueError("ERROR: FALSE! We DO have the row with ALL missing from the pheno excel, but we should not have as we used only the keys of the fam file")
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH -9 VALUES")
+print(merged_data)  
+#check that after cleaning the only column with -9 is the weight_change
+minus_nine_cases_after = merged_data.apply(lambda x: x==-9, axis=1).sum()
+if( \
+    np.array_equal( \
+        minus_nine_cases_after[minus_nine_cases_after>0].index.to_numpy(), \
+        np.array(["weight_change"]) \
+    )
+):
+    print("GOOD TO GO: we only have -9 cases in the 'change variables'")
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH -9 VALUES")
 
-print_text("check we have the correct index in order to filter by index and iloc, i.e., no gaps in the indexes", header=4)
+print_text("We do NOT have to check for zero! cases", header=4)
+    #We have calculated the difference of weight and cardiorespiratory fitness so a person that did not change his/her weight would have zero, totally ok. Also we can have 0 values for the PCA, if you check the PCA plots, both PCA1 and PC2 have values around zero, so ok.
+    #We checked for zeros in the pheno file because before calculating any "change variable", we had zeros for weight and VO2, which is not possible, so we converted them to NaN. We should also have NAs for mother/father IDs
+zero_cases_after = merged_data.apply(lambda x: x==0, axis=1).sum()
+#check that the columns with zero are all the ones previously explained. Also father and mother IDs are all zero.
+if( \
+    bool(zero_cases_after[zero_cases_after>0].index.isin(["PCA1", "PCA2", "ID_father", "ID_mother", "weight_change", "beep_change", "distance_change", "vo2_change"]).all()) & \
+    bool(zero_cases_after["ID_father"]==merged_data.shape[0]) & \
+    bool(zero_cases_after["ID_mother"]==merged_data.shape[0]) \
+):
+    print("GOOD TO GO: we only have 0 cases in the 'change' variables, PCA and father/mother IDs")
+    merged_data = merged_data.drop(["ID_father", "ID_mother"], axis=1, inplace=False)
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH 0 VALUES")
+
+
+print_text("perform some checks", header=2)
+print_text("check we have the correct index in order to filter by index and iloc, i.e., no gaps in the indexes", header=3)
 print(np.array_equal(merged_data.index, range(0,merged_data.shape[0])))
 
-print_text("check the problematic samples are NOT included", header=4)
-print(sum(merged_data["AGRF code"].isin(["1100JHJM", "1200JPJM", "7800AGSO"]))==0)
-    #2397LDJA will remain in the dataset because this is the ID used in plink input files instead of 2399LDJA
+print_text("check the problematic samples are NOT included", header=3)
+print(sum(merged_data["AGRF code"].isin(["1100JHJM", "1200JPJM", "7800AGSO", "2397LDJA"]))==0)
 
-print_text("check we do not have duplicated samples and no sample with NaN", header=4)
+print_text("check we do not have duplicated samples and no sample with NaN", header=3)
 print(sum(merged_data["AGRF code"].duplicated(keep=False)) == 0)
     #keep=False
         #Mark all duplicates as True
 print(sum(merged_data["AGRF code"].isna()) == 0)
 
-
-print_text("Removing the float point of the new missing", header=3)
-print("According to plink man: 'Missing phenotypes are normally expected to be encoded as -9. You can change this to another integer with --missing-phenotype. IMPORTANTLY, floating point values are now disallowed due to rounding issues, and nonnumeric values such as 'NA' are rejected since they're treated as missing phenotypes no matter what.)'.")
-    #https://www.cog-genomics.org/plink/1.9/input#pheno_encoding
-print("Therefore, we need to change our missing value from float to integer. We originally created the new missing value as integer but pandas converts it to float when included in a float column by just adding '.0'.")
-print("For each phenotype, we are to convert the column to 'object', which is a type that can be strings and floats. Then convert the cases of missing to integer effectively removing the float point.")
-    #https://stackoverflow.com/a/34524168/12772630
-#selected_phenotype="Week 1 Distance (m)"
-#selected_phenotype="Week 8 Distance (m)"
-for selected_phenotype in merged_data.columns:
-
-    #if the dtype of the selected phenotype starts with "float"
-    if str(merged_data[selected_phenotype].dtype).startswith("float"):
-        print(selected_phenotype)
-
-        #convert that column to object
-        merged_data[selected_phenotype] = merged_data[selected_phenotype].astype(object)
-
-        #change to integer the missing cases of the selected phenotype
-        merged_data.loc[merged_data[selected_phenotype] == new_nan_value, selected_phenotype] = int(new_nan_value)
-
-        print("the new missing is now an integer?")
-        if isinstance(merged_data.loc[merged_data[selected_phenotype] == new_nan_value, selected_phenotype].unique()[0], int):
-                #https://stackoverflow.com/a/4541167/12772630
-            print("TRUE \n")
-        else:
-            raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM CONVERTING TO INTEGER THE MISSING CASES \n")
-
-print_text("reorder columns", header=4)
-col_names = merged_data.columns
-    #get the column names
-col_index_ordered = np.concatenate(( \
-    np.where(col_names == "AGRF code")[0], \
-    np.where(col_names != "AGRF code")[0]))
-    #make a numpy array with the index of AGRF code and another array with the index of the rest of columns
-merged_data = merged_data.iloc[:, col_index_ordered]
-    #reorder the columns
-    #https://stackoverflow.com/questions/13148429/how-to-change-the-order-of-dataframe-columns
+print_text("check we do have two sex columns", header=3)
+if(bool(merged_data.columns.isin(["Gender", "sex_code"]).sum()==2)):
+    print("GOOD TO GO: we have the two expected Sex columns. Now update the names of gender to self_reported_sex to avoid confusion with plink sex")
+    merged_data = merged_data.rename({"Gender": "self_reported_sex"}, axis=1, inplace=False)
+else:
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE SEX COLUMNS")
 
 
-print_text("final exploration of the data", header=3)
-print_text("count missing per column", header=4)
-count_missing = merged_data.apply(lambda x: sum(x==new_nan_value), axis=0)
+###por aquii
+
+print_text("final exploration of the data", header=2)
+print_text("count missing per column", header=3)
+count_missing = merged_data.isna().sum()
 print(count_missing)
 
-print_text("check we have the correct number of missing based on the raw merged data", header=4)
-print("In general, we have to subtract 1 from the number of missing in the raw dataset because the misslabeled sample (2397LDJA/2399LDJA) was missing in that file but not in the new one, where we did the required corrections")
-print(count_missing["Gender"] == sum(merged_data_raw["Gender"].isna())-1)
-print(count_missing["Age"] == sum(merged_data_raw["Age"].isna())-1)
-#selected_phenotype="Week 1 Body Mass"
-print("In the case of phenotypes, we converted to missing no only NaN, but also zero values and -9, so we have to consider samples with these values in the raw dataset")
+print_text("check we have the correct number of missing based on the raw merged data", header=3)
+print(count_missing["self_reported_sex"] == sum(merged_data_raw_2["Gender"].isna()))
+print(count_missing["Age"] == sum(merged_data_raw_2["Age"].isna()))
 #selected_phenotype="Week 8 Distance (m)"
-for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass",
-       "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max",
-       "Week 8 Pred VO2max", "phenotype_value"]:
+for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]:
     print(selected_phenotype)
-    if selected_phenotype != "phenotype_value":
-        print( \
-            count_missing[selected_phenotype] == \
-            sum( \
-                (merged_data_raw[selected_phenotype]==0) | \
-                (merged_data_raw[selected_phenotype].isna()) | \
-                (merged_data_raw[selected_phenotype]==-9))-1)
-    elif selected_phenotype == "phenotype_value":
-        print( \
-            count_missing[selected_phenotype] == \
-            sum( \
-                (merged_data_raw[selected_phenotype]==0) | \
-                (merged_data_raw[selected_phenotype].isna()) | \
-                (merged_data_raw[selected_phenotype]==-9)))
-            #the mislabeled sample always has missing here, before and after the corrections, so we do not need to subtract 1.
-print("In the case of family/parents Ids and sex code, we should not have any missing, but 0 for unknown, so we do not need to subtract 1 for the mislabelled sample (2397LDJA/2399LDJA)")   
-print(count_missing["family_id"] == sum(merged_data_raw["family_id"].isna()))
-print(count_missing["ID_father"] == sum(merged_data_raw["ID_father"].isna()))
-print(count_missing["ID_mother"] == sum(merged_data_raw["ID_mother"].isna()))
-print(count_missing["sex_code"] == sum(merged_data_raw["sex_code"].isna()))
-print("check also that the family/parents IDs and the sex code are exactly the same if we do not consider the mislabelled sample (2397LDJA/2399LDJA), before and after the corrections we have non-missing for that sample in these variables. Unknown is zero in these variables. The only difference should be sex_code, for which we have data now for 2397LDJA, but we did not in the raw data, as sex_code comes from pheno_data and in that file 2397LDJA is named as 2399LDJA")
-print(merged_data_raw \
-        .loc[ \
-            merged_data_raw["AGRF code"]!="2397LDJA", \
-            ["family_id", "ID_father", "ID_mother", "sex_code"]] \
-        .equals( \
-            merged_data \
-                .loc[ \
-                    merged_data["AGRF code"]!="2397LDJA", \
-                    ["family_id", "ID_father", "ID_mother", "sex_code"]]))
+    print(count_missing[selected_phenotype] == merged_data_raw_2[selected_phenotype].isna().sum())
 
-print_text("check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset PLUS 1. We have to add 1 because at the begining, the misslabeled sample (2397LDJA/2399LDJA) was not correctly included in our data", header=4)
+print("In the case of family/parents Ids and sex code, we should not have any missing, but 0 for unknown, so we do not need to subtract 1 for the mislabelled sample (2397LDJA/2399LDJA)")   
+print(count_missing["family_id"] == sum(merged_data_raw_2["family_id"].isna()))
+print(count_missing["sex_code"] == sum(merged_data_raw_2["sex_code"].isna()))
+print("check also that the family/parents IDs and the sex code are exactly the same")
+print(merged_data_raw_2[["family_id", "sex_code"]].equals(merged_data[["family_id", "sex_code"]]))
+
+print_text("check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset", header=4)
 print( \
     nan_zeros_1 \
-        [["Gender", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]] == \
+        [["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]] == \
     (count_missing \
-        [["Gender", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]+1))
+        [["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]))
     #nan_zeros_1 was obtained at the begining after merging using two conditions, isna() and ==0
+    #Gender is not included because we have change it its name, so ti does not work
 
 print_text("see the final data", header=4)
 print(merged_data)
@@ -616,9 +541,9 @@ print(merged_data.describe().T)
 
 print_text("see summary statistics of pheno columns", header=4)
 #selected_phenotype="Week 8 Distance (m)"
-for selected_phenotype in ["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max", "weight_change", "beep_change", "distance_change", "vo2_change"]:
+for selected_phenotype in ["PCA1", "PCA2", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max", "weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n" + selected_phenotype)
-    non_missing_subset = merged_data.loc[merged_data[selected_phenotype] != new_nan_value, selected_phenotype]
+    non_missing_subset = merged_data.loc[~merged_data[selected_phenotype].isna(), selected_phenotype]
         #select values of the selected phenotype that are NOT missing
     print("mean: " + str(np.mean(non_missing_subset)))
     print("percentile 2.5: " + str(np.percentile(non_missing_subset, 2.5)))
@@ -630,20 +555,22 @@ print("The values of the phenotypes make sense: ")
 print("A tendency for lower values in the highest percentiles of weight at week 8, i.e., more decrease for people starting with more weight. There is a tendency of increased weight for lower percentile. The median change of weight is 0, meaning that half of sample did not lose weight. The distribution is centered around zero.")
 print("A tendency of increase of beep test, distance and VO2 max in all percentiles at week 8. The higher percentiles of changes tend to be more separated from zero than the lower percentile, i.e., the distribution is displaced to positive values, meaning increase of cardiorespiratory fitness.")
 
-
 print_text("save the data", header=3)
-merged_data.to_csv("./data/pheno_data/pheno_data_cleaned_missing_as_minus_" + str(np.abs(new_nan_value)) + ".tsv",
+merged_data.to_csv("./data/pheno_data/pheno_data_cleaned.tsv",
     sep="\t",
     header=True,
-    index=False)
-print("see some columns of the file")
+    index=False, 
+    na_rep="NA")
+    #na_rep="NA"
+        #This parameter specifies the string representation of NaN values in the output file. "NA" means that any NaN values in the DataFrame will be written as "NA" in the CSV file.
+
+print_text("see some columns of the file", header=3)
 run_bash(" \
     cd ./data/pheno_data/; \
     awk \
         'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4}}' \
-        pheno_data_cleaned_missing_as_minus_" + str(np.abs(new_nan_value)) + ".tsv; \
+        pheno_data_cleaned.tsv; \
     ls -l")
-
 
 
 print_text("create objects with phenotypes and covariates", header=2)
@@ -855,10 +782,15 @@ for key in dict_pvalue_covar_final:
 print("See the new dict")
 print(dict_pvalue_covar_final)
 
-print("IMPORTANT: \
-    Think if add the Batch as covariate \
-    Note sure if this can cause problems because we are already indicating the family ID (batch) in both covariates and phenos... In the final analyses, if you do not see batch effects, I think you can skip completely this. \
-    If you add this be careful because you are using quantile transformation in all covaraites loaded from covar file in plink2, and you cannot obviously do that for a discrete variable")
+
+
+#USA LA VARIABLE  DE SEXO DE PLINK
+#<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
+
+#UN ARHIVO.PHENO PARA CADA PHENO!
+    #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
+    #http://dougspeed.com/phenotypes-and-covariates/
+
 
 
 

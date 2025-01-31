@@ -257,7 +257,7 @@ run_bash(" \
 ##PARSE ITERATION AS A COMMAND SO YOU CAN RUN EACH ITERATION SEPARATETLY
 #WE COULD SEND 100 JOBS OF JUST 1 CORE AND 1 HOUR AND THEY SHOULD BE RUNNING FAST
 #ALSO INCLUDE THE PHENO AS A ARGUMENT, SO WE CAN DO THIS FOR EACH OF THE THREE PHENOTYPES
-
+#CAREFUL WITH THE FORMAT SUED FOR MISSING IN THE PLINK FILES BECAUSE LDAK COULD BE EXPECTING THE USUAL -9
 
 #iter_number=1
 def prs_calc(iter_number):
@@ -270,6 +270,13 @@ def prs_calc(iter_number):
     ")
         #http://dougspeed.com/downloads2/
         #https://github.com/dougspeed/LDAK
+
+
+    ###use -mpheno!!!! to select the pheno you want
+        #http://dougspeed.com/phenotypes-and-covariates/
+
+    ###NO USES MPHENO!!! UN FILE POR PHENO ASI NO TE HACE LA MEDIA
+    ##Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
 
 
 
