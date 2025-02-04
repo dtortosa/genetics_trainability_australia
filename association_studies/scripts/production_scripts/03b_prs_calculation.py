@@ -285,6 +285,9 @@ def prs_calc(iter_number):
             --elastic elastic \
             --pheno case_control.tsv \
             --bfile merged_3_geno \
+            --covar covar_file.tsv \
+            --covar-names age,week_1_weight,week_1_beep \
+            --factors covar_factors_file.tsv \
             --LOCO NO \
     ")
         #Yes, your steps sound right - perform QC, then use the PLINK files with --elastic (adding --LOCO NO, because you only care about prediction) and then --calc-scores

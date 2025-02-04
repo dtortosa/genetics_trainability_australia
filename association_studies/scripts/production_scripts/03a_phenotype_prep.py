@@ -437,7 +437,7 @@ print("Remember that LDAK consider missing pheno as NA, not -9, so we do not nee
     #http://dougspeed.com/phenotypes-and-covariates/
 
 print_text("check if we have -9 cases aside from the 'change variables'", header=4)
-minus_nine_cases=merged_data.apply(lambda x: x==-9, axis=1).sum()
+minus_nine_cases=merged_data.apply(lambda x: x==-9, axis=0).sum()
 print(minus_nine_cases)
     #sum number of -9 cases per column
 #check if the columns with -9 are only "phenotype_value" coming from the FAM file and "weight_change", which is suppose to have zero values. Also check whether phenotype_value has only -9
@@ -455,7 +455,7 @@ else:
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH -9 VALUES")
 print(merged_data)  
 #check that after cleaning the only column with -9 is the weight_change
-minus_nine_cases_after = merged_data.apply(lambda x: x==-9, axis=1).sum()
+minus_nine_cases_after = merged_data.apply(lambda x: x==-9, axis=0).sum()
 if( \
     np.array_equal( \
         minus_nine_cases_after[minus_nine_cases_after>0].index.to_numpy(), \
@@ -469,7 +469,7 @@ else:
 print_text("We do NOT have to check for zero! cases", header=4)
     #We have calculated the difference of weight and cardiorespiratory fitness so a person that did not change his/her weight would have zero, totally ok. Also we can have 0 values for the PCA, if you check the PCA plots, both PCA1 and PC2 have values around zero, so ok.
     #We checked for zeros in the pheno file because before calculating any "change variable", we had zeros for weight and VO2, which is not possible, so we converted them to NaN. We should also have NAs for mother/father IDs
-zero_cases_after = merged_data.apply(lambda x: x==0, axis=1).sum()
+zero_cases_after = merged_data.apply(lambda x: x==0, axis=0).sum()
 #check that the columns with zero are all the ones previously explained. Also father and mother IDs are all zero.
 if( \
     bool(zero_cases_after[zero_cases_after>0].index.isin(["PCA1", "PCA2", "ID_father", "ID_mother", "weight_change", "beep_change", "distance_change", "vo2_change"]).all()) & \
@@ -503,8 +503,6 @@ else:
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE SEX COLUMNS")
 
 
-###por aquii
-
 print_text("final exploration of the data", header=2)
 print_text("count missing per column", header=3)
 count_missing = merged_data.isna().sum()
@@ -514,15 +512,21 @@ print_text("check we have the correct number of missing based on the raw merged 
 print(count_missing["self_reported_sex"] == sum(merged_data_raw_2["Gender"].isna()))
 print(count_missing["Age"] == sum(merged_data_raw_2["Age"].isna()))
 #selected_phenotype="Week 8 Distance (m)"
-for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]:
+#selected_phenotype="PCA1"
+for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max", "PCA1", "PCA2"]:
     print(selected_phenotype)
-    print(count_missing[selected_phenotype] == merged_data_raw_2[selected_phenotype].isna().sum())
+    if (selected_phenotype=="PCA1") | (selected_phenotype=="PCA2"):
+        print(count_missing[selected_phenotype] == smartpca_eigenvectors_subset[selected_phenotype].isna().sum())
+    else:
+        print(count_missing[selected_phenotype] == merged_data_raw_2[selected_phenotype].isna().sum())
 
-print("In the case of family/parents Ids and sex code, we should not have any missing, but 0 for unknown, so we do not need to subtract 1 for the mislabelled sample (2397LDJA/2399LDJA)")   
+print("In the case of family Ids and sex code, we should not have any missing")   
 print(count_missing["family_id"] == sum(merged_data_raw_2["family_id"].isna()))
+print(count_missing["AGRF code"] == sum(merged_data_raw_2["AGRF code"].isna()))
+print(count_missing["self_reported_sex"] == sum(merged_data_raw_2["Gender"].isna()))
 print(count_missing["sex_code"] == sum(merged_data_raw_2["sex_code"].isna()))
-print("check also that the family/parents IDs and the sex code are exactly the same")
-print(merged_data_raw_2[["family_id", "sex_code"]].equals(merged_data[["family_id", "sex_code"]]))
+print("check also that the family IDs and the sex code are exactly the same")
+print(merged_data_raw_2[["family_id", "AGRF code", "sex_code"]].equals(merged_data[["family_id", "AGRF code", "sex_code"]]))
 
 print_text("check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset", header=4)
 print( \
@@ -563,14 +567,25 @@ merged_data.to_csv("./data/pheno_data/pheno_data_cleaned.tsv",
     na_rep="NA")
     #na_rep="NA"
         #This parameter specifies the string representation of NaN values in the output file. "NA" means that any NaN values in the DataFrame will be written as "NA" in the CSV file.
+        #This is required for LDAK:
+            #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
 
 print_text("see some columns of the file", header=3)
 run_bash(" \
     cd ./data/pheno_data/; \
     awk \
-        'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4}}' \
-        pheno_data_cleaned.tsv; \
-    ls -l")
+        'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4, $5, $6}}' \
+        ./pheno_data_cleaned.tsv; \
+    ls -l \
+")
+
+
+###the missing values in a covariate are filled with the mean
+    #so the 185 samples without weight in the week 1 would have as weight the average weigth, 77 kg.
+
+
+    #http://dougspeed.com/phenotypes-and-covariates/
+
 
 
 print_text("create objects with phenotypes and covariates", header=2)
@@ -587,7 +602,7 @@ multi_pheno_file.to_csv( \
     "./data/plink_inputs/pheno_file.tsv", \
     sep="\t", \
     index=False, \
-    header=True)
+    header=True, na_rep="NA")
 run_bash(" \
     cd ./data/plink_inputs/; \
     awk \
@@ -607,12 +622,22 @@ covar_file.to_csv( \
     "./data/plink_inputs/covar_file.tsv", \
     sep="\t", \
     index=False, \
-    header=True)
+    header=True, na_rep="NA")
 run_bash(" \
     cd ./data/plink_inputs/; \
     awk \
         'BEGIN{FS=\"\t\"}{if(NR<=10){print $0}}' \
         covar_file.tsv")
+
+
+covar_factors_file = merged_data[["family_id", "AGRF code", "sex_code"]]
+covar_factors_file.columns=["FID", "IID", "sex_code"]
+covar_factors_file.to_csv( \
+    "./data/plink_inputs/covar_factors_file.tsv", \
+    sep="\t", \
+    index=False, \
+    header=True, na_rep="NA")
+
 
 
 print_text("perform covariate selection based on association levels", header=3)
@@ -786,6 +811,7 @@ print(dict_pvalue_covar_final)
 
 #USA LA VARIABLE  DE SEXO DE PLINK
 #<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
+    #https://dougspeed.com/file-formats/
 
 #UN ARHIVO.PHENO PARA CADA PHENO!
     #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
