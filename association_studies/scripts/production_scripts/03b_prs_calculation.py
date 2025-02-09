@@ -46,6 +46,13 @@
 #######################################
 
 
+###########
+# imports #
+###########
+
+import pandas as pd
+
+
 ########################################
 # define function to print text nicely #
 ########################################
@@ -254,13 +261,73 @@ run_bash(" \
 # region define function to calculate PRS across iterations #
 #############################################################
 
-##PARSE ITERATION AS A COMMAND SO YOU CAN RUN EACH ITERATION SEPARATETLY
+##PARSE ITERATION AS A COMMAND SO YOU CAN RUN EACH ITERATION SEPARATETLY FOR EACH PHENO
 #WE COULD SEND 100 JOBS OF JUST 1 CORE AND 1 HOUR AND THEY SHOULD BE RUNNING FAST
 #ALSO INCLUDE THE PHENO AS A ARGUMENT, SO WE CAN DO THIS FOR EACH OF THE THREE PHENOTYPES
 #CAREFUL WITH THE FORMAT SUED FOR MISSING IN THE PLINK FILES BECAUSE LDAK COULD BE EXPECTING THE USUAL -9
 
 #iter_number=1
 def prs_calc(iter_number):
+
+    
+    
+    ###DO PREPROCEISNG SEPARATED IN TRAINING AND EVALUATION
+    #DO NOT TRANSFORM SEX!!!!
+
+
+
+    
+    from sklearn.preprocessing import QuantileTransformer, StandardScaler
+    from sklearn.pipeline import Pipeline
+
+    transformer = QuantileTransformer(n_quantiles=500, output_distribution='normal', random_state=0)
+        #Note that all variables numeric and continuous except sex
+            #sex_code is numeric but categorical so it should not be transformed!
+            #beep test is numeric and continuous, it has float values
+        #in the previous script we used quantile_transform, which is the quivalent function without the estimator API.
+            #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html
+        #This method transforms the features to follow a uniform or a normal distribution. Therefore, for a given feature, this transformation tends to spread out the most frequent values. It ALSO REDUCES THE IMPACT OF (MARGINAL) OUTLIERS: this is therefore a robust preprocessing scheme.
+        #Regarding scaling
+            #Note that this transform is non-linear. IT MAY DISTORT LINEAR CORRELATIONS BETWEEN VARIABLES MEASURED AT THE SAME SCALE BUT RENDERS VARIABLES MEASURED AT DIFFERENT SCALES MORE DIRECTLY COMPARABLE. 
+                #This should not be a problem because our phenotypes and covariates are not in the same scale, some are close to zero or negative, other closer to 10, 100, 1000... so we have different scales.
+            #With this approach, the normal output is clipped so that the input’s minimum and maximum — corresponding to the 1e-7 and 1 - 1e-7 quantiles respectively — do not become infinite under the transformation.
+            #Also I have visually inspected the results and all the phenotypes have now values between -4 and 4.
+                #For example, in distance, there is an outlier that increased his/her distance more than 2.5K, while the next highest is at 1.2K. When transformed, the latter is at 2.5 and the former in 5. So the outliers is forced to fit within that range.
+            #Therefore, it seems that this transformation makes easier the comparison between variables with different scales.
+        #Number of quantiles (answers from chat)
+            #When using quantile_transform from scikit-learn, the number of quantiles you select can significantly impact the transformation of your variables. Here are some criteria to consider:
+                #Data Size: The number of quantiles should generally be less than or equal to the number of data points. For smaller datasets, fewer quantiles are recommended to avoid overfitting.
+                #Desired Distribution: If you want your data to follow a normal distribution with mean 0 and standard deviation 1, you can use the output_distribution='normal' parameter. This will transform your data to approximate a standard normal distribution.
+                #Granularity: More quantiles provide a finer granularity of transformation, which can be useful for capturing more detailed distributional characteristics. However, too many quantiles can lead to overfitting, especially with smaller datasets.
+                #Computational Efficiency: More quantiles require more computation. For very large datasets, you might need to balance the number of quantiles with the available computational resources.
+            #I do not have problems with computational time and I want high granularity, the problem here is overfitting. What do you mean by small? My sample size es around 1100 data points
+                #With a sample size of around 1100 data points, you have a decent amount of data to work with. In this context, "small" typically refers to datasets with fewer than a few hundred data points. Given your sample size, you can afford to use a relatively high number of quantiles without as much risk of overfitting.
+                #For your dataset, you might consider using a number of quantiles in the range of 100 to 500. This range should provide high granularity while still being manageable in terms of overfitting. However, it's always a good idea to experiment with different values and validate the results to ensure the transformation is effective and doesn't introduce unwanted artifacts.
+        #this would be another cause of data leak, so we will use in the final data within training and evaluation separately!
+            #n_quantiles
+                #Number of quantiles to be computed. It corresponds to the number of landmarks used to discretize the cumulative distribution function. If n_quantiles is larger than the number of samples, n_quantiles is set to the number of samples as a larger number of quantiles does not give a better approximation of the cumulative distribution function estimator.
+            #output_distribution
+                #Marginal distribution for the transformed data. The choices are ‘uniform’ (default) or ‘normal’.
+            #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.quantile_transform.html
+
+    transformed_data = transformer.fit_transform(modeling_data)
+
+    transformed_df = pd.DataFrame(transformed_data, columns=modeling_data.columns)
+
+    #to revert the transformation
+    reverted_train_data = transformer.inverse_transform(transformed_df)
+
+    #Convert the reverted data back to a DataFrame
+    reverted_train_df = pd.DataFrame(reverted_train_data, columns=modeling_data.columns)
+
+
+    #The reason why the DataFrames modeling_data and reverted_train_df are not identical, even though the scatter plot shows that the original and reverted variables appear identical, could be due to floating-point precision differences. These small differences can cause the equals method to return False.To check for equality with a tolerance for floating-point precision, you can use the numpy function allclose or the pandas method DataFrame.compare. Here's how you can do it:
+    are_equal = np.allclose(modeling_data.values, reverted_train_df.values, atol=1e-8)
+
+
+
+
+
 
     run_bash(" \
         mkdir -p ../ldak_versions/; \

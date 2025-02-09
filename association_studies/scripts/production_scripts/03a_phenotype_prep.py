@@ -580,71 +580,21 @@ run_bash(" \
 ")
 
 
-###the missing values in a covariate are filled with the mean
-    #so the 185 samples without weight in the week 1 would have as weight the average weigth, 77 kg.
-
-
+print_text("create a subset of the data with the relevant covariates for each phenotype and save as a distinct file", header=2)
+#In LDAK, if only 1 phenotype is present in the pheno file, sample with missing for that pheno are removed. 
+#HOWEVER, in the case of covariates, missing values are filled with the mean! Weight has hundreds of missing values, so that would not be a good idea!
+#we are going to create separated tables for each phenotype, with the significant covariates for each one, and then remove all missing considering that phenotype and only its covariates.
     #http://dougspeed.com/phenotypes-and-covariates/
-
-
-
-print_text("create objects with phenotypes and covariates", header=2)
-print_text("create multi pheno files", header=3)
-print("According to plink man: \
-    '--pheno causes phenotype values to be read from the 3rd column of the specified space- or tab-delimited file, instead of the .fam or .ped file. The FIRST AND SECOND COLUMNS OF THAT FILE MUST CONTAIN FAMILY AND WITHIN-FAMILY IDS, respectively. \
-    In combination with --pheno, --mpheno lets you use the (n+2)th column instead of the 3rd column, while --PHENO-NAME LETS YOU SELECT A COLUMN BY TITLE. (In order to use --pheno-name, there must be a header row with first two entries 'FID' and 'IID'.) The new --pheno-merge flag tells PLINK to use the phenotype value in the .fam/.ped file when no value is present in the --pheno file; without it, the phenotype is always treated as missing in this case.'")
-    #https://www.cog-genomics.org/plink/1.9/input
-print("Therefore, we need family and within family ID and then the phenotypes in a tab-delimited file with a header, including FID and IID as the two first columns.")
-multi_pheno_file = merged_data[["family_id", "AGRF code", "weight_change", "beep_change", "distance_change", "vo2_change"]]
-multi_pheno_file.columns=["FID", "IID", "weight_change", "beep_change", "distance_change", "vo2_change"]
-    #select the interest columns and set the required column names
-multi_pheno_file.to_csv( \
-    "./data/plink_inputs/pheno_file.tsv", \
-    sep="\t", \
-    index=False, \
-    header=True, na_rep="NA")
-run_bash(" \
-    cd ./data/plink_inputs/; \
-    awk \
-        'BEGIN{FS=\"\t\"}{if(NR<=10){print $0}}' \
-        pheno_file.tsv")
-
-
-print_text("create pheno/covariate files", header=3)
-print("Plink man: ' \
-    --covar designates the file to load covariates from. The file format is the same as for --pheno (optional header line, FID and IID in first two columns, covariates in remaining columns). BY DEFAULT, THE MAIN PHENOTYPE IS SET TO MISSING IF ANY COVARIATE IS MISSING; you can disable this with the 'keep-pheno-on-missing-cov' modifier. \
-    --covar-name lets you specify a subset of covariates to load, by column name; separate multiple column names with spaces or commas, and use dashes to designate ranges. (Spaces are not permitted immediately before or after a range-denoting dash.) --covar-number lets you use column numbers instead.'")
-    #https://www.cog-genomics.org/plink/1.9/input
-covar_file = merged_data[["family_id", "AGRF code", "Age", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Distance (m)", "Week 1 Pred VO2max"]]
-covar_file.columns=["FID", "IID", "age", "week_1_weight", "week_1_beep", "week_1_distance", "week_1_vo2"]
-    #select the baseline for each predictor, so VO2 max base line for 8 week baseline, etc... plus age and set the correct column names
-covar_file.to_csv( \
-    "./data/plink_inputs/covar_file.tsv", \
-    sep="\t", \
-    index=False, \
-    header=True, na_rep="NA")
-run_bash(" \
-    cd ./data/plink_inputs/; \
-    awk \
-        'BEGIN{FS=\"\t\"}{if(NR<=10){print $0}}' \
-        covar_file.tsv")
-
-
-covar_factors_file = merged_data[["family_id", "AGRF code", "sex_code"]]
-covar_factors_file.columns=["FID", "IID", "sex_code"]
-covar_factors_file.to_csv( \
-    "./data/plink_inputs/covar_factors_file.tsv", \
-    sep="\t", \
-    index=False, \
-    header=True, na_rep="NA")
-
-
-
-print_text("perform covariate selection based on association levels", header=3)
-print("In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'")
+#See what Augusto did in their paper, remove pheno with more than 5 missing and fill the rest with imputation.
+    #Then, 14 biochemical variables with more than 5 missing values were discarded in order to avoid introducing excessive noise into the data via imputation. We revised several imputation methods, such as mean/median imputation, knn imputation, bagged trees, Multiple imputations by chained equations (MICE) [25], and missForest [26]. We chose the missForest method for several reasons: it is a non-parametric method that can impute continuous and categorical features, does not require tuning parameters because of its robust performance, and does not require assumptions about the distribution of the features. This method was used in the final 34 features via the missForest R package [26].
+#We are going to test the association of each covariate and each phenotype to select only the covariates that are relevant for each phenotype
+    #In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'
         #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-print_text("create a dict with correct, simplified names for the covariates", header=4)
+
+print_text("create a dict with correct, simplified names for the covariates", header=3)
 dict_names_covs = {
+    "PCA1": "PCA1", \
+    "PCA2": "PCA2", \
     "Age": "age", \
     "sex_code": "sex_code", \
     "Week 1 Body Mass": "week_1_weight", \
@@ -653,51 +603,100 @@ dict_names_covs = {
     "Week 1 Pred VO2max": "week_1_vo2"}
 print(dict_names_covs)
 
-print_text("plot distribution of each change phenotype to visually check normality", header=4)
+print_text("plot distribution of each phenotype to visually normality", header=4)
 import matplotlib.pyplot as plt
+from scipy import stats
 from scipy.stats import shapiro
 from sklearn.preprocessing import quantile_transform
-#change_pheno="distance_change"
-for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
-    print("\n \n Plotting the distribution of " + change_pheno)
+run_bash("mkdir -p ./data/pheno_data/distribution_hist")
+#phenotype="distance_change"
+for phenotype in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
+    
+    print("\n \n Plotting the distribution of " + phenotype)
+    #Note that all variables numeric and continuous except sex
+        #sex_code is numeric but categorical so it should not be transformed!
+        #beep test is numeric and continuous, it has float values
 
     #remove rows with missing for the phenotype of interest
     modeling_data = merged_data \
-        .loc[:,[change_pheno]] \
-        .apply(lambda x: np.nan if (x[change_pheno]==new_nan_value) else x, axis=1) \
+        .loc[:,[phenotype]] \
         .dropna()
         #select the interest column
-        #for each row
-            #set NA if the column is the new_nan_value, i.e., missing in plink.
-            #else do not change anything of the row
         #drop rows with NaN
 
     print("The number of missing removed is correct?")
-    check_na = merged_data.shape[0] - modeling_data.shape[0] == count_missing[change_pheno]
+    check_na = merged_data.shape[0] - modeling_data.shape[0] == count_missing[phenotype]
         #the number of rows lost in modeling_data should be the same than the number of missing for the selected pheno
     if check_na:
         print("YES! GOOD TO GO!")
     else:
-        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NAN IN " + change_pheno)
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NAN IN " + phenotype)
 
     print("performing quantile transformation")
+    #Our phenotypes are in general more or less normal, but in order to make them more normal, we have performed a quantile transformation
     pheno_transformed = quantile_transform( \
-        X=modeling_data[change_pheno].values.reshape(-1, 1), \
+        X=modeling_data[phenotype].values.reshape(-1, 1), \
         n_quantiles=500, 
         output_distribution="normal")
-        #This method transforms the features to follow a uniform or a normal distribution. Therefore, for a given feature, this transformation tends to spread out the most frequent values. It ALSO REDUCES THE IMPACT OF (MARGINAL) OUTLIERS: this is therefore a robust preprocessing scheme. Note that this transform is non-linear. IT MAY DISTORT LINEAR CORRELATIONS BETWEEN VARIABLES MEASURED AT THE SAME SCALE BUT RENDERS VARIABLES MEASURED AT DIFFERENT SCALES MORE DIRECTLY COMPARABLE.
-            #This should not be a problem because our phenotypes and covariates are not in the same scale, some are close to zero, other closer to 10, 100, 1000... so we have different scales.
-        #this would be another cause of data leak
+        #This method transforms the features to follow a uniform or a normal distribution. Therefore, for a given feature, this transformation tends to spread out the most frequent values. It ALSO REDUCES THE IMPACT OF (MARGINAL) OUTLIERS: this is therefore a robust preprocessing scheme.
+        #Regarding scaling
+            #Note that this transform is non-linear. IT MAY DISTORT LINEAR CORRELATIONS BETWEEN VARIABLES MEASURED AT THE SAME SCALE BUT RENDERS VARIABLES MEASURED AT DIFFERENT SCALES MORE DIRECTLY COMPARABLE. 
+                #This should not be a problem because our phenotypes and covariates are not in the same scale, some are close to zero or negative, other closer to 10, 100, 1000... so we have different scales.
+            #With this approach, the normal output is clipped so that the input’s minimum and maximum — corresponding to the 1e-7 and 1 - 1e-7 quantiles respectively — do not become infinite under the transformation.
+            #Also I have visually inspected the results and all the phenotypes have now values between -4 and 4. 
+                #For example, in distance, there is an outlier that increased his/her distance more than 2.5K, while the next highest is at 1.2K. When transformed, the latter is at 2.5 and the former in 5. So the outliers is forced to fit within that range.
+            #Therefore, it seems that this transformation makes easier the comparison between variables with different scales.
+        #Number of quantiles (answers from chat)
+            #When using quantile_transform from scikit-learn, the number of quantiles you select can significantly impact the transformation of your variables. Here are some criteria to consider:
+                #Data Size: The number of quantiles should generally be less than or equal to the number of data points. For smaller datasets, fewer quantiles are recommended to avoid overfitting.
+                #Desired Distribution: If you want your data to follow a normal distribution with mean 0 and standard deviation 1, you can use the output_distribution='normal' parameter. This will transform your data to approximate a standard normal distribution.
+                #Granularity: More quantiles provide a finer granularity of transformation, which can be useful for capturing more detailed distributional characteristics. However, too many quantiles can lead to overfitting, especially with smaller datasets.
+                #Computational Efficiency: More quantiles require more computation. For very large datasets, you might need to balance the number of quantiles with the available computational resources.
+            #I do not have problems with computational time and I want high granularity, the problem here is overfitting. What do you mean by small? My sample size es around 1100 data points
+                #With a sample size of around 1100 data points, you have a decent amount of data to work with. In this context, "small" typically refers to datasets with fewer than a few hundred data points. Given your sample size, you can afford to use a relatively high number of quantiles without as much risk of overfitting.
+                #For your dataset, you might consider using a number of quantiles in the range of 100 to 500. This range should provide high granularity while still being manageable in terms of overfitting. However, it's always a good idea to experiment with different values and validate the results to ensure the transformation is effective and doesn't introduce unwanted artifacts.
+        #this would be another cause of data leak, so we will use in the final data within training and evaluation separately!
             #n_quantiles
                 #Number of quantiles to be computed. It corresponds to the number of landmarks used to discretize the cumulative distribution function. If n_quantiles is larger than the number of samples, n_quantiles is set to the number of samples as a larger number of quantiles does not give a better approximation of the cumulative distribution function estimator.
             #output_distribution
                 #Marginal distribution for the transformed data. The choices are ‘uniform’ (default) or ‘normal’.
             #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.quantile_transform.html
 
-    print("perform shapiro test: statistic close 1 and p-value>0.05 indicates normality")
-    print(shapiro(pheno_transformed))
-        #The Shapiro-Wilk test tests the null hypothesis that the data was drawn from a normal distribution.
+    print("test for normality")
+        ### Kolmogorov-Smirnov Test
+            #**Type**: Non-parametric test.
+            #**Purpose**: Compares the sample distribution with a reference distribution (usually normal).
+            #**Sample Size**: Suitable for larger sample sizes.
+            #**Sensitivity**: It can handle deviations in the overall shape of the distribution.Less sensitive to deviations in the tails of the distribution.
+            #**Output**: Provides a D statistic, which measures the maximum difference between the empirical and theoretical cumulative distribution functions[1](https://statistics.laerd.com/spss-tutorials/testing-for-normality-using-spss-statistics.php).
+        ### Shapiro-Wilk Test
+            #**Type**: Parametric test.
+            #**Purpose**: Specifically designed to test for normality. The Shapiro-Wilk test tests the null hypothesis that the data was drawn from a normal distribution.
             #https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.shapiro.html
+            #**Sample Size**: More powerful for small to moderate sample sizes (typically less than 50, but can handle up to 2000).
+            #**Sensitivity**: More sensitive to deviations from normality, especially in the tails. It is generally more powerful for detecting non-normality.
+            #**Output**: Provides a W statistic, which compares the observed data to the expected normal distribution[2](https://statisticseasily.com/normality-test/).
+        ### Key Differences
+            #**Sensitivity**: The Shapiro-Wilk test is generally more sensitive and powerful, especially for small sample sizes[2](https://statisticseasily.com/normality-test/).
+            #**Application**: The Kolmogorov-Smirnov test is more versatile as it can be used to compare any sample distribution to any theoretical distribution, not just normal[1](https://statistics.laerd.com/spss-tutorials/testing-for-normality-using-spss-statistics.php).
+        #In our case, we are interested in check differences respect to Normality overall, at a coarse scale, consdeing this and that we have an relatively large sample size (for statistics standards) we are going for KS.
+    ks_test = stats.kstest( \
+            rvs=pheno_transformed, \
+            cdf=stats.norm.cdf, \
+            alternative="two-sided" \
+        )
+        #The one-sample test compares the underlying distribution F(x) of a sample against a given distribution G(x). The two-sample test compares the underlying distributions of two independent samples. Both tests are valid only for continuous distributions.
+            #rvs: If an array, it should be a 1-D array of observations of random variables. If a callable, it should be a function to generate random variables; it is required to have a keyword argument size. If a string, it should be the name of a distribution in scipy.stats, which will be used to generate random variables.
+            #cdf (cumulative density function): If array_like, it should be a 1-D array of observations of random variables, and the two-sample test is performed (and rvs must be array_like). If a callable, that callable is used to calculate the cdf. If a string, it should be the name of a distribution in scipy.stats, which will be used as the cdf function.
+                #stats.norm.cdf: A normal continuous random variable.
+            #alternative: Defines the null and alternative hypotheses. Default is ‘two-sided’.
+                #two-sided: The null hypothesis is that the two distributions are identical, F(x)=G(x) for all x; the alternative is that they are not identical.
+        #https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kstest.html#scipy.stats.kstest
+    print(ks_test)
+    if(ks_test[1] > 0.05):
+        print(f"OK: GOOD TO GO! We did NOT find evidence that {phenotype} is strongly deviated from normality")
+    else:
+        raise ValueError(f"ERROR: FALSE! {phenotype} is strongly deviated from normality!")
 
     print("plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype")
     fig, (ax1, ax2) = plt.subplots(2, 1)
@@ -705,21 +704,17 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
     fig.subplots_adjust(hspace=0.4)
             #https://stackoverflow.com/a/5159405/12772630
     #correlate the phenotype vs transformed phenotype
-    ax1.scatter(x=modeling_data[change_pheno], y=pheno_transformed, s=0.5)
-    ax1.set_ylabel(change_pheno + " - quantile trans")
-    ax1.set_xlabel(change_pheno + " - raw")
+    ax1.scatter(x=modeling_data[phenotype], y=pheno_transformed, s=0.5)
+    ax1.set_ylabel(phenotype + " - quantile trans")
+    ax1.set_xlabel(phenotype + " - raw")
     #plot histogram of the transformed phenotype
-    ax2.hist(pheno_transformed, 50, density=True, alpha=0.4, label="Distribution of " + change_pheno)
-    ax2.set_xlabel("Histrogram of " + change_pheno + " after the trasformation")
+    ax2.hist(pheno_transformed, 50, density=True, alpha=0.4, label="Distribution of " + phenotype)
+    ax2.set_xlabel("Histrogram of " + phenotype + " after the trasformation")
     plt.savefig( \
-        fname="./results/prelim_results/distribution_hist/" + change_pheno + "_trans_hist.png")
+        fname="./data/pheno_data/distribution_hist/" + phenotype + "_trans_hist.png")
     plt.close()
-print("IMPORTANT: \
-    Our phenotypes are in general more or less normal, but in order to make them more normal, we have performed a quantile transformation. The W statistic of shapiro is almost 1, and the p-value is below 0.05 but not veery small. The HIIT study used the p-value of shapiro test as indication of normality. \
-    Given these results, we are going to pre-process phenotypes and covariates directly in plink. It is interesting to apply his preprocesing to the covariates also so we have all variables in the same scale? \
-    THINK MORE ABOUT THIS IN THE FUTURE")
 
-print_text("run the associations between phenotypes and covariates", header=4)
+print_text("run the associations between phenotypes and covariates to check which covariates are relevant for each response variable", header=4)
 #empty dict to save covariates per phenotype
 dict_pvalue_covar = { 
     "weight_change": [], \
@@ -728,45 +723,60 @@ dict_pvalue_covar = {
     "vo2_change": []}
 #define a function to calculate the association between a pair of phenotype and covariate
 from scipy.stats import linregress
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
 #change_pheno="distance_change"; covar="Age"
+#change_pheno="distance_change"; covar="sex_code"
 def fun_assoc(change_pheno, covar):
 
-    #remove rows with missing for any of the interest columns
+    #remove rows with missing for the phenotype of interest
     modeling_data = merged_data \
         .loc[:,[change_pheno, covar]] \
-        .apply(lambda x: np.nan if (x[change_pheno]==new_nan_value) | (x[covar]==new_nan_value) else x, axis=1) \
         .dropna()
-        #select the interest columns
-        #for each row
-            #set NA if any of the two columns is new_nan_value, i.e., missing in plink. The np.nan goes to all columns in that row
-            #else do not change anything of the row
-        #drop rows with NaN
 
-    #model
-    model_results = linregress( \
-        x=modeling_data[covar], \
-        y=modeling_data[change_pheno], \
-        alternative='two-sided')
-        #the phenotype is the response
-        #alternative
-            #'two-sided': the slope of the regression line is nonzero (greater or lower than zero, i.e., negative or positive association)
-    print(model_results)
+    #transform the phenotype
+    modeling_data["pheno_transformed"] = quantile_transform( \
+        X=modeling_data[change_pheno].values.reshape(-1, 1), \
+        n_quantiles=500, 
+        output_distribution="normal" \
+    )
 
+    #run the model for continuous predictors and factors
+    if (covar=="sex_code"):
+        model = ols("pheno_transformed ~ C(" + covar + ")", data=modeling_data).fit()
+            #ols('phenotype ~ C(covariate_factor)', data=df).fit() fits an ordinary least squares (OLS) regression model with the phenotype as the dependent variable and the covariate factor as the independent variable.
+            #The C() function in the formula syntax of statsmodels is used to indicate that a variable is categorical. When you use C(factor), it tells the model to treat factor as a categorical variable with distinct levels, rather than as a continuous variable.
+            #https://www.statsmodels.org/stable/example_formulas.html  
+    else:
+        model = ols("pheno_transformed ~ (" + covar + ")", data=modeling_data).fit()
+            #do not consider the covariate as a factor
+
+    #perform anova
+    anova_table = sm.stats.anova_lm(model, typ=2)
+        #sm.stats.anova_lm(model, typ=2) performs ANOVA on the fitted model and returns the ANOVA table.
+        #tpy=2: Type II sums of squares are useful when you want to test the main effects of each term after accounting for all other main effects, but not interactions.
+
+        #POR AQUII
+
+    print(anova_table)
+
+    #save the p-value
+    if (covar=="sex_code"):
+        p_value_cov = anova_table["PR(>F)"]["C(" + covar + ")"]
+    else:
+        p_value_cov = anova_table["PR(>F)"]["(" + covar + ")"]
+   
     #add the covariate to the list of covariates of the selected pheno if the p_value is below 0.1. We use the correct, simplified name of the covariate
-    if model_results.pvalue < 0.1:
+    if p_value_cov < 0.1:
         dict_pvalue_covar[change_pheno].append(dict_names_covs[covar])
-print("IMPORTANT: \
-    We are analyzing here sex_code (0,1,2) as a continuous variable, but we should use a logistic regression. \
-    This is not a big deal because we are using these associations just to include or not a covariate, and sex is likely very important in all the phenotypes studied. \
-    In the future use statsmodels module to perform logistic regression.")
-    #https://www.statsmodels.org/stable/discretemod.html
+
 
 #for each phenotype
 #change_pheno="distance_change"; covar="Age"
 for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n \n #" + change_pheno + "#")
     #test the association with each covariate
-    for covar in ["Age", "sex_code", "Week 1 Body Mass"]:
+    for covar in ["PCA1", "PCA2", "Age", "sex_code", "Week 1 Body Mass"]:
         print("\n" + covar)
         fun_assoc(change_pheno=change_pheno, covar=covar)
     #if the phenotype is beep_change, we also want to check the association with baseline beep
@@ -808,6 +818,11 @@ print("See the new dict")
 print(dict_pvalue_covar_final)
 
 
+###GUARDA EL FILE COMO NA!!!!
+#na_rep="NA")
+
+
+
 
 #USA LA VARIABLE  DE SEXO DE PLINK
 #<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
@@ -828,6 +843,7 @@ print(dict_pvalue_covar_final)
     #- in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
     #    - body mass week 1 and 8
     #    - VO2 max week 1
+    #it makes snese to have NA for sample distance but not for beep? this is the case for week 8 in saple 8244FGNJ
     #- sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
     #- I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
     #- some rows are coloured, there is something special about these samples it could be relevant for the analysis?
