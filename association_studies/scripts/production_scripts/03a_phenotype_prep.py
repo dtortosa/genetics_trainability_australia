@@ -725,9 +725,13 @@ dict_pvalue_covar = {
 from scipy.stats import linregress
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
-#change_pheno="distance_change"; covar="Age"
+#change_pheno="weight_change"; covar="Age"
 #change_pheno="distance_change"; covar="sex_code"
 def fun_assoc(change_pheno, covar):
+
+    '''
+    Function to test the association between each phenotype-covariate pair. We are not testing all the covariates at the same time because some like weight have a lot of NAs. I want to check first the impact of covariates like week 1 VO2 max or distance with the full dataset. If they have an impact there, I would include them even in the subset with no NAs for weight they are not significant.
+    '''
 
     #remove rows with missing for the phenotype of interest
     modeling_data = merged_data \
@@ -748,23 +752,41 @@ def fun_assoc(change_pheno, covar):
             #The C() function in the formula syntax of statsmodels is used to indicate that a variable is categorical. When you use C(factor), it tells the model to treat factor as a categorical variable with distinct levels, rather than as a continuous variable.
             #https://www.statsmodels.org/stable/example_formulas.html  
     else:
-        model = ols("pheno_transformed ~ (" + covar + ")", data=modeling_data).fit()
-            #do not consider the covariate as a factor
+        #the covar is continuous so it can be transformed
+        modeling_data["covar_transformed"] = quantile_transform( \
+            X=modeling_data[covar].values.reshape(-1, 1), \
+            n_quantiles=500, 
+            output_distribution="normal" \
+        )
+        model = ols("pheno_transformed ~ (covar_transformed)", data=modeling_data).fit()
+            #do not consider the covariate as a factor, and include it transformed
 
     #perform anova
-    anova_table = sm.stats.anova_lm(model, typ=2)
+    anova_table = sm.stats.anova_lm(model, typ=2, robust="hc3")
         #sm.stats.anova_lm(model, typ=2) performs ANOVA on the fitted model and returns the ANOVA table.
-        #tpy=2: Type II sums of squares are useful when you want to test the main effects of each term after accounting for all other main effects, but not interactions.
-
-        #POR AQUII
-
+        #tpy:
+            #tpy=1:
+                #Type I sums of squares are also known as sequential sums of squares. They are calculated by adding each term to the model sequentially, one at a time, in the order specified in the model formula. The sums of squares for each term depend on the order in which the terms are added to the model.
+                #Usage: Type I sums of squares are useful when the order of the terms in the model is meaningful, such as in hierarchical models.
+                #We are not interested in this. The order of the predictors is not relevant.
+            #tpy=2:
+                #Type II sums of squares are also known as hierarchical sums of squares. They are calculated by adding each term to the model after accounting for all other terms, except for interactions. The sums of squares for each term do not depend on the order in which the terms are added to the model.
+                #Type II sums of squares are useful when you want to test the main effects of each term after accounting for all other main effects, but not interactions.
+                #This is what we want, just to check the main effect of a given covariate
+            #tpy=3:
+                #typ=3: Type III sums of squares are also known as marginal sums of squares. They are calculated by adding each term to the model after accounting for all other terms, including interactions. The sums of squares for each term do not depend on the order in which the terms are added to the model.
+                #Usage: Type III sums of squares are useful when you want to test the main effects and interactions of each term after accounting for all other terms.
+                #We are not interested in this, as we only want to select covariates to be included in the models
+        #robust:
+            #The robust parameter in the sm.stats.anova_lm function from the statsmodels library allows you to specify whether to use a heteroscedasticity-corrected coefficient covariance matrix. Heteroscedasticity refers to the situation where the variance of the errors in a regression model is not constant across observations. Using a heteroscedasticity-corrected covariance matrix can provide more reliable standard errors and test statistics when heteroscedasticity is present.
+            #"hc3": Use the HC3 heteroscedasticity-consistent covariance matrix estimator. This estimator provides a more robust adjustment for leverage and is generally recommended if robust covariance is desired.
     print(anova_table)
 
     #save the p-value
     if (covar=="sex_code"):
         p_value_cov = anova_table["PR(>F)"]["C(" + covar + ")"]
     else:
-        p_value_cov = anova_table["PR(>F)"]["(" + covar + ")"]
+        p_value_cov = anova_table["PR(>F)"]["covar_transformed"]
    
     #add the covariate to the list of covariates of the selected pheno if the p_value is below 0.1. We use the correct, simplified name of the covariate
     if p_value_cov < 0.1:
@@ -772,30 +794,27 @@ def fun_assoc(change_pheno, covar):
 
 
 #for each phenotype
-#change_pheno="distance_change"; covar="Age"
+#change_pheno="weight_change"; covar="Age"
+#change_pheno="distance_change"; covar="sex_code"
 for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n \n #" + change_pheno + "#")
+    
     #test the association with each covariate
     for covar in ["PCA1", "PCA2", "Age", "sex_code", "Week 1 Body Mass"]:
         print("\n" + covar)
         fun_assoc(change_pheno=change_pheno, covar=covar)
-    #if the phenotype is beep_change, we also want to check the association with baseline beep
+    
+    #add also the corresponding baseline
     if change_pheno == "beep_change":
         covar="Week 1 Beep test"
-        print("\n " + covar)
-        fun_assoc(change_pheno=change_pheno, covar=covar)
-    #if the phenotype is distance_change, we also want to check the association with baseline distance
     elif change_pheno == "distance_change":
         covar = "Week 1 Distance (m)"
-        print("\n " + covar)
-        fun_assoc(change_pheno=change_pheno, covar=covar)
-    #if the phenotype is vo2_change, we also want to check the association with baseline vo2 max
     elif change_pheno == "vo2_change":
         covar = "Week 1 Pred VO2max"
-        print("\n " + covar)
-        fun_assoc(change_pheno=change_pheno, covar=covar)
-print("All covariates except Age for beep_test and distance which is marginally significant (p=0.06). See dict with covariates")
-print(dict_pvalue_covar)
+    print("\n " + covar)
+    fun_assoc(change_pheno=change_pheno, covar=covar)
+print("Covariates with P-value<0.1")
+[f"{k}: {v}" for k, v in dict_pvalue_covar.items()]
 
 print_text("add to the dict of covariates a new entry to indicate to plink if sex is going to be used or not as covariate", header=4)
 #make deep copy of the previous dict (no conection between source and new copy)
@@ -847,3 +866,7 @@ print(dict_pvalue_covar_final)
     #- sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
     #- I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
     #- some rows are coloured, there is something special about these samples it could be relevant for the analysis?
+    #I have tested the association between each phenotype (change in the VO2 max, beep, etc...) and covariate separately. Unsurprisesly, the value of each phenotype at week 1, the sex and the weight at week 1 are significant (at least P<0.1) for all response variables. However, in several cases some covariates are not significant like PCA2 for weight change, age for VO2 change. Should we not consider the non significant covariates for a given phenotype?
+
+
+#The first thing is about missing data. We have a few samples (2-3) with missing for distance and VO2 max, I think we are ok removing these samples for the corresponding analyses (i.e., only missing VO2 when analyzing VO2....). The problem is with the use of weight as a covariate, we have hundreds of missing values for weight in week 1. Here I do not think we do not have many options rather than remove these samples for those phenotypes that are correlated with weight at week 1.
