@@ -805,51 +805,134 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
         fun_assoc(change_pheno=change_pheno, covar=covar)
     
     #add also the corresponding baseline
-    if change_pheno == "beep_change":
-        covar="Week 1 Beep test"
-    elif change_pheno == "distance_change":
-        covar = "Week 1 Distance (m)"
-    elif change_pheno == "vo2_change":
-        covar = "Week 1 Pred VO2max"
-    print("\n " + covar)
-    fun_assoc(change_pheno=change_pheno, covar=covar)
+    #weight already has its baseline as it is included always by default
+    if change_pheno != "weight_change":
+        if change_pheno == "beep_change":
+            covar="Week 1 Beep test"
+        elif change_pheno == "distance_change":
+            covar = "Week 1 Distance (m)"
+        elif change_pheno == "vo2_change":
+            covar = "Week 1 Pred VO2max"
+        print("\n " + covar)
+        fun_assoc(change_pheno=change_pheno, covar=covar)
 print("Covariates with P-value<0.1")
 [f"{k}: {v}" for k, v in dict_pvalue_covar.items()]
 
-print_text("add to the dict of covariates a new entry to indicate to plink if sex is going to be used or not as covariate", header=4)
-#make deep copy of the previous dict (no conection between source and new copy)
-import copy
-dict_pvalue_covar_final = copy.deepcopy(dict_pvalue_covar)
-#for each phenotype
-#key="distance_change"
-for key in dict_pvalue_covar_final:
-    #join all covariates of the selected phenotype in a single string and save as a list of one item
-    dict_pvalue_covar_final[key] = [",".join(dict_pvalue_covar_final[key])]
+
+
+#change_pheno="vo2_change"
+for change_pheno in dict_pvalue_covar.keys():
+
+    #create a folder for the phenotype
+    run_bash(" \
+        mkdir -p ./data/pheno_data/" + change_pheno + "_subset \
+    ")
+
+    #extract the selected covariates with the name of the dataset (long, not optimized name)
+    selected_covariates = [k for k, v in dict_names_covs.items() if v in dict_pvalue_covar[change_pheno]]
+
+    #create a subset of the data with the selected covariates and the phenotype of interest
+    subset_pheno = merged_data[["family_id", "AGRF code"]+selected_covariates+[change_pheno]]
+
+    #remove NAs
+    subset_pheno_no_na = subset_pheno.dropna()
+        #In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
+            #http://dougspeed.com/phenotypes-and-covariates/
+        #I understand that they will remove NA cases if not analyzing multiple phenotypes, but I am removing NA cases just in case.
+        #Remember, we are creating a dataset for each phenotype, so we are only removing samples with NA for the selected phenotype and covariates
+
+    #check number of samples removed
+    if (subset_pheno.shape[0] - subset_pheno_no_na.shape[0])>300:
+        raise ValueError("ERROR: FALSE! WE HAVE TOO MUCH NAs")
+
+    #save the subset
+    subset_pheno_no_na.to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset.tsv", \
+        sep="\t", \
+        header=True, \
+        index=False, \
+        na_rep="NA" \
+    )
+
+    #create a copy to save transformed variables
+    subset_pheno_no_na_transform = subset_pheno_no_na.copy(deep=True)
+        #deep=True: This creates a deep copy of the DataFrame. A deep copy means that a new DataFrame object is created, and all the data is copied. Changes to the new DataFrame will not affect the original DataFrame, and vice versa.
+
+    #pheno_to_transform=change_pheno
+    for pheno_to_transform in [cov for cov in selected_covariates if cov != "sex_code"]+[change_pheno]:
+        
+        subset_pheno_no_na_transform.loc[:, pheno_to_transform] = quantile_transform( \
+            X=subset_pheno_no_na[pheno_to_transform].values.reshape(-1, 1), \
+            n_quantiles=500, 
+            output_distribution="normal")
+        
+            #Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). So do NOT transform!
+                #http://dougspeed.com/phenotypes-and-covariates/
+
+
+    subset_pheno_no_na_transform.to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform.tsv", \
+        sep="\t", \
+        header=True, \
+        index=False, \
+        na_rep="NA" \
+    )
+
+
+    subset_fam_file = subset_pheno_no_na_transform[["family_id", "AGRF code", "sex_code"]]
+
+
+    subset_fam_file.loc[:, "Father ID"] = np.nan
+    subset_fam_file.loc[:, "Mother ID"] = np.nan
+    subset_fam_file.loc[:, "Phenotype"] = np.nan
+
+    subset_fam_file = subset_fam_file[["family_id", "AGRF code", "Father ID", "Mother ID", "sex_code", "Phenotype"]]
+        #<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
+            #https://dougspeed.com/file-formats/
+
+ 
+    subset_fam_file.to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform.fam", \
+        sep=" ", \
+        header=False, \
+        index=False, \
+        na_rep="NA" \
+    )
+        #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
+            #http://dougspeed.com/phenotypes-and-covariates/
+
+
+    subset_pheno_no_na_transform[["family_id", "AGRF code", change_pheno]].to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_response.tsv", \
+        sep="\t", \
+        header=False, \
+        index=False, \
+        na_rep="NA" \
+    )
+
     
-    #remove sex and add it as a separate string if it is present
-    if "sex_code" in dict_pvalue_covar_final[key][0]:
-        dict_pvalue_covar_final[key][0] = dict_pvalue_covar_final[key][0].replace("sex_code,", "")
-            #SEX is included as an argument in plink!!
-        dict_pvalue_covar_final[key].append("sex")
+
+    if ("sex_code" in selected_covariates):
+
+        subset_pheno_no_na_transform[["family_id", "AGRF code", "sex_code"]].to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_factors.tsv", \
+            sep="\t", \
+            header=False, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        index_of_sex_code=selected_covariates.index("sex_code")
+
+        selected_covariates_cont = selected_covariates[:index_of_sex_code]+selected_covariates[index_of_sex_code + 1:]
     else:
-        dict_pvalue_covar_final[key].append("")
-print("See the new dict")
-print(dict_pvalue_covar_final)
+        selected_covariates_cont=selected_covariates
 
 
-###GUARDA EL FILE COMO NA!!!!
-#na_rep="NA")
+    subset_pheno_no_na_transform[["family_id", "AGRF code"] + selected_covariates_cont].to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_cont.tsv", \
+        sep="\t", \
+        header=False, \
+        index=False, \
+        na_rep="NA" \
+    )
 
 
 
-
-#USA LA VARIABLE  DE SEXO DE PLINK
-#<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
-    #https://dougspeed.com/file-formats/
-
-#UN ARHIVO.PHENO PARA CADA PHENO!
-    #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
-    #http://dougspeed.com/phenotypes-and-covariates/
 
 
 
