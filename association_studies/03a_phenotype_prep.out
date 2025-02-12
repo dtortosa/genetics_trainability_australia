@@ -31,8 +31,8 @@ scripts
 
 total 424732
 -rwxr-xr-x 1 dftortosa dftortosa 434905088 Feb 12 12:48 03a_association_analyses.sif
--rw-rw-r-- 1 dftortosa dftortosa         0 Feb 12 13:37 03a_phenotype_prep.out
-drwxr-xr-x 4 dftortosa dftortosa      4096 Feb 12 13:15 data
+-rw-rw-r-- 1 dftortosa dftortosa         0 Feb 12 20:12 03a_phenotype_prep.out
+drwxr-xr-x 4 dftortosa dftortosa      4096 Feb 12 13:46 data
 drwxr-xr-x 3 dftortosa dftortosa      4096 Oct 31  2023 literature
 drwxr-xr-x 4 dftortosa dftortosa      4096 Jan 24 17:57 results
 drwxr-xr-x 4 dftortosa dftortosa      4096 Oct 31  2023 scripts
@@ -45,15 +45,12 @@ combine the excel file, FAM file and the PCAs
 #######################################
 
 ###### load the excel file ######
-total 364
--rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 13:37 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 beep_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distance_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distribution_hist
--rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 13:37 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 13:19 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 vo2_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 weight_change_subset
+total 352
+-rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 20:12 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 19:24 beep_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:53 distribution_hist
+-rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 20:12 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 13:49 pheno_data_cleaned.tsv
 
      Gender        Age  ...  Week 8 Pred VO2max  AGRF code
 0         M  25.000000  ...                47.7   8244TCOJ
@@ -687,15 +684,12 @@ combat_ILGSA24-17303 0200CDJM 0.0058 0.0174 F 19.18904109589041
 combat_ILGSA24-17303 0200JCJM 0.0288 0.0035 M 18.843835616438355
 combat_ILGSA24-17303 0200JCMM 0.0087 -0.0091 M 19.041095890410958
 combat_ILGSA24-17303 0200JEJM -0.0219 -0.0471 M 19.30958904109589
-total 364
--rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 13:37 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 beep_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distance_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distribution_hist
--rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 13:37 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 13:37 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 vo2_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 weight_change_subset
+total 352
+-rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 20:12 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 19:24 beep_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:53 distribution_hist
+-rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 20:12 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 20:12 pheno_data_cleaned.tsv
 
 
 ###### create a subset of the data with the relevant covariates for each phenotype and save as a distinct file ######

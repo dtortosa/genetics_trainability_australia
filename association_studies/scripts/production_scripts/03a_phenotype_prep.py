@@ -579,6 +579,16 @@ run_bash(" \
     ls -l \
 ")
 
+# endregion
+
+
+
+
+
+
+#####################################################
+# region create a subset of data for each phenotype #
+#####################################################
 
 print_text("create a subset of the data with the relevant covariates for each phenotype and save as a distinct file", header=2)
 #In LDAK, if only 1 phenotype is present in the pheno file, sample with missing for that pheno are removed. 
@@ -637,7 +647,8 @@ for phenotype in ["weight_change", "beep_change", "distance_change", "vo2_change
     pheno_transformed = quantile_transform( \
         X=modeling_data[phenotype].values.reshape(-1, 1), \
         n_quantiles=500, 
-        output_distribution="normal")
+        output_distribution="normal" \
+    )
         #This method transforms the features to follow a uniform or a normal distribution. Therefore, for a given feature, this transformation tends to spread out the most frequent values. It ALSO REDUCES THE IMPACT OF (MARGINAL) OUTLIERS: this is therefore a robust preprocessing scheme.
         #Regarding scaling
             #Note that this transform is non-linear. IT MAY DISTORT LINEAR CORRELATIONS BETWEEN VARIABLES MEASURED AT THE SAME SCALE BUT RENDERS VARIABLES MEASURED AT DIFFERENT SCALES MORE DIRECTLY COMPARABLE. 
@@ -681,10 +692,10 @@ for phenotype in ["weight_change", "beep_change", "distance_change", "vo2_change
             #**Application**: The Kolmogorov-Smirnov test is more versatile as it can be used to compare any sample distribution to any theoretical distribution, not just normal[1](https://statistics.laerd.com/spss-tutorials/testing-for-normality-using-spss-statistics.php).
         #In our case, we are interested in check differences respect to Normality overall, at a coarse scale, consdeing this and that we have an relatively large sample size (for statistics standards) we are going for KS.
     ks_test = stats.kstest( \
-            rvs=pheno_transformed, \
-            cdf=stats.norm.cdf, \
-            alternative="two-sided" \
-        )
+        rvs=pheno_transformed, \
+        cdf=stats.norm.cdf, \
+        alternative="two-sided" \
+    )
         #The one-sample test compares the underlying distribution F(x) of a sample against a given distribution G(x). The two-sample test compares the underlying distributions of two independent samples. Both tests are valid only for continuous distributions.
             #rvs: If an array, it should be a 1-D array of observations of random variables. If a callable, it should be a function to generate random variables; it is required to have a keyword argument size. If a string, it should be the name of a distribution in scipy.stats, which will be used to generate random variables.
             #cdf (cumulative density function): If array_like, it should be a 1-D array of observations of random variables, and the two-sample test is performed (and rvs must be array_like). If a callable, that callable is used to calculate the cdf. If a string, it should be the name of a distribution in scipy.stats, which will be used as the cdf function.
@@ -720,7 +731,8 @@ dict_pvalue_covar = {
     "weight_change": [], \
     "beep_change": [], \
     "distance_change": [], \
-    "vo2_change": []}
+    "vo2_change": [] \
+}
 #define a function to calculate the association between a pair of phenotype and covariate
 from scipy.stats import linregress
 import statsmodels.api as sm
@@ -800,6 +812,7 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
     print("\n \n #" + change_pheno + "#")
     
     #test the association with each covariate
+    #covar="PCA1"
     for covar in ["PCA1", "PCA2", "Age", "sex_code", "Week 1 Body Mass"]:
         print("\n" + covar)
         fun_assoc(change_pheno=change_pheno, covar=covar)
@@ -1040,7 +1053,7 @@ for change_pheno in dict_pvalue_covar.keys():
 
 #Phenotypes to study: I am considering the change in VO2 max, beep and distance between week 1 and week 8. Do you want me to run polygenic score for the three variables, right?
 
-#Select covariates: I have tested the association between each phenotype (i.e., change in the VO2 max, beep and distance) and each covariate separately. Unsurprisesly, the value of each phenotype at week 1 (e.g., VO2 max at week 1 for VO2 max), sex and weight (at week 1) are significant (at least P<0.1) for ALL phenotypes. However, in several cases other covariates are not significant like age and PCA1 for VO2 change. Should we not consider the non significant covariates for a given phenotype? I am specially doubtful in the case of the PCAs. From population structure analyses, I ended up with PCA1 and PC2 as the most relevant axes by far. Given they control for population stratificaction, I am hesitant to not include them even if in some cases are not significant. It is true that we have a homogeneous population, but still we could have subgroups within a "continental ancestry", presumibly European in our case.
+#Select covariates: I have tested the association between each phenotype (i.e., change in the VO2 max, beep and distance) and each covariate separately. Unsurprisingly, the value of each phenotype at baseline (e.g., VO2 max at week 1 for VO2 max), sex and weight (at week 1) are significant (at least P<0.1) for ALL phenotypes. In contrast, PCA1, PCA2 and age are not significantly associated with any phenotype. Should we consider the non-significant covariates for a given phenotype? I am especially doubtful in the case of the PCAs. From population structure analyses, I ended up selecting PCA1 and PCA2 as the most relevant axes by far. Given they control for population stratification, I am hesitant to not include them even if they are not significant. It is true that we have a homogeneous population, but still we could have subgroups within a "continental ancestry", presumably European in our case.
 
 #Missing data: We have a few samples (two or three) with missing for distance and VO2 max, I think we are ok removing these samples for the corresponding analyses (i.e., removing only missing VO2 when analyzing VO2....). The problem is with the use of weight as a covariate, we have hundreds of missing values for weight at week 1. Here I do not think we have other option rather than removing these samples. As noted above, weight is a significant covariate for all phenotypes.
 
