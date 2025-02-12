@@ -153,7 +153,7 @@ run_bash("ls")
 ######################
 run_bash(" \
     mkdir -p ./data/pheno_data; \
-    mkdir -p ./data/plink_inputs; \
+    mkdir -p ./data/plink_filesets; \
     mkdir -p ./results/final_results/distribution_hist; \
     ls -l")
 
@@ -818,8 +818,7 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
 print("Covariates with P-value<0.1")
 [f"{k}: {v}" for k, v in dict_pvalue_covar.items()]
 
-
-
+print_text("create datsets per each phenotype separately", header=4)
 #change_pheno="vo2_change"
 for change_pheno in dict_pvalue_covar.keys():
 
@@ -843,10 +842,11 @@ for change_pheno in dict_pvalue_covar.keys():
 
     #check number of samples removed
     if (subset_pheno.shape[0] - subset_pheno_no_na.shape[0])>300:
-        raise ValueError("ERROR: FALSE! WE HAVE TOO MUCH NAs")
+        raise ValueError(f"ERROR: FALSE! WE HAVE TOO MUCH NAs for {change_pheno}")
 
     #save the subset
-    subset_pheno_no_na.to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset.tsv", \
+    subset_pheno_no_na.to_csv( \
+        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset.tsv", \
         sep="\t", \
         header=True, \
         index=False, \
@@ -857,88 +857,136 @@ for change_pheno in dict_pvalue_covar.keys():
     subset_pheno_no_na_transform = subset_pheno_no_na.copy(deep=True)
         #deep=True: This creates a deep copy of the DataFrame. A deep copy means that a new DataFrame object is created, and all the data is copied. Changes to the new DataFrame will not affect the original DataFrame, and vice versa.
 
-    #pheno_to_transform=change_pheno
-    for pheno_to_transform in [cov for cov in selected_covariates if cov != "sex_code"]+[change_pheno]:
-        
-        subset_pheno_no_na_transform.loc[:, pheno_to_transform] = quantile_transform( \
-            X=subset_pheno_no_na[pheno_to_transform].values.reshape(-1, 1), \
+    #select the variable to be transformed
+    variables_to_transform = [cov for cov in selected_covariates if cov != "sex_code"] + [change_pheno]
+        #all covariates (except sex_code) and the response variable
+        #Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). So do NOT transform!
+            #http://dougspeed.com/phenotypes-and-covariates/
+
+    #transform all the continuous variables and overwrite
+    #pheno_to_transform=variables_to_transform[0]
+    for pheno_to_transform in variables_to_transform:
+        subset_pheno_no_na_transform[pheno_to_transform] = quantile_transform( \
+            X=subset_pheno_no_na_transform[pheno_to_transform].values.reshape(-1, 1), \
             n_quantiles=500, 
-            output_distribution="normal")
-        
-            #Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). So do NOT transform!
-                #http://dougspeed.com/phenotypes-and-covariates/
+            output_distribution="normal" \
+        )
+        #check
+        if (\
+            (subset_pheno_no_na_transform[pheno_to_transform].max() > 6) | \
+            (subset_pheno_no_na_transform[pheno_to_transform].min() < -6) \
+        ):
+            raise ValueError(f"ERROR: FALSE! {pheno_to_transform} is not transformed correctly")
+    
+    #check sex_code has not been transformed
+    if (subset_pheno_no_na_transform["sex_code"].unique().size != 2):
+        raise ValueError("ERROR: FALSE! WE HAVE TRANSFORMED SEX_CODE")
 
-
-    subset_pheno_no_na_transform.to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform.tsv", \
+    #save the transformed dataset
+    subset_pheno_no_na_transform.to_csv( \
+        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform.tsv", \
         sep="\t", \
         header=True, \
         index=False, \
         na_rep="NA" \
     )
 
-
-    subset_fam_file = subset_pheno_no_na_transform[["family_id", "AGRF code", "sex_code"]]
-
-
-    subset_fam_file.loc[:, "Father ID"] = np.nan
-    subset_fam_file.loc[:, "Mother ID"] = np.nan
-    subset_fam_file.loc[:, "Phenotype"] = np.nan
-
-    subset_fam_file = subset_fam_file[["family_id", "AGRF code", "Father ID", "Mother ID", "sex_code", "Phenotype"]]
-        #<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
-            #https://dougspeed.com/file-formats/
-
- 
-    subset_fam_file.to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform.fam", \
-        sep=" ", \
-        header=False, \
-        index=False, \
-        na_rep="NA" \
-    )
-        #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
-            #http://dougspeed.com/phenotypes-and-covariates/
-
-
-    subset_pheno_no_na_transform[["family_id", "AGRF code", change_pheno]].to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_response.tsv", \
+    #save the response variable
+    subset_pheno_no_na_transform[["family_id", "AGRF code", change_pheno]].to_csv( \
+        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_response.tsv", \
         sep="\t", \
-        header=False, \
+        header=True, \
         index=False, \
         na_rep="NA" \
     )
 
-    
-
+    #save the covariates that are factors
     if ("sex_code" in selected_covariates):
 
-        subset_pheno_no_na_transform[["family_id", "AGRF code", "sex_code"]].to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_factors.tsv", \
+        #save sex_code
+        subset_pheno_no_na_transform[["family_id", "AGRF code", "sex_code"]].to_csv( \
+            "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_factors.tsv", \
             sep="\t", \
-            header=False, \
+            header=True, \
             index=False, \
             na_rep="NA" \
         )
 
-        index_of_sex_code=selected_covariates.index("sex_code")
+    #save the covariates that are continuous
+    selected_covariates_cont = [cov for cov in selected_covariates if cov != "sex_code"]
+    subset_pheno_no_na_transform[["family_id", "AGRF code"] + selected_covariates_cont].to_csv( \
+        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_cont.tsv", \
+        sep="\t", \
+        header=True, \
+        index=False, \
+        na_rep="NA" \
+    )
 
-        selected_covariates_cont = selected_covariates[:index_of_sex_code]+selected_covariates[index_of_sex_code + 1:]
-    else:
-        selected_covariates_cont=selected_covariates
+    ##subset plink filesets
+    #create a folder to save files
+    run_bash(" \
+        mkdir -p ./data/plink_filesets/" + change_pheno + "_filesets/ \
+    ")
 
-
-    subset_pheno_no_na_transform[["family_id", "AGRF code"] + selected_covariates_cont].to_csv("./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_cont.tsv", \
+    #create a file with the samples included after pheno cleaning
+    subset_pheno_no_na_transform[["family_id", "AGRF code"]].to_csv( \
+        "./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_samples_in.tsv", \
         sep="\t", \
         header=False, \
         index=False, \
         na_rep="NA" \
     )
 
+    #subset the plink filesets
+    run_bash(" \
+        plink \
+            --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno \
+            --keep ./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_samples_in.tsv \
+            --make-bed \
+            --out ./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_subset \
+    ")
+        #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+
+    #check we have selected the correct samples
+    subset_fam = pd.read_csv( \
+        "./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_subset.fam", \
+        sep=" ", \
+        header=None \
+    )
+    #if the family_id or the sample IDs are not identical between our transformed dataset and the plink fileset, we have a problem
+    if ( \
+        (not subset_fam[0].rename("family_id").equals(subset_pheno_no_na_transform["family_id"].reset_index(drop=True))) | \
+        (not subset_fam[1].rename("AGRF code").equals(subset_pheno_no_na_transform["AGRF code"].reset_index(drop=True))) \
+    ):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM SELECT THE SAMPLES WITHOUT NA IN THE PLINK FILESETS")
+
+    #Note about the fam file and LDAK:
+        #<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
+            #https://dougspeed.com/file-formats/
+        #THEREFORE, it does not matter if we have -9 in the phenotype column. The sex and phenotype data is provided separately
+
+# endregion
 
 
 
 
 
 
-#ask David the last questions about the phenotypes
-#explain the selected covariates
+####################
+# region questions #
+####################
+
+#Phenotypes to study: I am considering the change in VO2 max, beep and distance between week 1 and week 8. Do you want me to run polygenic score for the three variables, right?
+
+#Select covariates: I have tested the association between each phenotype (i.e., change in the VO2 max, beep and distance) and each covariate separately. Unsurprisesly, the value of each phenotype at week 1 (e.g., VO2 max at week 1 for VO2 max), sex and weight (at week 1) are significant (at least P<0.1) for ALL phenotypes. However, in several cases other covariates are not significant like age and PCA1 for VO2 change. Should we not consider the non significant covariates for a given phenotype? I am specially doubtful in the case of the PCAs. From population structure analyses, I ended up with PCA1 and PC2 as the most relevant axes by far. Given they control for population stratificaction, I am hesitant to not include them even if in some cases are not significant. It is true that we have a homogeneous population, but still we could have subgroups within a "continental ancestry", presumibly European in our case.
+
+#Missing data: We have a few samples (two or three) with missing for distance and VO2 max, I think we are ok removing these samples for the corresponding analyses (i.e., removing only missing VO2 when analyzing VO2....). The problem is with the use of weight as a covariate, we have hundreds of missing values for weight at week 1. Here I do not think we have other option rather than removing these samples. As noted above, weight is a significant covariate for all phenotypes.
+
+#After removing NAs, I have applied a quantile transformation to have the phenotypes and covariates closer to a normal distribution and all in the same scale. This is relevant given we are going to use linear models and, in general, having variables in a different scale makes the modeling difficult. I have used a standard transformation and it is possible to comeback to the raw values when we are predicting.
+
+
+
+
 #decide if we are going to analyze the three training phenotypes
 #more questions
     #- ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
@@ -949,7 +997,24 @@ for change_pheno in dict_pvalue_covar.keys():
     #- sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
     #- I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
     #- some rows are coloured, there is something special about these samples it could be relevant for the analysis?
-    #I have tested the association between each phenotype (change in the VO2 max, beep, etc...) and covariate separately. Unsurprisesly, the value of each phenotype at week 1, the sex and the weight at week 1 are significant (at least P<0.1) for all response variables. However, in several cases some covariates are not significant like PCA2 for weight change, age for VO2 change. Should we not consider the non significant covariates for a given phenotype?
 
 
-#The first thing is about missing data. We have a few samples (2-3) with missing for distance and VO2 max, I think we are ok removing these samples for the corresponding analyses (i.e., only missing VO2 when analyzing VO2....). The problem is with the use of weight as a covariate, we have hundreds of missing values for weight in week 1. Here I do not think we do not have many options rather than remove these samples for those phenotypes that are correlated with weight at week 1.
+
+# endregion
+
+
+
+
+
+
+print_text("FINISH", header=1)
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
+#chmod +x ./scripts/production_scripts/03a_phenotype_prep.py
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03a_phenotype_prep.py > ./03a_phenotype_prep.out 2>&1
+#grep -Ei 'error|false|fail' ./03a_phenotype_prep.out
+    #grep: The command used to search for patterns in files.
+    #-E: Enables extended regular expressions.
+    #-i: Makes the search case-insensitive.
+    #'error|false|fail': The pattern to search for. The | character acts as an OR operator, so it matches any line containing "error", "false", or "fail".
+    #03a_phenotype_prep.out: The file to search in.

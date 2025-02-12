@@ -1,0 +1,990 @@
+
+#######################################
+#######################################
+checking function to print nicely: header 1
+#######################################
+#######################################
+
+###### checking function to print nicely: header 2 ######
+
+## checking function to print nicely: header 3 ##
+
+# checking function to print nicely: header 4 #
+
+#######################################
+#######################################
+check behaviour run_bash
+#######################################
+#######################################
+
+###### see working directory ######
+/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+
+
+###### list files/folders there ######
+03a_association_analyses.out
+03a_association_analyses.sif
+03a_phenotype_prep.out
+data
+literature
+results
+scripts
+
+total 424660
+-rw-r--r-- 1 root      root           3713 Nov  3  2023 03a_association_analyses.out
+-rwxr-xr-x 1 dftortosa dftortosa 434827264 Feb  9 10:01 03a_association_analyses.sif
+-rw-rw-r-- 1 dftortosa dftortosa         0 Feb 12 08:41 03a_phenotype_prep.out
+drwxr-xr-x 4 dftortosa dftortosa      4096 Feb 12 08:38 data
+drwxr-xr-x 3 dftortosa dftortosa      4096 Oct 31  2023 literature
+drwxr-xr-x 4 dftortosa dftortosa      4096 Jan 24 17:57 results
+drwxr-xr-x 4 dftortosa dftortosa      4096 Oct 31  2023 scripts
+
+
+#######################################
+#######################################
+combine the excel file, FAM file and the PCAs
+#######################################
+#######################################
+
+###### load the excel file ######
+total 364
+-rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 08:42 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 beep_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distance_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distribution_hist
+-rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 08:42 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 08:38 pheno_data_cleaned.tsv
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 vo2_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 weight_change_subset
+
+     Gender        Age  ...  Week 8 Pred VO2max  AGRF code
+0         M  25.000000  ...                47.7   8244TCOJ
+1         M  43.720548  ...                43.6   6976MCJS
+2         M  35.049315  ...                49.0   3484JSJJ
+3         F  23.561644  ...                43.6   1389HSNM
+4         M  26.164384  ...                54.0   7593DBAO
+...     ...        ...  ...                 ...        ...
+1459    NaN        NaN  ...                 NaN   2471AWMA
+1460    NaN        NaN  ...                 NaN   6897TSSS
+1461    NaN        NaN  ...                 NaN   6899DWOS
+1462    NaN        NaN  ...                 NaN   6296TONJ
+1463    NaN        NaN  ...                 NaN   7799BTDO
+
+[1464 rows x 11 columns]
+
+###### do some checks about the variables ######
+
+## Check that the dtype of the new beep distance columns is float64 ##
+YES! GOOD TO GO!!
+
+## Check that the new version of the pheno_data is exactly the same than the previous one if we remove the new beep distance variables ##
+
+# load the original phenotype data #
+     Gender        Age  ...  Week 8 Pred VO2max  AGRF code
+0         M  25.000000  ...                47.7   8244TCOJ
+1         M  43.720548  ...                43.6   6976MCJS
+2         M  35.049315  ...                49.0   3484JSJJ
+3         F  23.561644  ...                43.6   1389HSNM
+4         M  26.164384  ...                54.0   7593DBAO
+...     ...        ...  ...                 ...        ...
+1459    NaN        NaN  ...                 NaN   2471AWMA
+1460    NaN        NaN  ...                 NaN   6897TSSS
+1461    NaN        NaN  ...                 NaN   6899DWOS
+1462    NaN        NaN  ...                 NaN   6296TONJ
+1463    NaN        NaN  ...                 NaN   7799BTDO
+
+[1464 rows x 9 columns]
+
+# make the check #
+YES! GOOD TO GO!!
+
+## Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0 ##
+
+# see the problem #
+11.1O
+Gender                        M
+Age                        18.0
+Week 1 Body Mass            NaN
+Week 8 Body Mass           62.2
+Week 1 Beep test           11.7
+Week 8 beep test          11.1O
+Week 1 Distance (m)      2120.0
+Week 8 Distance (m)         NaN
+Week 1 Pred VO2max         52.2
+Week 8 Pred VO2max         53.1
+AGRF code              8244FGNJ
+Name: 1193, dtype: object
+
+# change 11.1O for 11.10 #
+Gender                        M
+Age                        18.0
+Week 1 Body Mass            NaN
+Week 8 Body Mass           62.2
+Week 1 Beep test           11.7
+Week 8 beep test           11.1
+Week 1 Distance (m)      2120.0
+Week 8 Distance (m)         NaN
+Week 1 Pred VO2max         52.2
+Week 8 Pred VO2max         53.1
+AGRF code              8244FGNJ
+Name: 1193, dtype: object
+
+# convert the dtype of this column from string to float #
+old dtype: object
+new dtype: float64
+GOOD TO GO: we have correctly change the dtype of the column with beep test data week 8
+Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number
+
+###### load fam file ######
+
+## load the last fam file ##
+                 family_id AGRF code  ...  sex_code  phenotype_value
+0     combat_ILGSA24-17303  0200ADMM  ...         1               -9
+1     combat_ILGSA24-17303  0200ASJM  ...         2               -9
+2     combat_ILGSA24-17303  0200BHNM  ...         2               -9
+3     combat_ILGSA24-17303  0200CBOM  ...         1               -9
+4     combat_ILGSA24-17303  0200CDFM  ...         2               -9
+...                    ...       ...  ...       ...              ...
+1198  combat_ILGSA24-17873  9693JMNM  ...         1               -9
+1199  combat_ILGSA24-17873  9696DWFM  ...         1               -9
+1200  combat_ILGSA24-17873  9697STJM  ...         1               -9
+1201  combat_ILGSA24-17873  9699DNOM  ...         1               -9
+1202  combat_ILGSA24-17873  9699ISMM  ...         1               -9
+
+[1203 rows x 6 columns]
+
+## check the fam file do not have any duplicated IDs ##
+
+# see duplicated IDs in pheno data #
+168    1100JHJM
+172    1200JPJM
+Name: AGRF code, dtype: object
+
+# check these samples are not included in the plink FAM file #
+GOOD TO GO: we do not have duplicated IDs in the plink FAM file, SO WE CAN MERGE PHENO DATA AND FAM FILE USING ONLY THE AGRF CODE
+
+###### merge and the excel file with the FAM file ######
+
+## do the merge ##
+     Gender        Age  Week 1 Body Mass  ...  ID_mother  sex_code  phenotype_value
+0         M  19.024658              76.7  ...          0         1               -9
+1         F  18.679452              57.4  ...          0         2               -9
+2         F  18.369863              72.5  ...          0         2               -9
+3         M  18.556164              54.5  ...          0         1               -9
+4         F  19.216438              58.5  ...          0         2               -9
+...     ...        ...               ...  ...        ...       ...              ...
+1198      M  26.000000               NaN  ...          0         1               -9
+1199      M  24.000000               NaN  ...          0         1               -9
+1200      M  23.000000               NaN  ...          0         1               -9
+1201      M  20.000000               NaN  ...          0         1               -9
+1202      M  20.000000               NaN  ...          0         1               -9
+
+[1203 rows x 16 columns]
+                      count         mean  ...         75%          max
+Age                  1203.0    21.585398  ...    22.89589    56.254237
+Week 1 Body Mass     1037.0    76.429585  ...    85.60000   116.200000
+Week 8 Body Mass     1203.0    71.291438  ...    84.00000   111.000000
+Week 1 Beep test     1203.0     8.984838  ...    10.10000    13.900000
+Week 8 beep test     1203.0     9.813408  ...    10.70000    14.100000
+Week 1 Distance (m)  1203.0  1441.113882  ...  1680.00000  2620.000000
+Week 8 Distance (m)  1202.0  1626.539101  ...  1880.00000  3900.000000
+Week 1 Pred VO2max   1203.0    43.130507  ...    47.20000    60.100000
+Week 8 Pred VO2max   1203.0    46.111554  ...    49.30000    60.900000
+ID_father            1203.0     0.000000  ...     0.00000     0.000000
+ID_mother            1203.0     0.000000  ...     0.00000     0.000000
+sex_code             1203.0     1.139651  ...     1.00000     2.000000
+phenotype_value      1203.0    -9.000000  ...    -9.00000    -9.000000
+
+[13 rows x 8 columns]
+
+# total sum of NaNs or zero cases per column #
+Gender                    0
+Age                       0
+Week 1 Body Mass        185
+Week 8 Body Mass         97
+Week 1 Beep test          0
+Week 8 beep test          0
+Week 1 Distance (m)       0
+Week 8 Distance (m)       1
+Week 1 Pred VO2max        3
+Week 8 Pred VO2max        0
+AGRF code                 0
+family_id                 0
+ID_father              1203
+ID_mother              1203
+sex_code                  0
+phenotype_value           0
+dtype: int64
+
+## check and remove cases with zero in phenotypes ##
+
+# sum the number of Zeros per column #
+Gender                    0
+Age                       0
+Week 1 Body Mass         19
+Week 8 Body Mass         97
+Week 1 Beep test          0
+Week 8 beep test          0
+Week 1 Distance (m)       0
+Week 8 Distance (m)       0
+Week 1 Pred VO2max        3
+Week 8 Pred VO2max        0
+AGRF code                 0
+family_id                 0
+ID_father              1203
+ID_mother              1203
+sex_code                  0
+phenotype_value           0
+dtype: int64
+
+# Weight: Given that weight is going to be used for the rest of variables as covariate, we will set as missing the weight of these samples. Importantly, a weight of zero does not make sense. #
+
+# VO2 max week 1: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan #
+      Week 1 Beep test  ...  Week 8 Pred VO2max
+1072               9.3  ...                47.2
+1078              12.0  ...                55.4
+1095               9.8  ...                51.1
+
+[3 rows x 4 columns]
+
+# Sex_code: We initially had missing for some samples, but these have been removed during the QC, also 2397LDJA was updated to 2399LDJA, so we should not have any zero for sex #
+
+# Parents ID: We do not have any parent in the cohort, so they all should be zero #
+
+# sum again the number of Zeros per column #
+Gender                    0
+Age                       0
+Week 1 Body Mass          0
+Week 8 Body Mass          0
+Week 1 Beep test          0
+Week 8 beep test          0
+Week 1 Distance (m)       0
+Week 8 Distance (m)       0
+Week 1 Pred VO2max        0
+Week 8 Pred VO2max        0
+AGRF code                 0
+family_id                 0
+ID_father              1203
+ID_mother              1203
+sex_code                  0
+phenotype_value           0
+dtype: int64
+
+## deal with 2397LDJA/2399LDJA ##
+This is the misslabeled sample, it has one ID in genetic and other different ID in pheno. As the postdoc of David said: I think it is a mislabelling of the last digit of the number (the labelling was very hard to read on some of the blood samples). So, I think 2397LDJA; ILGSA24-17303 is 2399LDJA in the excel file. We already changed the ID during the QC, so only 2399LDJA should be present
+
+###### bind PCA axes ######
+
+## load axes ##
+                                 0       1       2   ...      18      19      20
+0     combat_ILGSA24-17303:0200ADMM  0.0040 -0.0114  ... -0.0074  0.0085 -0.0052
+1     combat_ILGSA24-17303:0200ASJM -0.0704 -0.0905  ... -0.0111 -0.0227  0.0105
+2     combat_ILGSA24-17303:0200BHNM  0.0181 -0.0021  ...  0.0259 -0.0016  0.0347
+3     combat_ILGSA24-17303:0200CBOM  0.0188  0.0180  ... -0.0042 -0.0221  0.0230
+4     combat_ILGSA24-17303:0200CDFM -0.0192  0.0154  ... -0.0293  0.0134 -0.0019
+...                             ...     ...     ...  ...     ...     ...     ...
+1235  combat_ILGSA24-17873:9693JMNM  0.0047 -0.0226  ...  0.0191  0.0222  0.0011
+1236  combat_ILGSA24-17873:9696DWFM  0.0117  0.0112  ...  0.0108 -0.0180 -0.0549
+1237  combat_ILGSA24-17873:9697STJM  0.0218 -0.0033  ...  0.0227  0.0008 -0.0030
+1238  combat_ILGSA24-17873:9699DNOM -0.0612  0.0506  ... -0.0042 -0.0549 -0.0219
+1239  combat_ILGSA24-17873:9699ISMM  0.0043  0.0168  ... -0.0126  0.0074 -0.0130
+
+[1240 rows x 21 columns]
+
+## split IDs ##
+                                  0       1  ...             family_id  AGRF code
+0     combat_ILGSA24-17303:0200ADMM  0.0040  ...  combat_ILGSA24-17303   0200ADMM
+1     combat_ILGSA24-17303:0200ASJM -0.0704  ...  combat_ILGSA24-17303   0200ASJM
+2     combat_ILGSA24-17303:0200BHNM  0.0181  ...  combat_ILGSA24-17303   0200BHNM
+3     combat_ILGSA24-17303:0200CBOM  0.0188  ...  combat_ILGSA24-17303   0200CBOM
+4     combat_ILGSA24-17303:0200CDFM -0.0192  ...  combat_ILGSA24-17303   0200CDFM
+...                             ...     ...  ...                   ...        ...
+1235  combat_ILGSA24-17873:9693JMNM  0.0047  ...  combat_ILGSA24-17873   9693JMNM
+1236  combat_ILGSA24-17873:9696DWFM  0.0117  ...  combat_ILGSA24-17873   9696DWFM
+1237  combat_ILGSA24-17873:9697STJM  0.0218  ...  combat_ILGSA24-17873   9697STJM
+1238  combat_ILGSA24-17873:9699DNOM -0.0612  ...  combat_ILGSA24-17873   9699DNOM
+1239  combat_ILGSA24-17873:9699ISMM  0.0043  ...  combat_ILGSA24-17873   9699ISMM
+
+[1240 rows x 23 columns]
+
+## change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the error remains in the PCA data ##
+
+## select the PCAs we are interested in ##
+                 family_id AGRF code       1       2
+0     combat_ILGSA24-17303  0200ADMM  0.0040 -0.0114
+1     combat_ILGSA24-17303  0200ASJM -0.0704 -0.0905
+2     combat_ILGSA24-17303  0200BHNM  0.0181 -0.0021
+3     combat_ILGSA24-17303  0200CBOM  0.0188  0.0180
+4     combat_ILGSA24-17303  0200CDFM -0.0192  0.0154
+...                    ...       ...     ...     ...
+1235  combat_ILGSA24-17873  9693JMNM  0.0047 -0.0226
+1236  combat_ILGSA24-17873  9696DWFM  0.0117  0.0112
+1237  combat_ILGSA24-17873  9697STJM  0.0218 -0.0033
+1238  combat_ILGSA24-17873  9699DNOM -0.0612  0.0506
+1239  combat_ILGSA24-17873  9699ISMM  0.0043  0.0168
+
+[1240 rows x 4 columns]
+                 family_id AGRF code    PCA1    PCA2
+0     combat_ILGSA24-17303  0200ADMM  0.0040 -0.0114
+1     combat_ILGSA24-17303  0200ASJM -0.0704 -0.0905
+2     combat_ILGSA24-17303  0200BHNM  0.0181 -0.0021
+3     combat_ILGSA24-17303  0200CBOM  0.0188  0.0180
+4     combat_ILGSA24-17303  0200CDFM -0.0192  0.0154
+...                    ...       ...     ...     ...
+1235  combat_ILGSA24-17873  9693JMNM  0.0047 -0.0226
+1236  combat_ILGSA24-17873  9696DWFM  0.0117  0.0112
+1237  combat_ILGSA24-17873  9697STJM  0.0218 -0.0033
+1238  combat_ILGSA24-17873  9699DNOM -0.0612  0.0506
+1239  combat_ILGSA24-17873  9699ISMM  0.0043  0.0168
+
+[1240 rows x 4 columns]
+
+###### merge the PCA with the rest of phenotypes ######
+
+## do the merge ##
+
+#######################################
+#######################################
+process the merged file
+#######################################
+#######################################
+
+###### create new variables for the change before and after ######
+
+## make the operations ##
+
+## check we have the correct NANs ##
+family_id                0
+AGRF code                0
+PCA1                     0
+PCA2                     0
+Gender                   0
+Age                      0
+Week 1 Body Mass       185
+Week 8 Body Mass        97
+Week 1 Beep test         0
+Week 8 beep test         0
+Week 1 Distance (m)      0
+Week 8 Distance (m)      1
+Week 1 Pred VO2max       3
+Week 8 Pred VO2max       0
+ID_father                0
+ID_mother                0
+sex_code                 0
+phenotype_value          0
+weight_change          244
+beep_change              0
+distance_change          1
+vo2_change               3
+dtype: int64
+Weight change
+True
+beep change
+True
+distance change
+True
+VO2 max change
+True
+
+## Check we only have NA ##
+Remember that LDAK consider missing pheno as NA, not -9, so we do not need to change the missing value. We do not have problems with the negative values because now -9 is not going to be NA, so a person losing 9Kg is going to be considered a value, not missing
+
+# check if we have -9 cases aside from the 'change variables' #
+family_id                 0
+AGRF code                 0
+PCA1                      0
+PCA2                      0
+Gender                    0
+Age                       0
+Week 1 Body Mass          0
+Week 8 Body Mass          0
+Week 1 Beep test          0
+Week 8 beep test          0
+Week 1 Distance (m)       0
+Week 8 Distance (m)       0
+Week 1 Pred VO2max        0
+Week 8 Pred VO2max        0
+ID_father                 0
+ID_mother                 0
+sex_code                  0
+phenotype_value        1203
+weight_change             1
+beep_change               0
+distance_change           0
+vo2_change                0
+dtype: int64
+                 family_id AGRF code  ...  distance_change  vo2_change
+0     combat_ILGSA24-17303  0200ADMM  ...            200.0         1.9
+1     combat_ILGSA24-17303  0200ASJM  ...           -480.0        -4.7
+2     combat_ILGSA24-17303  0200BHNM  ...             20.0         0.3
+3     combat_ILGSA24-17303  0200CBOM  ...             40.0         0.7
+4     combat_ILGSA24-17303  0200CDFM  ...             20.0         0.3
+...                    ...       ...  ...              ...         ...
+1198  combat_ILGSA24-17873  9693JMNM  ...            -40.0        -0.6
+1199  combat_ILGSA24-17873  9696DWFM  ...            480.0         7.5
+1200  combat_ILGSA24-17873  9697STJM  ...            180.0         2.8
+1201  combat_ILGSA24-17873  9699DNOM  ...            540.0         8.5
+1202  combat_ILGSA24-17873  9699ISMM  ...            260.0         2.9
+
+[1203 rows x 21 columns]
+GOOD TO GO: we only have -9 cases in the 'change variables'
+
+# We do NOT have to check for zero! cases #
+GOOD TO GO: we only have 0 cases in the 'change' variables, PCA and father/mother IDs
+
+###### perform some checks ######
+
+## check we have the correct index in order to filter by index and iloc, i.e., no gaps in the indexes ##
+True
+
+## check the problematic samples are NOT included ##
+True
+
+## check we do not have duplicated samples and no sample with NaN ##
+True
+True
+
+## check we do have two sex columns ##
+GOOD TO GO: we have the two expected Sex columns. Now update the names of gender to self_reported_sex to avoid confusion with plink sex
+
+###### final exploration of the data ######
+
+## count missing per column ##
+family_id                0
+AGRF code                0
+PCA1                     0
+PCA2                     0
+self_reported_sex        0
+Age                      0
+Week 1 Body Mass       185
+Week 8 Body Mass        97
+Week 1 Beep test         0
+Week 8 beep test         0
+Week 1 Distance (m)      0
+Week 8 Distance (m)      1
+Week 1 Pred VO2max       3
+Week 8 Pred VO2max       0
+sex_code                 0
+weight_change          244
+beep_change              0
+distance_change          1
+vo2_change               3
+dtype: int64
+
+## check we have the correct number of missing based on the raw merged data ##
+True
+True
+Week 1 Body Mass
+True
+Week 8 Body Mass
+True
+Week 1 Beep test
+True
+Week 8 beep test
+True
+Week 1 Distance (m)
+True
+Week 8 Distance (m)
+True
+Week 1 Pred VO2max
+True
+Week 8 Pred VO2max
+True
+PCA1
+True
+PCA2
+True
+In the case of family Ids and sex code, we should not have any missing
+True
+True
+True
+True
+check also that the family IDs and the sex code are exactly the same
+True
+
+# check that the number to missing is equal to the cases of NaN OR 0 in the initial merged dataset #
+Age                    True
+Week 1 Body Mass       True
+Week 8 Body Mass       True
+Week 1 Beep test       True
+Week 8 beep test       True
+Week 1 Distance (m)    True
+Week 8 Distance (m)    True
+Week 1 Pred VO2max     True
+Week 8 Pred VO2max     True
+dtype: bool
+
+# see the final data #
+                 family_id AGRF code  ...  distance_change  vo2_change
+0     combat_ILGSA24-17303  0200ADMM  ...            200.0         1.9
+1     combat_ILGSA24-17303  0200ASJM  ...           -480.0        -4.7
+2     combat_ILGSA24-17303  0200BHNM  ...             20.0         0.3
+3     combat_ILGSA24-17303  0200CBOM  ...             40.0         0.7
+4     combat_ILGSA24-17303  0200CDFM  ...             20.0         0.3
+...                    ...       ...  ...              ...         ...
+1198  combat_ILGSA24-17873  9693JMNM  ...            -40.0        -0.6
+1199  combat_ILGSA24-17873  9696DWFM  ...            480.0         7.5
+1200  combat_ILGSA24-17873  9697STJM  ...            180.0         2.8
+1201  combat_ILGSA24-17873  9699DNOM  ...            540.0         8.5
+1202  combat_ILGSA24-17873  9699ISMM  ...            260.0         2.9
+
+[1203 rows x 19 columns]
+
+# see summary statistics of non_pheno columns #
+                      count         mean  ...         75%          max
+PCA1                 1203.0     0.000037  ...     0.01560     0.041200
+PCA2                 1203.0     0.000003  ...     0.01175     0.159200
+Age                  1203.0    21.585398  ...    22.89589    56.254237
+Week 1 Body Mass     1018.0    77.856071  ...    85.87500   116.200000
+Week 8 Body Mass     1106.0    77.543942  ...    84.87500   111.000000
+Week 1 Beep test     1203.0     8.984838  ...    10.10000    13.900000
+Week 8 beep test     1203.0     9.813408  ...    10.70000    14.100000
+Week 1 Distance (m)  1203.0  1441.113882  ...  1680.00000  2620.000000
+Week 8 Distance (m)  1202.0  1626.539101  ...  1880.00000  3900.000000
+Week 1 Pred VO2max   1200.0    43.238333  ...    47.20000    60.100000
+Week 8 Pred VO2max   1203.0    46.111554  ...    49.30000    60.900000
+sex_code             1203.0     1.139651  ...     1.00000     2.000000
+weight_change         959.0     0.053097  ...     2.30000    31.200000
+beep_change          1203.0     0.828570  ...     1.40000     5.200000
+distance_change      1202.0   185.990017  ...   300.00000  2780.000000
+vo2_change           1200.0     2.860417  ...     4.80000    17.800000
+
+[16 rows x 8 columns]
+
+# see summary statistics of pheno columns #
+
+PCA1
+mean: 3.657522859517875e-05
+percentile 2.5: -0.09552499999999998
+percentile 25: -0.0028
+percentile 50: 0.0087
+percentile 75: 0.0156
+percentile 97.5: 0.026595000000000004
+
+PCA2
+mean: 3.325020781379979e-06
+percentile 2.5: -0.064495
+percentile 25: -0.0101
+percentile 50: 0.0009
+percentile 75: 0.01175
+percentile 97.5: 0.051380000000000016
+
+Age
+mean: 21.58539840193907
+percentile 2.5: 17.166027397260272
+percentile 25: 18.71369863013699
+percentile 50: 20.013698630136986
+percentile 75: 22.895890410958906
+percentile 97.5: 33.62342465753426
+
+Week 1 Body Mass
+mean: 77.85607072691553
+percentile 2.5: 57.4
+percentile 25: 69.0
+percentile 50: 77.45
+percentile 75: 85.875
+percentile 97.5: 102.51499999999999
+
+Week 8 Body Mass
+mean: 77.54394213381556
+percentile 2.5: 58.125
+percentile 25: 69.6
+percentile 50: 76.7
+percentile 75: 84.875
+percentile 97.5: 99.3375
+
+Week 1 Beep test
+mean: 8.984837905236907
+percentile 2.5: 7.5
+percentile 25: 7.9
+percentile 50: 8.5
+percentile 75: 10.1
+percentile 97.5: 12.2
+
+Week 8 beep test
+mean: 9.813408146300915
+percentile 2.5: 7.6
+percentile 25: 8.8
+percentile 50: 9.7
+percentile 75: 10.7
+percentile 97.5: 12.695000000000004
+
+Week 1 Distance (m)
+mean: 1441.1138819617622
+percentile 2.5: 1120.0
+percentile 25: 1200.0
+percentile 50: 1320.0
+percentile 75: 1680.0
+percentile 97.5: 2160.0
+
+Week 8 Distance (m)
+mean: 1626.5391014975041
+percentile 2.5: 1140.0
+percentile 25: 1440.0
+percentile 50: 1660.0
+percentile 75: 1880.0
+percentile 97.5: 2360.0
+
+Week 1 Pred VO2max
+mean: 43.23833333333334
+percentile 2.5: 38.2
+percentile 25: 39.6
+percentile 50: 41.5
+percentile 75: 47.2
+percentile 97.5: 54.3
+
+Week 8 Pred VO2max
+mean: 46.11155444721529
+percentile 2.5: 38.5
+percentile 25: 42.7
+percentile 50: 45.5
+percentile 75: 49.3
+percentile 97.5: 55.7
+
+weight_change
+mean: 0.05309697601668377
+percentile 2.5: -7.505
+percentile 25: -2.299999999999997
+percentile 50: 0.10000000000000853
+percentile 75: 2.299999999999997
+percentile 97.5: 7.905000000000001
+
+beep_change
+mean: 0.8285702410640067
+percentile 2.5: -1.1989999999999994
+percentile 25: 0.2999999999999994
+percentile 50: 0.8000000000000007
+percentile 75: 1.4000000000000004
+percentile 97.5: 2.6000000000000014
+
+distance_change
+mean: 185.99001663893512
+percentile 2.5: -260.0
+percentile 25: 40.0
+percentile 50: 200.0
+percentile 75: 300.0
+percentile 97.5: 600.0
+
+vo2_change
+mean: 2.8604166666666666
+percentile 2.5: -3.799999999999997
+percentile 25: 1.0
+percentile 50: 2.900000000000002
+percentile 75: 4.799999999999997
+percentile 97.5: 9.002499999999987
+The values of the phenotypes make sense: 
+A tendency for lower values in the highest percentiles of weight at week 8, i.e., more decrease for people starting with more weight. There is a tendency of increased weight for lower percentile. The median change of weight is 0, meaning that half of sample did not lose weight. The distribution is centered around zero.
+A tendency of increase of beep test, distance and VO2 max in all percentiles at week 8. The higher percentiles of changes tend to be more separated from zero than the lower percentile, i.e., the distribution is displaced to positive values, meaning increase of cardiorespiratory fitness.
+
+## save the data ##
+
+## see some columns of the file ##
+family_id AGRF code PCA1 PCA2 self_reported_sex Age
+combat_ILGSA24-17303 0200ADMM 0.004 -0.0114 M 19.024657534246575
+combat_ILGSA24-17303 0200ASJM -0.0704 -0.0905 F 18.67945205479452
+combat_ILGSA24-17303 0200BHNM 0.0181 -0.0021 F 18.36986301369863
+combat_ILGSA24-17303 0200CBOM 0.0188 0.018 M 18.556164383561644
+combat_ILGSA24-17303 0200CDFM -0.0192 0.0154 F 19.216438356164385
+combat_ILGSA24-17303 0200CDJM 0.0058 0.0174 F 19.18904109589041
+combat_ILGSA24-17303 0200JCJM 0.0288 0.0035 M 18.843835616438355
+combat_ILGSA24-17303 0200JCMM 0.0087 -0.0091 M 19.041095890410958
+combat_ILGSA24-17303 0200JEJM -0.0219 -0.0471 M 19.30958904109589
+total 364
+-rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 08:42 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 beep_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distance_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distribution_hist
+-rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 08:42 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 08:42 pheno_data_cleaned.tsv
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 vo2_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 weight_change_subset
+
+
+###### create a subset of the data with the relevant covariates for each phenotype and save as a distinct file ######
+
+## create a dict with correct, simplified names for the covariates ##
+{'PCA1': 'PCA1', 'PCA2': 'PCA2', 'Age': 'age', 'sex_code': 'sex_code', 'Week 1 Body Mass': 'week_1_weight', 'Week 1 Beep test': 'week_1_beep', 'Week 1 Distance (m)': 'week_1_distance', 'Week 1 Pred VO2max': 'week_1_vo2'}
+
+# plot distribution of each phenotype to visually normality #
+
+
+ 
+ Plotting the distribution of weight_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+test for normality
+KstestResult(statistic=array([0.00907655]), pvalue=array([0.99999748]), statistic_location=array([-0.20743347]), statistic_sign=array([-1.]))
+OK: GOOD TO GO! We did NOT find evidence that weight_change is strongly deviated from normality
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+
+ 
+ Plotting the distribution of beep_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+test for normality
+KstestResult(statistic=array([0.03001764]), pvalue=array([0.22396756]), statistic_location=array([0.19205977]), statistic_sign=array([-1.]))
+OK: GOOD TO GO! We did NOT find evidence that beep_change is strongly deviated from normality
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+
+ 
+ Plotting the distribution of distance_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+test for normality
+KstestResult(statistic=array([0.03164732]), pvalue=array([0.17614276]), statistic_location=array([0.32459055]), statistic_sign=array([1.]))
+OK: GOOD TO GO! We did NOT find evidence that distance_change is strongly deviated from normality
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+
+ 
+ Plotting the distribution of vo2_change
+The number of missing removed is correct?
+YES! GOOD TO GO!
+performing quantile transformation
+test for normality
+KstestResult(statistic=array([0.02012191]), pvalue=array([0.70826048]), statistic_location=array([-1.06124812]), statistic_sign=array([-1.]))
+OK: GOOD TO GO! We did NOT find evidence that vo2_change is strongly deviated from normality
+plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
+
+# run the associations between phenotypes and covariates to check which covariates are relevant for each response variable #
+
+ 
+ #weight_change#
+
+PCA1
+                       sum_sq     df      F    PR(>F)
+covar_transformed    6.443806    1.0  6.226  0.012756
+Residual           990.478993  957.0    NaN       NaN
+
+PCA2
+                       sum_sq     df         F   PR(>F)
+covar_transformed    0.636685    1.0  0.611412  0.43445
+Residual           996.558055  957.0       NaN      NaN
+
+Age
+                       sum_sq     df          F    PR(>F)
+covar_transformed   14.577208    1.0  14.198311  0.000175
+Residual           982.538537  957.0        NaN       NaN
+
+sex_code
+                 sum_sq     df         F    PR(>F)
+C(sex_code)    7.467614    1.0  7.200273  0.007415
+Residual     992.532727  957.0       NaN       NaN
+
+Week 1 Body Mass
+                       sum_sq     df           F        PR(>F)
+covar_transformed  208.895545    1.0  267.772429  2.963224e-53
+Residual           746.578122  957.0         NaN           NaN
+
+ 
+ #beep_change#
+
+PCA1
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.672501     1.0  1.622016  0.203057
+Residual           1238.380848  1201.0       NaN       NaN
+
+PCA2
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.691247     1.0  0.669885  0.413254
+Residual           1239.298830  1201.0       NaN       NaN
+
+Age
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.808099     1.0  1.753111  0.185738
+Residual           1238.670745  1201.0       NaN       NaN
+
+sex_code
+                  sum_sq      df          F        PR(>F)
+C(sex_code)    52.673166     1.0  52.562171  7.445617e-13
+Residual     1203.536152  1201.0        NaN           NaN
+
+Week 1 Body Mass
+                        sum_sq      df         F    PR(>F)
+covar_transformed     7.683727     1.0  7.443929  0.006475
+Residual           1048.729324  1016.0       NaN       NaN
+
+ Week 1 Beep test
+                        sum_sq      df           F        PR(>F)
+covar_transformed   136.838241     1.0  148.533098  2.683779e-32
+Residual           1106.438426  1201.0         NaN           NaN
+
+ 
+ #distance_change#
+
+PCA1
+                        sum_sq      df         F    PR(>F)
+covar_transformed     3.113943     1.0  3.034635  0.081761
+Residual           1231.361311  1200.0       NaN       NaN
+
+PCA2
+                        sum_sq      df         F   PR(>F)
+covar_transformed     0.290236     1.0  0.282217  0.59535
+Residual           1234.096547  1200.0       NaN      NaN
+
+Age
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.345324     1.0  1.308917  0.252819
+Residual           1233.377394  1200.0       NaN       NaN
+
+sex_code
+                  sum_sq      df          F        PR(>F)
+C(sex_code)    58.988855     1.0  59.214489  2.937502e-14
+Residual     1195.427465  1200.0        NaN           NaN
+
+Week 1 Body Mass
+                        sum_sq      df         F    PR(>F)
+covar_transformed     8.155944     1.0  7.896618  0.005048
+Residual           1049.365557  1016.0       NaN       NaN
+
+ Week 1 Distance (m)
+                        sum_sq      df           F        PR(>F)
+covar_transformed   104.943618     1.0  112.307817  3.798494e-25
+Residual           1121.314125  1200.0         NaN           NaN
+
+ 
+ #vo2_change#
+
+PCA1
+                        sum_sq      df        F    PR(>F)
+covar_transformed     2.444413     1.0  2.37289  0.123722
+Residual           1234.109410  1198.0      NaN       NaN
+
+PCA2
+                        sum_sq      df         F   PR(>F)
+covar_transformed     0.428995     1.0  0.415808  0.51916
+Residual           1235.993119  1198.0       NaN      NaN
+
+Age
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.764320     1.0  1.711269  0.191072
+Residual           1235.139311  1198.0       NaN       NaN
+
+sex_code
+                  sum_sq      df          F        PR(>F)
+C(sex_code)    55.755229     1.0  55.768824  1.564773e-13
+Residual     1197.707965  1198.0        NaN           NaN
+
+Week 1 Body Mass
+                        sum_sq      df         F    PR(>F)
+covar_transformed     6.460871     1.0  6.244048  0.012618
+Residual           1051.280275  1016.0       NaN       NaN
+
+ Week 1 Pred VO2max
+                        sum_sq      df           F        PR(>F)
+covar_transformed   130.922069     1.0  141.484917  6.420929e-31
+Residual           1108.560848  1198.0         NaN           NaN
+Covariates with P-value<0.1
+
+# create datsets per each phenotype separately #
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/weight_change_filesets/weight_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/weight_change_filesets/weight_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/weight_change_filesets/weight_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 959 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is exactly 1.
+3197605 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./data/plink_filesets/weight_change_filesets/weight_change_subset.bed +
+./data/plink_filesets/weight_change_filesets/weight_change_subset.bim +
+./data/plink_filesets/weight_change_filesets/weight_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/beep_change_filesets/beep_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/beep_change_filesets/beep_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/beep_change_filesets/beep_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 1018 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is in [0.9999995, 1).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./data/plink_filesets/beep_change_filesets/beep_change_subset.bed
++ ./data/plink_filesets/beep_change_filesets/beep_change_subset.bim +
+./data/plink_filesets/beep_change_filesets/beep_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/distance_change_filesets/distance_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/distance_change_filesets/distance_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/distance_change_filesets/distance_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 1018 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is in [0.9999995, 1).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./data/plink_filesets/distance_change_filesets/distance_change_subset.bed +
+./data/plink_filesets/distance_change_filesets/distance_change_subset.bim +
+./data/plink_filesets/distance_change_filesets/distance_change_subset.fam ...
+0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/vo2_change_filesets/vo2_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/vo2_change_filesets/vo2_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/vo2_change_filesets/vo2_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 1018 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is in [0.9999995, 1).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./data/plink_filesets/vo2_change_filesets/vo2_change_subset.bed +
+./data/plink_filesets/vo2_change_filesets/vo2_change_subset.bim +
+./data/plink_filesets/vo2_change_filesets/vo2_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+
+#######################################
+#######################################
+FINISH
+#######################################
+#######################################
