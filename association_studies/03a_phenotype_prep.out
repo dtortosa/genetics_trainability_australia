@@ -22,7 +22,6 @@ check behaviour run_bash
 
 
 ###### list files/folders there ######
-03a_association_analyses.out
 03a_association_analyses.sif
 03a_phenotype_prep.out
 data
@@ -30,11 +29,10 @@ literature
 results
 scripts
 
-total 424660
--rw-r--r-- 1 root      root           3713 Nov  3  2023 03a_association_analyses.out
--rwxr-xr-x 1 dftortosa dftortosa 434827264 Feb  9 10:01 03a_association_analyses.sif
--rw-rw-r-- 1 dftortosa dftortosa         0 Feb 12 08:41 03a_phenotype_prep.out
-drwxr-xr-x 4 dftortosa dftortosa      4096 Feb 12 08:38 data
+total 424732
+-rwxr-xr-x 1 dftortosa dftortosa 434905088 Feb 12 12:48 03a_association_analyses.sif
+-rw-rw-r-- 1 dftortosa dftortosa         0 Feb 12 13:37 03a_phenotype_prep.out
+drwxr-xr-x 4 dftortosa dftortosa      4096 Feb 12 13:15 data
 drwxr-xr-x 3 dftortosa dftortosa      4096 Oct 31  2023 literature
 drwxr-xr-x 4 dftortosa dftortosa      4096 Jan 24 17:57 results
 drwxr-xr-x 4 dftortosa dftortosa      4096 Oct 31  2023 scripts
@@ -48,14 +46,14 @@ combine the excel file, FAM file and the PCAs
 
 ###### load the excel file ######
 total 364
--rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 08:42 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 beep_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distance_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distribution_hist
--rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 08:42 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 08:38 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 vo2_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 weight_change_subset
+-rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 13:37 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 beep_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distance_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distribution_hist
+-rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 13:37 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 13:19 pheno_data_cleaned.tsv
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 vo2_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 weight_change_subset
 
      Gender        Age  ...  Week 8 Pred VO2max  AGRF code
 0         M  25.000000  ...                47.7   8244TCOJ
@@ -307,7 +305,7 @@ This is the misslabeled sample, it has one ID in genetic and other different ID 
 
 [1240 rows x 23 columns]
 
-## change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the error remains in the PCA data ##
+## change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the problem remains in the PCA data ##
 
 ## select the PCAs we are interested in ##
                  family_id AGRF code       1       2
@@ -690,14 +688,14 @@ combat_ILGSA24-17303 0200JCJM 0.0288 0.0035 M 18.843835616438355
 combat_ILGSA24-17303 0200JCMM 0.0087 -0.0091 M 19.041095890410958
 combat_ILGSA24-17303 0200JEJM -0.0219 -0.0471 M 19.30958904109589
 total 364
--rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 08:42 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 beep_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distance_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 distribution_hist
--rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 08:42 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 08:42 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 vo2_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 08:38 weight_change_subset
+-rw-rw-r-- 1 dftortosa dftortosa    181 Feb 12 13:37 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 beep_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distance_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 distribution_hist
+-rw-r--r-- 1 dftortosa dftortosa 154414 Feb 12 13:37 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 12 13:37 pheno_data_cleaned.tsv
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 vo2_change_subset
+drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 12 13:16 weight_change_subset
 
 
 ###### create a subset of the data with the relevant covariates for each phenotype and save as a distinct file ######
@@ -905,6 +903,86 @@ Note: No phenotypes present.
 ./data/plink_filesets/weight_change_filesets/weight_change_subset.bim +
 ./data/plink_filesets/weight_change_filesets/weight_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./weight_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./weight_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./weight_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+959 people (833 males, 126 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./weight_change_subset_missing_clean.bed +
+./weight_change_subset_missing_clean.bim +
+./weight_change_subset_missing_clean.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for weight_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./weight_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./weight_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./weight_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+959 people (833 males, 126 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+10122 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3187483 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./weight_change_subset_missing_clean_maf_hwe.bed +
+./weight_change_subset_missing_clean_maf_hwe.bim +
+./weight_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for weight_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./weight_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3187483 variants loaded from .bim file.
+959 people (833 males, 126 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+0 variants removed due to missing genotype data (--geno).
+3187483 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed +
+./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
+
 
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
@@ -929,6 +1007,85 @@ Note: No phenotypes present.
 --make-bed to ./data/plink_filesets/beep_change_filesets/beep_change_subset.bed
 + ./data/plink_filesets/beep_change_filesets/beep_change_subset.bim +
 ./data/plink_filesets/beep_change_filesets/beep_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./beep_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./beep_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./beep_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./beep_change_subset_missing_clean.bed +
+./beep_change_subset_missing_clean.bim + ./beep_change_subset_missing_clean.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./beep_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./beep_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./beep_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+8386 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./beep_change_subset_missing_clean_maf_hwe.bed +
+./beep_change_subset_missing_clean_maf_hwe.bim +
+./beep_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./beep_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3189219 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed
++ ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
 
 
 
@@ -957,6 +1114,86 @@ Note: No phenotypes present.
 ./data/plink_filesets/distance_change_filesets/distance_change_subset.fam ...
 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./distance_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./distance_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./distance_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./distance_change_subset_missing_clean.bed +
+./distance_change_subset_missing_clean.bim +
+./distance_change_subset_missing_clean.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for distance_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./distance_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./distance_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./distance_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+8386 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./distance_change_subset_missing_clean_maf_hwe.bed +
+./distance_change_subset_missing_clean_maf_hwe.bim +
+./distance_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for distance_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./distance_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3189219 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed +
+./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
+
 
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
@@ -981,6 +1218,85 @@ Note: No phenotypes present.
 --make-bed to ./data/plink_filesets/vo2_change_filesets/vo2_change_subset.bed +
 ./data/plink_filesets/vo2_change_filesets/vo2_change_subset.bim +
 ./data/plink_filesets/vo2_change_filesets/vo2_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./vo2_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./vo2_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./vo2_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./vo2_change_subset_missing_clean.bed +
+./vo2_change_subset_missing_clean.bim + ./vo2_change_subset_missing_clean.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./vo2_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./vo2_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./vo2_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+8386 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./vo2_change_subset_missing_clean_maf_hwe.bed +
+./vo2_change_subset_missing_clean_maf_hwe.bim +
+./vo2_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./vo2_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3189219 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed
++ ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
 
 
 #######################################

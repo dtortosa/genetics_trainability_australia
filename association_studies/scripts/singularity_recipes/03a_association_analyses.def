@@ -98,6 +98,9 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	#install wget to download spark
 	apt -y install wget
 
+	#install bc for math operations
+	apt -y install bc
+
 	#install java for pyspark
 	#https://stackoverflow.com/questions/38747713/running-spark-on-linux-java-home-not-set-error
 	#apt -y install openjdk-8-jdk

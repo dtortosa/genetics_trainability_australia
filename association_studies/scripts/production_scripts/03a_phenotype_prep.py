@@ -354,7 +354,7 @@ print(smartpca_eigenvectors)
 if(not smartpca_eigenvectors[0].equals(smartpca_eigenvectors["family_id"] + ":" + smartpca_eigenvectors["AGRF code"])):
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM SPLITTING THE IDS IN THE PCA FILE")
 
-print_text("change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the error remains in the PCA data", header=3)
+print_text("change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the problem remains in the PCA data", header=3)
 if(
     (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2397LDJA", :].shape[0]!=1) |
     (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2399LDJA", :].shape[0]!=0)
@@ -965,6 +965,68 @@ for change_pheno in dict_pvalue_covar.keys():
             #https://dougspeed.com/file-formats/
         #THEREFORE, it does not matter if we have -9 in the phenotype column. The sex and phenotype data is provided separately
 
+    #check we do not have SNPs with high missingness
+    run_bash(" \
+        cd ./data/plink_filesets/" + change_pheno + "_filesets/; \
+        plink \
+            --bfile ./" + change_pheno + "_subset \
+            --geno 0.01 \
+            --make-bed \
+            --out ./" + change_pheno + "_subset_missing_clean; \
+        n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset.bim); \
+        n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.bim); \
+        if [[ $n_snps_1 -ne $n_snps_2 ]]; then \
+            echo \"ERROR: FALSE! WE HAVE REMOVED SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+        else \
+            echo \"OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+        fi; \
+    ")
+
+    #check we do not lose too many SNPs due to low MAF or HWE violations and NO sample es removed due to missingness
+    run_bash(" \
+        cd ./data/plink_filesets/" + change_pheno + "_filesets/; \
+        plink \
+            --bfile ./" + change_pheno + "_subset_missing_clean \
+            --maf 0.05 \
+            --hwe 1e-6 midp \
+            --mind 0.01 \
+            --make-bed \
+            --out ./" + change_pheno + "_subset_missing_clean_maf_hwe; \
+        n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.bim); \
+        n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.bim); \
+        n_samples_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.fam); \
+        n_samples_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.fam); \
+        snp_diff=$(echo \"$n_snps_1 - $n_snps_2\" | bc); \
+        sample_diff=$(echo \"$n_samples_1 - $n_samples_2\" | bc); \
+        if [[ $snp_diff -gt 10500 || $sample_diff -ne 0 ]]; then \
+            echo \"ERROR: FALSE! WE HAVE REMOVED TOO MANY SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+        else \
+            echo \"OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+        fi; \
+    ")
+    
+    #check we do NOT lose any sample or SNP due missingness after all filters have been applied
+    run_bash(" \
+        cd ./data/plink_filesets/" + change_pheno + "_filesets/; \
+        plink \
+            --bfile ./" + change_pheno + "_subset_missing_clean_maf_hwe \
+            --mind 0.01 \
+            --geno 0.01 \
+            --make-bed \
+            --out ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing; \
+        n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.bim); \
+        n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.bim); \
+        n_samples_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.fam); \
+        n_samples_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.fam); \
+        snp_diff=$(echo \"$n_snps_1 - $n_snps_2\" | bc); \
+        sample_diff=$(echo \"$n_samples_1 - $n_samples_2\" | bc); \
+        if [[ $snp_diff -ne 0 || $sample_diff -ne 0 ]]; then \
+            echo \"ERROR: FALSE! WE HAVE REMOVED TOO MANY SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs\"; \
+        else \
+            echo \"OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs\"; \
+        fi; \
+    ")
+
 # endregion
 
 
@@ -984,21 +1046,15 @@ for change_pheno in dict_pvalue_covar.keys():
 
 #After removing NAs, I have applied a quantile transformation to have the phenotypes and covariates closer to a normal distribution and all in the same scale. This is relevant given we are going to use linear models and, in general, having variables in a different scale makes the modeling difficult. I have used a standard transformation and it is possible to comeback to the raw values when we are predicting.
 
-
-
-
-#decide if we are going to analyze the three training phenotypes
-#more questions
-    #- ask david that from sample 1161 to 1376, age is integer, not float, in contrast with almost all the rest samples. This is ok?
-    #- in some phenotypes, some some samples have value of 0 and others have no value. I guess zero should be NA, right?
-    #    - body mass week 1 and 8
-    #    - VO2 max week 1
-    #it makes snese to have NA for sample distance but not for beep? this is the case for week 8 in saple 8244FGNJ
-    #- sample 1194, the value for week 8 beep includes a letter: 11.1O. I guess I can safely change that "o" letter by zero.
-    #- I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I should only use the sheet "All DNA samples" and discard the 42 samples at the bottomn with NA for all columns except the AGRF code.
-    #- some rows are coloured, there is something special about these samples it could be relevant for the analysis?
-
-
+#a few minor questions
+    #From sample 1161 to 1367, age is integer, not float, in contrast with almost all the rest samples. This is ok?
+    #In some phenotypes like weight at week 1, some some samples have value of 0 and others have no value (empty cell). I guess zero should be empty/NA, right? To my understanding, it should not be possible to have zero for weight, beep test or distance. Of course, I am not considering here the change between week 1 and 8, where 0 makes sense (i.e., no change).
+        #body mass week 1 and 8
+        #VO2 max week 1
+    #it makes sense that a sample has NA for distance but not for beep? this is the case for sample 8244FGNJ
+    #I think you already answer this, but do not find the thread, sorry: In sample 8244FGNJ, the value for week 8 beep includes a letter "0" instead of the number zero: 11.1O. I guess I can safely change that "o" letter by zero.
+    #I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I have only used the sheet "All DNA samples". Also, within "All DNA samples", I have discarded the 42 samples at the bottomn with NA for all columns except the AGRF code. I guess these samples were also genotyped but have not phenotypic data.
+    #some rows are coloured, there is something special about these samples it could be relevant for the analysis?
 
 # endregion
 
