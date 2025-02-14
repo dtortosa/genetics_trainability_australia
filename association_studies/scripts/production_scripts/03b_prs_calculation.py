@@ -51,6 +51,11 @@
 ###########
 
 import pandas as pd
+import numpy as np
+import argparse
+from sklearn.model_selection import train_test_split
+import pickle
+from sklearn.preprocessing import quantile_transform
 
 
 ########################################
@@ -147,14 +152,34 @@ run_bash("ls")
 
 
 
+#######################################
+# Passing arguments of python program #
+#######################################
+
+#define input arguments to be passed when running this script in bash
+parser=argparse.ArgumentParser()
+parser.add_argument("--iter_number", type=int, default=1, help="Number of the iteration run. Integer always, None does not work!")
+parser.add_argument("--response_variable", type=str, default="distance_change", help="Phenotype to model. String always, None does not work!")
+    #type=str to use the input as string
+    #type=int converts to integer
+    #default is the default value when the argument is not passed
+args=parser.parse_args()
+    #https://docs.python.org/3/library/argparse.html
+
+#get the arguments of the function that have been passed through command line
+iter_number = args.iter_number
+response_variable = args.response_variable
+
+
+
 ######################
 # folder preparation #
 ######################
 run_bash(" \
-    mkdir -p ./data/pheno_data; \
-    mkdir -p ./data/plink_inputs; \
-    mkdir -p ./results/final_results/distribution_hist; \
-    ls -l")
+    mkdir -p ./data/train_test_sets/; \
+    mkdir -p ./results/final_results/; \
+    ls -l \
+")
 
 # endregion
 
@@ -260,83 +285,198 @@ run_bash(" \
 #############################################################
 # region define function to calculate PRS across iterations #
 #############################################################
+#iter_number=1; response_variable="distance_change"
+def prs_calc(iter_number, response_variable):
 
-##PARSE ITERATION AS A COMMAND SO YOU CAN RUN EACH ITERATION SEPARATETLY FOR EACH PHENO
-#WE COULD SEND 100 JOBS OF JUST 1 CORE AND 1 HOUR AND THEY SHOULD BE RUNNING FAST
-#ALSO INCLUDE THE PHENO AS A ARGUMENT, SO WE CAN DO THIS FOR EACH OF THE THREE PHENOTYPES
-#CAREFUL WITH THE FORMAT SUED FOR MISSING IN THE PLINK FILES BECAUSE LDAK COULD BE EXPECTING THE USUAL -9
+    print_text(f"For phenotype {response_variable}, starting iteration {iter_number}", header=1)
+    print_text("split training and test", header=2)
+    print_text("load the phenotype data", header=3)
+    pheno_subset = pd.read_csv( \
+        "./data/pheno_data/" + response_variable + "_subset/" + response_variable + "_subset.tsv", \
+        header=0, \
+        sep="\t" \
+    )
+    print(pheno_subset)
 
-#iter_number=1
-def prs_calc(iter_number):
+    print_text("split", header=3)
+    train_df, test_df = train_test_split( \
+        pheno_subset, \
+        test_size=0.25, \
+        random_state=iter_number \
+    )
+        #25% for the test set, using as random state the iteration number, so each iteration will have a different training-test set
 
-    
-    
-    ###DO PREPROCEISNG SEPARATED IN TRAINING AND EVALUATION
-    #DO NOT TRANSFORM SEX!!!!
-
-
-
-    
-    from sklearn.preprocessing import QuantileTransformer, StandardScaler
-    from sklearn.pipeline import Pipeline
-
-    transformer = QuantileTransformer(n_quantiles=500, output_distribution='normal', random_state=0)
-        #Note that all variables numeric and continuous except sex
-            #sex_code is numeric but categorical so it should not be transformed!
-            #beep test is numeric and continuous, it has float values
-        #in the previous script we used quantile_transform, which is the quivalent function without the estimator API.
-            #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html
-        #This method transforms the features to follow a uniform or a normal distribution. Therefore, for a given feature, this transformation tends to spread out the most frequent values. It ALSO REDUCES THE IMPACT OF (MARGINAL) OUTLIERS: this is therefore a robust preprocessing scheme.
-        #Regarding scaling
-            #Note that this transform is non-linear. IT MAY DISTORT LINEAR CORRELATIONS BETWEEN VARIABLES MEASURED AT THE SAME SCALE BUT RENDERS VARIABLES MEASURED AT DIFFERENT SCALES MORE DIRECTLY COMPARABLE. 
-                #This should not be a problem because our phenotypes and covariates are not in the same scale, some are close to zero or negative, other closer to 10, 100, 1000... so we have different scales.
-            #With this approach, the normal output is clipped so that the input’s minimum and maximum — corresponding to the 1e-7 and 1 - 1e-7 quantiles respectively — do not become infinite under the transformation.
-            #Also I have visually inspected the results and all the phenotypes have now values between -4 and 4.
-                #For example, in distance, there is an outlier that increased his/her distance more than 2.5K, while the next highest is at 1.2K. When transformed, the latter is at 2.5 and the former in 5. So the outliers is forced to fit within that range.
-            #Therefore, it seems that this transformation makes easier the comparison between variables with different scales.
-        #Number of quantiles (answers from chat)
-            #When using quantile_transform from scikit-learn, the number of quantiles you select can significantly impact the transformation of your variables. Here are some criteria to consider:
-                #Data Size: The number of quantiles should generally be less than or equal to the number of data points. For smaller datasets, fewer quantiles are recommended to avoid overfitting.
-                #Desired Distribution: If you want your data to follow a normal distribution with mean 0 and standard deviation 1, you can use the output_distribution='normal' parameter. This will transform your data to approximate a standard normal distribution.
-                #Granularity: More quantiles provide a finer granularity of transformation, which can be useful for capturing more detailed distributional characteristics. However, too many quantiles can lead to overfitting, especially with smaller datasets.
-                #Computational Efficiency: More quantiles require more computation. For very large datasets, you might need to balance the number of quantiles with the available computational resources.
-            #I do not have problems with computational time and I want high granularity, the problem here is overfitting. What do you mean by small? My sample size es around 1100 data points
-                #With a sample size of around 1100 data points, you have a decent amount of data to work with. In this context, "small" typically refers to datasets with fewer than a few hundred data points. Given your sample size, you can afford to use a relatively high number of quantiles without as much risk of overfitting.
-                #For your dataset, you might consider using a number of quantiles in the range of 100 to 500. This range should provide high granularity while still being manageable in terms of overfitting. However, it's always a good idea to experiment with different values and validate the results to ensure the transformation is effective and doesn't introduce unwanted artifacts.
-        #this would be another cause of data leak, so we will use in the final data within training and evaluation separately!
-            #n_quantiles
-                #Number of quantiles to be computed. It corresponds to the number of landmarks used to discretize the cumulative distribution function. If n_quantiles is larger than the number of samples, n_quantiles is set to the number of samples as a larger number of quantiles does not give a better approximation of the cumulative distribution function estimator.
-            #output_distribution
-                #Marginal distribution for the transformed data. The choices are ‘uniform’ (default) or ‘normal’.
-            #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.quantile_transform.html
-
-    transformed_data = transformer.fit_transform(modeling_data)
-
-    transformed_df = pd.DataFrame(transformed_data, columns=modeling_data.columns)
-
-    #to revert the transformation
-    reverted_train_data = transformer.inverse_transform(transformed_df)
-
-    #Convert the reverted data back to a DataFrame
-    reverted_train_df = pd.DataFrame(reverted_train_data, columns=modeling_data.columns)
-
-
-    #The reason why the DataFrames modeling_data and reverted_train_df are not identical, even though the scatter plot shows that the original and reverted variables appear identical, could be due to floating-point precision differences. These small differences can cause the equals method to return False.To check for equality with a tolerance for floating-point precision, you can use the numpy function allclose or the pandas method DataFrame.compare. Here's how you can do it:
-    are_equal = np.allclose(modeling_data.values, reverted_train_df.values, atol=1e-8)
-
-
-
-
-
-
+    print_text("prepare folder to save datasets", header=3)
     run_bash(" \
-        mkdir -p ../ldak_versions/; \
-        cd ../ldak_versions/; \
-        wget --output-document ldak6.1.linux https://github.com/dougspeed/LDAK/raw/refs/heads/main/ldak6.1.linux; \
-        chmod +x ./ldak6.1.linux; \
+        mkdir -p ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + " \
     ")
-        #http://dougspeed.com/downloads2/
-        #https://github.com/dougspeed/LDAK
+
+    print_text("load dicts with the selected covariates and the long/short names", header=3)
+    with open("./data/pheno_data/dict_pvalue_covar.pkl", 'rb') as file:
+        dict_pvalue_covar = pickle.load(file)
+    with open("./data/pheno_data/dict_names_covs.pkl", 'rb') as file:
+        dict_names_covs = pickle.load(file)
+        #open a file in read-binary mode
+            #When a file is opened in binary mode, the data is read or written as bytes. This is useful for non-text files such as images, audio files, or serialized objects. In binary mode, no encoding or decoding is performed. The data is read or written exactly as it is.
+        #Deserializes the dictionary from the file and loads it
+
+    print_text("extract the selected covariates with the name of the dataset (long, not optimized name)", header=3)
+    selected_covariates = [k for k, v in dict_names_covs.items() if v in dict_pvalue_covar[response_variable]]
+
+
+    print_text("define function to prepare LDAK inputs", header=2)
+    #type_df="training"
+    #type_df="test"
+    def ldak_input_prep(type_df):
+
+        print_text("select the input datasets, training or set", header=3)
+        if (type_df=="training"):
+            input_df = train_df
+        elif (type_df=="test"):
+            input_df = test_df
+
+        print_text("open a folder for the set", header=3)
+        run_bash(" \
+            mkdir -p ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/ \
+        ")
+
+        print_text("save the input dataframe, test or training", header=3)
+        input_df.to_csv( \
+            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set.tsv", \
+            sep="\t", \
+            header=True, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        print_text("transform the phenotypes", header=3)
+        #We applied in the previous step the post-imputation QC for the last time after we have removed samples for the last time, this time due to missing phenotype data. These samples without weight are not going to be used anymore, so we should check how the genetic data changes.
+        #This is different from the training-evaluation split, where we will train the models with a subset of the samples, but the rest of samples will be used in evaluation, we are not technically remove them, so we should not repeat the QC for each training-eval dataset. If we would do that, we would end up with different genetic predictors (i.e., SNPs) between training-evaluation partitions, and we do not want that.
+        #To limit data leakage, we are going to apply the transformation of the phenotypes separataley in trainining and test. Remember what we did in the niche paper, we preprocessed the occurrences, selected the predictors and then we split in training and evaluation just before modeling. This is equivalent with what we have done here.
+        
+        print_text("create a copy to save transformed variables", header=4)
+        input_df_transform = input_df.copy(deep=True)
+            #deep=True: This creates a deep copy of the DataFrame. A deep copy means that a new DataFrame object is created, and all the data is copied. Changes to the new DataFrame will not affect the original DataFrame, and vice versa.
+
+        #select the variable to be transformed
+        variables_to_transform = [cov for cov in selected_covariates if cov != "sex_code"] + [response_variable]
+        #all covariates (except sex_code) and the response variable
+        #Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). So do NOT transform!
+            #http://dougspeed.com/phenotypes-and-covariates/
+
+        #transform all the continuous variables and overwrite
+        #pheno_to_transform=variables_to_transform[0]
+        for pheno_to_transform in variables_to_transform:
+            input_df_transform[pheno_to_transform] = quantile_transform( \
+                X=input_df_transform[pheno_to_transform].values.reshape(-1, 1), \
+                n_quantiles=int(input_df_transform.shape[0]*0.5), 
+                output_distribution="normal" \
+            )
+                #Note that all variables numeric and continuous except sex
+                    #sex_code is numeric but categorical so it should not be transformed!
+                    #beep test is numeric and continuous, it has float values
+                #we use quantile_transform, which is the quivalent function without the estimator API. If you need to invert the transformation, use the transformer: transformer.inverse_transform()
+                    #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html
+                #see 03a_phenotype_prep.py for details about the transformation
+            #check
+            if (\
+                (input_df_transform[pheno_to_transform].max() > 6) | \
+                (input_df_transform[pheno_to_transform].min() < -6) \
+            ):
+                raise ValueError(f"ERROR: FALSE! {pheno_to_transform} is not transformed correctly")
+        
+        #check sex_code has not been transformed
+        if (input_df_transform["sex_code"].unique().size != 2):
+            raise ValueError("ERROR: FALSE! WE HAVE TRANSFORMED SEX_CODE")
+
+        #save the transformed dataset
+        input_df_transform.to_csv( \
+            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform.tsv", \
+            sep="\t", \
+            header=True, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        #save the response variable
+        input_df_transform[["family_id", "AGRF code", response_variable]].to_csv( \
+            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_response.tsv", \
+            sep="\t", \
+            header=True, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        #save the covariates that are factors
+        if ("sex_code" in selected_covariates):
+
+            #save sex_code
+            input_df_transform[["family_id", "AGRF code", "sex_code"]].to_csv( \
+                "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_covars_factors.tsv", \
+                sep="\t", \
+                header=True, \
+                index=False, \
+                na_rep="NA" \
+            )
+
+        #save the covariates that are continuous
+        selected_covariates_cont = [cov for cov in selected_covariates if cov != "sex_code"]
+        input_df_transform[["family_id", "AGRF code"] + selected_covariates_cont].to_csv( \
+            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_covars_cont.tsv", \
+            sep="\t", \
+            header=True, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        #create a file with the samples of the selected set
+        input_df_transform[["family_id", "AGRF code"]].to_csv( \
+            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_samples_in.tsv", \
+            sep="\t", \
+            header=False, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        #use that file to select the corresponding sample from the plink fileset
+        run_bash(" \
+            plink \
+                --bfile ./data/plink_filesets/" + response_variable + "_filesets/" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing \
+                --keep ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_samples_in.tsv \
+                --make-bed \
+                --out ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_plink_fileset \
+        ")
+            #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+
+        #Note abut QC:
+            #We are NOT doing anymore QC.
+            #We did the last one when samples were removed due to NAs in weight data and other covariates. We ensured that for each phenotype, after removing all NAs for its selected covariates, the remaining samples have the correct missingness along with maf, HWE and SNP missingness
+            #If we do the QC filtering inside each training/test, i.e., after splitting the dataset, we could end up with different SNPs across training sets!!
+            #This is just like we did for the niche paper, preprocessing of the data together, and then split into training and evaluation, not doing anything else to the data
+
+        #check we have selected the correct samples
+        subset_fam = pd.read_csv( \
+            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_plink_fileset.fam", \
+            sep=" ", \
+            header=None \
+        )
+        #if the family_id or the sample IDs are not identical between our transformed dataset and the plink fileset, we have a problem
+        input_df_transform_sorted = input_df_transform.sort_values(by=["family_id", "AGRF code"]).reset_index(drop=True)
+            #sort the input df to have the same order than the FAM file as it seems that plink reorder columns when preparing the output
+        if ( \
+            (not subset_fam[0].rename("family_id").equals(input_df_transform_sorted["family_id"])) | \
+            (not subset_fam[1].rename("AGRF code").equals(input_df_transform_sorted["AGRF code"])) \
+        ):
+            raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM SELECT THE SAMPLES WITHOUT NA IN THE PLINK FILESETS")
+
+
+    print_text("prepare LDAK inputs", header=2)
+    ldak_input_prep(type_df="training")
+    ldak_input_prep(type_df="test")
+
+
+    print_text("run LDAK on the training set", header=2)
+
 
 
     ###use -mpheno!!!! to select the pheno you want
@@ -350,13 +490,16 @@ def prs_calc(iter_number):
     run_bash(" \
         ldak6.1.linux \
             --elastic elastic \
-            --pheno case_control.tsv \
-            --bfile merged_3_geno \
-            --covar covar_file.tsv \
-            --covar-names age,week_1_weight,week_1_beep \
-            --factors covar_factors_file.tsv \
+            --pheno ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
+            --bfile ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
+            --covar ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
+            --factors ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
             --LOCO NO \
     ")
+
+
+    #Error, ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_response.tsv contains multiple phenotypes, so you must specify one using "--mpheno", or use "--mpheno ALL" to analyse all phenotypes
+
         #Yes, your steps sound right - perform QC, then use the PLINK files with --elastic (adding --LOCO NO, because you only care about prediction) and then --calc-scores
         #Select the Heritability model
             #The GCTA Model assumes E[h2j] = tau1 (i.e., that expected heritability is constant across SNPs). Note that this is the model assumed by any method that first standardizes SNPs, then assigns to each the same prior distribution or penalty function. In LDAK, this model is specified by adding the options --ignore-weights YES and --power -1 when Calculating Kinships or Calculating Taggings.
@@ -369,15 +512,42 @@ def prs_calc(iter_number):
 
 
 
-
-#you can use --elasti en el 75%, ahí te hace automaticamente CV para seleccionar hiperparamteros usando plink filset como inputs. El output se puede usar como input para otra funcion que calcula los scores para nuevos individuaos, el 25% restante. Do function that do this for a given iteration so you can use 10 cores to do 100 iterations in 1 day. you can also calculate the regulra PRS in each iteration. at the end of paralelization, in a different script, you will combine R2, accurcy of all iteratons and calculate media and CI. Caclulate the median difference respect to the original PRS approach. you could also calculate the degree of overlap across iterations for the top 10% responders. as a previous step in a different step, use LDAK to do manhatan plot (LDAK-KVIK).
-
+    #you can use --elasti en el 75%, ahí te hace automaticamente CV para seleccionar hiperparamteros usando plink filset como inputs. El output se puede usar como input para otra funcion que calcula los scores para nuevos individuaos, el 25% restante. Do function that do this for a given iteration so you can use 10 cores to do 100 iterations in 1 day. you can also calculate the regulra PRS in each iteration. at the end of paralelization, in a different script, you will combine R2, accurcy of all iteratons and calculate media and CI. Caclulate the median difference respect to the original PRS approach. you could also calculate the degree of overlap across iterations for the top 10% responders. as a previous step in a different step, use LDAK to do manhatan plot (LDAK-KVIK).
 
 
-#if you compare with trad-PRS, you can use log?
-    #https://dougspeed.com/compare-models/
 
-#David wants to show also manhatann plots (maybe just use plink or LDAK?), also repeat 10 times the 75-25% and see if the respodners are the same?
+    #if you compare with trad-PRS, you can use log?
+        #https://dougspeed.com/compare-models/
+
+    #David wants to show also manhatann plots (maybe just use plink or LDAK?), also repeat 10 times the 75-25% and see if the respodners are the same?
+
+
+
+
+prs_calc(iter_number, response_variable)
+
+
+
+
+###OJO PCA1-PCA2 IS NOT INCLUDED YET!!!
+
+
+#REMOVE PLINK FILES AFTER, IF NOT CRAZY AMOUNT OF SPACE
+
+
+
+
+
+
+###PUT THIS IN A BASH SCRIPT INSIDE LDAK FOLDER
+run_bash(" \
+    mkdir -p ../ldak_versions/; \
+    cd ../ldak_versions/; \
+    wget --output-document ldak6.1.linux https://github.com/dougspeed/LDAK/raw/refs/heads/main/ldak6.1.linux; \
+    chmod +x ./ldak6.1.linux; \
+")
+    #http://dougspeed.com/downloads2/
+    #https://github.com/dougspeed/LDAK
 
 
 
@@ -389,6 +559,14 @@ def prs_calc(iter_number):
 
 
 # endregion
+
+
+
+##parallelize
+##PARSE ITERATION AS A COMMAND SO YOU CAN RUN EACH ITERATION SEPARATETLY FOR EACH PHENO
+#WE COULD SEND 100 JOBS OF JUST 1 CORE AND 1 HOUR AND THEY SHOULD BE RUNNING FAST
+#ALSO INCLUDE THE PHENO AS A ARGUMENT, SO WE CAN DO THIS FOR EACH OF THE THREE PHENOTYPES
+
 
 
 

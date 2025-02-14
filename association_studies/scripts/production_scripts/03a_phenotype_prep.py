@@ -51,7 +51,7 @@
 
 import pandas as pd
 import numpy as np
-
+import pickle
 
 
 ########################################
@@ -831,6 +831,16 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
 print("Covariates with P-value<0.1")
 [f"{k}: {v}" for k, v in dict_pvalue_covar.items()]
 
+print_text("save the dicts with selected covariates and long/short names", header=4)
+with open("./data/pheno_data/dict_pvalue_covar.pkl", 'wb') as file:
+    pickle.dump(dict_pvalue_covar, file)
+with open("./data/pheno_data/dict_names_covs.pkl", 'wb') as file:
+    pickle.dump(dict_names_covs, file)
+    #open a file in write-binary mode
+        #When a file is opened in binary mode, the data is read or written as bytes. This is useful for non-text files such as images, audio files, or serialized objects. In binary mode, no encoding or decoding is performed. The data is read or written exactly as it is.
+        #When a file is opened in write mode, the file is created if it does not exist, and truncated (emptied) if it does exist. This mode allows you to write data to the file.
+    #Serializes the dictionary and writes it to the file.
+
 print_text("create datsets per each phenotype separately", header=4)
 #change_pheno="vo2_change"
 for change_pheno in dict_pvalue_covar.keys():
@@ -866,75 +876,6 @@ for change_pheno in dict_pvalue_covar.keys():
         na_rep="NA" \
     )
 
-    #create a copy to save transformed variables
-    subset_pheno_no_na_transform = subset_pheno_no_na.copy(deep=True)
-        #deep=True: This creates a deep copy of the DataFrame. A deep copy means that a new DataFrame object is created, and all the data is copied. Changes to the new DataFrame will not affect the original DataFrame, and vice versa.
-
-    #select the variable to be transformed
-    variables_to_transform = [cov for cov in selected_covariates if cov != "sex_code"] + [change_pheno]
-        #all covariates (except sex_code) and the response variable
-        #Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). So do NOT transform!
-            #http://dougspeed.com/phenotypes-and-covariates/
-
-    #transform all the continuous variables and overwrite
-    #pheno_to_transform=variables_to_transform[0]
-    for pheno_to_transform in variables_to_transform:
-        subset_pheno_no_na_transform[pheno_to_transform] = quantile_transform( \
-            X=subset_pheno_no_na_transform[pheno_to_transform].values.reshape(-1, 1), \
-            n_quantiles=500, 
-            output_distribution="normal" \
-        )
-        #check
-        if (\
-            (subset_pheno_no_na_transform[pheno_to_transform].max() > 6) | \
-            (subset_pheno_no_na_transform[pheno_to_transform].min() < -6) \
-        ):
-            raise ValueError(f"ERROR: FALSE! {pheno_to_transform} is not transformed correctly")
-    
-    #check sex_code has not been transformed
-    if (subset_pheno_no_na_transform["sex_code"].unique().size != 2):
-        raise ValueError("ERROR: FALSE! WE HAVE TRANSFORMED SEX_CODE")
-
-    #save the transformed dataset
-    subset_pheno_no_na_transform.to_csv( \
-        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform.tsv", \
-        sep="\t", \
-        header=True, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    #save the response variable
-    subset_pheno_no_na_transform[["family_id", "AGRF code", change_pheno]].to_csv( \
-        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_response.tsv", \
-        sep="\t", \
-        header=True, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    #save the covariates that are factors
-    if ("sex_code" in selected_covariates):
-
-        #save sex_code
-        subset_pheno_no_na_transform[["family_id", "AGRF code", "sex_code"]].to_csv( \
-            "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_factors.tsv", \
-            sep="\t", \
-            header=True, \
-            index=False, \
-            na_rep="NA" \
-        )
-
-    #save the covariates that are continuous
-    selected_covariates_cont = [cov for cov in selected_covariates if cov != "sex_code"]
-    subset_pheno_no_na_transform[["family_id", "AGRF code"] + selected_covariates_cont].to_csv( \
-        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset_transform_covars_cont.tsv", \
-        sep="\t", \
-        header=True, \
-        index=False, \
-        na_rep="NA" \
-    )
-
     ##subset plink filesets
     #create a folder to save files
     run_bash(" \
@@ -942,7 +883,7 @@ for change_pheno in dict_pvalue_covar.keys():
     ")
 
     #create a file with the samples included after pheno cleaning
-    subset_pheno_no_na_transform[["family_id", "AGRF code"]].to_csv( \
+    subset_pheno_no_na[["family_id", "AGRF code"]].to_csv( \
         "./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_samples_in.tsv", \
         sep="\t", \
         header=False, \
@@ -968,8 +909,8 @@ for change_pheno in dict_pvalue_covar.keys():
     )
     #if the family_id or the sample IDs are not identical between our transformed dataset and the plink fileset, we have a problem
     if ( \
-        (not subset_fam[0].rename("family_id").equals(subset_pheno_no_na_transform["family_id"].reset_index(drop=True))) | \
-        (not subset_fam[1].rename("AGRF code").equals(subset_pheno_no_na_transform["AGRF code"].reset_index(drop=True))) \
+        (not subset_fam[0].rename("family_id").equals(subset_pheno_no_na["family_id"].reset_index(drop=True))) | \
+        (not subset_fam[1].rename("AGRF code").equals(subset_pheno_no_na["AGRF code"].reset_index(drop=True))) \
     ):
         raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM SELECT THE SAMPLES WITHOUT NA IN THE PLINK FILESETS")
 
@@ -978,6 +919,10 @@ for change_pheno in dict_pvalue_covar.keys():
             #https://dougspeed.com/file-formats/
         #THEREFORE, it does not matter if we have -9 in the phenotype column. The sex and phenotype data is provided separately
 
+    ##apply quality control again
+        #We apply the post-imputation QC for the last time after we have removed samples for the last time, this time due to missing phenotype data. These samples without weight are not going to be used anymore, so we should check how the genetic data changes.
+        #This is different from the training-evaluation split, where we will train the models with a subset of the samples, but the rest of samples will be used in evaluation, we are not technically remove them, so we should not repeat the QC for each training-eval dataset. If we would do that, we would end up with different genetic predictors (i.e., SNPs) between training-evaluation partitions, and we do not want that.
+        #To limit data leakage, we are going to apply the transformation of the phenotypes separataley in trainining and evaluation. Remember what we did in the niche paper, we preprocessed the occurrences, selected the predictors and then we split in training and evaluation just before modeling. This is equivalent with what we have done here.
     #check we do not have SNPs with high missingness
     run_bash(" \
         cd ./data/plink_filesets/" + change_pheno + "_filesets/; \
@@ -1077,6 +1022,7 @@ for change_pheno in dict_pvalue_covar.keys():
 
 
 print_text("FINISH", header=1)
+#ADD PCA ALWAYS!!!!!
 #to run the script:
 #cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
 #chmod +x ./scripts/production_scripts/03a_phenotype_prep.py
