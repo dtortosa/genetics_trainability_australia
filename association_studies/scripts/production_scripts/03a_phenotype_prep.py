@@ -1094,6 +1094,9 @@ for change_pheno in dict_pvalue_covar.keys():
 
 
 
+#####TO DO!!!!!
+##create two datasets for each phenotype, one with the significant covariates and other with the selected covariates plus age and firsr 10-15 PCAs
+
 
 
 
