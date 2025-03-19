@@ -286,7 +286,11 @@ run_bash(" \
 # region define function to calculate PRS across iterations #
 #############################################################
 #iter_number=1; response_variable="distance_change"
-def prs_calc(iter_number, response_variable):
+def prs_calc(iter_number, response_variable, covariate_dataset):
+
+    ####IMPORTANT
+    #ADD IF TO SELECT THE FULL COVARIATE DATASET OR THE REDUCED VERSION
+
 
     print_text(f"For phenotype {response_variable}, starting iteration {iter_number}", header=1)
     print_text("split training and test", header=2)
@@ -477,7 +481,13 @@ def prs_calc(iter_number, response_variable):
 
     print_text("run LDAK on the training set", header=2)
 
-
+    #./ldak6.1.linux \
+    #  --elastic elastic \
+    #  --pheno ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_response.tsv \
+    #  --bfile ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_plink_fileset \
+    #  --covar ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_covars_cont.tsv \
+    #  --factors ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_covars_factors.tsv \
+    #  --LOCO NO
 
     ###use -mpheno!!!! to select the pheno you want
         #http://dougspeed.com/phenotypes-and-covariates/
@@ -522,8 +532,14 @@ def prs_calc(iter_number, response_variable):
     #David wants to show also manhatann plots (maybe just use plink or LDAK?), also repeat 10 times the 75-25% and see if the respodners are the same?
 
 
+    ##use simple PRS (linear) as reference as Dr. Speed suggested in your github conversation?
+
+    #you could take from here the p-values to calculate the manhattan plot and the p-values could be used later for the BAT analyses
 
 
+
+#run the function across the three phenotypes
+#ALSO CONSDIEIRNG REDUCED AND FULL COVARIATE SET
 prs_calc(iter_number, response_variable)
 
 
@@ -566,6 +582,16 @@ run_bash(" \
 ##PARSE ITERATION AS A COMMAND SO YOU CAN RUN EACH ITERATION SEPARATETLY FOR EACH PHENO
 #WE COULD SEND 100 JOBS OF JUST 1 CORE AND 1 HOUR AND THEY SHOULD BE RUNNING FAST
 #ALSO INCLUDE THE PHENO AS A ARGUMENT, SO WE CAN DO THIS FOR EACH OF THE THREE PHENOTYPES
+
+
+
+
+
+#FOR BAT ANALYSES
+    #this would an additional step in this project that would be outside of the paper
+    #take the 1000kb gene windows for all coding genes, liftover to hg38. If the USCS tool accepts genomic ranges, just use them as input, if not, split in two datasets the start and the end of the gene windows
+    #for each phenotype (VO2, beep....), calculate the average (better than median because want influence of outliers within gene like in iHS, if a SNPs is veery important in a gene that should influence the info about the whole gene) p-value for the association of SNPs inside each gene
+    #then, calculate 1000 random sets of genes, within each set, calculate the median association of all genes inside the set and compare with the BAT set to obtain a distribution and empirical p-value (is association lower in BAT? LOOF BAT PAPER SCRIPTS FOR THIS). Here I want median because i do not want a gene outliser change things, I want the overall impact of BAT genes in general, not just a few genes.
 
 
 

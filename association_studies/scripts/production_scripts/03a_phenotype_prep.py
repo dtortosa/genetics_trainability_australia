@@ -841,6 +841,29 @@ with open("./data/pheno_data/dict_names_covs.pkl", 'wb') as file:
         #When a file is opened in write mode, the file is created if it does not exist, and truncated (emptied) if it does exist. This mode allows you to write data to the file.
     #Serializes the dictionary and writes it to the file.
 
+print_text("check that the cases with NA for the response variable all have NA for wegith at week 1, so we are going to be removed anyways", header=4)
+index_na_pheno = ( \
+    merged_data["Week 1 Beep test"].isna() | \
+    merged_data["Week 8 beep test"].isna() | \
+    merged_data["Week 1 Distance (m)"].isna() | \
+    merged_data["Week 8 Distance (m)"].isna() | \
+    merged_data["Week 1 Pred VO2max"].isna() | \
+    merged_data["Week 8 Pred VO2max"].isna() \
+)
+if ( \
+        ( \
+            merged_data.loc[index_na_pheno, "Week 1 Body Mass"].isna().sum() != \
+            merged_data.loc[index_na_pheno, :].shape[0] \
+        ) | \
+        ( \
+            sum([1 for k, v in dict_pvalue_covar.items() if "week_1_weight" in v]) != \
+            len(dict_pvalue_covar)
+        ) \
+):
+    raise ValueError("ERROR! FALSE! SOME SAMPLES WITH NA FOR REPONSE VARIABLES DO NOT HAVE NA FOR WEIGHT AT WEEK 1 SO THEY ARE GOING TO BE USED IN SOME ANALYSES")
+    #The point here is that David told me you should not have NA for distance but not for beep and viceversa. So in general, it is safe to remove them altotegher, this is automatically done because all these case have NA for weight at week 1, which is a covariate for all response variables. Because of this, if any these samples wit NA for the responses do not have NA for wegiht at week 1, then stop the execution.
+    #Given we are aussming that weight at week 1 is an important covariate for all response variables, we are going also to check that weight at week 1 is included as covariable in all cases.
+
 print_text("create datsets per each phenotype separately", header=4)
 #change_pheno="vo2_change"
 for change_pheno in dict_pvalue_covar.keys():
@@ -863,9 +886,21 @@ for change_pheno in dict_pvalue_covar.keys():
         #I understand that they will remove NA cases if not analyzing multiple phenotypes, but I am removing NA cases just in case.
         #Remember, we are creating a dataset for each phenotype, so we are only removing samples with NA for the selected phenotype and covariates
 
+    #check
+    if(subset_pheno_no_na.isna().sum().sum()!=0):
+        raise ValueError("ERROR! FALSE! WE HAVE NOT REMOVED ALL THE NAS FOR: " + change_pheno)
+
     #check number of samples removed
     if (subset_pheno.shape[0] - subset_pheno_no_na.shape[0])>300:
         raise ValueError(f"ERROR: FALSE! WE HAVE TOO MUCH NAs for {change_pheno}")
+
+    #check we do not have the sample 8244FGNJ
+    if (subset_pheno_no_na["AGRF code"] == "8244FGNJ").sum()!=0:
+        raise ValueError("ERROR! FALSE! SAMPLE 8244FGNJ IS STILL PRESENT")
+        #This was a problematic sample:
+            #It had a typo (letter O instead of 0)
+            #It had NA for distance but not for beep, which does not make sense
+            #Finally, and most important, it had NA for weight, so it has to go out
 
     #save the subset
     subset_pheno_no_na.to_csv( \
@@ -997,22 +1032,63 @@ for change_pheno in dict_pvalue_covar.keys():
 ####################
 
 #Phenotypes to study: I am considering the change in VO2 max, beep and distance between week 1 and week 8. Do you want me to run polygenic score for the three variables, right?
+    #I’d say yes. These 3 variables should be linearly correlated so I think this provides a good control – we should get a similar polygenetic scores for all 3 (I think!). 
+    #JRR I agree, the row variable should, in principle, be used first, which is distance covered, but results should be the same with all three. Let’s see..
+    #Decision: OK, I will use the three phenotypes.
 
-#Select covariates: I have tested the association between each phenotype (i.e., change in the VO2 max, beep and distance) and each covariate separately. Unsurprisingly, the value of each phenotype at baseline (e.g., VO2 max at week 1 for VO2 max), sex and weight (at week 1) are significant (at least P<0.1) for ALL phenotypes. In contrast, PCA1, PCA2 and age are not significantly associated with any phenotype. Should we consider the non-significant covariates for a given phenotype? I am especially doubtful in the case of the PCAs. From population structure analyses, I ended up selecting PCA1 and PCA2 as the most relevant axes by far. Given they control for population stratification, I am hesitant to not include them even if they are not significant. It is true that we have a homogeneous population, but still we could have subgroups within a "continental ancestry", presumably European in our case.
+#Select covariates:
+    #I have tested the association between each phenotype (i.e., change in the VO2 max, beep and distance) and each covariate separately. Unsurprisingly, the value of each phenotype at baseline (e.g., VO2 max at week 1 for VO2 max), sex and weight (at week 1) are significant (at least P<0.1) for ALL phenotypes. In contrast, PCA1, PCA2 and age are not significantly associated with any phenotype. Should we consider the non-significant covariates for a given phenotype? I am especially doubtful in the case of the PCAs. From population structure analyses, I ended up selecting PCA1 and PCA2 as the most relevant axes by far. Given they control for population stratification, I am hesitant to not include them even if they are not significant. It is true that we have a homogeneous population, but still we could have subgroups within a "continental ancestry", presumably European in our case.
+        #I probably need to understand this better. 
+        #JRR I would not over adjust. Why not to keep the simplest model and then do sensitivity analysis including PCAs in the model. If the results persist (most probably), then we say it and add (data not shown), but the main model is as simple as possible. 
+    #Is there any specific recommendation about the use of covariates for LDAK besides the need of splitting factors vs continuous covariates? I have the usual covariates (age, sex, body mass, phenotype baseline, PCAs...) and I am using only those covariates that are individually associated with the phenotype of interest to limit model complexity.
+        #I examined this question about 15 years ago, to try and find a more justified solution (instead of simply "include 5 PCAs, age and sex"). I remember I experimented with only including PCs that were significantly associated with the phenotype, or only PCs with significant eigenvalues (a software called EigenSoft proposed a test for significance). However, my conclusion was that it is generally not too important (albeit I had larger sample sizes).
+        #Then about 10 years ago, I switched to using heritability analysis to decide number of PCs - see the left and right analyses on this page https://dougspeed.com/quality-control/ - basically, include enough PCs that the sum of estimates from left and right halves of genome equal estimate from whole genome.
+        #Nowdays, I normally include a lot (eg 10 or 20 PCs, maybe 10 internal PCs and 10 from 1000 GP), and if I wanted to check, I would repeat the analysis with fewer. Now again, this is larger sample sizes - the impact is larger for smaller sample sizes. But perhaps it remains a good strategy - I suggest you first perform the analysis using the best choice you can make (whether that is using 5 or 10, because another paper did similar, or choosing the significant ones only - provided you have a sensible criterium). Then repeat using a different choice as a sensitivity analysis (so if you included a lot first time, repeat with fewer). Provided the results are not very different (e.g., you have a SNP that is highly significant in one, but not in the other), then your choices should be good
+    #Thank you for your detailed answer! Yes, that makes a lot of sense. I was indeed considering the p-values from eigensoft, specifically those axes with a p-value<0.01 (first 5 in my case). Then I checked the distribution of SNPs loadings across the genome and found a suspicious increase of positive and negative loadings in a narrow region of chromosome 8 that was very marked for PC5, but was also visible for PC4 and PC3. So I decided to use only PC1 and PC2 for subsequent analyses. Then, as I noted before, I included these two PCAs if they were associated with the phenotype. Maybe this is a very stringent approach, but we are using clear criteria and it could make sense for a small dataset. I will follow your advice and check what happens including more axes (e.g., all significant axes according to eigensoft, 10, etc...)
+        #Yes, very good to check the loadings (so be suspicous if you find a very dense patch - similar to what you observed on chr 8). Similarly, check the PCs and be suspicoius if you find groupings (e.g, divide into 2 or 3) that do not seem to correlate with ancestry. Both of these normally indicate problems due to LD - that the loadings are maiinly concentrated on a region of highLD, so instead of picking up genome-wide variation, they just record the genotypes for that small region
+        #If this occurs, it is best to repeat with more thinning - and if human, I recommend excluding long range ld regions https://dougspeed.com/high-ld-regions/
+    #Amazing all these insights! Yes, I initially checked the existence of clusters and thankfully no clear cluster was present, but I completely missed the option to remove the SNPs with the high loadings instead of the PCAs showing the problem. After increasing thinning (plink2 --indep-pairwise from 500kb 0.2 to 600kb 0.1) the peak completely disappears and the rest of regions/PCAs look perfect in this regard. At this point, after performing all QC steps and imputation, do you think it would necessary to re-run all my pipeline from this step? or it would be reasonable to just recalculate the PCAs with the increased thinning (to be used as covariates) and remove the high-LD from the plink fileset just before running LDAK?
+        #Thanks, that is good to hear
+        #In terms of your pipeline, my quick answer would be that you only need to repeat the steps that used the PCs - from looking above, you did the following: 1.2K samples and 3M of genotyped+imputed SNPs after QC - then make PRS using --elastic
+        #So here I dont think the imputation depends on the PCs, so it sounds fine to leave, especially as I imagine that is the slowest step (well, maybe you used PCs to decide which individuals to exclude - but imputation results should be robust to changing the individuals slightly).
+        #Then for --elastic, you can repeat with the new PCs. Note that it is fine to include high ld regions for --elastic (ie, remove them when computing the PCS, to avoid the uneven loadings, but you can retain them when making the PRS)
+    #Exactly, I am only using the PCAs as covariates and to exclude outliers (iterative removal with smartpca). I have checked what happens doing the removal with higher thinning and the difference is that 8 samples are retained, while with less thinning they are removed. I understand this should not have a great impact on imputation considering the total size of my cohort. So yes, I think I will calculate the PCAs avoiding high ld regions and then use them as covariates for --elastic (retaining in that case high-ld regions). Would you recommend to calculate the PCAs with the fileset generated after imputation and QC? or with the fileset I originally used for the PCAs during pre-imputation QC?
+        #I think it should not matter - normally, I compute PCs using only high quality (eg directly genotyped ) snps, rather than also include imputed
+        #But I think general advice is to use only the final list of samples (and not the original list of samples). A simple case is if you had a few ethnic outliers, that were excluded during qc, then these would dominate PCs computed using all samples, so it would probably be best to use only the samples after qc
+    #Ok, so I can calculate the PCAs using the data generated at the end of QC (when all sample and SNP filters have been applied) but before the imputation. Thank you so much for your insights!
+    #Decision covariates: OK, I will initially use only the covariates that are associated with the phenotype of interest and then check what happens when adding Age and other non-significant plus 10-15 PCAs
 
 #Missing data: We have a few samples (two or three) with missing for distance and VO2 max, I think we are ok removing these samples for the corresponding analyses (i.e., removing only missing VO2 when analyzing VO2....). The problem is with the use of weight as a covariate, we have hundreds of missing values for weight at week 1. Here I do not think we have other option rather than removing these samples. As noted above, weight is a significant covariate for all phenotypes.
+    #I agree (although, if there is a beep score we can calculate distance and VO2max).
+    #I trust you here. JRR Agree doing the analysis with all data.
+    #Decision: Regarding the 2-3 cases having NA for VO2 max and distance covered, they indeed have data for the beep test but I still would not include them because these samples do not have data for weight at week 1. As noted before, weight at week 1 is an important covariate for all phenotypes. If a sample does not have weight, it is not possible to include that sample in the model as weight is a covariate. I have seen in some papers that they "impute" the missing covariate value, i.e., they fill the gap using the values of that covariate from the rest of samples. I would not do that because we have a LOT of missing values for weight (these papers I mention usually fill 4-5 missing values, not more), so we could include a lot of noise in the analyses. I am rambling a bit, the TLDR is that we should remove samples having missing data for any of the significant covariates. 
 
 #After removing NAs, I have applied a quantile transformation to have the phenotypes and covariates closer to a normal distribution and all in the same scale. This is relevant given we are going to use linear models and, in general, having variables in a different scale makes the modeling difficult. I have used a standard transformation and it is possible to comeback to the raw values when we are predicting.
+    #Ok. JRR Agree
 
 #a few minor questions
     #From sample 1161 to 1367, age is integer, not float, in contrast with almost all the rest samples. This is ok?
+        #I think so. 
+        #JRR No problem
+
     #In some phenotypes like weight at week 1, some some samples have value of 0 and others have no value (empty cell). I guess zero should be empty/NA, right? To my understanding, it should not be possible to have zero for weight, beep test or distance. Of course, I am not considering here the change between week 1 and 8, where 0 makes sense (i.e., no change).
-        #body mass week 1 and 8
-        #VO2 max week 1
+        #Yes
+        #JRR OK
+
     #it makes sense that a sample has NA for distance but not for beep? this is the case for sample 8244FGNJ
+        #No
+        #JRR This is not possible, it should be a mistake 
+        #Decision: Ok, but it has NA for weight so this sample should be removed anyways.
+    
     #I think you already answer this, but do not find the thread, sorry: In sample 8244FGNJ, the value for week 8 beep includes a letter "0" instead of the number zero: 11.1O. I guess I can safely change that "o" letter by zero.
+        #Yes 
+        #JRR Agree
+    
     #I guess that the sheet "DNA with only wk1" includes genotyped samples with only data for the first week, not week 8. So I have only used the sheet "All DNA samples". Also, within "All DNA samples", I have discarded the 42 samples at the bottomn with NA for all columns except the AGRF code. I guess these samples were also genotyped but have not phenotypic data.
+        #exactly
+
     #some rows are coloured, there is something special about these samples it could be relevant for the analysis?
+        #No, it was just when we were controlling data.
 
 # endregion
 
@@ -1022,7 +1098,6 @@ for change_pheno in dict_pvalue_covar.keys():
 
 
 print_text("FINISH", header=1)
-#ADD PCA ALWAYS!!!!!
 #to run the script:
 #cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
 #chmod +x ./scripts/production_scripts/03a_phenotype_prep.py
