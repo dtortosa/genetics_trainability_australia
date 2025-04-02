@@ -167,7 +167,6 @@ run_bash(" \
 #########################################
 # region SELECT ONLY GENOTYPES VARIANTS #
 #########################################
-
 print_text("SELECT ONLY GENOTYPES VARIANTS", header=1)
 print_text("create folders", header=2)
 run_bash(" \
@@ -312,7 +311,15 @@ if(total_n_snps != str(merged_df.shape[0])):
 
 
 print_text("prepare plink fileset", header=2)
-#subset the plink filesets
+print_text("check we have the correct versions of plink and plink2. We are using plink1.9 for mergning", header=3)
+plink_version=run_bash("plink --version", return_value=True).strip()
+plink2_version=run_bash("plink2 --version", return_value=True).strip()
+if((plink_version!="PLINK v1.90b7 64-bit (16 Jan 2023)") | (plink2_version!="PLINK v2.00a4.2LM 64-bit Intel (31 May 2023)")):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH PLINK VERSIONS")
+else:
+    print("PLINK VERSIONS ARE OK")
+
+print_text("subset the plink filesets", header=3)
 run_bash(" \
     plink \
         --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno \
@@ -323,10 +330,7 @@ run_bash(" \
     #We use the last fileset just before the tests of batch effects (see line 322 in 02d_post_imputation_qc.py)
     #--extract normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces), and removes all unlisted variants from the current analysis.
 
-
-###POR AQUII CHECKING THE RESULTS
-
-
+print_text("check we have the correct number of SNPs", header=3)
 run_bash(" \
     n_snps_pca=$( \
         awk \
@@ -339,91 +343,60 @@ run_bash(" \
     fi \
 ")
 
-
-##use --extract in plink
-    #https://www.cog-genomics.org/plink/1.9/filter
-
-print_text("make mergelist.txt file with the list of chromosomes to merge", header=3)
+print_text("check we have the correct number of samples", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets; \
-    seq 2 22 | sed 's/^/chr/; s/$/_post_imput_updated_ids_sex_snps_only/' > mergelist.txt  \
-")
-    #seq 2 22 to get the numbers from 2 to 22
-        #we only need here chromosomes starting from 2, because the chromosome 1 will be used as reference to which the other ones will be merged with
-    #sed is a stream editor used for text manipulation.
-        #s stands for substitution.
-        #/ is the delimiter that separates the different parts of the command.
-        #^ is a regular expression that matches the beginning of a line. If you use 's/^1/chr/', this means you are looking for rows starting with 1, and substitute 1 by chr. In our case, we are just using /^/, so that means we select all rows and nothing is substituted, we just add "chr" 
-        #chr is the string to be inserted at the beginning of each line.
-        #$ is a special character that represents the end of a line. The same than "^" but for the end of the line. We add the string required.
-    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#part-4----post-imputation-qc
-
-print_text("check we have the correct versions of plink and plink2. We are using plink1.9 for mergning", header=3)
-plink_version=run_bash("plink --version", return_value=True).strip()
-plink2_version=run_bash("plink2 --version", return_value=True).strip()
-if((plink_version!="PLINK v1.90b7 64-bit (16 Jan 2023)") | (plink2_version!="PLINK v2.00a4.2LM 64-bit Intel (31 May 2023)")):
-    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH PLINK VERSIONS")
-else:
-    print("PLINK VERSIONS ARE OK")
-
-print_text("Merge chromosome files into 1 bim/bed/bam fileset", header=2)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets/; \
-    plink \
-        --bfile ./chr1_post_imput_updated_ids_sex_snps_only \
-        --merge-list ./mergelist.txt \
-        --make-bed \
-        --out ./merged \
-")
-    #--merge-list allows you to merge more than one fileset to the reference fileset. (Also, this can be used without a reference; in that case, the newly created fileset is then treated as the reference by most other PLINK operations.) The parameter must be the name of a text file specifying one fileset per line.
-        #If a line contains only one name, it is assumed to be the prefix for a binary fileset.
-            #this is our case, bim, bed and fam files have the same name
-        #If a line contains exactly two names, they are assumed to be the full filenames for a text  #fileset (.ped, then .map). These filesets may not contain multi-character alleles.
-        #If a line contains exactly three names, they are assumed to be the full filenames for a binary fileset (.bed, then .bim, then .fam).
-    #On merge failure, if a .missnp file is generated, it now only lists conflicts between the binary filesets. When this is problematic, you should convert your data to binary and retry the merge.
-    #https://github.com/RitchieLab/GWAS-QC?tab=readme-ov-file#part-4----post-imputation-qc
-
-
-print_text("check results", header=2)
-print_text("check we have the correct number of SNPs", header=3)
-run_bash(" \
-    cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets/; \
-    n_files=$(ls -1 | wc -l); \
-    expected_n_files=$(((22*3)+5)); \
-    if [[ $n_files -eq $expected_n_files ]]; then \
-        echo 'CORRECT NUMBER OF FILES'; \
-    else \
-        echo 'ERROR! FALSE! WRONG NUMBER OF FILES'; \
+    n_samples_plink_qc=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}{ \
+        }END{print NR}' \
+        ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno.fam \
+    ); \
+    n_samples_pca=$( \
+        awk \
+            'BEGIN{FS=\"\t\"}{ \
+        }END{print NR}' \
+        ./data/final_pcas/typed_variants_after_qc/merged_3_geno_only_typed.fam \
+    ); \
+    if [[ $n_samples_pca -ne $n_samples_plink_qc ]]; then \
+        echo \"ERROR! FALSE! WE HAVE A PROBLEM WITH THE FINAL NUMBER OF SAMPLES FOR PCAS\"; \
     fi \
 ")
-    #we should have 3 files per each of the 22 chromosomes (bim/bed/fam) plus 5, i.e., the bim/bed/fam of merged, plus the log file and the mergelist.txt
 
 print_text("check we do NOT have a .missnp file", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets/; \
-    if [[ -e merged-merge.missnp ]]; then \
-        echo 'ERROR! FALSE! MERGING DID NOT WORK'; \
+    cd ./data/final_pcas/typed_variants_after_qc/; \
+    if [[ -e merged_3_geno_only_typed.missnp ]]; then \
+        echo 'ERROR! FALSE! FILTERING OF SNPS DID NOT WORK'; \
     else \
-        echo 'MERGING WORKED'; \
+        echo 'FILTERING WORKED'; \
     fi \
 ")
 
-print_text("see the total number of SNPs after imputation", header=3)
+print_text("see the total number of SNPs", header=3)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/21_post_imputation_qc/00_plink_filesets/merged_file_sets/; \
+    cd ./data/final_pcas/typed_variants_after_qc; \
     awk \
         'END{print NR}' \
-        ./merged.bim \
+        ./merged_3_geno_only_typed.bim \
 ")
     
 # endregion
 
 
 
-###CHECK IF POSTIMPUTATION FILTERING DONE IS NEEDED HERE....
 
 
 
+#####################################
+# region DO LD CLEANING OF VARIANTS #
+#####################################
+print_text("DO LD CLEANING OF VARIANTS", header=1)
+print_text("create folders", header=2)
+run_bash(" \
+    mkdir \
+        -p \
+        ./data/final_pcas/ld_cleaning/ \
+")
 
 #do LD-subset increasing thinning
 #also remove the areas indicated by Dr.Speed in his comment
