@@ -5,7 +5,7 @@
 
 Bootstrap: library #It determines the bootstrap agent that will be used to create the base operating system you want to use. For example, the library bootstrap agent will pull a container from the Container Library. 
 
-From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword becomes valid. You indicate the container you want from the library. This will be downloaded and build. #it seem deadsnakes for downloading python does not work anymore with ubuntu 18.04, so we use ubuntu 20.04 #https://stackoverflow.com/a/64353748/12772630 
+From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword becomes valid. You indicate the container you want from the library. This will be downloaded and build. #it seem deadsnakes for downloading python does not work anymore with ubuntu 18.04, so we use higher versions #https://stackoverflow.com/a/64353748/12772630 
 
 
 
@@ -107,12 +107,10 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	apt -y install wget
 
 	#install a required libraries for using smartpca
-    apt -y install liblapacke.so.3
-	apt -y install libgsl.so.27
-	apt -y install libgsl-dev
+    apt -y install libgsl-dev
 	apt -y install libopenblas-base
 	apt -y install liblapacke-dev
-	apt -y install liblapacke
+
 
 	##bcftools installation
 	#this tools seems to be currently maintained, while vcftools does not have any release since 2018 (https://davetang.github.io/learning_vcf_file/#:~:text=A%20BCF%20file%20is%20the,be%20used%20instead%20of%20VCFtools.).
@@ -224,6 +222,7 @@ From: ubuntu:20.04 #When using the library bootstrap agent, the From keyword bec
 	python3.9 get-pip.py
 
 	#python3.9 -m pip install future #the "-m" flag search for the last version of the package.
+	python3.9 -m pip install seaborn
 	python3.9 -m pip install scikit-learn
 	python3.9 -m pip install statsmodels
 	#python3.9 -m pip install plotly

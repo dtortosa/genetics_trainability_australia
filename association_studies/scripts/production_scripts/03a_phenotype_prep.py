@@ -1096,6 +1096,7 @@ for change_pheno in dict_pvalue_covar.keys():
 
 #####TO DO!!!!!
 ##create two datasets for each phenotype, one with the significant covariates and other with the selected covariates plus age and firsr 10-15 PCAs
+##CHECK THE OUTPUT!! This script was originally devleoped in container with ubnut 20.04, but we are now using 22.04 I have not run the script after that, do not check the whole thing, just check the outpus is ok...
 
 
 

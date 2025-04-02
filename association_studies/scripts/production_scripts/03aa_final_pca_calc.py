@@ -396,23 +396,18 @@ print_text("create folders", header=2)
 run_bash(" \
     mkdir \
         -p \
-        ./data/final_pcas/01_ld_cleaning/00_ld_prunning \
-        ./data/final_pcas/01_ld_cleaning/01_regions_removal \
+        ./data/final_pcas/01_ld_cleaning/ \
 ")
 
 print_text("Filter out snps with high LD", header=2)
-#Besides filtering by MAF and selecting high quality SNPs, we need to do LD prunning. In addition, the marees review and Ritchie tutorial remove sex chromosome
-
-###POR AQUII, CHECKING WHAT HAPPENS IF APPLY SAME THINNING LEVEL BUT ON THE DATASET CLEAN AFTER QC
-
-
+print_text("get a list of SNPs with low LD", header=3)
 run_bash(" \
     cd ./data/final_pcas/; \
     plink2 \
         --bfile ./00_typed_variants_after_qc/merged_3_geno_only_typed \
-        --indep-pairwise 500kb 1 0.2 \
-        --out ./01_ld_cleaning/00_ld_prunning/ld_prunning_filter; \
-    ls -l ./01_ld_cleaning/00_ld_prunning/")
+        --indep-pairwise 600kb 1 0.1 \
+        --out ./01_ld_cleaning/ld_prunning_filter; \
+    ls -l ./01_ld_cleaning/")
         #This command produces a pruned subset of variants that are in approximate linkage equilibrium with each other, writing the IDs to plink2.prune.in (and the IDs of all excluded variants to plink2.prune.out). These files are valid input for --extract/--exclude in a future PLINK run; and, for backward compatibility, they do not affect the set of variants in the current run.
         #Since the only output of these commands is a pair of variant-ID lists, they now error out when variant IDs are not unique.
         #--indep-pairwise is the simplest approach, which only considers correlations between unphased-hardcall allele counts. We cannot use the alternative, which is --indep-pairphase and requires phased data. --indep-pairwise takes three parameters: 
@@ -431,96 +426,58 @@ run_bash(" \
             #"--indep-pairwise 200kb 1 0.5"
             #"--indep-pairwise 500kb 1 0.2"
         #As we get more strict, the number of selected SNPs is reduced. We will go for the most strict option, i.e., allowing a lower correlation between SNPs in larger windows. This means that we will have much less variants correlated across larger chunks of the genome. In this way, we will have a very clean set in terms of LD. This is important because we are going to do operations that are not LD-aware.
-        #https://www.cog-genomics.org/plink/2.0/ld
-        #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+            #https://www.cog-genomics.org/plink/2.0/ld
+            #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_3#Sec22
+        #IMPORTANT: we have gone even a bit further the most strict option. I did this because with "500kb 1 0.2" I was still getting a peak of loadings in chr8. After increasing the window to 600kb and the r2 to 0.1, this peak completely dissapeared and the rest of regions/PCAs look perfect in this regard. 
 
+print_text("select only SNPs with low LD", header=3)
 run_bash(" \
     cd ./data/final_pcas/; \
     plink \
         --bfile ./00_typed_variants_after_qc/merged_3_geno_only_typed \
-        --extract ./01_ld_cleaning/00_ld_prunning/ld_prunning_filter.prune.in \
-        --autosome \
+        --extract ./01_ld_cleaning/ld_prunning_filter.prune.in \
         --make-bed \
-        --out ./01_ld_cleaning/00_ld_prunning/merged_3_geno_only_typed_ld_prunning;\
-    ls -l ./01_ld_cleaning/00_ld_prunning/")
+        --out ./01_ld_cleaning/merged_3_geno_only_typed_ld_prunning;\
+    ls -l ./01_ld_cleaning/ \
+")
+    #from the current fileset, select only those SNPs included in .prune.in
+    #we use extract for that
+        #--extract normally accepts a text file with a list of variant IDs (usually one per line, but it's okay for them to just be separated by spaces), and removes all unlisted variants from the current analysis.
+            #https://www.cog-genomics.org/plink/1.9/filter
+    #make a new fileset
 
-
-#500kb 0.2 to 600kb 0.1
-
-
-###REMOVE SNPS FROM PROBLEMATIC REGIONS
-
-
-
-print_text("checks after filtering", header=2)
-#In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat. I guess they used the same dataset for the PCA. They also say that "It is recommended that the user prune to approximately ∼100,000 SNPs for use in PCA analyses". The github of the paper shows the removal of sex chromosomes (step 8) before the PCA (step 9), while Marees et al explictily says that we should perform the PCA on autosomal SNPs. Althougl plink tutorial does not filter out sex chromosomes before, we are doing it given what the other sources are doing.
+print_text("checks after filtering", header=3)
+#In the Ritchie's tutorial, they ended up with 67,000 autosomal variants in linkage equilibrium in order to calculate IBD and pi_hat. I guess they used the same dataset for the PCA. They also say that "It is recommended that the user prune to approximately ∼100,000 SNPs for use in PCA analyses".
     #14_pop_strat/01_pca
 #In the admixture tutorial and Admixture docs they use a more stringent LD filtering, but they say that if you want to control for population structure between related populations (i.e., within the same continent) then 10K is not enough and you should use 100K. 
-    #Using the approach suggested in the Admixture manual and tutorial gives 58K SNPs.
         #--indep-pairwise 50 10 0.1
         #http://dalexander.github.io/admixture/admixture-manual.pdf
-#Therefore, we need around 100K independent autosomal SNPs. This seems to be enough considering all scenarios.
-#It also seems important to remove related samples before the PCA
-    #"We exclude related individuals as we are not interested in population structure that is due to family relationships and methods such as PCA and ADMIXTURE can inadvertently mistake family structure for population structure"
-    #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
+#It seems to be a good idea to have between 50K and 100K SNPs for PCA. For admixture you need more, but here the most important thing are the PCAs to control for population structure and in that case we are not very far off, around 50K while Ritchie used 67K.
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/; \
-    auto_ld_snps_in=$( \
-        awk \
-            'BEGIN{FS=\" \"}END{print NR}' \
-            ./loop_maf_missing_2_ldprunned_autosome_pca.bim); \
-    printf 'The number of included autosomal SNPs in linkage equilibrium is %s\n' \"$auto_ld_snps_in\"; \
-    echo 'Is this number greater than 93K?'; \
-    if [[ $auto_ld_snps_in -gt 93000 ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-        #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
-            #https://phoenixnap.com/kb/bash-printf
-
-
-print("Do we have at least 70K SNPs after LD pruning like in Ritchie's tutorial?")
-#In the Ritchie's tutorial, they ended up with 67,000 autosomal indepent variants in order to calculate IBD and pi_hat.
-run_bash(" \
-    cd ./data/genetic_data/quality_control/11_remove_related_samples; \
-    echo 'see first lines of the .prune.in list:'; \
-    head ./ldpruned_snplist.prune.in; \
+    cd ./data/final_pcas/01_ld_cleaning/; \
     ld_snps_in=$( \
         awk \
             'BEGIN{FS=\" \"}END{print NR}' \
-            ./ldpruned_snplist.prune.in); \
-    printf 'The number of included SNPs is %s\n' \"$ld_snps_in\"; \
-    echo 'Is this number greater than 70K?'; \
-    if [[ $ld_snps_in -gt 70000 ]]; then \
+            ./merged_3_geno_only_typed_ld_prunning.bim); \
+    printf 'The number of included autosomal SNPs in linkage equilibrium is %s\n' \"$ld_snps_in\"; \
+    echo 'Is this number greater than 52K?'; \
+    if [[ $ld_snps_in -gt 52000 ]]; then \
         echo 'TRUE'; \
     else \
         echo 'FALSE'; \
-    fi")
-        #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
-            #https://phoenixnap.com/kb/bash-printf
+    fi \
+")
+    #you can print a variable with text using printf and %s for "string". Then you call the variable you want to add within "". You could use two variables: "$var1 $var2"
+        #https://phoenixnap.com/kb/bash-printf
 
+print_text("We are not removing SNPs by high-LD regions", header=3)
+print("""
+The high-LD regions indicated by Dr.Speed are in hg19 coordinates, while we are working with hg38. I tried liftovering the regions, but I was not able to do it and got extrange results like getting hg38 coordinates in the X chromosome when we do not have sex chromosomes.
 
-
-print("All non-autosomals SNPs have been removed from the LD pruned dataset?")
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
-    n_non_auto_snps=$( \
-        awk \
-            'BEGIN{FS=\" \"}{if($1==0 || $1==23 || $1==24 || $1==25 || $1==26 || $1== \"X\"|| $1==\"Y\" || $1==\"XY\" || $1==\"MT\"){count++}}END{print count}'\
-            ./loop_maf_missing_2_ldprunned_autosome_pca.bim); \
-    if [[ $n_non_auto_snps -eq 0 ]]; then \
-        echo 'TRUE'; \
-    else \
-        echo 'FALSE'; \
-    fi")
-
-
-
-
-#do LD-subset increasing thinning
-#also remove the areas indicated by Dr.Speed in his comment
-
+Given that just incresing the prunning to 600kb and 0.1 made the peak completely dissapear. Importantly, if you compare the PCA plots between this subset and the PCA during QC, you can see they are really similar, it seems we are still detecting the same variability. So I think we are good.
+      
+This is what we have anyways. If we want to have SNPs with very low-LD, no peaks in the PCA loadings and, in general, the clean dataset, this is what is left after QC.
+""")
 
 # endregion
 
@@ -533,20 +490,20 @@ run_bash(" \
 # region RUN SMARTPCA #
 #######################
 print_text("RUN SMART PCA", header=1)
-print_text("create folders", header=2)
+print_text("create folders", header=3)
 run_bash(" \
     mkdir \
         -p \
         ./data/final_pcas/02_smartpca/ \
 ")
 
-print_text("PCA with smartpca", header=4)
+print_text("PCA with smartpca", header=3)
 #smartpca: general explanations
     #smartpca runs Principal Components Analysis on input genotype data and  outputs principal components (eigenvectors) and eigenvalues. We note that eigenvalue_k/(Sum of eigenvalues) is the proportion of variance explained by eigenvector_k. The method assumes that samples are unrelated. However, a small number of cryptically related individuals is usually  not a problem in practice as they will typically be discarded as outliers (we already removed related individuals).
     #The syntax of smartpca is "../bin/smartpca -p parfile"
         #The below for details about each argument
 
-print("prepare fam file for smartpca")
+print_text("prepare fam file for smartpca", header=3)
 #As a minor issue, smartpca ignores individuals in the .fam file if they are marked as missing in the phenotypes column. This awk command provides a new .fam file that will automatically include all individuals.
     #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
 #copy also bim and bed files
@@ -554,19 +511,19 @@ run_bash(" \
     cd ./data/final_pcas/; \
     awk \
         '{print $1,$2,$3,$4,$5,1}' \
-        ./01_ld_cleaning/00_ld_prunning/merged_3_geno_only_typed_ld_prunning.fam > \
+        ./01_ld_cleaning/merged_3_geno_only_typed_ld_prunning.fam > \
     ./02_smartpca/merged_3_geno_only_typed_ld_prunning.new_fam.fam; \
-    cp ./01_ld_cleaning/00_ld_prunning/merged_3_geno_only_typed_ld_prunning.bim ./02_smartpca; \
-    cp ./01_ld_cleaning/00_ld_prunning/merged_3_geno_only_typed_ld_prunning.bed ./02_smartpca \
+    cp ./01_ld_cleaning/merged_3_geno_only_typed_ld_prunning.bim ./02_smartpca; \
+    cp ./01_ld_cleaning/merged_3_geno_only_typed_ld_prunning.bed ./02_smartpca \
 ")
 
-print("decide the number of axes to output")
+print_text("decide the number of axes to output", header=3)
 n_axes=20
 
-print("smartpca parameter file")
+print_text("smartpca parameter file", header=3)
 run_bash(" \
     cd ./data/final_pcas/; \
-    PREFIX=merged_3_geno_only_typed_ld_prunning_pca; \
+    PREFIX=merged_3_geno_only_typed_ld_prunning; \
     echo genotypename: ./02_smartpca/$PREFIX.bed > ./02_smartpca/$PREFIX.par; \
     echo snpname: ./02_smartpca/$PREFIX.bim >> ./02_smartpca/$PREFIX.par; \
     echo indivname: ./02_smartpca/$PREFIX.new_fam.fam >> ./02_smartpca/$PREFIX.par; \
@@ -586,6 +543,7 @@ run_bash(" \
     echo nomalexhet: YES >> ./02_smartpca/$PREFIX.par; \
     echo newshrink: NO >> ./02_smartpca/$PREFIX.par \
 ")
+    #WE ARE USING THE SAME PARAMETERS THAN IN THE QC
     #script for smartpca parameter file from ADMIXTURE TUTORIAL
         #https://link.springer.com/protocol/10.1007/978-1-0716-0199-0_4
     #genotypename:
@@ -655,13 +613,13 @@ run_bash(" \
         #smartpca now supports multithreading but NOT with fastmode: YES. By default a (hopefully) system dependent number of threads is chosen. This can be overwritten by (for example) numthreads:   10
         #it seems by default it is using all the cores.
 
-print("run smartpca")
+print_text("run smartpca", header=3)
 #we use the version 8.0.0, which is the latest at the moment of writting (sep 2024). This was released in october 2022.
     #see the contianer receipte for further details about how install in the container
     #https://github.com/DReichLab/EIG/releases
 run_bash(" \
     cd ./data/final_pcas/; \
-    /bin/smartpca -p ./02_smartpca/merged_3_geno_only_typed_ld_prunning_pca.par > ./02_smartpca/smart_pca_run.out \
+    /bin/smartpca -p ./02_smartpca/merged_3_geno_only_typed_ld_prunning.par > ./02_smartpca/smart_pca_run.out \
 ")
     #smartpca also calculate the "Tracy-Widom statistics"
         #I have visually compared this table and the generated by twstats. They are the same, just a few decimals are different. Also that table has a column with eigenvalues and a p-value. Therefore, smartpca is also using twstats
@@ -688,15 +646,23 @@ if False:
             -o ./eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tracy.out")
 '''
 
-#Important note about the number of SDs respect to the mean of any PC axis to remove outliers:
-    #The default is 6, using this we lose around 171 samples, and we do not have clear clusters in the main axes. Also ancestry considers that we have just 1 group. 
-    #Using 3 makes the PCA plots to show exactly as clouds of points, but the caveat is that we lose 500 samples. Also note that doing this still showed the problem of negatively correlated SNPs between our dataset and the reference panel in the imputation server. That was only solved after selecting the correct mode for solving flips and remove SNPs that are not possibly solved (ambiguous see below).
-    #Therefore, it seems we already have a relatively homogenous dataset using the default parameters for outlier removal.
+print_text("check the number of samples after outlier removal", header=3)
+run_bash(" \
+    cd ./data/final_pcas/02_smartpca; \
+    n_outliers=$( \
+        awk \
+            'END{print NR}' \
+            ./merged_3_geno_only_typed_ld_prunning.outliers \
+    ); \
+    if [[ $n_outliers -ne 0 ]]; then \
+        echo 'ERROR! FALSE! WE HAVE A PROBLEM, WE HAVE NEW OUTLIERS BUT SHOULD NOT'; \
+    fi \
+")
 
-print("see significant axes")
+print_text("see significant axes", header=3)
 #extract the tracy table
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
+    cd ./data/final_pcas/02_smartpca/; \
     awk \
         'BEGIN{ \
             OFS=\"\t\"; \
@@ -713,8 +679,8 @@ run_bash(" \
                 print $1,$2,$3,$4,$5,$6 \
             }; \
         }' \
-        smart_pca_run.out > tracy_table.tsv \
-    ")
+        ./smart_pca_run.out > tracy_table.tsv \
+")
     #force the output to be tab, and create two variables as zero
     #if the has the header of tracy table
         #save the number of the row to know when the table start
@@ -723,26 +689,26 @@ run_bash(" \
     #if start_table is not zero, and it is greater than the first row of the tracy table and we are not yet at the end of the table 
         #print all fields separately
 
-#load the table
+print_text("load the table", header=4)
 tracy_table = pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/tracy_table.tsv", \
+    "./data/final_pcas/02_smartpca/tracy_table.tsv", \
     sep="\t", \
     header=0, \
     low_memory=False)
 print(tracy_table)
 
-#print significant axes
+print_text("print significant axes", header=4)
 tracy_signi_axes = tracy_table.loc[tracy_table["p-value"] < 0.05,:]
 print(tracy_signi_axes)
-print(f"We have {tracy_signi_axes.shape[0]} significant axes")
+print(f"""
+Results:
+We have {tracy_signi_axes.shape[0]} significant axes, meaining that they explain more genetic variance than expected by chance.
+""")
 
-#Results
-#6 PCA axes are significant (P<0.05), meaining that they explain more genetic variance than expected by chance. Plink PCA gaves 9 relevant axes before outlier removal.
-
-print("plot smartpca eigenvectors")
-#process the eigenvector file to ensure is tab delimited
+print_text("plot smartpca eigenvectors", header=3)
+print_text("process the eigenvector file to ensure is tab delimited", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
+    cd ./data/final_pcas/02_smartpca; \
     awk \
         'BEGIN{ \
             OFS=\"\t\" \
@@ -751,7 +717,7 @@ run_bash(" \
                 print " + ",".join(f"${i}" for i in range(1,n_axes+2)) + " \
             } \
         }'\
-        ./loop_maf_missing_2_ldprunned_autosome_pca.eigs > ./loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs \
+        ./merged_3_geno_only_typed_ld_prunning.eigs > ./merged_3_geno_only_typed_ld_prunning_tab.eigs \
 ")
     #force the OFS to be tabs
     #select all except the first 1, i.e., NR>1. The first one has eigenvalues of rach PCA axis. For each row
@@ -762,7 +728,7 @@ run_bash(" \
 
 #load the table
 smartpca_eigenvectors = pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
+    "./data/final_pcas/02_smartpca/merged_3_geno_only_typed_ld_prunning_tab.eigs", \
     sep="\t", \
     header=None, \
     low_memory=False)
@@ -775,43 +741,40 @@ if(smartpca_eigenvectors.shape[1]-1!=n_axes):
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.pairplot(smartpca_eigenvectors.iloc[:,1:6])
-plt.savefig("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/eigen_vectors_pairwise.png", dpi=300)
+plt.savefig("./data/final_pcas/02_smartpca/eigen_vectors_pairwise.png", dpi=300)
 plt.close()
-    #PC1 is clearly the axis absorbing genetic structure. There are at least 2 clear groups, and maybe 3. This can be seen when plotting PC1 vs the other axes. In contrast, when plotting the other axes against each other, there are clouds with a lot of contiunity. This support the idea that PC1 is very relevant (see explained variance below).
-    #We are going to use the groups based on PC1 and check with admixture whether is better to assume 1, 2 or 3 ancestry groups in our data.
-        #According to the plink tutorial: "If there are obvious clusters in the first few plots, I recommend jumping ahead to Chapter 4 (on ADMIXTURE) and using it to label major subpopulations before proceeding."
 
-print("plot the explained variance using eigenvalues")
-#load the eigenvalues
+print_text("plot the explained variance using eigenvalues", header=3)
+print_text("load the eigenvalues", header=4)
 smartpca_eigenvalues = pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.eval", \
+    "./data/final_pcas/02_smartpca/merged_3_geno_only_typed_ld_prunning.eval", \
     sep="\t", \
     header=None, \
     low_memory=False)
 print(smartpca_eigenvalues)
     #I have checked these eigenvalues are the same than in the first row of the eigenvector table, which is named as "#eigvals"
 
-#check eigenvalues are in decreasing order
+print_text("check eigenvalues are in decreasing order", header=4)
 is_decreasing = smartpca_eigenvalues.sort_values(by=0, ascending=False).equals(smartpca_eigenvalues)
 if(is_decreasing == False):
     raise ValueError("ERROR! FALSE! The eigen values are not in decreasing order")
 
-#The proportion of total variance explained by each PC is a useful metric for understanding structure in a sample and for evaluating how many PCs one might want to include in downstream analyses (see Fig. 9). This can be computed as λi∕∑kλk, with λi being eigenvalues in decreasing order
+print_text("The proportion of total variance explained by each PC is a useful metric for understanding structure in a sample and for evaluating how many PCs one might want to include in downstream analyses (see Fig. 9). This can be computed as λi∕∑kλk, with λi being eigenvalues in decreasing order", header=4)
 smartpca_eigenvalues[1] = smartpca_eigenvalues[0]/smartpca_eigenvalues[0].sum()
 #smartpca_eigenvalues[2] = smartpca_eigenvalues.iloc[:, 1].cumsum(axis=0)
 #check
 if(smartpca_eigenvalues[1].sum() != 1.0):
     raise ValueError("ERROR! FALSE! We have not correctly calculated the proportion of explained variance")
 
-#change column names
+print_text("change column names", header=4)
 smartpca_eigenvalues = smartpca_eigenvalues.rename(columns={0:"eigenvalue", 1:"prop_variance"})
 print(smartpca_eigenvalues)
     
-#select the eigenvalues of the first 20 axes
-smartpca_eigenvalues_20 = smartpca_eigenvalues.iloc[0:20, :]
+print_text("select the eigenvalues of the relevant axes", header=4)
+smartpca_eigenvalues_20 = smartpca_eigenvalues.iloc[0:n_axes, :]
 print(smartpca_eigenvalues_20)
 
-#add a new column with the index (row numbers) and plot index vs the first and only column (eigenvalues)
+print_text("add a new column with the index (row numbers) and plot index vs the first and only column (eigenvalues)", header=4)
 import matplotlib.pyplot as plt
 smartpca_eigenvalues_20.reset_index().plot( \
     x='index', \
@@ -830,25 +793,26 @@ plt.ylabel('Proportion of variance explained')
 plt.xticks( \
     ticks=smartpca_eigenvalues_20.index, \
     labels=range(1, smartpca_eigenvalues_20.shape[0]+1), \
-    fontsize=8)
+    fontsize=8 \
+)
     #the positions are just the index of the eigenvalues
     #the labels are 1 to 20, but add 1 at the end because the last element of the range is not included
 
 #save and close
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/explained_var.png", \
+    fname="./data/final_pcas/02_smartpca/explained_var.png", \
     dpi=300) #dpi=300 for better resolution
 plt.close()
     
 #Results
-    #PC1 explains 1.4% of variability, while PC2 explains 0.135%. From there, next PCAs until the number 20 explains around 0.10%. Therefore, the main reduction of explained variability occurs from PC1 to PC2 (1.27%) and a from PC2 to PC3 (0.01%). From there, the reductions are much smaller. Therefore, the main axes seems to be PC1 and PC2.
+    #PC1 explains 1.4% of variability, while PC2 explains 0.17%. From there, next PCAs until the number 20 explains around 0.11%. Therefore, the main reduction of explained variability occurs from PC1 to PC2 and a from PC2 to PC3. From there, the reductions are much smaller. Therefore, the main axes seems to be PC1 and PC2.
     #Note that the total explained variance is much less compared to the results of plink where variance explained by the first axis was of 40%! but it is in line what the admixture tutorial got with smartpca, so maybe this is a question of this approach and/or the removal of outliers
     #we are not calculating cumultaive percentage of explained variance because we have a small proportion explained by each axis, and the rule of Ritche of 80% would require to include hundreds of axes...
 
-print("plot SNP weights")
-#process the file to ensure it is tab delimited
+print_text("plot SNP weights", header=3)
+print_text("process the file to ensure it is tab delimited", header=4)
 run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/; \
+    cd ./data/final_pcas/02_smartpca/; \
     awk \
         'BEGIN{ \
             OFS=\"\t\" \
@@ -857,14 +821,14 @@ run_bash(" \
                 print " + ",".join(f"${i}" for i in range(1,n_axes+4)) + " \
             } \
         }'\
-        ./loop_maf_missing_2_ldprunned_autosome_pca.snpeigs > ./loop_maf_missing_2_ldprunned_autosome_pca_tab.snpeigs \
+        ./merged_3_geno_only_typed_ld_prunning.snpeigs > ./merged_3_geno_only_typed_ld_prunning_tab.snpeigs \
 ")
     #we to sum 1 because the last number is not included in the range
     #also 3 more because we have a column with the IDs and another with the chromosome and the phyisical position (I checked with the bim file, identical all cases)
 
-#load the file
+print_text("load the file", header=4)
 smartpca_snp_weights = pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.snpeigs", \
+    "./data/final_pcas/02_smartpca/merged_3_geno_only_typed_ld_prunning_tab.snpeigs", \
     sep="\t", \
     header=None, \
     low_memory=False)
@@ -874,22 +838,23 @@ if(smartpca_snp_weights.shape[1] != n_axes+3):
     raise ValueError("ERROR! FALSE! We have a problem with the number of axes in the SNP weights")
     #besides axes, we have 3 columns (SNP id, chromosome and position)
 
-#sort the DF by chromosome and position
+print_text("sort the DF by chromosome and position", header=4)
 if(smartpca_snp_weights.sort_values(by=[1, 2]).equals(smartpca_snp_weights) != True):
     raise ValueError("ERROR! FALSE! Table with snp weights is not sorted by position and chromsome")
 
-#change column names
+print_text("change column names", header=4)
 smartpca_snp_weights.columns = ["rs_number", "chr", "pos"] + [f"pca_{i}" for i in range(1,n_axes+1)]
     #the axes are named as pca_1, pca_2... until pca_n_axes
 print(smartpca_snp_weights)
 
-#melt the DataFrame to have one row for each combination of chromosome and PCA axis
+print_text("melt the DataFrame to have one row for each combination of chromosome and PCA axis", header=4)
 smartpca_snp_weights_melted = pd.melt( \
     smartpca_snp_weights, \
     id_vars=["rs_number", "chr", "pos"], \
     value_vars=[f"pca_{i}" for i in range(1,n_axes+1)], \
     var_name="pca_axis", \
-    value_name="snp_weight")
+    value_name="snp_weight" \
+)
     #This function is useful to massage a DataFrame into a format where one or more columns are identifier variables (`id_vars`), while all other columns, considered measured variables (`value_vars`), are "unpivoted" to the row axis, leaving just two non-identifier columns, 'variable' and 'value'. In other words, pd.melt transforms the DataFrame from wide format to long format, with one row for each combination of chromosome, rs_numbre, position, and PCA axis. 
         #The id_vars parameter specifies the columns to use as identifier variables. 
             #The specific combination of chromosome, SNP and position
@@ -898,16 +863,16 @@ smartpca_snp_weights_melted = pd.melt( \
         #The var_name and value_name parameters specify the names of the new columns.
 print(smartpca_snp_weights_melted)
 
-#check we have all the rows
+print_text("check we have all the rows", header=4)
 if(smartpca_snp_weights[["rs_number", "chr", "pos"]].shape[0]*n_axes!=smartpca_snp_weights_melted.shape[0]):
     raise ValueError("ERROR! FALSE! Problem when melting the DF with SNP weights, we do not have the expected number of rows")
-    #94854 SNPs times 20 PCA axes makes 1897080 rows, which is the number of rows of smartpca_snp_weights_melted
+    #52989 SNPs times 20 PCA axes makes 1059780 rows, which is the number of rows of smartpca_snp_weights_melted
 
-#get unique PCA axes and chromosomes
+print_text("get unique PCA axes and chromosomes", header=4)
 pca_axes = smartpca_snp_weights_melted['pca_axis'].unique()
 chromosomes = smartpca_snp_weights_melted['chr'].unique()
 
-#create subplots
+print_text("create subplots", header=4)
 #define dimensions
 import matplotlib.pyplot as plt
 fig, axes = plt.subplots( \
@@ -916,7 +881,7 @@ fig, axes = plt.subplots( \
     figsize=(4*len(chromosomes), 4*len(pca_axes)))
     #define the number of rows/columns of the subplot grid.
 
-#make the plots
+print_text("make the plots", header=4)
 #for each PCA axis (i starts at 0)
 #pca_axis="pca_1"; chromosome=1; i=0; j=0
 for i, pca_axis in enumerate(pca_axes):
@@ -941,73 +906,38 @@ plt.tight_layout()
 
 #save and close
 plt.savefig( \
-    fname="./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/snps_weights_across_axes_chromosomes.png", \
+    fname="./data/final_pcas/02_smartpca/snps_weights_across_axes_chromosomes.png", \
     dpi=300) #dpi=300 for better resolution
 plt.close()
 
 #results
     #it is useful to inspect the PC loadings to ensure that they broadly represent variation across the genome, rather than one or a small number of genomic regions. SNPs that are selected in the same direction as genome-wide structure can show high loadings, but what is particularly pathological is if the only SNPs that show high loadings are all concentrated in a single region of the genome, as might occur if the PCA is explaining local genomic structure (such as an inversion) rather than population structure.
-    #Everything clean except PC5 for chromosome 8, there is a clear peak.
-
-print("Remove outliers")
-pca_outliers = pd.read_csv(\
-    "./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca.outliers", \
-    sep=" ", \
-    header=None, \
-    low_memory=False)
-print(pca_outliers)
-print(f"We have removed {pca_outliers.shape[0]} samples because they were PCA outliers")
-
-#Results
-#171 samples have been removed because they are very away from the mean of the PCA axes, specifically, more than 6 standard deviations.
-#It is true that the plink tutorial says that outliers away more than 8 SDs, are "likely caused due to genotyping errors and it is recommended to remove them". However, the "predict-HIIT" study used 6 SD to remove PCA ancestry outliers. In addition, the default of smartpca is 6, not 8. Also, The predict-hiit study only conisdered the first 2 axes and losed 10 samples because of this, but smartpca considers 10 as default. Finally, most important is the fact that the removing all these outliers (6SDs and considering 10 axes) makes the data much more clear, with no genetic structure whatsoever.
-
-#save the IDs in a file
-pca_outliers[2].str.split(":", expand=True).to_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/smartpca_outliers.txt",
-    sep="\t",
-    header=False,
-    index=False)
-    #first split the ID column into to two columns (expand=True) so we separate family and sample ID, which is the format expected by --remove of plink
-
-#remove these outliers from the plink files of the LD subset
-run_bash(" \
-    cd ./data/genetic_data/quality_control/14_pop_strat/01_pca; \
-    plink \
-        --bfile ./loop_maf_missing_2_ldprunned_autosome_pca \
-        --remove ./eigen_out/smartpca_outliers.txt \
-        --make-bed \
-        --out ./loop_maf_missing_2_ldprunned_autosome_pca_not_outliers"
-)
-    #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
-
-#check if the difference in samples between the original and new fam files is the number of outliers
-if( \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca.fam", sep=" ", header=None, low_memory=False).shape[0] - \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/01_pca/loop_maf_missing_2_ldprunned_autosome_pca_not_outliers.fam", sep=" ", header=None, low_memory=False).shape[0] != \
-    pca_outliers.shape[0]):
-        raise ValueError("ERROR: FALSE! WE HAVE NOT CORRECLTY REMOVED PCA OUTLIERS ")
-
-#remove now from the general dataset
-run_bash(" \
-    cd ./data/genetic_data/quality_control/; \
-    mkdir ./14_pop_strat/03_ancestry_cleaned_plink;\
-    plink \
-        --bfile ./12_loop_maf_missing/loop_maf_missing_2 \
-        --remove ./14_pop_strat/01_pca/eigen_out/smartpca_outliers.txt \
-        --make-bed \
-        --out ./14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers"
-)
-#check
-if( \
-    pd.read_csv("./data/genetic_data/quality_control/12_loop_maf_missing/loop_maf_missing_2.fam", sep=" ", header=None, low_memory=False).shape[0] - \
-    pd.read_csv("./data/genetic_data/quality_control/14_pop_strat/03_ancestry_cleaned_plink/loop_maf_missing_2_pca_not_outliers.fam", sep=" ", header=None, low_memory=False).shape[0] != \
-    pca_outliers.shape[0]):
-        raise ValueError("ERROR: FALSE! WE HAVE NOT CORRECLTY REMOVED PCA OUTLIERS ")
-
-
-
-
-
-
+    #Everything clean
 
 # endregion
+
+
+
+
+
+
+############################
+# region FINAL CONCLUSIONS #
+############################
+print_text("FINAL CONCLUSIONS", header=1)
+"""
+I have compared the results of the PCA with the ones from the QC and they are very similar. There are some differences regarding the number of significant axes, but if you check the the PCA plots, you can see the same patterns showing again there are no clear subgroups.
+
+Because of this, we are not going to run Admixture again, we will just take these new PCAs for the PRS.
+"""
+
+
+
+
+
+
+print_text("FINISH", header=1)
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
+#chmod +x ./scripts/production_scripts/03aa_final_pca_calc.py
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03aa_final_pca_calc.py > ./03aa_final_pca_calc.out 2>&1
