@@ -16,6 +16,12 @@
 ######## CALCULATE FINAL PCAS ########
 ######################################
 
+
+#######################
+# region INITIAL INFO #
+#######################
+
+
 #we are going to re-calculate PCAs
     #TLDR: 
         #we are going to do it with the final dataset after QC just before imputation as recommended by Dr. Speed. we have also going to include MORE thinning to avoid very high loadings in one specific region of chromosome 8 for PCA 5, 4 and 3.
@@ -40,6 +46,11 @@
             #I think it should not matter - normally, I compute PCs using only high quality (eg directly genotyped ) snps, rather than also include imputed
             #But I think general advice is to use only the final list of samples (and not the original list of samples). A simple case is if you had a few ethnic outliers, that were excluded during qc, then these would dominate PCs computed using all samples, so it would probably be best to use only the samples after qc
         #Ok, so I can calculate the PCAs using the data generated at the end of QC (when all sample and SNP filters have been applied) but before the imputation. Thank you so much for your insights!
+
+# endregion
+
+
+
 
 
 
@@ -233,6 +244,7 @@ def genotyped_snps_prep(chromosome):
             #Also, in general, it is a good idea to remove rs IDs: "the rs ID system of naming variants is problematic because it's not curated sufficiently. A single rs ID can relate to multiple variants at the same position. Also, a single rs ID can relate to variants at more than 1 position in the genome. The fundamental issue being that rs IDs are not unique at all... It's too risky working with rs IDs on clinical data, where mix-ups / mess-ups just aren't allowed..."
                 #https://www.biostars.org/p/281276/#281670
             #--set-id: assign ID on the fly. By default all existing IDs are replaced. If the format string is preceded by "+", only missing IDs will be set. For example, one can use: bcftools annotate --set-id +'%CHROM\_%POS\_%REF\_%FIRST_ALT' file.vcf
+            #Note that %FIRST_ALT gets the first alternate allele at the variant position, but we have already remove multiallelic SNPs, so this is not a problem, all SNPs left have only 1 ALT allele.
         #query the output to get the ID (based on chromosome, position and alleles), TYPED and R2 columns
             #note that we assesed and solved strand problems and ensure we had the same SNPs than in the imputation panel and even switch REF-ALT based on the imputation preparion tool, so the REF/ALT alleles should be ok.
         #then ensure that the columns are tab delimitted and save
@@ -264,7 +276,8 @@ print_text("set chromosomes", header=3)
 chromosomes = [str(i) for i in range(1, 23, 1)]
 if (len(chromosomes) != 22):
     raise ValueError("ERROR! FALSE! NOT ALL CHROMSOMES ARE RUNNING")
-print(chromosomes)
+else:
+    print(chromosomes)
 
 print_text("parallelize", header=3)
 import multiprocessing as mp
@@ -474,7 +487,7 @@ print_text("We are not removing SNPs by high-LD regions", header=3)
 print("""
 The high-LD regions indicated by Dr.Speed are in hg19 coordinates, while we are working with hg38. I tried liftovering the regions, but I was not able to do it and got extrange results like getting hg38 coordinates in the X chromosome when we do not have sex chromosomes.
 
-Given that just incresing the prunning to 600kb and 0.1 made the peak completely dissapear. Importantly, if you compare the PCA plots between this subset and the PCA during QC, you can see they are really similar, it seems we are still detecting the same variability. So I think we are good.
+Given that just incresing the prunning to 600kb and 0.1 made the SNP weigths peak completely dissapear. Importantly, if you compare the PCA plots between this subset and the PCA during QC, you can see they are really similar, it seems we are still detecting the same variability. So I think we are good.
       
 This is what we have anyways. If we want to have SNPs with very low-LD, no peaks in the PCA loadings and, in general, the clean dataset, this is what is left after QC.
 """)
@@ -931,6 +944,7 @@ I have compared the results of the PCA with the ones from the QC and they are ve
 Because of this, we are not going to run Admixture again, we will just take these new PCAs for the PRS.
 """
 
+# endregion
 
 
 
