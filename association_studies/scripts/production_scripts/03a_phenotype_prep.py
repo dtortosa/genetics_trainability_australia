@@ -152,9 +152,12 @@ run_bash("ls")
 # folder preparation #
 ######################
 run_bash(" \
-    mkdir -p ./data/pheno_data; \
-    mkdir -p ./data/plink_filesets; \
-    mkdir -p ./results/final_results/distribution_hist; \
+    mkdir \
+        -p \
+        ./data/pheno_data/small_set_predictors \
+        ./data/pheno_data/large_set_predictors \
+        ./data/plink_filesets/small_set_predictors \
+        ./data/plink_filesets/large_set_predictors; \
     ls -l")
 
 # endregion
@@ -336,14 +339,41 @@ if ( \
 print_text("bind PCA axes", header=2)
 print_text("load axes", header=3)
 smartpca_eigenvectors = pd.read_csv(\
-    "../quality_control/data/genetic_data/quality_control/14_pop_strat/01_pca/eigen_out/loop_maf_missing_2_ldprunned_autosome_pca_tab.eigs", \
+    "./data/final_pcas/02_smartpca/merged_3_geno_only_typed_ld_prunning_tab.eigs", \
     sep="\t", \
     header=None, \
     low_memory=False)
 print(smartpca_eigenvectors)
-#check we have the correct number of columns
-if(smartpca_eigenvectors.shape[1]-1!=20):
-    raise ValueError("ERROR! FALSE! We are not considering all the interesting axes in smartpca")
+#check we have the correct number of columns (PCA axes) and rows (samples)
+if( \
+    (smartpca_eigenvectors.shape[1]-1!=20) | \
+    (smartpca_eigenvectors.shape[0]!=merged_data_raw_2.shape[0]) \
+):
+    raise ValueError("ERROR! FALSE! We are not considering all the interesting axes and samples in smartpca")
+
+print_text("change the column names of the PCAs", header=3)
+print_text("empty dict", header=4)
+dict_pca_names = {}
+
+print_text("loop across columns and save in a dict", header=4)
+#column=smartpca_eigenvectors.columns[0]
+#column=smartpca_eigenvectors.columns[1]
+for column in smartpca_eigenvectors.columns:
+
+    #if the first column, then it is the ID
+    if column == 0:
+        dict_pca_names[column] = "ID"
+    #else it is a PCA axis
+    else:
+        dict_pca_names[column] = f"PCA{column}"
+
+print_text("rename", header=4)
+smartpca_eigenvectors = smartpca_eigenvectors.rename(dict_pca_names, axis=1, inplace=False)
+pca_names = ["PCA"+str(i) for i in range(1, 21)]
+if (smartpca_eigenvectors.columns.to_list()!=["ID"]+pca_names):
+    raise ValueError("ERROR! FALSE! We have a problem with the PCA names")
+else:
+    print(smartpca_eigenvectors)
 
 print_text("split IDs", header=3)
 smartpca_eigenvectors[["family_id", "AGRF code"]] = smartpca_eigenvectors.iloc[:,0].str.split(":", expand=True)
@@ -351,43 +381,31 @@ smartpca_eigenvectors[["family_id", "AGRF code"]] = smartpca_eigenvectors.iloc[:
     #df[['new_col1', 'new_col2']] assigns the split columns to new columns named new_col1 and new_col2.
 print(smartpca_eigenvectors)
 #check
-if(not smartpca_eigenvectors[0].equals(smartpca_eigenvectors["family_id"] + ":" + smartpca_eigenvectors["AGRF code"])):
+if(not smartpca_eigenvectors["ID"].equals(smartpca_eigenvectors["family_id"] + ":" + smartpca_eigenvectors["AGRF code"])):
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM SPLITTING THE IDS IN THE PCA FILE")
 
-print_text("change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the problem remains in the PCA data", header=3)
+print_text("change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data and given we are using the latest and cleanest plink filesets for the PCA, this should be already solved there also", header=3)
 if(
-    (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2397LDJA", :].shape[0]!=1) |
-    (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2399LDJA", :].shape[0]!=0)
+    (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2397LDJA", :].shape[0]!=0) |
+    (smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2399LDJA", :].shape[0]!=1)
 ):
-    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
-else:
-    smartpca_eigenvectors.loc[smartpca_eigenvectors["AGRF code"] == "2397LDJA", "AGRF code"] = "2399LDJA"
+    raise ValueError("ERROR: FALSE! WE STILL HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
 
-print_text("select the PCAs we are interested in", header=3)
-#We are going to use only the 2 first PCAs:
-    #There is a clear reduction of explained variability from 1 to and from 2 to 3, but from 3 there are small differences in explained variability. 
-    #Admixture considers that we only have ONE continental ancestry in our dataset. Moreover, the PCA plots show that if there is an axis that is spreading a bit the samples is the first one, the rest show very cloudy patterns, almost perfect.
-    #Yes, according to smartpca, we have 6 significant PCAs, but if we used that criteria we would include PCA5 which show a little bit of pattern, the loadings tend to increase a lot in one positon of chromosome 5 for this PCA. We may see a bit of that pattern in the same region for PCA 4 and 3, so I would not include any of these PCAs and just focus on the two most important.
-    #We are going to stick to 1 and 2.
-smartpca_eigenvectors_subset = smartpca_eigenvectors[["family_id", "AGRF code", 1, 2]]
-print(smartpca_eigenvectors_subset)
-    #I have plotted PCA1 against PC2 and I get the same plot we saw in "eigen_vectors_pairwise.png" for PC1 agaist PC2. So, as expected, the first two columns correspond with the two first axes.
-#change the column names of the PCAs
-smartpca_eigenvectors_subset = smartpca_eigenvectors_subset.rename({1: "PCA1", 2: "PCA2"}, inplace=False, axis=1)
-print(smartpca_eigenvectors_subset)
+
+
 
 
 print_text("merge the PCA with the rest of phenotypes", header=2)
 print_text("do the merge", header=3)
-merged_data=smartpca_eigenvectors_subset.merge( \
+merged_data=smartpca_eigenvectors.merge( \
     merged_data_raw_2, \
     on=["family_id", "AGRF code"], \
     how="right" \
 )
     #how="right":
         #use only keys from right frame, similar to a SQL right outer join
-        #we use right, i.e., fam file (genetic data), for the keys because we only want to retain those samples that remained after the filters done in plink. We want to take advantage of the filtering work already done.
-        #Remember that we removed additional samples after the PCA, mainly because of sex inconsistences...
+        #we use right, i.e., fam file (genetic data), for the keys because we only want to retain those samples that remained after the filters done in plink.
+        #this is not longer relevant because we have done a new PCA with the final plink files, so we have the same set of samples in both cases
 #check
 if(merged_data.shape[0]!=1203):
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE MERGE")
@@ -410,25 +428,33 @@ print( \
     sum(merged_data["weight_change"].isna()) == \
     sum( \
         (merged_data["Week 1 Body Mass"].isna()) | \
-        (merged_data["Week 8 Body Mass"].isna())))
+        (merged_data["Week 8 Body Mass"].isna()) \
+    ) \
+)
 print("beep change")
 print( \
     sum(merged_data["beep_change"].isna()) == \
     sum( \
         (merged_data["Week 1 Beep test"].isna()) | \
-        (merged_data["Week 8 beep test"].isna())))
+        (merged_data["Week 8 beep test"].isna()) \
+    ) \
+)
 print("distance change")
 print( \
     sum(merged_data["distance_change"].isna()) == \
     sum( \
         (merged_data["Week 1 Distance (m)"].isna()) | \
-        (merged_data["Week 8 Distance (m)"].isna())))
+        (merged_data["Week 8 Distance (m)"].isna()) \
+    ) \
+)
 print("VO2 max change")
 print( \
     sum(merged_data["vo2_change"].isna()) == \
     sum( \
         (merged_data["Week 1 Pred VO2max"].isna()) | \
-        (merged_data["Week 8 Pred VO2max"].isna())))
+        (merged_data["Week 8 Pred VO2max"].isna()) \
+    ) \
+)
     #the total number of NAN for the change variables should be the same than the sum of cases that are NAN for week 1 or week 2 of the corresponding variable.
 
 print_text("Check we only have NA", header=3)
@@ -472,7 +498,7 @@ print_text("We do NOT have to check for zero! cases", header=4)
 zero_cases_after = merged_data.apply(lambda x: x==0, axis=0).sum()
 #check that the columns with zero are all the ones previously explained. Also father and mother IDs are all zero.
 if( \
-    bool(zero_cases_after[zero_cases_after>0].index.isin(["PCA1", "PCA2", "ID_father", "ID_mother", "weight_change", "beep_change", "distance_change", "vo2_change"]).all()) & \
+    bool(zero_cases_after[zero_cases_after>0].index.isin(pca_names+["ID_father", "ID_mother", "weight_change", "beep_change", "distance_change", "vo2_change"]).all()) & \
     bool(zero_cases_after["ID_father"]==merged_data.shape[0]) & \
     bool(zero_cases_after["ID_mother"]==merged_data.shape[0]) \
 ):
@@ -512,11 +538,11 @@ print_text("check we have the correct number of missing based on the raw merged 
 print(count_missing["self_reported_sex"] == sum(merged_data_raw_2["Gender"].isna()))
 print(count_missing["Age"] == sum(merged_data_raw_2["Age"].isna()))
 #selected_phenotype="Week 8 Distance (m)"
-#selected_phenotype="PCA1"
-for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max", "PCA1", "PCA2"]:
+#selected_phenotype="PCA3"
+for selected_phenotype in ["Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]+pca_names:
     print(selected_phenotype)
-    if (selected_phenotype=="PCA1") | (selected_phenotype=="PCA2"):
-        print(count_missing[selected_phenotype] == smartpca_eigenvectors_subset[selected_phenotype].isna().sum())
+    if (selected_phenotype in pca_names):
+        print(count_missing[selected_phenotype] == smartpca_eigenvectors[selected_phenotype].isna().sum())
     else:
         print(count_missing[selected_phenotype] == merged_data_raw_2[selected_phenotype].isna().sum())
 
@@ -533,7 +559,8 @@ print( \
     nan_zeros_1 \
         [["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]] == \
     (count_missing \
-        [["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]))
+        [["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]) \
+)
     #nan_zeros_1 was obtained at the begining after merging using two conditions, isna() and ==0
     #Gender is not included because we have change it its name, so ti does not work
 
@@ -545,7 +572,8 @@ print(merged_data.describe().T)
 
 print_text("see summary statistics of pheno columns", header=4)
 #selected_phenotype="Week 8 Distance (m)"
-for selected_phenotype in ["PCA1", "PCA2", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max", "weight_change", "beep_change", "distance_change", "vo2_change"]:
+#selected_phenotype="PCA3"
+for selected_phenotype in pca_names + ["Age", "Week 1 Body Mass", "Week 8 Body Mass", "Week 1 Beep test", "Week 8 beep test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max", "weight_change", "beep_change", "distance_change", "vo2_change"]:
     print("\n" + selected_phenotype)
     non_missing_subset = merged_data.loc[~merged_data[selected_phenotype].isna(), selected_phenotype]
         #select values of the selected phenotype that are NOT missing
@@ -564,7 +592,8 @@ merged_data.to_csv("./data/pheno_data/pheno_data_cleaned.tsv",
     sep="\t",
     header=True,
     index=False, 
-    na_rep="NA")
+    na_rep="NA"
+)
     #na_rep="NA"
         #This parameter specifies the string representation of NaN values in the output file. "NA" means that any NaN values in the DataFrame will be written as "NA" in the CSV file.
         #This is required for LDAK:
@@ -586,6 +615,31 @@ run_bash(" \
 
 
 
+
+####SPLIT HERE BETWEEN LARGE AND SMALL SUBSET
+#previous pheno data would be for large
+
+print_text("select the PCAs we are interested in", header=3)
+#We are going to use only the 4 first PCAs:
+    #There is a clear reduction of explained variability from 1 to and from 2 to 3, but from 3 there are small differences in explained variability. 
+    #Admixture considers that we only have ONE continental ancestry in our dataset. Moreover, the PCA plots show that if there is an axis that is spreading a bit the samples is the first one, the rest show very cloudy patterns, almost perfect.
+    #According to smartpca, we have 4 significant PCAs
+    #Therefore, 1 and 2 for sure, then 3 and 4 because they are also significant according to smartpca and it is a sound and clear criterion.
+smartpca_eigenvectors_subset = smartpca_eigenvectors[["family_id", "AGRF code", 1, 2, 3, 4]]
+print(smartpca_eigenvectors_subset)
+#plot them
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.pairplot(smartpca_eigenvectors_subset.iloc[:,2:6])
+plt.savefig("./data/pheno_data/eigen_vectors_pairwise.png", dpi=300)
+plt.close()
+    #we get the same plot we saw in "eigen_vectors_pairwise.png" for the first 4 axes.
+
+
+#MAYBE WE DO NOT HAVE TO DO THIS, BECAUSE WE ARE GOING TO TEST SIGNIFNACE OF ASSOCIATION! SO WE COULD TEST FOR ALL THE PCAS
+
+
+
 #####################################################
 # region create a subset of data for each phenotype #
 #####################################################
@@ -601,16 +655,24 @@ print_text("create a subset of the data with the relevant covariates for each ph
     #In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'
         #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
 
+
+
 print_text("create a dict with correct, simplified names for the covariates", header=3)
-dict_names_covs = {
-    "PCA1": "PCA1", \
-    "PCA2": "PCA2", \
-    "Age": "age", \
-    "sex_code": "sex_code", \
-    "Week 1 Body Mass": "week_1_weight", \
-    "Week 1 Beep test": "week_1_beep", \
-    "Week 1 Distance (m)": "week_1_distance", \
-    "Week 1 Pred VO2max": "week_1_vo2"}
+dict_names_covs = {}
+#predictor="Age"
+for predictor in pca_names+["Age", "sex_code", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Distance (m)", "Week 1 Pred VO2max"]:
+    if (predictor in pca_names+["sex_code"]):
+        dict_names_covs[predictor] = predictor
+    elif(predictor=="Age"):
+        dict_names_covs[predictor] = "age"
+    elif(predictor=="Week 1 Body Mass"):
+        dict_names_covs[predictor] = "week_1_weight"
+    elif(predictor=="Week 1 Beep test"):
+        dict_names_covs[predictor] = "week_1_beep"
+    elif(predictor=="Week 1 Distance (m)"):
+        dict_names_covs[predictor] = "week_1_distance"
+    elif(predictor=="Week 1 Pred VO2max"):
+        dict_names_covs[predictor] = "week_1_vo2"
 print(dict_names_covs)
 
 print_text("plot distribution of each phenotype to visually normality", header=4)
@@ -813,7 +875,7 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
     
     #test the association with each covariate
     #covar="PCA1"
-    for covar in ["PCA1", "PCA2", "Age", "sex_code", "Week 1 Body Mass"]:
+    for covar in pca_names + ["Age", "sex_code", "Week 1 Body Mass"]:
         print("\n" + covar)
         fun_assoc(change_pheno=change_pheno, covar=covar)
     

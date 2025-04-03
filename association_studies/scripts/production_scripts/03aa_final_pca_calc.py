@@ -938,11 +938,11 @@ plt.close()
 # region FINAL CONCLUSIONS #
 ############################
 print_text("FINAL CONCLUSIONS", header=1)
-"""
+print("""
 I have compared the results of the PCA with the ones from the QC and they are very similar. There are some differences regarding the number of significant axes, but if you check the the PCA plots, you can see the same patterns showing again there are no clear subgroups.
 
 Because of this, we are not going to run Admixture again, we will just take these new PCAs for the PRS.
-"""
+""")
 
 # endregion
 
