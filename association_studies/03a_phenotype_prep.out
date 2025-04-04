@@ -24,18 +24,24 @@ check behaviour run_bash
 ###### list files/folders there ######
 03a_association_analyses.sif
 03a_phenotype_prep.out
+03aa_final_pca_calc.out
 data
+ldak6.1.linux
 literature
 results
 scripts
+vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.log
 
-total 424732
--rwxr-xr-x 1 dftortosa dftortosa 434905088 Feb 12 12:48 03a_association_analyses.sif
--rw-rw-r-- 1 dftortosa dftortosa         0 Feb 14 07:16 03a_phenotype_prep.out
-drwxr-xr-x 5 dftortosa dftortosa      4096 Feb 13 08:19 data
+total 677860
+-rwxr-xr-x 1 dftortosa dftortosa 671535104 Apr  2 19:14 03a_association_analyses.sif
+-rw-rw-r-- 1 dftortosa dftortosa         0 Apr  4 20:45 03a_phenotype_prep.out
+-rw-rw-r-- 1 dftortosa dftortosa     19683 Apr  3 12:02 03aa_final_pca_calc.out
+drwxr-xr-x 5 dftortosa dftortosa      4096 Apr  4 20:45 data
+-rwxrwxr-x 1 dftortosa dftortosa  22546352 Jan 27 19:43 ldak6.1.linux
 drwxr-xr-x 3 dftortosa dftortosa      4096 Oct 31  2023 literature
 drwxr-xr-x 4 dftortosa dftortosa      4096 Jan 24 17:57 results
 drwxr-xr-x 4 dftortosa dftortosa      4096 Oct 31  2023 scripts
+-rw-rw-r-- 1 dftortosa dftortosa       642 Apr  4 16:51 vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.log
 
 
 #######################################
@@ -45,17 +51,11 @@ combine the excel file, FAM file and the PCAs
 #######################################
 
 ###### load the excel file ######
-total 372
--rw-rw-r-- 1 dftortosa dftortosa    181 Feb 14 07:16 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 08:20 beep_change_subset
--rw-rw-r-- 1 dftortosa dftortosa    201 Feb 14 07:00 dict_names_covs.pkl
--rw-rw-r-- 1 dftortosa dftortosa    192 Feb 14 07:00 dict_pvalue_covar.pkl
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 14 07:15 distance_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 07:57 distribution_hist
--rw-r--r-- 1 dftortosa dftortosa 154414 Feb 14 07:16 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 14 07:00 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 07:57 vo2_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 07:57 weight_change_subset
+total 164
+-rw-rw-r-- 1 dftortosa dftortosa    181 Apr  4 20:45 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Apr  4 20:45 large_set_predictors
+-rw-r--r-- 1 dftortosa dftortosa 154414 Apr  4 20:45 pheno_data.xlsx
+drwxrwxr-x 2 dftortosa dftortosa   4096 Apr  4 20:45 small_set_predictors
 
      Gender        Age  ...  Week 8 Pred VO2max  AGRF code
 0         M  25.000000  ...                47.7   8244TCOJ
@@ -277,67 +277,61 @@ This is the misslabeled sample, it has one ID in genetic and other different ID 
 
 ## load axes ##
                                  0       1       2   ...      18      19      20
-0     combat_ILGSA24-17303:0200ADMM  0.0040 -0.0114  ... -0.0074  0.0085 -0.0052
-1     combat_ILGSA24-17303:0200ASJM -0.0704 -0.0905  ... -0.0111 -0.0227  0.0105
-2     combat_ILGSA24-17303:0200BHNM  0.0181 -0.0021  ...  0.0259 -0.0016  0.0347
-3     combat_ILGSA24-17303:0200CBOM  0.0188  0.0180  ... -0.0042 -0.0221  0.0230
-4     combat_ILGSA24-17303:0200CDFM -0.0192  0.0154  ... -0.0293  0.0134 -0.0019
+0     combat_ILGSA24-17303:0200ADMM  0.0017  0.0186  ...  0.0406  0.0211  0.0209
+1     combat_ILGSA24-17303:0200ASJM  0.0792  0.0531  ... -0.0475 -0.0177  0.0044
+2     combat_ILGSA24-17303:0200BHNM -0.0238  0.0139  ...  0.0226  0.0357 -0.0054
+3     combat_ILGSA24-17303:0200CBOM -0.0173 -0.0008  ... -0.0248  0.0373  0.0693
+4     combat_ILGSA24-17303:0200CDFM  0.0162 -0.0307  ... -0.0414  0.0096 -0.0182
 ...                             ...     ...     ...  ...     ...     ...     ...
-1235  combat_ILGSA24-17873:9693JMNM  0.0047 -0.0226  ...  0.0191  0.0222  0.0011
-1236  combat_ILGSA24-17873:9696DWFM  0.0117  0.0112  ...  0.0108 -0.0180 -0.0549
-1237  combat_ILGSA24-17873:9697STJM  0.0218 -0.0033  ...  0.0227  0.0008 -0.0030
-1238  combat_ILGSA24-17873:9699DNOM -0.0612  0.0506  ... -0.0042 -0.0549 -0.0219
-1239  combat_ILGSA24-17873:9699ISMM  0.0043  0.0168  ... -0.0126  0.0074 -0.0130
+1198  combat_ILGSA24-17873:9693JMNM -0.0060  0.0373  ... -0.0498 -0.0076  0.0175
+1199  combat_ILGSA24-17873:9696DWFM -0.0107 -0.0055  ...  0.0167 -0.0049 -0.0371
+1200  combat_ILGSA24-17873:9697STJM -0.0129  0.0044  ... -0.0050 -0.0028 -0.0166
+1201  combat_ILGSA24-17873:9699DNOM  0.0442 -0.0465  ...  0.0240  0.0006 -0.0004
+1202  combat_ILGSA24-17873:9699ISMM -0.0058 -0.0174  ... -0.0046 -0.0082 -0.0296
 
-[1240 rows x 21 columns]
+[1203 rows x 21 columns]
+
+## plot PCAs ##
+
+## change the column names of the PCAs ##
+
+# empty dict #
+
+# loop across columns and save in a dict #
+
+# rename #
+                                 ID    PCA1    PCA2  ...   PCA18   PCA19   PCA20
+0     combat_ILGSA24-17303:0200ADMM  0.0017  0.0186  ...  0.0406  0.0211  0.0209
+1     combat_ILGSA24-17303:0200ASJM  0.0792  0.0531  ... -0.0475 -0.0177  0.0044
+2     combat_ILGSA24-17303:0200BHNM -0.0238  0.0139  ...  0.0226  0.0357 -0.0054
+3     combat_ILGSA24-17303:0200CBOM -0.0173 -0.0008  ... -0.0248  0.0373  0.0693
+4     combat_ILGSA24-17303:0200CDFM  0.0162 -0.0307  ... -0.0414  0.0096 -0.0182
+...                             ...     ...     ...  ...     ...     ...     ...
+1198  combat_ILGSA24-17873:9693JMNM -0.0060  0.0373  ... -0.0498 -0.0076  0.0175
+1199  combat_ILGSA24-17873:9696DWFM -0.0107 -0.0055  ...  0.0167 -0.0049 -0.0371
+1200  combat_ILGSA24-17873:9697STJM -0.0129  0.0044  ... -0.0050 -0.0028 -0.0166
+1201  combat_ILGSA24-17873:9699DNOM  0.0442 -0.0465  ...  0.0240  0.0006 -0.0004
+1202  combat_ILGSA24-17873:9699ISMM -0.0058 -0.0174  ... -0.0046 -0.0082 -0.0296
+
+[1203 rows x 21 columns]
 
 ## split IDs ##
-                                  0       1  ...             family_id  AGRF code
-0     combat_ILGSA24-17303:0200ADMM  0.0040  ...  combat_ILGSA24-17303   0200ADMM
-1     combat_ILGSA24-17303:0200ASJM -0.0704  ...  combat_ILGSA24-17303   0200ASJM
-2     combat_ILGSA24-17303:0200BHNM  0.0181  ...  combat_ILGSA24-17303   0200BHNM
-3     combat_ILGSA24-17303:0200CBOM  0.0188  ...  combat_ILGSA24-17303   0200CBOM
-4     combat_ILGSA24-17303:0200CDFM -0.0192  ...  combat_ILGSA24-17303   0200CDFM
+                                 ID    PCA1  ...             family_id  AGRF code
+0     combat_ILGSA24-17303:0200ADMM  0.0017  ...  combat_ILGSA24-17303   0200ADMM
+1     combat_ILGSA24-17303:0200ASJM  0.0792  ...  combat_ILGSA24-17303   0200ASJM
+2     combat_ILGSA24-17303:0200BHNM -0.0238  ...  combat_ILGSA24-17303   0200BHNM
+3     combat_ILGSA24-17303:0200CBOM -0.0173  ...  combat_ILGSA24-17303   0200CBOM
+4     combat_ILGSA24-17303:0200CDFM  0.0162  ...  combat_ILGSA24-17303   0200CDFM
 ...                             ...     ...  ...                   ...        ...
-1235  combat_ILGSA24-17873:9693JMNM  0.0047  ...  combat_ILGSA24-17873   9693JMNM
-1236  combat_ILGSA24-17873:9696DWFM  0.0117  ...  combat_ILGSA24-17873   9696DWFM
-1237  combat_ILGSA24-17873:9697STJM  0.0218  ...  combat_ILGSA24-17873   9697STJM
-1238  combat_ILGSA24-17873:9699DNOM -0.0612  ...  combat_ILGSA24-17873   9699DNOM
-1239  combat_ILGSA24-17873:9699ISMM  0.0043  ...  combat_ILGSA24-17873   9699ISMM
+1198  combat_ILGSA24-17873:9693JMNM -0.0060  ...  combat_ILGSA24-17873   9693JMNM
+1199  combat_ILGSA24-17873:9696DWFM -0.0107  ...  combat_ILGSA24-17873   9696DWFM
+1200  combat_ILGSA24-17873:9697STJM -0.0129  ...  combat_ILGSA24-17873   9697STJM
+1201  combat_ILGSA24-17873:9699DNOM  0.0442  ...  combat_ILGSA24-17873   9699DNOM
+1202  combat_ILGSA24-17873:9699ISMM -0.0058  ...  combat_ILGSA24-17873   9699ISMM
 
-[1240 rows x 23 columns]
+[1203 rows x 23 columns]
 
-## change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data but after the PCA, so the problem remains in the PCA data ##
-
-## select the PCAs we are interested in ##
-                 family_id AGRF code       1       2
-0     combat_ILGSA24-17303  0200ADMM  0.0040 -0.0114
-1     combat_ILGSA24-17303  0200ASJM -0.0704 -0.0905
-2     combat_ILGSA24-17303  0200BHNM  0.0181 -0.0021
-3     combat_ILGSA24-17303  0200CBOM  0.0188  0.0180
-4     combat_ILGSA24-17303  0200CDFM -0.0192  0.0154
-...                    ...       ...     ...     ...
-1235  combat_ILGSA24-17873  9693JMNM  0.0047 -0.0226
-1236  combat_ILGSA24-17873  9696DWFM  0.0117  0.0112
-1237  combat_ILGSA24-17873  9697STJM  0.0218 -0.0033
-1238  combat_ILGSA24-17873  9699DNOM -0.0612  0.0506
-1239  combat_ILGSA24-17873  9699ISMM  0.0043  0.0168
-
-[1240 rows x 4 columns]
-                 family_id AGRF code    PCA1    PCA2
-0     combat_ILGSA24-17303  0200ADMM  0.0040 -0.0114
-1     combat_ILGSA24-17303  0200ASJM -0.0704 -0.0905
-2     combat_ILGSA24-17303  0200BHNM  0.0181 -0.0021
-3     combat_ILGSA24-17303  0200CBOM  0.0188  0.0180
-4     combat_ILGSA24-17303  0200CDFM -0.0192  0.0154
-...                    ...       ...     ...     ...
-1235  combat_ILGSA24-17873  9693JMNM  0.0047 -0.0226
-1236  combat_ILGSA24-17873  9696DWFM  0.0117  0.0112
-1237  combat_ILGSA24-17873  9697STJM  0.0218 -0.0033
-1238  combat_ILGSA24-17873  9699DNOM -0.0612  0.0506
-1239  combat_ILGSA24-17873  9699ISMM  0.0043  0.0168
-
-[1240 rows x 4 columns]
+## change 2397LDJA by 2399LDJA. 2399LDJA is the correct ID showed in the pheno data, and we changed in the genetic data and given we are using the latest and cleanest plink filesets for the PCA, this should be already solved there also ##
 
 ###### merge the PCA with the rest of phenotypes ######
 
@@ -354,10 +348,29 @@ process the merged file
 ## make the operations ##
 
 ## check we have the correct NANs ##
-family_id                0
-AGRF code                0
+ID                       0
 PCA1                     0
 PCA2                     0
+PCA3                     0
+PCA4                     0
+PCA5                     0
+PCA6                     0
+PCA7                     0
+PCA8                     0
+PCA9                     0
+PCA10                    0
+PCA11                    0
+PCA12                    0
+PCA13                    0
+PCA14                    0
+PCA15                    0
+PCA16                    0
+PCA17                    0
+PCA18                    0
+PCA19                    0
+PCA20                    0
+family_id                0
+AGRF code                0
 Gender                   0
 Age                      0
 Week 1 Body Mass       185
@@ -390,10 +403,29 @@ True
 Remember that LDAK consider missing pheno as NA, not -9, so we do not need to change the missing value. We do not have problems with the negative values because now -9 is not going to be NA, so a person losing 9Kg is going to be considered a value, not missing
 
 # check if we have -9 cases aside from the 'change variables' #
-family_id                 0
-AGRF code                 0
+ID                        0
 PCA1                      0
 PCA2                      0
+PCA3                      0
+PCA4                      0
+PCA5                      0
+PCA6                      0
+PCA7                      0
+PCA8                      0
+PCA9                      0
+PCA10                     0
+PCA11                     0
+PCA12                     0
+PCA13                     0
+PCA14                     0
+PCA15                     0
+PCA16                     0
+PCA17                     0
+PCA18                     0
+PCA19                     0
+PCA20                     0
+family_id                 0
+AGRF code                 0
 Gender                    0
 Age                       0
 Week 1 Body Mass          0
@@ -413,20 +445,20 @@ beep_change               0
 distance_change           0
 vo2_change                0
 dtype: int64
-                 family_id AGRF code  ...  distance_change  vo2_change
-0     combat_ILGSA24-17303  0200ADMM  ...            200.0         1.9
-1     combat_ILGSA24-17303  0200ASJM  ...           -480.0        -4.7
-2     combat_ILGSA24-17303  0200BHNM  ...             20.0         0.3
-3     combat_ILGSA24-17303  0200CBOM  ...             40.0         0.7
-4     combat_ILGSA24-17303  0200CDFM  ...             20.0         0.3
-...                    ...       ...  ...              ...         ...
-1198  combat_ILGSA24-17873  9693JMNM  ...            -40.0        -0.6
-1199  combat_ILGSA24-17873  9696DWFM  ...            480.0         7.5
-1200  combat_ILGSA24-17873  9697STJM  ...            180.0         2.8
-1201  combat_ILGSA24-17873  9699DNOM  ...            540.0         8.5
-1202  combat_ILGSA24-17873  9699ISMM  ...            260.0         2.9
+                                 ID    PCA1  ...  distance_change  vo2_change
+0     combat_ILGSA24-17303:0200ADMM  0.0017  ...            200.0         1.9
+1     combat_ILGSA24-17303:0200ASJM  0.0792  ...           -480.0        -4.7
+2     combat_ILGSA24-17303:0200BHNM -0.0238  ...             20.0         0.3
+3     combat_ILGSA24-17303:0200CBOM -0.0173  ...             40.0         0.7
+4     combat_ILGSA24-17303:0200CDFM  0.0162  ...             20.0         0.3
+...                             ...     ...  ...              ...         ...
+1198  combat_ILGSA24-17873:9693JMNM -0.0060  ...            -40.0        -0.6
+1199  combat_ILGSA24-17873:9696DWFM -0.0107  ...            480.0         7.5
+1200  combat_ILGSA24-17873:9697STJM -0.0129  ...            180.0         2.8
+1201  combat_ILGSA24-17873:9699DNOM  0.0442  ...            540.0         8.5
+1202  combat_ILGSA24-17873:9699ISMM -0.0058  ...            260.0         2.9
 
-[1203 rows x 21 columns]
+[1203 rows x 40 columns]
 GOOD TO GO: we only have -9 cases in the 'change variables'
 
 # We do NOT have to check for zero! cases #
@@ -450,10 +482,29 @@ GOOD TO GO: we have the two expected Sex columns. Now update the names of gender
 ###### final exploration of the data ######
 
 ## count missing per column ##
-family_id                0
-AGRF code                0
+ID                       0
 PCA1                     0
 PCA2                     0
+PCA3                     0
+PCA4                     0
+PCA5                     0
+PCA6                     0
+PCA7                     0
+PCA8                     0
+PCA9                     0
+PCA10                    0
+PCA11                    0
+PCA12                    0
+PCA13                    0
+PCA14                    0
+PCA15                    0
+PCA16                    0
+PCA17                    0
+PCA18                    0
+PCA19                    0
+PCA20                    0
+family_id                0
+AGRF code                0
 self_reported_sex        0
 Age                      0
 Week 1 Body Mass       185
@@ -494,6 +545,42 @@ PCA1
 True
 PCA2
 True
+PCA3
+True
+PCA4
+True
+PCA5
+True
+PCA6
+True
+PCA7
+True
+PCA8
+True
+PCA9
+True
+PCA10
+True
+PCA11
+True
+PCA12
+True
+PCA13
+True
+PCA14
+True
+PCA15
+True
+PCA16
+True
+PCA17
+True
+PCA18
+True
+PCA19
+True
+PCA20
+True
 In the case of family Ids and sex code, we should not have any missing
 True
 True
@@ -515,59 +602,221 @@ Week 8 Pred VO2max     True
 dtype: bool
 
 # see the final data #
-                 family_id AGRF code  ...  distance_change  vo2_change
-0     combat_ILGSA24-17303  0200ADMM  ...            200.0         1.9
-1     combat_ILGSA24-17303  0200ASJM  ...           -480.0        -4.7
-2     combat_ILGSA24-17303  0200BHNM  ...             20.0         0.3
-3     combat_ILGSA24-17303  0200CBOM  ...             40.0         0.7
-4     combat_ILGSA24-17303  0200CDFM  ...             20.0         0.3
-...                    ...       ...  ...              ...         ...
-1198  combat_ILGSA24-17873  9693JMNM  ...            -40.0        -0.6
-1199  combat_ILGSA24-17873  9696DWFM  ...            480.0         7.5
-1200  combat_ILGSA24-17873  9697STJM  ...            180.0         2.8
-1201  combat_ILGSA24-17873  9699DNOM  ...            540.0         8.5
-1202  combat_ILGSA24-17873  9699ISMM  ...            260.0         2.9
+                                 ID    PCA1  ...  distance_change  vo2_change
+0     combat_ILGSA24-17303:0200ADMM  0.0017  ...            200.0         1.9
+1     combat_ILGSA24-17303:0200ASJM  0.0792  ...           -480.0        -4.7
+2     combat_ILGSA24-17303:0200BHNM -0.0238  ...             20.0         0.3
+3     combat_ILGSA24-17303:0200CBOM -0.0173  ...             40.0         0.7
+4     combat_ILGSA24-17303:0200CDFM  0.0162  ...             20.0         0.3
+...                             ...     ...  ...              ...         ...
+1198  combat_ILGSA24-17873:9693JMNM -0.0060  ...            -40.0        -0.6
+1199  combat_ILGSA24-17873:9696DWFM -0.0107  ...            480.0         7.5
+1200  combat_ILGSA24-17873:9697STJM -0.0129  ...            180.0         2.8
+1201  combat_ILGSA24-17873:9699DNOM  0.0442  ...            540.0         8.5
+1202  combat_ILGSA24-17873:9699ISMM -0.0058  ...            260.0         2.9
 
-[1203 rows x 19 columns]
+[1203 rows x 38 columns]
 
 # see summary statistics of non_pheno columns #
-                      count         mean  ...         75%          max
-PCA1                 1203.0     0.000037  ...     0.01560     0.041200
-PCA2                 1203.0     0.000003  ...     0.01175     0.159200
-Age                  1203.0    21.585398  ...    22.89589    56.254237
-Week 1 Body Mass     1018.0    77.856071  ...    85.87500   116.200000
-Week 8 Body Mass     1106.0    77.543942  ...    84.87500   111.000000
-Week 1 Beep test     1203.0     8.984838  ...    10.10000    13.900000
-Week 8 beep test     1203.0     9.813408  ...    10.70000    14.100000
-Week 1 Distance (m)  1203.0  1441.113882  ...  1680.00000  2620.000000
-Week 8 Distance (m)  1202.0  1626.539101  ...  1880.00000  3900.000000
-Week 1 Pred VO2max   1200.0    43.238333  ...    47.20000    60.100000
-Week 8 Pred VO2max   1203.0    46.111554  ...    49.30000    60.900000
-sex_code             1203.0     1.139651  ...     1.00000     2.000000
-weight_change         959.0     0.053097  ...     2.30000    31.200000
-beep_change          1203.0     0.828570  ...     1.40000     5.200000
-distance_change      1202.0   185.990017  ...   300.00000  2780.000000
-vo2_change           1200.0     2.860417  ...     4.80000    17.800000
+                      count          mean  ...         75%          max
+PCA1                 1203.0 -1.662510e-07  ...     0.00470     0.153500
+PCA2                 1203.0 -9.975062e-07  ...     0.01580     0.105400
+PCA3                 1203.0  6.650042e-07  ...     0.01705     0.156800
+PCA4                 1203.0  1.662510e-07  ...     0.01955     0.098100
+PCA5                 1203.0 -1.163757e-06  ...     0.02110     0.080900
+PCA6                 1203.0 -3.325021e-07  ...     0.01970     0.106900
+PCA7                 1203.0 -1.662510e-07  ...     0.01905     0.087100
+PCA8                 1203.0  7.481297e-07  ...     0.02005     0.078700
+PCA9                 1203.0  1.828761e-06  ...     0.01795     0.120400
+PCA10                1203.0  5.818786e-07  ...     0.01825     0.110600
+PCA11                1203.0  5.818786e-07  ...     0.01995     0.108100
+PCA12                1203.0  8.312552e-08  ...     0.01830     0.095400
+PCA13                1203.0  1.745636e-06  ...     0.01980     0.083100
+PCA14                1203.0  2.161264e-06  ...     0.01840     0.082600
+PCA15                1203.0  1.246883e-06  ...     0.01910     0.106500
+PCA16                1203.0 -9.975062e-07  ...     0.02015     0.083700
+PCA17                1203.0 -8.312552e-08  ...     0.01955     0.098600
+PCA18                1203.0 -1.662510e-07  ...     0.02005     0.091300
+PCA19                1203.0 -1.995012e-06  ...     0.01950     0.078500
+PCA20                1203.0  9.975062e-07  ...     0.02020     0.093200
+Age                  1203.0  2.158540e+01  ...    22.89589    56.254237
+Week 1 Body Mass     1018.0  7.785607e+01  ...    85.87500   116.200000
+Week 8 Body Mass     1106.0  7.754394e+01  ...    84.87500   111.000000
+Week 1 Beep test     1203.0  8.984838e+00  ...    10.10000    13.900000
+Week 8 beep test     1203.0  9.813408e+00  ...    10.70000    14.100000
+Week 1 Distance (m)  1203.0  1.441114e+03  ...  1680.00000  2620.000000
+Week 8 Distance (m)  1202.0  1.626539e+03  ...  1880.00000  3900.000000
+Week 1 Pred VO2max   1200.0  4.323833e+01  ...    47.20000    60.100000
+Week 8 Pred VO2max   1203.0  4.611155e+01  ...    49.30000    60.900000
+sex_code             1203.0  1.139651e+00  ...     1.00000     2.000000
+weight_change         959.0  5.309698e-02  ...     2.30000    31.200000
+beep_change          1203.0  8.285702e-01  ...     1.40000     5.200000
+distance_change      1202.0  1.859900e+02  ...   300.00000  2780.000000
+vo2_change           1200.0  2.860417e+00  ...     4.80000    17.800000
 
-[16 rows x 8 columns]
+[34 rows x 8 columns]
 
 # see summary statistics of pheno columns #
 
 PCA1
-mean: 3.657522859517875e-05
-percentile 2.5: -0.09552499999999998
-percentile 25: -0.0028
-percentile 50: 0.0087
-percentile 75: 0.0156
-percentile 97.5: 0.026595000000000004
+mean: -1.6625103906888358e-07
+percentile 2.5: -0.030994999999999998
+percentile 25: -0.017
+percentile 50: -0.0081
+percentile 75: 0.0047
+percentile 97.5: 0.090495
 
 PCA2
-mean: 3.325020781379979e-06
-percentile 2.5: -0.064495
-percentile 25: -0.0101
-percentile 50: 0.0009
-percentile 75: 0.01175
-percentile 97.5: 0.051380000000000016
+mean: -9.975062344140398e-07
+percentile 2.5: -0.06109
+percentile 25: -0.0131
+percentile 50: 0.0005
+percentile 75: 0.0158
+percentile 97.5: 0.05898500000000001
+
+PCA3
+mean: 6.650041562759496e-07
+percentile 2.5: -0.05279
+percentile 25: -0.018549999999999997
+percentile 50: -0.0015
+percentile 75: 0.017050000000000003
+percentile 97.5: 0.05955000000000005
+
+PCA4
+mean: 1.6625103906883745e-07
+percentile 2.5: -0.0518
+percentile 25: -0.021249999999999998
+percentile 50: -0.0001
+percentile 75: 0.019549999999999998
+percentile 97.5: 0.054275000000000025
+
+PCA5
+mean: -1.1637572734830734e-06
+percentile 2.5: -0.05408
+percentile 25: -0.0207
+percentile 50: -0.0007
+percentile 75: 0.0211
+percentile 97.5: 0.057
+
+PCA6
+mean: -3.3250207813804404e-07
+percentile 2.5: -0.057495000000000004
+percentile 25: -0.0199
+percentile 50: 0.0007
+percentile 75: 0.0197
+percentile 97.5: 0.055215000000000077
+
+PCA7
+mean: -1.6625103906897586e-07
+percentile 2.5: -0.058289999999999995
+percentile 25: -0.01935
+percentile 50: 0.0006
+percentile 75: 0.019049999999999997
+percentile 97.5: 0.055090000000000014
+
+PCA8
+mean: 7.481296758102991e-07
+percentile 2.5: -0.058795
+percentile 25: -0.01985
+percentile 50: -0.0001
+percentile 75: 0.02005
+percentile 97.5: 0.053270000000000026
+
+PCA9
+mean: 1.828761429758873e-06
+percentile 2.5: -0.058795
+percentile 25: -0.019299999999999998
+percentile 50: -0.0007
+percentile 75: 0.01795
+percentile 97.5: 0.058315000000000075
+
+PCA10
+mean: 5.818786367414156e-07
+percentile 2.5: -0.056685
+percentile 25: -0.01815
+percentile 50: -0.0001
+percentile 75: 0.018250000000000002
+percentile 97.5: 0.05858000000000002
+
+PCA11
+mean: 5.818786367413232e-07
+percentile 2.5: -0.05579
+percentile 25: -0.01865
+percentile 50: -0.0004
+percentile 75: 0.019950000000000002
+percentile 97.5: 0.05487000000000002
+
+PCA12
+mean: 8.312551953448793e-08
+percentile 2.5: -0.05408
+percentile 25: -0.0193
+percentile 50: -0.0014
+percentile 75: 0.0183
+percentile 97.5: 0.060070000000000026
+
+PCA13
+mean: 1.745635910224385e-06
+percentile 2.5: -0.060025
+percentile 25: -0.019
+percentile 50: -0.0004
+percentile 75: 0.0198
+percentile 97.5: 0.055395
+
+PCA14
+mean: 2.1612635078968248e-06
+percentile 2.5: -0.058565
+percentile 25: -0.018750000000000003
+percentile 50: -0.0003
+percentile 75: 0.0184
+percentile 97.5: 0.058395
+
+PCA15
+mean: 1.2468827930176882e-06
+percentile 2.5: -0.05615
+percentile 25: -0.019549999999999998
+percentile 50: -0.0004
+percentile 75: 0.0191
+percentile 97.5: 0.055195
+
+PCA16
+mean: -9.975062344141321e-07
+percentile 2.5: -0.05755
+percentile 25: -0.0192
+percentile 50: 0.0001
+percentile 75: 0.02015
+percentile 97.5: 0.056595
+
+PCA17
+mean: -8.312551953432644e-08
+percentile 2.5: -0.059575
+percentile 25: -0.0189
+percentile 50: 0.0008
+percentile 75: 0.019549999999999998
+percentile 97.5: 0.055995
+
+PCA18
+mean: -1.662510390691143e-07
+percentile 2.5: -0.058589999999999996
+percentile 25: -0.019049999999999997
+percentile 50: 0.0007
+percentile 75: 0.02005
+percentile 97.5: 0.0517
+
+PCA19
+mean: -1.9950124688278026e-06
+percentile 2.5: -0.059454999999999994
+percentile 25: -0.019299999999999998
+percentile 50: 0.0013
+percentile 75: 0.0195
+percentile 97.5: 0.05249000000000001
+
+PCA20
+mean: 9.975062344139013e-07
+percentile 2.5: -0.054689999999999996
+percentile 25: -0.0189
+percentile 50: -0.0003
+percentile 75: 0.0202
+percentile 97.5: 0.05586500000000003
 
 Age
 mean: 21.58539840193907
@@ -679,33 +928,37 @@ A tendency of increase of beep test, distance and VO2 max in all percentiles at 
 ## save the data ##
 
 ## see some columns of the file ##
-family_id AGRF code PCA1 PCA2 self_reported_sex Age
-combat_ILGSA24-17303 0200ADMM 0.004 -0.0114 M 19.024657534246575
-combat_ILGSA24-17303 0200ASJM -0.0704 -0.0905 F 18.67945205479452
-combat_ILGSA24-17303 0200BHNM 0.0181 -0.0021 F 18.36986301369863
-combat_ILGSA24-17303 0200CBOM 0.0188 0.018 M 18.556164383561644
-combat_ILGSA24-17303 0200CDFM -0.0192 0.0154 F 19.216438356164385
-combat_ILGSA24-17303 0200CDJM 0.0058 0.0174 F 19.18904109589041
-combat_ILGSA24-17303 0200JCJM 0.0288 0.0035 M 18.843835616438355
-combat_ILGSA24-17303 0200JCMM 0.0087 -0.0091 M 19.041095890410958
-combat_ILGSA24-17303 0200JEJM -0.0219 -0.0471 M 19.30958904109589
-total 372
--rw-rw-r-- 1 dftortosa dftortosa    181 Feb 14 07:16 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 08:20 beep_change_subset
--rw-rw-r-- 1 dftortosa dftortosa    201 Feb 14 07:00 dict_names_covs.pkl
--rw-rw-r-- 1 dftortosa dftortosa    192 Feb 14 07:00 dict_pvalue_covar.pkl
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 14 07:15 distance_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 07:57 distribution_hist
--rw-r--r-- 1 dftortosa dftortosa 154414 Feb 14 07:16 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa 189779 Feb 14 07:16 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 07:57 vo2_change_subset
-drwxrwxr-x 2 dftortosa dftortosa   4096 Feb 13 07:57 weight_change_subset
+ID PCA1 PCA2 PCA3 PCA4 PCA5
+combat_ILGSA24-17303:0200ADMM 0.0017 0.0186 -0.0055 -0.014 -0.0155
+combat_ILGSA24-17303:0200ASJM 0.0792 0.0531 -0.0368 0.0092 -0.0079
+combat_ILGSA24-17303:0200BHNM -0.0238 0.0139 0.0301 -0.0267 -0.0202
+combat_ILGSA24-17303:0200CBOM -0.0173 -0.0008 0.0011 0.005 -0.0245
+combat_ILGSA24-17303:0200CDFM 0.0162 -0.0307 0.0104 0.0418 0.0275
+combat_ILGSA24-17303:0200CDJM 0.0005 -0.0106 0.007 0.0484 0.0025
+combat_ILGSA24-17303:0200JCJM -0.0301 0.0039 -0.0282 -0.0149 -0.0242
+combat_ILGSA24-17303:0200JCMM -0.0109 0.0063 0.0435 0.0345 0.0041
+combat_ILGSA24-17303:0200JEJM 0.0291 0.0476 -0.0792 -0.0263 0.0397
+total 27960
+-rw-rw-r-- 1 dftortosa dftortosa      181 Apr  4 20:45 README.txt
+-rw-rw-r-- 1 dftortosa dftortosa 28072430 Apr  4 20:46 eigen_vectors_pairwise.png
+drwxrwxr-x 2 dftortosa dftortosa     4096 Apr  4 20:45 large_set_predictors
+-rw-r--r-- 1 dftortosa dftortosa   154414 Apr  4 20:45 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa   386521 Apr  4 20:46 pheno_data_cleaned.tsv
+drwxrwxr-x 2 dftortosa dftortosa     4096 Apr  4 20:45 small_set_predictors
 
+
+#######################################
+#######################################
+create a subset of the data for each phenotype
+#######################################
+#######################################
 
 ###### create a subset of the data with the relevant covariates for each phenotype and save as a distinct file ######
 
-## create a dict with correct, simplified names for the covariates ##
-{'PCA1': 'PCA1', 'PCA2': 'PCA2', 'Age': 'age', 'sex_code': 'sex_code', 'Week 1 Body Mass': 'week_1_weight', 'Week 1 Beep test': 'week_1_beep', 'Week 1 Distance (m)': 'week_1_distance', 'Week 1 Pred VO2max': 'week_1_vo2'}
+## first calculate which covariates are significant ##
+
+# create a dict with correct, simplified names for the covariates #
+{'PCA1': 'PCA1', 'PCA2': 'PCA2', 'PCA3': 'PCA3', 'PCA4': 'PCA4', 'PCA5': 'PCA5', 'PCA6': 'PCA6', 'PCA7': 'PCA7', 'PCA8': 'PCA8', 'PCA9': 'PCA9', 'PCA10': 'PCA10', 'PCA11': 'PCA11', 'PCA12': 'PCA12', 'PCA13': 'PCA13', 'PCA14': 'PCA14', 'PCA15': 'PCA15', 'PCA16': 'PCA16', 'PCA17': 'PCA17', 'PCA18': 'PCA18', 'PCA19': 'PCA19', 'PCA20': 'PCA20', 'Age': 'age', 'sex_code': 'sex_code', 'Week 1 Body Mass': 'week_1_weight', 'Week 1 Beep test': 'week_1_beep', 'Week 1 Distance (m)': 'week_1_distance', 'Week 1 Pred VO2max': 'week_1_vo2'}
 
 # plot distribution of each phenotype to visually normality #
 
@@ -756,14 +1009,104 @@ plotting the raw vs. transformed phenotype and the histogram of the transformed 
  #weight_change#
 
 PCA1
-                       sum_sq     df      F    PR(>F)
-covar_transformed    6.443806    1.0  6.226  0.012756
-Residual           990.478993  957.0    NaN       NaN
+                       sum_sq     df        F    PR(>F)
+covar_transformed    5.082879    1.0  4.90354  0.027037
+Residual           992.000730  957.0      NaN       NaN
 
 PCA2
-                       sum_sq     df         F   PR(>F)
-covar_transformed    0.636685    1.0  0.611412  0.43445
-Residual           996.558055  957.0       NaN      NaN
+                       sum_sq     df         F    PR(>F)
+covar_transformed    3.099099    1.0  2.982331  0.084501
+Residual           994.469635  957.0       NaN       NaN
+
+PCA3
+                       sum_sq     df         F    PR(>F)
+covar_transformed    1.226732    1.0  1.178635  0.277907
+Residual           996.052341  957.0       NaN       NaN
+
+PCA4
+                       sum_sq     df         F    PR(>F)
+covar_transformed    0.003752    1.0  0.003601  0.952164
+Residual           997.178870  957.0       NaN       NaN
+
+PCA5
+                       sum_sq     df         F    PR(>F)
+covar_transformed    0.342579    1.0  0.328912  0.566435
+Residual           996.765119  957.0       NaN       NaN
+
+PCA6
+                       sum_sq     df         F    PR(>F)
+covar_transformed    0.003309    1.0  0.003175  0.955074
+Residual           997.182371  957.0       NaN       NaN
+
+PCA7
+                       sum_sq     df         F    PR(>F)
+covar_transformed    0.013885    1.0  0.013326  0.908123
+Residual           997.170435  957.0       NaN       NaN
+
+PCA8
+                       sum_sq     df         F    PR(>F)
+covar_transformed    5.440848    1.0  5.250576  0.022156
+Residual           991.680107  957.0       NaN       NaN
+
+PCA9
+                       sum_sq     df         F    PR(>F)
+covar_transformed    0.276161    1.0  0.265115  0.606747
+Residual           996.875672  957.0       NaN       NaN
+
+PCA10
+                       sum_sq     df         F    PR(>F)
+covar_transformed    0.054870    1.0  0.052661  0.818545
+Residual           997.135051  957.0       NaN       NaN
+
+PCA11
+                       sum_sq     df         F    PR(>F)
+covar_transformed    3.799877    1.0  3.661795  0.055972
+Residual           993.087134  957.0       NaN       NaN
+
+PCA12
+                       sum_sq     df         F    PR(>F)
+covar_transformed    2.726784    1.0  2.624062  0.105584
+Residual           994.463076  957.0       NaN       NaN
+
+PCA13
+                       sum_sq     df         F    PR(>F)
+covar_transformed    1.336652    1.0  1.284478  0.257352
+Residual           995.871692  957.0       NaN       NaN
+
+PCA14
+                       sum_sq     df        F    PR(>F)
+covar_transformed    1.760819    1.0  1.69266  0.193564
+Residual           995.536160  957.0      NaN       NaN
+
+PCA15
+                       sum_sq     df         F    PR(>F)
+covar_transformed    0.047193    1.0  0.045293  0.831511
+Residual           997.136124  957.0       NaN       NaN
+
+PCA16
+                       sum_sq     df         F    PR(>F)
+covar_transformed    2.095889    1.0  2.015341  0.156042
+Residual           995.248886  957.0       NaN       NaN
+
+PCA17
+                       sum_sq     df        F    PR(>F)
+covar_transformed    1.501005    1.0  1.44286  0.229974
+Residual           995.565880  957.0      NaN       NaN
+
+PCA18
+                       sum_sq     df         F    PR(>F)
+covar_transformed    1.574621    1.0  1.513461  0.218914
+Residual           995.672904  957.0       NaN       NaN
+
+PCA19
+                       sum_sq     df         F    PR(>F)
+covar_transformed    1.966682    1.0  1.891284  0.169379
+Residual           995.151967  957.0       NaN       NaN
+
+PCA20
+                       sum_sq     df         F    PR(>F)
+covar_transformed    1.343879    1.0  1.291754  0.256009
+Residual           995.616681  957.0       NaN       NaN
 
 Age
                        sum_sq     df          F    PR(>F)
@@ -785,13 +1128,103 @@ Residual           746.578122  957.0         NaN           NaN
 
 PCA1
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.672501     1.0  1.622016  0.203057
-Residual           1238.380848  1201.0       NaN       NaN
+covar_transformed     1.197180     1.0  1.160578  0.281562
+Residual           1238.877664  1201.0       NaN       NaN
 
 PCA2
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.691247     1.0  0.669885  0.413254
-Residual           1239.298830  1201.0       NaN       NaN
+covar_transformed     0.452374     1.0  0.438298  0.508072
+Residual           1239.569215  1201.0       NaN       NaN
+
+PCA3
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.001408     1.0  0.001364  0.970549
+Residual           1239.994199  1201.0       NaN       NaN
+
+PCA4
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.785845     1.0  1.731916  0.188417
+Residual           1238.396668  1201.0       NaN       NaN
+
+PCA5
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.877578     1.0  2.793106  0.094931
+Residual           1237.321794  1201.0       NaN       NaN
+
+PCA6
+                        sum_sq      df        F    PR(>F)
+covar_transformed     1.144411     1.0  1.10944  0.292416
+Residual           1238.857495  1201.0      NaN       NaN
+
+PCA7
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.493002     1.0  1.447564  0.229156
+Residual           1238.697864  1201.0       NaN       NaN
+
+PCA8
+                        sum_sq      df         F    PR(>F)
+covar_transformed     4.472375     1.0  4.346454  0.037297
+Residual           1235.794141  1201.0       NaN       NaN
+
+PCA9
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.323410     1.0  0.313328  0.575749
+Residual           1239.644586  1201.0       NaN       NaN
+
+PCA10
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.042095     1.0  0.040773  0.840011
+Residual           1239.958433  1201.0       NaN       NaN
+
+PCA11
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.155511     1.0  1.120183  0.290092
+Residual           1238.877276  1201.0       NaN       NaN
+
+PCA12
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.864950     1.0  0.838417  0.360034
+Residual           1239.007432  1201.0       NaN       NaN
+
+PCA13
+                        sum_sq      df         F   PR(>F)
+covar_transformed     2.397959     1.0  2.326509  0.12745
+Residual           1237.883920  1201.0       NaN      NaN
+
+PCA14
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.087552     1.0  0.084805  0.770939
+Residual           1239.913842  1201.0       NaN       NaN
+
+PCA15
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.587530     1.0  1.539452  0.214942
+Residual           1238.508104  1201.0       NaN       NaN
+
+PCA16
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.485491     1.0  1.440543  0.230288
+Residual           1238.474265  1201.0       NaN       NaN
+
+PCA17
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.643652     1.0  0.623751  0.429813
+Residual           1239.319345  1201.0       NaN       NaN
+
+PCA18
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.464428     1.0  1.420147  0.233615
+Residual           1238.447688  1201.0       NaN       NaN
+
+PCA19
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.025291     1.0  0.024496  0.875655
+Residual           1239.970783  1201.0       NaN       NaN
+
+PCA20
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.176224     1.0  0.170707  0.679558
+Residual           1239.810773  1201.0       NaN       NaN
 
 Age
                         sum_sq      df         F    PR(>F)
@@ -818,13 +1251,103 @@ Residual           1106.438426  1201.0         NaN           NaN
 
 PCA1
                         sum_sq      df         F    PR(>F)
-covar_transformed     3.113943     1.0  3.034635  0.081761
-Residual           1231.361311  1200.0       NaN       NaN
+covar_transformed     2.438173     1.0  2.374652  0.123583
+Residual           1232.099360  1200.0       NaN       NaN
 
 PCA2
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.149429     1.0  0.145282  0.703152
+Residual           1234.250015  1200.0       NaN       NaN
+
+PCA3
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.305227     1.0  0.296803  0.585995
+Residual           1234.059157  1200.0       NaN       NaN
+
+PCA4
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.092137     1.0  2.037092  0.153763
+Residual           1232.425534  1200.0       NaN       NaN
+
+PCA5
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.843965     1.0  2.770417  0.096282
+Residual           1231.857156  1200.0       NaN       NaN
+
+PCA6
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.978693     1.0  1.926596  0.165389
+Residual           1232.449232  1200.0       NaN       NaN
+
+PCA7
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.983937     1.0  0.957277  0.328071
+Residual           1233.420336  1200.0       NaN       NaN
+
+PCA8
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.744361     1.0  2.673646  0.102284
+Residual           1231.738748  1200.0       NaN       NaN
+
+PCA9
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.161884     1.0  0.157395  0.691636
+Residual           1234.219043  1200.0       NaN       NaN
+
+PCA10
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.154328     1.0  0.150045  0.698561
+Residual           1234.253315  1200.0       NaN       NaN
+
+PCA11
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.677981     1.0  0.659428  0.416923
+Residual           1233.762805  1200.0       NaN       NaN
+
+PCA12
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.383676     1.0  1.346804  0.246068
+Residual           1232.852858  1200.0       NaN       NaN
+
+PCA13
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.275472     1.0  2.215635  0.136882
+Residual           1232.408207  1200.0       NaN       NaN
+
+PCA14
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.397437     1.0  0.386488  0.534269
+Residual           1233.994858  1200.0       NaN       NaN
+
+PCA15
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.763097     1.0  1.716218  0.190431
+Residual           1232.778402  1200.0       NaN       NaN
+
+PCA16
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.634972     1.0  2.567449  0.109347
+Residual           1231.559274  1200.0       NaN       NaN
+
+PCA17
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.759595     1.0  0.738901  0.390185
+Residual           1233.607796  1200.0       NaN       NaN
+
+PCA18
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.795127     1.0  1.747738  0.186413
+Residual           1232.537266  1200.0       NaN       NaN
+
+PCA19
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.061907     1.0  0.060185  0.806245
+Residual           1234.329140  1200.0       NaN       NaN
+
+PCA20
                         sum_sq      df         F   PR(>F)
-covar_transformed     0.290236     1.0  0.282217  0.59535
-Residual           1234.096547  1200.0       NaN      NaN
+covar_transformed     0.263626     1.0  0.256339  0.61274
+Residual           1234.114847  1200.0       NaN      NaN
 
 Age
                         sum_sq      df         F    PR(>F)
@@ -850,14 +1373,104 @@ Residual           1121.314125  1200.0         NaN           NaN
  #vo2_change#
 
 PCA1
-                        sum_sq      df        F    PR(>F)
-covar_transformed     2.444413     1.0  2.37289  0.123722
-Residual           1234.109410  1198.0      NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     2.093891     1.0  2.031983  0.15428
+Residual           1234.499490  1198.0       NaN      NaN
 
 PCA2
+                       sum_sq      df         F   PR(>F)
+covar_transformed     0.25742     1.0  0.249471  0.61754
+Residual           1236.17544  1198.0       NaN      NaN
+
+PCA3
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.001221     1.0  0.001183  0.972564
+Residual           1236.412097  1198.0       NaN       NaN
+
+PCA4
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.616203     1.0  2.539776  0.111274
+Residual           1234.050498  1198.0       NaN       NaN
+
+PCA5
                         sum_sq      df         F   PR(>F)
-covar_transformed     0.428995     1.0  0.415808  0.51916
-Residual           1235.993119  1198.0       NaN      NaN
+covar_transformed     3.575878     1.0  3.473871  0.06259
+Residual           1233.178315  1198.0       NaN      NaN
+
+PCA6
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.767520     1.0  0.744128  0.388514
+Residual           1235.659489  1198.0       NaN       NaN
+
+PCA7
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.216884     1.0  1.180106  0.277553
+Residual           1235.335441  1198.0       NaN       NaN
+
+PCA8
+                        sum_sq      df         F    PR(>F)
+covar_transformed     3.336864     1.0  3.241494  0.072047
+Residual           1233.247391  1198.0       NaN       NaN
+
+PCA9
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.180895     1.0  0.175303  0.675516
+Residual           1236.219666  1198.0       NaN       NaN
+
+PCA10
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.034796     1.0  0.033716  0.854343
+Residual           1236.382622  1198.0       NaN       NaN
+
+PCA11
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.267059     1.0  1.228909  0.267842
+Residual           1235.190191  1198.0       NaN       NaN
+
+PCA12
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.863980     1.0  0.837807  0.360209
+Residual           1235.425816  1198.0       NaN       NaN
+
+PCA13
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.856668     1.0  2.773677  0.096087
+Residual           1233.845239  1198.0       NaN       NaN
+
+PCA14
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.128894     1.0  0.124902  0.723839
+Residual           1236.289711  1198.0       NaN       NaN
+
+PCA15
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.090477     1.0  1.057508  0.303992
+Residual           1235.349477  1198.0       NaN       NaN
+
+PCA16
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.976220     1.0  2.890706  0.089351
+Residual           1233.440027  1198.0       NaN       NaN
+
+PCA17
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.439073     1.0  0.425593  0.514284
+Residual           1235.943191  1198.0       NaN       NaN
+
+PCA18
+                        sum_sq      df         F  PR(>F)
+covar_transformed     0.782866     1.0  0.759052  0.3838
+Residual           1235.585896  1198.0       NaN     NaN
+
+PCA19
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.000911     1.0  0.000883  0.976303
+Residual           1236.412581  1198.0       NaN       NaN
+
+PCA20
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.264235     1.0  0.256084  0.612917
+Residual           1236.132745  1198.0       NaN       NaN
 
 Age
                         sum_sq      df         F    PR(>F)
@@ -880,19 +1493,38 @@ covar_transformed   130.922069     1.0  141.484917  6.420929e-31
 Residual           1108.560848  1198.0         NaN           NaN
 Covariates with P-value<0.1
 
-# save the dicts with selected covariates and long/short names #
+# check that the cases with NA for the response variable all have NA for wegith at week 1, so we are going to be removed anyways #
 
-# create datsets per each phenotype separately #
+## create a dict with the large list of covariates ##
+
+This is the list with ALL covariates including ALL PCAs. This is ok because 20 PCAs is a frequently used in genetics (see answers Dr. Speed in the previous step) and we have now applied a more stringent thinning and used the fully clean data to calculate the PCAs, so we are good.
+
+GOOD TO GO! for weight_change
+GOOD TO GO! for beep_change
+GOOD TO GO! for distance_change
+GOOD TO GO! for vo2_change
+
+## print the small and the large list of covariates ##
+# small list of covariates #
+{'weight_change': ['PCA1', 'PCA2', 'PCA8', 'PCA11', 'age', 'sex_code', 'week_1_weight'], 'beep_change': ['PCA5', 'PCA8', 'sex_code', 'week_1_weight', 'week_1_beep'], 'distance_change': ['PCA5', 'sex_code', 'week_1_weight', 'week_1_distance'], 'vo2_change': ['PCA5', 'PCA8', 'PCA13', 'PCA16', 'sex_code', 'week_1_weight', 'week_1_vo2']}
+# large list of covariates #
+{'weight_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20'], 'beep_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20', 'week_1_beep'], 'distance_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20', 'week_1_distance'], 'vo2_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20', 'week_1_vo2']}
+
+## create datsets per each phenotype separately ##
+
+# define function to do this considering the large and small set of predictors #
+
+# run the function to create the subsets for the small and large set of predictors #
 
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./data/plink_filesets/weight_change_filesets/weight_change_subset.log.
+Logging to ./data/plink_filesets/small_set_predictors/weight_change_filesets/weight_change_subset.log.
 Options in effect:
   --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
-  --keep ./data/plink_filesets/weight_change_filesets/weight_change_samples_in.tsv
+  --keep ./data/plink_filesets/small_set_predictors/weight_change_filesets/weight_change_samples_in.tsv
   --make-bed
-  --out ./data/plink_filesets/weight_change_filesets/weight_change_subset
+  --out ./data/plink_filesets/small_set_predictors/weight_change_filesets/weight_change_subset
 
 63997 MB RAM detected; reserving 31998 MB for main workspace.
 3197605 variants loaded from .bim file.
@@ -905,9 +1537,12 @@ Total genotyping rate in remaining samples is exactly 1.
 3197605 variants and 959 people pass filters and QC.
 Note: No phenotypes present.
 --make-bed to
-./data/plink_filesets/weight_change_filesets/weight_change_subset.bed +
-./data/plink_filesets/weight_change_filesets/weight_change_subset.bim +
-./data/plink_filesets/weight_change_filesets/weight_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+./data/plink_filesets/small_set_predictors/weight_change_filesets/weight_change_subset.bed
++
+./data/plink_filesets/small_set_predictors/weight_change_filesets/weight_change_subset.bim
++
+./data/plink_filesets/small_set_predictors/weight_change_filesets/weight_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
@@ -987,18 +1622,18 @@ Note: No phenotypes present.
 ./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed +
 ./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for weight_change
 
 
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./data/plink_filesets/beep_change_filesets/beep_change_subset.log.
+Logging to ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset.log.
 Options in effect:
   --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
-  --keep ./data/plink_filesets/beep_change_filesets/beep_change_samples_in.tsv
+  --keep ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_samples_in.tsv
   --make-bed
-  --out ./data/plink_filesets/beep_change_filesets/beep_change_subset
+  --out ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset
 
 63997 MB RAM detected; reserving 31998 MB for main workspace.
 3197605 variants loaded from .bim file.
@@ -1010,9 +1645,13 @@ Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%
 Total genotyping rate in remaining samples is in [0.9999995, 1).
 3197605 variants and 1018 people pass filters and QC.
 Note: No phenotypes present.
---make-bed to ./data/plink_filesets/beep_change_filesets/beep_change_subset.bed
-+ ./data/plink_filesets/beep_change_filesets/beep_change_subset.bim +
-./data/plink_filesets/beep_change_filesets/beep_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+--make-bed to
+./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset.bed
++
+./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset.bim
++
+./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
@@ -1091,18 +1730,18 @@ Note: No phenotypes present.
 --make-bed to ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed
 + ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
 
 
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./data/plink_filesets/distance_change_filesets/distance_change_subset.log.
+Logging to ./data/plink_filesets/small_set_predictors/distance_change_filesets/distance_change_subset.log.
 Options in effect:
   --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
-  --keep ./data/plink_filesets/distance_change_filesets/distance_change_samples_in.tsv
+  --keep ./data/plink_filesets/small_set_predictors/distance_change_filesets/distance_change_samples_in.tsv
   --make-bed
-  --out ./data/plink_filesets/distance_change_filesets/distance_change_subset
+  --out ./data/plink_filesets/small_set_predictors/distance_change_filesets/distance_change_subset
 
 63997 MB RAM detected; reserving 31998 MB for main workspace.
 3197605 variants loaded from .bim file.
@@ -1115,10 +1754,12 @@ Total genotyping rate in remaining samples is in [0.9999995, 1).
 3197605 variants and 1018 people pass filters and QC.
 Note: No phenotypes present.
 --make-bed to
-./data/plink_filesets/distance_change_filesets/distance_change_subset.bed +
-./data/plink_filesets/distance_change_filesets/distance_change_subset.bim +
-./data/plink_filesets/distance_change_filesets/distance_change_subset.fam ...
-0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+./data/plink_filesets/small_set_predictors/distance_change_filesets/distance_change_subset.bed
++
+./data/plink_filesets/small_set_predictors/distance_change_filesets/distance_change_subset.bim
++
+./data/plink_filesets/small_set_predictors/distance_change_filesets/distance_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
@@ -1198,18 +1839,18 @@ Note: No phenotypes present.
 ./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed +
 ./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for distance_change
 
 
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
-Logging to ./data/plink_filesets/vo2_change_filesets/vo2_change_subset.log.
+Logging to ./data/plink_filesets/small_set_predictors/vo2_change_filesets/vo2_change_subset.log.
 Options in effect:
   --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
-  --keep ./data/plink_filesets/vo2_change_filesets/vo2_change_samples_in.tsv
+  --keep ./data/plink_filesets/small_set_predictors/vo2_change_filesets/vo2_change_samples_in.tsv
   --make-bed
-  --out ./data/plink_filesets/vo2_change_filesets/vo2_change_subset
+  --out ./data/plink_filesets/small_set_predictors/vo2_change_filesets/vo2_change_subset
 
 63997 MB RAM detected; reserving 31998 MB for main workspace.
 3197605 variants loaded from .bim file.
@@ -1221,9 +1862,13 @@ Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%
 Total genotyping rate in remaining samples is in [0.9999995, 1).
 3197605 variants and 1018 people pass filters and QC.
 Note: No phenotypes present.
---make-bed to ./data/plink_filesets/vo2_change_filesets/vo2_change_subset.bed +
-./data/plink_filesets/vo2_change_filesets/vo2_change_subset.bim +
-./data/plink_filesets/vo2_change_filesets/vo2_change_subset.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+--make-bed to
+./data/plink_filesets/small_set_predictors/vo2_change_filesets/vo2_change_subset.bed
++
+./data/plink_filesets/small_set_predictors/vo2_change_filesets/vo2_change_subset.bim
++
+./data/plink_filesets/small_set_predictors/vo2_change_filesets/vo2_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
@@ -1302,7 +1947,441 @@ Note: No phenotypes present.
 --make-bed to ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed
 + ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
-OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
+
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/large_set_predictors/weight_change_filesets/weight_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/large_set_predictors/weight_change_filesets/weight_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/large_set_predictors/weight_change_filesets/weight_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 959 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is exactly 1.
+3197605 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./data/plink_filesets/large_set_predictors/weight_change_filesets/weight_change_subset.bed
++
+./data/plink_filesets/large_set_predictors/weight_change_filesets/weight_change_subset.bim
++
+./data/plink_filesets/large_set_predictors/weight_change_filesets/weight_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./weight_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./weight_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./weight_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+959 people (833 males, 126 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./weight_change_subset_missing_clean.bed +
+./weight_change_subset_missing_clean.bim +
+./weight_change_subset_missing_clean.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for weight_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./weight_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./weight_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./weight_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+959 people (833 males, 126 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+10122 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3187483 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./weight_change_subset_missing_clean_maf_hwe.bed +
+./weight_change_subset_missing_clean_maf_hwe.bim +
+./weight_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for weight_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./weight_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3187483 variants loaded from .bim file.
+959 people (833 males, 126 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 959 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is exactly 1.
+0 variants removed due to missing genotype data (--geno).
+3187483 variants and 959 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed +
+./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./weight_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for weight_change
+
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/large_set_predictors/beep_change_filesets/beep_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/large_set_predictors/beep_change_filesets/beep_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/large_set_predictors/beep_change_filesets/beep_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 1018 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is in [0.9999995, 1).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./data/plink_filesets/large_set_predictors/beep_change_filesets/beep_change_subset.bed
++
+./data/plink_filesets/large_set_predictors/beep_change_filesets/beep_change_subset.bim
++
+./data/plink_filesets/large_set_predictors/beep_change_filesets/beep_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./beep_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./beep_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./beep_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./beep_change_subset_missing_clean.bed +
+./beep_change_subset_missing_clean.bim + ./beep_change_subset_missing_clean.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./beep_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./beep_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./beep_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+8386 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./beep_change_subset_missing_clean_maf_hwe.bed +
+./beep_change_subset_missing_clean_maf_hwe.bim +
+./beep_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./beep_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3189219 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed
++ ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
+
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/large_set_predictors/distance_change_filesets/distance_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/large_set_predictors/distance_change_filesets/distance_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/large_set_predictors/distance_change_filesets/distance_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 1018 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is in [0.9999995, 1).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./data/plink_filesets/large_set_predictors/distance_change_filesets/distance_change_subset.bed
++
+./data/plink_filesets/large_set_predictors/distance_change_filesets/distance_change_subset.bim
++
+./data/plink_filesets/large_set_predictors/distance_change_filesets/distance_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./distance_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./distance_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./distance_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./distance_change_subset_missing_clean.bed +
+./distance_change_subset_missing_clean.bim +
+./distance_change_subset_missing_clean.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for distance_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./distance_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./distance_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./distance_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+8386 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./distance_change_subset_missing_clean_maf_hwe.bed +
+./distance_change_subset_missing_clean_maf_hwe.bim +
+./distance_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for distance_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./distance_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3189219 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed +
+./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./distance_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for distance_change
+
+
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./data/plink_filesets/large_set_predictors/vo2_change_filesets/vo2_change_subset.log.
+Options in effect:
+  --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno
+  --keep ./data/plink_filesets/large_set_predictors/vo2_change_filesets/vo2_change_samples_in.tsv
+  --make-bed
+  --out ./data/plink_filesets/large_set_predictors/vo2_change_filesets/vo2_change_subset
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1203 people (1035 males, 168 females) loaded from .fam.
+--keep: 1018 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate in remaining samples is in [0.9999995, 1).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to
+./data/plink_filesets/large_set_predictors/vo2_change_filesets/vo2_change_subset.bed
++
+./data/plink_filesets/large_set_predictors/vo2_change_filesets/vo2_change_subset.bim
++
+./data/plink_filesets/large_set_predictors/vo2_change_filesets/vo2_change_subset.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./vo2_change_subset_missing_clean.log.
+Options in effect:
+  --bfile ./vo2_change_subset
+  --geno 0.01
+  --make-bed
+  --out ./vo2_change_subset_missing_clean
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3197605 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./vo2_change_subset_missing_clean.bed +
+./vo2_change_subset_missing_clean.bim + ./vo2_change_subset_missing_clean.fam
+... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./vo2_change_subset_missing_clean_maf_hwe.log.
+Options in effect:
+  --bfile ./vo2_change_subset_missing_clean
+  --hwe 1e-6 midp
+  --maf 0.05
+  --make-bed
+  --mind 0.01
+  --out ./vo2_change_subset_missing_clean_maf_hwe
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3197605 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+--hwe: 0 variants removed due to Hardy-Weinberg exact test.
+8386 variants removed due to minor allele threshold(s)
+(--maf/--max-maf/--mac/--max-mac).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./vo2_change_subset_missing_clean_maf_hwe.bed +
+./vo2_change_subset_missing_clean_maf_hwe.bim +
+./vo2_change_subset_missing_clean_maf_hwe.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
+
+PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
+(C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
+Logging to ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.log.
+Options in effect:
+  --bfile ./vo2_change_subset_missing_clean_maf_hwe
+  --geno 0.01
+  --make-bed
+  --mind 0.01
+  --out ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing
+
+63997 MB RAM detected; reserving 31998 MB for main workspace.
+3189219 variants loaded from .bim file.
+1018 people (885 males, 133 females) loaded from .fam.
+0 people removed due to missing genotype data (--mind).
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1018 founders and 0 nonfounders present.
+Calculating allele frequencies... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99% done.
+Total genotyping rate is in [0.9999995, 1).
+0 variants removed due to missing genotype data (--geno).
+3189219 variants and 1018 people pass filters and QC.
+Note: No phenotypes present.
+--make-bed to ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bed
++ ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
+./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
+OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
 
 
 #######################################

@@ -167,9 +167,9 @@ run_bash(" \
 
 
 
-#####################################################################
-# region process original excel file with phenotypes and covariates #
-#####################################################################
+##########################################################################
+# region process original excel file with phenotypes and merge with PCAs #
+##########################################################################
 print_text("combine the excel file, FAM file and the PCAs", header=1)
 print_text("load the excel file", header=2)
 #This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
@@ -351,6 +351,13 @@ if( \
 ):
     raise ValueError("ERROR! FALSE! We are not considering all the interesting axes and samples in smartpca")
 
+print_text("plot PCAs", header=3)
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.pairplot(smartpca_eigenvectors)
+plt.savefig("./data/pheno_data/eigen_vectors_pairwise.png", dpi=300)
+plt.close()
+
 print_text("change the column names of the PCAs", header=3)
 print_text("empty dict", header=4)
 dict_pca_names = {}
@@ -392,9 +399,6 @@ if(
     raise ValueError("ERROR: FALSE! WE STILL HAVE A PROBLEM WITH 2397LDJA/2399LDJA")
 
 
-
-
-
 print_text("merge the PCA with the rest of phenotypes", header=2)
 print_text("do the merge", header=3)
 merged_data=smartpca_eigenvectors.merge( \
@@ -410,7 +414,16 @@ merged_data=smartpca_eigenvectors.merge( \
 if(merged_data.shape[0]!=1203):
     raise ValueError("ERROR! FALSE! WE HAVE A PROBLEM WITH THE MERGE")
 
+# endregion
 
+
+
+
+
+
+#######################################################
+# region EXPLORE THE MERGED FILE - PCA AND PHENO DATA #
+#######################################################
 
 print_text("process the merged file", header=1)
 print_text("create new variables for the change before and after", header=2)
@@ -615,35 +628,10 @@ run_bash(" \
 
 
 
-
-####SPLIT HERE BETWEEN LARGE AND SMALL SUBSET
-#previous pheno data would be for large
-
-print_text("select the PCAs we are interested in", header=3)
-#We are going to use only the 4 first PCAs:
-    #There is a clear reduction of explained variability from 1 to and from 2 to 3, but from 3 there are small differences in explained variability. 
-    #Admixture considers that we only have ONE continental ancestry in our dataset. Moreover, the PCA plots show that if there is an axis that is spreading a bit the samples is the first one, the rest show very cloudy patterns, almost perfect.
-    #According to smartpca, we have 4 significant PCAs
-    #Therefore, 1 and 2 for sure, then 3 and 4 because they are also significant according to smartpca and it is a sound and clear criterion.
-smartpca_eigenvectors_subset = smartpca_eigenvectors[["family_id", "AGRF code", 1, 2, 3, 4]]
-print(smartpca_eigenvectors_subset)
-#plot them
-import matplotlib.pyplot as plt
-import seaborn as sns
-sns.pairplot(smartpca_eigenvectors_subset.iloc[:,2:6])
-plt.savefig("./data/pheno_data/eigen_vectors_pairwise.png", dpi=300)
-plt.close()
-    #we get the same plot we saw in "eigen_vectors_pairwise.png" for the first 4 axes.
-
-
-#MAYBE WE DO NOT HAVE TO DO THIS, BECAUSE WE ARE GOING TO TEST SIGNIFNACE OF ASSOCIATION! SO WE COULD TEST FOR ALL THE PCAS
-
-
-
 #####################################################
 # region create a subset of data for each phenotype #
 #####################################################
-
+print_text("create a subset of the data for each phenotype", header=1)
 print_text("create a subset of the data with the relevant covariates for each phenotype and save as a distinct file", header=2)
 #In LDAK, if only 1 phenotype is present in the pheno file, sample with missing for that pheno are removed. 
 #HOWEVER, in the case of covariates, missing values are filled with the mean! Weight has hundreds of missing values, so that would not be a good idea!
@@ -655,14 +643,17 @@ print_text("create a subset of the data with the relevant covariates for each ph
     #In the HINT study, they did this: 'the Baseline VO2peak, the individual study and the PC6 from the principal component analysis were found to be significantly associated with VO2peak response and were included as covariates in analysis. Age and sex were not associated with the trait. Our findings did not change when age and sex were also included in the association analysis. Thus, we included covariates based on a posteriori instead of a priori knowledge'
         #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
 
-
-
-print_text("create a dict with correct, simplified names for the covariates", header=3)
+print_text("first calculate which covariates are significant", header=3)
+print_text("create a dict with correct, simplified names for the covariates", header=4)
 dict_names_covs = {}
 #predictor="Age"
+#predictor="PCA1"
 for predictor in pca_names+["Age", "sex_code", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Distance (m)", "Week 1 Pred VO2max"]:
+
+    #PCA or sex, no need to change anything
     if (predictor in pca_names+["sex_code"]):
         dict_names_covs[predictor] = predictor
+    #for the rest we need to change the name
     elif(predictor=="Age"):
         dict_names_covs[predictor] = "age"
     elif(predictor=="Week 1 Body Mass"):
@@ -874,7 +865,7 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
     print("\n \n #" + change_pheno + "#")
     
     #test the association with each covariate
-    #covar="PCA1"
+    #covar="PCA3"
     for covar in pca_names + ["Age", "sex_code", "Week 1 Body Mass"]:
         print("\n" + covar)
         fun_assoc(change_pheno=change_pheno, covar=covar)
@@ -892,16 +883,6 @@ for change_pheno in ["weight_change", "beep_change", "distance_change", "vo2_cha
         fun_assoc(change_pheno=change_pheno, covar=covar)
 print("Covariates with P-value<0.1")
 [f"{k}: {v}" for k, v in dict_pvalue_covar.items()]
-
-print_text("save the dicts with selected covariates and long/short names", header=4)
-with open("./data/pheno_data/dict_pvalue_covar.pkl", 'wb') as file:
-    pickle.dump(dict_pvalue_covar, file)
-with open("./data/pheno_data/dict_names_covs.pkl", 'wb') as file:
-    pickle.dump(dict_names_covs, file)
-    #open a file in write-binary mode
-        #When a file is opened in binary mode, the data is read or written as bytes. This is useful for non-text files such as images, audio files, or serialized objects. In binary mode, no encoding or decoding is performed. The data is read or written exactly as it is.
-        #When a file is opened in write mode, the file is created if it does not exist, and truncated (emptied) if it does exist. This mode allows you to write data to the file.
-    #Serializes the dictionary and writes it to the file.
 
 print_text("check that the cases with NA for the response variable all have NA for wegith at week 1, so we are going to be removed anyways", header=4)
 index_na_pheno = ( \
@@ -926,161 +907,237 @@ if ( \
     #The point here is that David told me you should not have NA for distance but not for beep and viceversa. So in general, it is safe to remove them altotegher, this is automatically done because all these case have NA for weight at week 1, which is a covariate for all response variables. Because of this, if any these samples wit NA for the responses do not have NA for wegiht at week 1, then stop the execution.
     #Given we are aussming that weight at week 1 is an important covariate for all response variables, we are going also to check that weight at week 1 is included as covariable in all cases.
 
-print_text("create datsets per each phenotype separately", header=4)
-#change_pheno="vo2_change"
-for change_pheno in dict_pvalue_covar.keys():
+print_text("create a dict with the large list of covariates", header=3)
+print("""
+This is the list with ALL covariates including ALL PCAs. This is ok because 20 PCAs is a frequently used in genetics (see answers Dr. Speed in the previous step) and we have now applied a more stringent thinning and used the fully clean data to calculate the PCAs, so we are good.
+""")
+#create list with the shared covariates across all phenotypes
+shared_covariates = [ \
+    dict_names_covs["Age"], \
+    dict_names_covs["sex_code"], \
+    dict_names_covs["Week 1 Body Mass"] \
+] + pca_names
+#put the dict toghether with shared covariates and the baseline of each phenotype
+dict_pvalue_covar_extended = { 
+    "weight_change": shared_covariates, \
+    "beep_change": shared_covariates+[dict_names_covs["Week 1 Beep test"]], \
+    "distance_change": shared_covariates+[dict_names_covs["Week 1 Distance (m)"]], \
+    "vo2_change": shared_covariates+[dict_names_covs["Week 1 Pred VO2max"]] \
+}
+#check that the length of the list is correct
+#for each key of the dict
+#k="weight_change"
+#k="beep_change"
+for k in dict_pvalue_covar_extended.keys():
 
-    #create a folder for the phenotype
-    run_bash(" \
-        mkdir -p ./data/pheno_data/" + change_pheno + "_subset \
-    ")
-
-    #extract the selected covariates with the name of the dataset (long, not optimized name)
-    selected_covariates = [k for k, v in dict_names_covs.items() if v in dict_pvalue_covar[change_pheno]]
-
-    #create a subset of the data with the selected covariates and the phenotype of interest
-    subset_pheno = merged_data[["family_id", "AGRF code"]+selected_covariates+[change_pheno]]
-
-    #remove NAs
-    subset_pheno_no_na = subset_pheno.dropna()
-        #In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
-            #http://dougspeed.com/phenotypes-and-covariates/
-        #I understand that they will remove NA cases if not analyzing multiple phenotypes, but I am removing NA cases just in case.
-        #Remember, we are creating a dataset for each phenotype, so we are only removing samples with NA for the selected phenotype and covariates
-
-    #check
-    if(subset_pheno_no_na.isna().sum().sum()!=0):
-        raise ValueError("ERROR! FALSE! WE HAVE NOT REMOVED ALL THE NAS FOR: " + change_pheno)
-
-    #check number of samples removed
-    if (subset_pheno.shape[0] - subset_pheno_no_na.shape[0])>300:
-        raise ValueError(f"ERROR: FALSE! WE HAVE TOO MUCH NAs for {change_pheno}")
-
-    #check we do not have the sample 8244FGNJ
-    if (subset_pheno_no_na["AGRF code"] == "8244FGNJ").sum()!=0:
-        raise ValueError("ERROR! FALSE! SAMPLE 8244FGNJ IS STILL PRESENT")
-        #This was a problematic sample:
-            #It had a typo (letter O instead of 0)
-            #It had NA for distance but not for beep, which does not make sense
-            #Finally, and most important, it had NA for weight, so it has to go out
-
-    #save the subset
-    subset_pheno_no_na.to_csv( \
-        "./data/pheno_data/" + change_pheno + "_subset/" + change_pheno + "_subset.tsv", \
-        sep="\t", \
-        header=True, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    ##subset plink filesets
-    #create a folder to save files
-    run_bash(" \
-        mkdir -p ./data/plink_filesets/" + change_pheno + "_filesets/ \
-    ")
-
-    #create a file with the samples included after pheno cleaning
-    subset_pheno_no_na[["family_id", "AGRF code"]].to_csv( \
-        "./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_samples_in.tsv", \
-        sep="\t", \
-        header=False, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    #subset the plink filesets
-    run_bash(" \
-        plink \
-            --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno \
-            --keep ./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_samples_in.tsv \
-            --make-bed \
-            --out ./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_subset \
-    ")
-        #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
-
-    #check we have selected the correct samples
-    subset_fam = pd.read_csv( \
-        "./data/plink_filesets/" + change_pheno + "_filesets/" + change_pheno + "_subset.fam", \
-        sep=" ", \
-        header=None \
-    )
-    #if the family_id or the sample IDs are not identical between our transformed dataset and the plink fileset, we have a problem
-    if ( \
-        (not subset_fam[0].rename("family_id").equals(subset_pheno_no_na["family_id"].reset_index(drop=True))) | \
-        (not subset_fam[1].rename("AGRF code").equals(subset_pheno_no_na["AGRF code"].reset_index(drop=True))) \
-    ):
-        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM SELECT THE SAMPLES WITHOUT NA IN THE PLINK FILESETS")
-
-    #Note about the fam file and LDAK:
-        #<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
-            #https://dougspeed.com/file-formats/
-        #THEREFORE, it does not matter if we have -9 in the phenotype column. The sex and phenotype data is provided separately
-
-    ##apply quality control again
-        #We apply the post-imputation QC for the last time after we have removed samples for the last time, this time due to missing phenotype data. These samples without weight are not going to be used anymore, so we should check how the genetic data changes.
-        #This is different from the training-evaluation split, where we will train the models with a subset of the samples, but the rest of samples will be used in evaluation, we are not technically remove them, so we should not repeat the QC for each training-eval dataset. If we would do that, we would end up with different genetic predictors (i.e., SNPs) between training-evaluation partitions, and we do not want that.
-        #To limit data leakage, we are going to apply the transformation of the phenotypes separataley in trainining and evaluation. Remember what we did in the niche paper, we preprocessed the occurrences, selected the predictors and then we split in training and evaluation just before modeling. This is equivalent with what we have done here.
-    #check we do not have SNPs with high missingness
-    run_bash(" \
-        cd ./data/plink_filesets/" + change_pheno + "_filesets/; \
-        plink \
-            --bfile ./" + change_pheno + "_subset \
-            --geno 0.01 \
-            --make-bed \
-            --out ./" + change_pheno + "_subset_missing_clean; \
-        n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset.bim); \
-        n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.bim); \
-        if [[ $n_snps_1 -ne $n_snps_2 ]]; then \
-            echo \"ERROR: FALSE! WE HAVE REMOVED SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
-        else \
-            echo \"OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
-        fi; \
-    ")
-
-    #check we do not lose too many SNPs due to low MAF or HWE violations and NO sample es removed due to missingness
-    run_bash(" \
-        cd ./data/plink_filesets/" + change_pheno + "_filesets/; \
-        plink \
-            --bfile ./" + change_pheno + "_subset_missing_clean \
-            --maf 0.05 \
-            --hwe 1e-6 midp \
-            --mind 0.01 \
-            --make-bed \
-            --out ./" + change_pheno + "_subset_missing_clean_maf_hwe; \
-        n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.bim); \
-        n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.bim); \
-        n_samples_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.fam); \
-        n_samples_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.fam); \
-        snp_diff=$(echo \"$n_snps_1 - $n_snps_2\" | bc); \
-        sample_diff=$(echo \"$n_samples_1 - $n_samples_2\" | bc); \
-        if [[ $snp_diff -gt 10500 || $sample_diff -ne 0 ]]; then \
-            echo \"ERROR: FALSE! WE HAVE REMOVED TOO MANY SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
-        else \
-            echo \"OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
-        fi; \
-    ")
+    #if the key is weight_change, the length of the list should be equal to the length of the shared covariates
+    if k=="weight_change":
+        expected_len=len(shared_covariates)
+    #else if the key is not weight_change, the length of the list should be equal to the length of the shared covariates plus one (i.e., the baseline)
+    else:
+        expected_len=len(shared_covariates)+1
     
-    #check we do NOT lose any sample or SNP due missingness after all filters have been applied
-    run_bash(" \
-        cd ./data/plink_filesets/" + change_pheno + "_filesets/; \
-        plink \
-            --bfile ./" + change_pheno + "_subset_missing_clean_maf_hwe \
-            --mind 0.01 \
-            --geno 0.01 \
-            --make-bed \
-            --out ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing; \
-        n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.bim); \
-        n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.bim); \
-        n_samples_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.fam); \
-        n_samples_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.fam); \
-        snp_diff=$(echo \"$n_snps_1 - $n_snps_2\" | bc); \
-        sample_diff=$(echo \"$n_samples_1 - $n_samples_2\" | bc); \
-        if [[ $snp_diff -ne 0 || $sample_diff -ne 0 ]]; then \
-            echo \"ERROR: FALSE! WE HAVE REMOVED TOO MANY SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs\"; \
-        else \
-            echo \"OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs\"; \
-        fi; \
-    ")
+    #check that the length of the list is correct
+    if(len(dict_pvalue_covar_extended[k])==expected_len):
+        print("GOOD TO GO! for " + k)
+    else:
+        raise ValueError("ERROR! FALSE! THE LENGTH OF THE LIST IS NOT CORRECT FOR " + k)
+
+print_text("print the small and the large list of covariates", header=3)
+print("# small list of covariates #")
+print(dict_pvalue_covar)
+print("# large list of covariates #")
+print(dict_pvalue_covar_extended)
+
+print_text("create datsets per each phenotype separately", header=3)
+print_text("define function to do this considering the large and small set of predictors", header=4)
+#subset_type="small"
+#subset_type="large"
+import pickle
+def pheno_subset(subset_type="small"):
+    '''
+    Function to create a subset of the data with the selected covariates and the phenotype of interest
+    '''
+
+    #check that the subset_type is correct
+    if subset_type not in ["small", "large"]:
+        raise ValueError("ERROR! FALSE! THE SUBSET TYPE IS NOT CORRECT")
+
+    #load the dict with the selected covariates and set the path to save the results
+    if subset_type=="small":
+        dict_pvalue_covar_selected = dict_pvalue_covar
+        path_to_save_pheno = "./data/pheno_data/small_set_predictors/"
+        path_to_save_plink = "./data/plink_filesets/small_set_predictors/"
+    elif subset_type=="large":
+        dict_pvalue_covar_selected = dict_pvalue_covar_extended
+        path_to_save_pheno = "./data/pheno_data/large_set_predictors/"
+        path_to_save_plink = "./data/plink_filesets/large_set_predictors/"
+
+    #change_pheno="vo2_change"
+    #change_pheno="weight_change"
+    for change_pheno in dict_pvalue_covar_selected.keys():
+
+        #create a folder for the phenotype
+        run_bash(" \
+            mkdir -p " + path_to_save_pheno + change_pheno + "_subset \
+        ")
+
+        #extract the selected covariates with the name of the dataset (long, not optimized name)
+        selected_covariates = [k for k, v in dict_names_covs.items() if v in dict_pvalue_covar_selected[change_pheno]]
+
+        #create a subset of the data with the selected covariates and the phenotype of interest
+        subset_pheno = merged_data[["family_id", "AGRF code"]+selected_covariates+[change_pheno]]
+        #check
+        if(subset_pheno.shape[1]!=len(selected_covariates)+3):
+            raise ValueError("ERROR! FALSE! THE NUMBER OF COLUMNS IS NOT CORRECT")
+
+        #remove NAs
+        subset_pheno_no_na = subset_pheno.dropna()
+            #In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
+                #http://dougspeed.com/phenotypes-and-covariates/
+            #I understand that they will remove NA cases if not analyzing multiple phenotypes, but I am removing NA cases just in case.
+            #Remember, we are creating a dataset for each phenotype, so we are only removing samples with NA for the selected phenotype and covariates
+
+        #check
+        if(subset_pheno_no_na.isna().sum().sum()!=0):
+            raise ValueError("ERROR! FALSE! WE HAVE NOT REMOVED ALL THE NAS FOR: " + change_pheno)
+
+        #check number of samples removed
+        if (subset_pheno.shape[0] - subset_pheno_no_na.shape[0])>300:
+            raise ValueError(f"ERROR: FALSE! WE HAVE TOO MUCH NAs for {change_pheno}")
+
+        #check we do not have the sample 8244FGNJ
+        if (subset_pheno_no_na["AGRF code"] == "8244FGNJ").sum()!=0:
+            raise ValueError("ERROR! FALSE! SAMPLE 8244FGNJ IS STILL PRESENT")
+            #This was a problematic sample:
+                #It had a typo (letter O instead of 0)
+                #It had NA for distance but not for beep, which does not make sense
+                #Finally, and most important, it had NA for weight, so it has to go out
+
+        #save the subset
+        subset_pheno_no_na.to_csv( \
+            path_to_save_pheno + change_pheno + "_subset/" + change_pheno + "_subset.tsv", \
+            sep="\t", \
+            header=True, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        ##subset plink filesets
+        #create a folder to save files
+        run_bash(" \
+            mkdir -p " + path_to_save_plink + change_pheno + "_filesets/ \
+        ")
+
+        #create a file with the samples included after pheno cleaning
+        subset_pheno_no_na[["family_id", "AGRF code"]].to_csv( \
+            path_to_save_plink + change_pheno + "_filesets/" + change_pheno + "_samples_in.tsv", \
+            sep="\t", \
+            header=False, \
+            index=False, \
+            na_rep="NA" \
+        )
+
+        #subset the plink filesets
+        run_bash(" \
+            plink \
+                --bfile ../quality_control/data/genetic_data/quality_control/21_post_imputation_qc/03_third_qc_step/merged_3_geno \
+                --keep " + path_to_save_plink + change_pheno + "_filesets/" + change_pheno + "_samples_in.tsv \
+                --make-bed \
+                --out " + path_to_save_plink + change_pheno + "_filesets/" + change_pheno + "_subset \
+        ")
+            #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
+
+        #check we have selected the correct samples
+        subset_fam = pd.read_csv( \
+            path_to_save_plink + change_pheno + "_filesets/" + change_pheno + "_subset.fam", \
+            sep=" ", \
+            header=None \
+        )
+        #if the family_id or the sample IDs are not identical between our transformed dataset and the plink fileset, we have a problem
+        if ( \
+            (not subset_fam[0].rename("family_id").equals(subset_pheno_no_na["family_id"].reset_index(drop=True))) | \
+            (not subset_fam[1].rename("AGRF code").equals(subset_pheno_no_na["AGRF code"].reset_index(drop=True))) \
+        ):
+            raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM SELECT THE SAMPLES WITHOUT NA IN THE PLINK FILESETS")
+
+        #Note about the fam file and LDAK:
+            #<datastem>.fam has one row per individual and six columns, which provide the Individual ID, the Family ID, as well as Maternal and Paternal IDs, Sex and Phenotype. Note that LDAK only uses the first two IDs; the remaining four columns are ignored (so to use sex as a covariate or to provide phenotypic values, these need to be supplied separately)
+                #https://dougspeed.com/file-formats/
+            #THEREFORE, it does not matter if we have -9 in the phenotype column. The sex and phenotype data is provided separately
+
+        ##apply quality control again
+            #We apply the post-imputation QC for the last time after we have removed samples for the last time, this time due to missing phenotype data. These samples without weight are not going to be used anymore, so we should check how the genetic data changes.
+            #This is different from the training-evaluation split, where we will train the models with a subset of the samples, but the rest of samples will be used in evaluation, we are not technically remove them, so we should not repeat the QC for each training-eval dataset. If we would do that, we would end up with different genetic predictors (i.e., SNPs) between training-evaluation partitions, and we do not want that.
+            #To limit data leakage, we are going to apply the transformation of the phenotypes separataley in trainining and evaluation. Remember what we did in the niche paper, we preprocessed the occurrences, selected the predictors and then we split in training and evaluation just before modeling. This is equivalent with what we have done here.
+        #check we do not have SNPs with high missingness
+        run_bash(" \
+            cd " + path_to_save_plink + change_pheno + "_filesets/; \
+            plink \
+                --bfile ./" + change_pheno + "_subset \
+                --geno 0.01 \
+                --make-bed \
+                --out ./" + change_pheno + "_subset_missing_clean; \
+            n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset.bim); \
+            n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.bim); \
+            if [[ $n_snps_1 -ne $n_snps_2 ]]; then \
+                echo \"ERROR: FALSE! WE HAVE REMOVED SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+            else \
+                echo \"OK! GOOD TO GO! WE HAVE REMOVED NO SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+            fi; \
+        ")
+            #We use the same threshold than in 02d_post_imputation_qc.py. Check that script for more details.
+
+        #check we do not lose too many SNPs due to low MAF or HWE violations and NO sample es removed due to missingness
+        run_bash(" \
+            cd " + path_to_save_plink + change_pheno + "_filesets/; \
+            plink \
+                --bfile ./" + change_pheno + "_subset_missing_clean \
+                --maf 0.05 \
+                --hwe 1e-6 midp \
+                --mind 0.01 \
+                --make-bed \
+                --out ./" + change_pheno + "_subset_missing_clean_maf_hwe; \
+            n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.bim); \
+            n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.bim); \
+            n_samples_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean.fam); \
+            n_samples_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.fam); \
+            snp_diff=$(echo \"$n_snps_1 - $n_snps_2\" | bc); \
+            sample_diff=$(echo \"$n_samples_1 - $n_samples_2\" | bc); \
+            if [[ $snp_diff -gt 10500 || $sample_diff -ne 0 ]]; then \
+                echo \"ERROR: FALSE! WE HAVE REMOVED TOO MANY SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+            else \
+                echo \"OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+            fi; \
+        ")
+            #We use the same threshold than in 02d_post_imputation_qc.py. Check that script for more details.
+
+        #check we do NOT lose any sample or SNP due missingness after all filters have been applied
+        run_bash(" \
+            cd " + path_to_save_plink + change_pheno + "_filesets/; \
+            plink \
+                --bfile ./" + change_pheno + "_subset_missing_clean_maf_hwe \
+                --mind 0.01 \
+                --geno 0.01 \
+                --make-bed \
+                --out ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing; \
+            n_snps_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.bim); \
+            n_snps_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.bim); \
+            n_samples_1=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe.fam); \
+            n_samples_2=$(awk 'END{print NR}' ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.fam); \
+            snp_diff=$(echo \"$n_snps_1 - $n_snps_2\" | bc); \
+            sample_diff=$(echo \"$n_samples_1 - $n_samples_2\" | bc); \
+            if [[ $snp_diff -ne 0 || $sample_diff -ne 0 ]]; then \
+                echo \"ERROR: FALSE! WE HAVE REMOVED TOO MANY SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs\"; \
+            else \
+                echo \"OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for " + change_pheno + "\"; \
+            fi; \
+        ")
+            #We use the same threshold than in 02d_post_imputation_qc.py. Check that script for more details.
+
+print_text("run the function to create the subsets for the small and large set of predictors", header=4)
+pheno_subset(subset_type="small")
+pheno_subset(subset_type="large")
 
 # endregion
 
@@ -1155,10 +1212,6 @@ for change_pheno in dict_pvalue_covar.keys():
 # endregion
 
 
-
-#####TO DO!!!!!
-##create two datasets for each phenotype, one with the significant covariates and other with the selected covariates plus age and firsr 10-15 PCAs
-##CHECK THE OUTPUT!! This script was originally devleoped in container with ubnut 20.04, but we are now using 22.04 I have not run the script after that, do not check the whole thing, just check the outpus is ok...
 
 
 
