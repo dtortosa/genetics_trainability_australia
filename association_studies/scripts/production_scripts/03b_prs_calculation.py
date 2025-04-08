@@ -160,6 +160,8 @@ run_bash("ls")
 parser=argparse.ArgumentParser()
 parser.add_argument("--iter_number", type=int, default=1, help="Number of the iteration run. Integer always, None does not work!")
 parser.add_argument("--response_variable", type=str, default="distance_change", help="Phenotype to model. String always, None does not work!")
+parser.add_argument("--covariate_dataset", type=str, default="small_set_predictors", help="Type of dataset used, short or long list of covariates. String always, None does not work!")
+parser.add_argument("--manhattan_plot", type=bool, default=False, help="Ask for a Manhattan plot considering the whole dataset. Bool always, None does not work!")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -169,6 +171,9 @@ args=parser.parse_args()
 #get the arguments of the function that have been passed through command line
 iter_number = args.iter_number
 response_variable = args.response_variable
+covariate_dataset = args.covariate_dataset
+manhattan_plot = args.manhattan_plot
+
 
 
 
@@ -176,8 +181,9 @@ response_variable = args.response_variable
 # folder preparation #
 ######################
 run_bash(" \
-    mkdir -p ./data/train_test_sets/; \
-    mkdir -p ./results/final_results/; \
+    mkdir -p \
+        ./data/train_test_sets/" + covariate_dataset + " \
+        ./results/final_results/" + covariate_dataset + "; \
     ls -l \
 ")
 
@@ -285,55 +291,108 @@ run_bash(" \
 #############################################################
 # region define function to calculate PRS across iterations #
 #############################################################
-#iter_number=1; response_variable="distance_change"
-def prs_calc(iter_number, response_variable, covariate_dataset):
+#iter_number=1; response_variable="distance_change"; covariate_dataset="small_set_predictors"
+def prs_calc(iter_number, response_variable, covariate_dataset, manhattan_plot):
 
-    ####IMPORTANT
-    #ADD IF TO SELECT THE FULL COVARIATE DATASET OR THE REDUCED VERSION
-
-
-    print_text(f"For phenotype {response_variable}, starting iteration {iter_number}", header=1)
+    print_text(f"For phenotype {response_variable}, and the {covariate_dataset}, starting iteration {iter_number}", header=1)
     print_text("split training and test", header=2)
+    print_text("create folders for results", header=3)
+    run_bash(" \
+        mkdir -p \
+            ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "; \
+    ")
+
     print_text("load the phenotype data", header=3)
     pheno_subset = pd.read_csv( \
-        "./data/pheno_data/" + response_variable + "_subset/" + response_variable + "_subset.tsv", \
+        "./data/pheno_data/" + covariate_dataset + "/" + response_variable + "_subset/" + response_variable + "_subset.tsv", \
         header=0, \
         sep="\t" \
     )
     print(pheno_subset)
 
+    print_text("specify the covariates", header=3)
+    selected_covariates = pheno_subset.columns[~pheno_subset.columns.isin(["family_id", "AGRF code", response_variable])]
+    print(selected_covariates)
+    #check we have correct covariates
+    total_list_covariates = ["Age", "sex_code", "Week 1 Body Mass", "Week 1 Beep Test", "Week 1 Distance (m)", "Week 1 Pred VO2max"] + [f"PCA{i}" for i in range(1,21)]
+    if(sum([1 for cov in selected_covariates if cov not in total_list_covariates])!=0):
+        raise ValueError("ERROR: FALSE! WE HAVE COVARIATES THAT ARE NOT IN THE TOTAL LIST")
+
+    print_text("transform the phenotypes", header=3)
+    #We applied in the previous step the post-imputation QC for the last time after we have removed samples for the last time, this time due to missing phenotype data. These samples without weight are not going to be used anymore, so we should check how the genetic data changes.
+    #This is different from the training-evaluation split, where we will train the models with a subset of the samples, but the rest of samples will be used in evaluation, we are not technically remove them, so we should not repeat the QC for each training-eval dataset. If we would do that, we would end up with different genetic predictors (i.e., SNPs) between training-evaluation partitions, and we do not want that.
+    #To limit data leakage, we are going to apply the transformation of the phenotypes separataley in trainining and test. Remember what we did in the niche paper, we preprocessed the occurrences, selected the predictors and then we split in training and evaluation just before modeling. This is equivalent with what we have done here.
+
+    print_text("create a copy to save transformed variables", header=4)
+    pheno_subset_transform = pheno_subset.copy(deep=True)
+        #deep=True: This creates a deep copy of the DataFrame. A deep copy means that a new DataFrame object is created, and all the data is copied. Changes to the new DataFrame will not affect the original DataFrame, and vice versa.
+
+    #select the variable to be transformed
+    variables_to_transform = [cov for cov in selected_covariates if cov != "sex_code"] + [response_variable]
+    #all covariates (except sex_code) and the response variable
+    #Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). So do NOT transform!
+        #http://dougspeed.com/phenotypes-and-covariates/
+
+    #transform all the continuous variables and overwrite
+    #pheno_to_transform=variables_to_transform[0]
+    for pheno_to_transform in variables_to_transform:
+        pheno_subset_transform[pheno_to_transform] = quantile_transform( \
+            X=pheno_subset_transform[pheno_to_transform].values.reshape(-1, 1), \
+            n_quantiles=int(pheno_subset_transform.shape[0]*0.5), 
+            output_distribution="normal" \
+        )
+            #we select half of the samples to calculate the quantiles. See 03a_phenotype_prep.py for details.
+            #Note that all variables numeric and continuous except sex
+                #sex_code is numeric but categorical so it should not be transformed!
+                #beep test is numeric and continuous, it has float values
+            #we use quantile_transform, which is the quivalent function without the estimator API. If you need to invert the transformation, use the transformer: transformer.inverse_transform()
+                #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html
+            #see 03a_phenotype_prep.py for details about the transformation
+        #check
+        if (\
+            (pheno_subset_transform[pheno_to_transform].max() > 6) | \
+            (pheno_subset_transform[pheno_to_transform].min() < -6) \
+        ):
+            raise ValueError(f"ERROR: FALSE! {pheno_to_transform} is not transformed correctly")
+    
+    #check sex_code has not been transformed
+    if (pheno_subset_transform["sex_code"].unique().size != 2):
+        raise ValueError("ERROR: FALSE! WE HAVE TRANSFORMED SEX_CODE")
+
+    #rename columns and save the transformed dataset
+    pheno_subset_transform.to_csv( \
+        "./data/train_test_sets/" + response_variable + "_set_transform.tsv", \
+        sep="\t", \
+        header=True, \
+        index=False, \
+        na_rep="NA" \
+    )
+
+    print_text("create dict to change names of covariates that are problematic for LDAK", header=3)
+    dict_change_names={
+        "family_id": "FID",
+        "AGRF code": "IID",
+        "Age": "age",
+        "Week 1 Body Mass": "week_1_weight",
+        "Week 1 Beep Test": "week_1_beep",
+        "Week 1 Distance (m)": "week_1_distance",
+        "Week 1 Pred VO2max": "week_1_vo2"
+    }
+
     print_text("split", header=3)
     train_df, test_df = train_test_split( \
-        pheno_subset, \
+        pheno_subset_transform, \
         test_size=0.25, \
         random_state=iter_number \
     )
         #25% for the test set, using as random state the iteration number, so each iteration will have a different training-test set
-
-    print_text("prepare folder to save datasets", header=3)
-    run_bash(" \
-        mkdir -p ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + " \
-    ")
-
-    print_text("load dicts with the selected covariates and the long/short names", header=3)
-    with open("./data/pheno_data/dict_pvalue_covar.pkl", 'rb') as file:
-        dict_pvalue_covar = pickle.load(file)
-    with open("./data/pheno_data/dict_names_covs.pkl", 'rb') as file:
-        dict_names_covs = pickle.load(file)
-        #open a file in read-binary mode
-            #When a file is opened in binary mode, the data is read or written as bytes. This is useful for non-text files such as images, audio files, or serialized objects. In binary mode, no encoding or decoding is performed. The data is read or written exactly as it is.
-        #Deserializes the dictionary from the file and loads it
-
-    print_text("extract the selected covariates with the name of the dataset (long, not optimized name)", header=3)
-    selected_covariates = [k for k, v in dict_names_covs.items() if v in dict_pvalue_covar[response_variable]]
-
 
     print_text("define function to prepare LDAK inputs", header=2)
     #type_df="training"
     #type_df="test"
     def ldak_input_prep(type_df):
 
-        print_text("select the input datasets, training or set", header=3)
+        print_text("select the input datasets, training, set or full", header=3)
         if (type_df=="training"):
             input_df = train_df
         elif (type_df=="test"):
@@ -341,70 +400,21 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
 
         print_text("open a folder for the set", header=3)
         run_bash(" \
-            mkdir -p ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/ \
+            mkdir -p ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/ \
         ")
 
         print_text("save the input dataframe, test or training", header=3)
         input_df.to_csv( \
-            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set.tsv", \
+            "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform.tsv", \
             sep="\t", \
             header=True, \
             index=False, \
             na_rep="NA" \
         )
 
-        print_text("transform the phenotypes", header=3)
-        #We applied in the previous step the post-imputation QC for the last time after we have removed samples for the last time, this time due to missing phenotype data. These samples without weight are not going to be used anymore, so we should check how the genetic data changes.
-        #This is different from the training-evaluation split, where we will train the models with a subset of the samples, but the rest of samples will be used in evaluation, we are not technically remove them, so we should not repeat the QC for each training-eval dataset. If we would do that, we would end up with different genetic predictors (i.e., SNPs) between training-evaluation partitions, and we do not want that.
-        #To limit data leakage, we are going to apply the transformation of the phenotypes separataley in trainining and test. Remember what we did in the niche paper, we preprocessed the occurrences, selected the predictors and then we split in training and evaluation just before modeling. This is equivalent with what we have done here.
-        
-        print_text("create a copy to save transformed variables", header=4)
-        input_df_transform = input_df.copy(deep=True)
-            #deep=True: This creates a deep copy of the DataFrame. A deep copy means that a new DataFrame object is created, and all the data is copied. Changes to the new DataFrame will not affect the original DataFrame, and vice versa.
-
-        #select the variable to be transformed
-        variables_to_transform = [cov for cov in selected_covariates if cov != "sex_code"] + [response_variable]
-        #all covariates (except sex_code) and the response variable
-        #Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). So do NOT transform!
-            #http://dougspeed.com/phenotypes-and-covariates/
-
-        #transform all the continuous variables and overwrite
-        #pheno_to_transform=variables_to_transform[0]
-        for pheno_to_transform in variables_to_transform:
-            input_df_transform[pheno_to_transform] = quantile_transform( \
-                X=input_df_transform[pheno_to_transform].values.reshape(-1, 1), \
-                n_quantiles=int(input_df_transform.shape[0]*0.5), 
-                output_distribution="normal" \
-            )
-                #Note that all variables numeric and continuous except sex
-                    #sex_code is numeric but categorical so it should not be transformed!
-                    #beep test is numeric and continuous, it has float values
-                #we use quantile_transform, which is the quivalent function without the estimator API. If you need to invert the transformation, use the transformer: transformer.inverse_transform()
-                    #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html
-                #see 03a_phenotype_prep.py for details about the transformation
-            #check
-            if (\
-                (input_df_transform[pheno_to_transform].max() > 6) | \
-                (input_df_transform[pheno_to_transform].min() < -6) \
-            ):
-                raise ValueError(f"ERROR: FALSE! {pheno_to_transform} is not transformed correctly")
-        
-        #check sex_code has not been transformed
-        if (input_df_transform["sex_code"].unique().size != 2):
-            raise ValueError("ERROR: FALSE! WE HAVE TRANSFORMED SEX_CODE")
-
-        #save the transformed dataset
-        input_df_transform.to_csv( \
-            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform.tsv", \
-            sep="\t", \
-            header=True, \
-            index=False, \
-            na_rep="NA" \
-        )
-
-        #save the response variable
-        input_df_transform[["family_id", "AGRF code", response_variable]].to_csv( \
-            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_response.tsv", \
+        #save the response variable after changing the names
+        input_df[["family_id", "AGRF code", response_variable]].rename(columns=dict_change_names).to_csv( \
+            "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_response.tsv", \
             sep="\t", \
             header=True, \
             index=False, \
@@ -415,8 +425,8 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
         if ("sex_code" in selected_covariates):
 
             #save sex_code
-            input_df_transform[["family_id", "AGRF code", "sex_code"]].to_csv( \
-                "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_covars_factors.tsv", \
+            input_df[["family_id", "AGRF code", "sex_code"]].rename(columns=dict_change_names).to_csv( \
+                "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_covars_factors.tsv", \
                 sep="\t", \
                 header=True, \
                 index=False, \
@@ -425,8 +435,8 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
 
         #save the covariates that are continuous
         selected_covariates_cont = [cov for cov in selected_covariates if cov != "sex_code"]
-        input_df_transform[["family_id", "AGRF code"] + selected_covariates_cont].to_csv( \
-            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_covars_cont.tsv", \
+        input_df[["family_id", "AGRF code"] + selected_covariates_cont].rename(columns=dict_change_names).to_csv( \
+            "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform_subset_covars_cont.tsv", \
             sep="\t", \
             header=True, \
             index=False, \
@@ -434,8 +444,8 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
         )
 
         #create a file with the samples of the selected set
-        input_df_transform[["family_id", "AGRF code"]].to_csv( \
-            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_samples_in.tsv", \
+        input_df[["family_id", "AGRF code"]].to_csv( \
+            "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_samples_in.tsv", \
             sep="\t", \
             header=False, \
             index=False, \
@@ -445,10 +455,10 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
         #use that file to select the corresponding sample from the plink fileset
         run_bash(" \
             plink \
-                --bfile ./data/plink_filesets/" + response_variable + "_filesets/" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing \
-                --keep ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_samples_in.tsv \
+                --bfile ./data/plink_filesets/" + covariate_dataset + "/" + response_variable + "_filesets/" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing \
+                --keep ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_samples_in.tsv \
                 --make-bed \
-                --out ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_plink_fileset \
+                --out ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_plink_fileset \
         ")
             #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
 
@@ -460,12 +470,12 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
 
         #check we have selected the correct samples
         subset_fam = pd.read_csv( \
-            "./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_plink_fileset.fam", \
+            "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_plink_fileset.fam", \
             sep=" ", \
             header=None \
         )
         #if the family_id or the sample IDs are not identical between our transformed dataset and the plink fileset, we have a problem
-        input_df_transform_sorted = input_df_transform.sort_values(by=["family_id", "AGRF code"]).reset_index(drop=True)
+        input_df_transform_sorted = input_df.sort_values(by=["family_id", "AGRF code"]).reset_index(drop=True)
             #sort the input df to have the same order than the FAM file as it seems that plink reorder columns when preparing the output
         if ( \
             (not subset_fam[0].rename("family_id").equals(input_df_transform_sorted["family_id"])) | \
@@ -478,16 +488,21 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     ldak_input_prep(type_df="training")
     ldak_input_prep(type_df="test")
 
-
     print_text("run LDAK on the training set", header=2)
+    run_bash(" \
+        mkdir \
+            -p ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/; \
+        ldak6.1.linux \
+          --elastic ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic \
+          --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
+          --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
+          --covar ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
+          --factors ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
+          --LOCO NO \
+    ")
+    #ELASTIC:
+        #https://dougspeed.com/elastic-net/
 
-    #./ldak6.1.linux \
-    #  --elastic elastic \
-    #  --pheno ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_response.tsv \
-    #  --bfile ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_plink_fileset \
-    #  --covar ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_covars_cont.tsv \
-    #  --factors ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_covars_factors.tsv \
-    #  --LOCO NO
 
     ###use -mpheno!!!! to select the pheno you want
         #http://dougspeed.com/phenotypes-and-covariates/
@@ -495,17 +510,86 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     ###NO USES MPHENO!!! UN FILE POR PHENO ASI NO TE HACE LA MEDIA
     ##Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
 
+    run_bash(" \
+        mkdir \
+            -p ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/; \
+        ldak6.1.linux \
+            --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation \
+            --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset \
+            --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_response.tsv \
+            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic.effects \
+            --power 0 \
+    ")
 
+    #CALCULATE SCORES
+        #https://dougspeed.com/profile-scores/
 
     run_bash(" \
         ldak6.1.linux \
-            --elastic elastic \
-            --pheno ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
-            --bfile ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
-            --covar ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
-            --factors ./data/train_test_sets/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
-            --LOCO NO \
+            --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_jacknife_eval \
+            --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation.profile \
+            --num-blocks 200 \
     ")
+
+    #jacknife
+        #https://dougspeed.com/jackknife/
+
+
+    #You may wish to do a classical PRS just for interest / comparison, in which case, you can run --linear (on the training samples), then the file with suffix .score gives classical PRS .corresponding to 7 p-value thresholds (that you can then provide to --calc-scores)
+    #get also from here the manhtan plot? we need to check inflation? maybe just bonferroni and show no snp is signifncat, so PRSs are useful
+
+        #--linear: https://dougspeed.com/single-predictor-analysis/
+
+    run_bash(" \
+        ldak6.1.linux \
+            --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear \
+            --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
+            --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
+            --covar ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
+            --factors ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
+            --permute YES \
+    ")
+
+    run_bash(" \
+        mkdir \
+            -p ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/; \
+        ldak6.1.linux \
+            --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical \
+            --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset \
+            --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_response.tsv \
+            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear.score \
+            --power 0 \
+    ")
+
+    run_bash(" \
+        ldak6.1.linux \
+            --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_classical_jacknife_eval \
+            --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical.profile \
+            --num-blocks 200 \
+    ")
+
+    if manhattan_plot:
+        
+        #MAKE FOLDER!
+        #SPLIT PREDICTOR, COVS AND MAKE PLINK FILES, 
+        #
+
+        run_bash(" \
+            ldak6.1.linux \
+                --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/full_dataset/training_set/" + response_variable + "_training_linear \
+                --bfile ./data/plink_filesets/" + covariate_dataset + "/" + response_variable + "_filesets/" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing \
+                --pheno ./data/train_test_sets/" + response_variable + "_set_transform.tsv \
+                --covar ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
+                --factors ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
+                --permute YES \
+        ")
+
+
+
+
+    #add LINEAR con LDAK!!!
+    #luego manhattan plot? pero mejor para el total.... pon argumento para pedir linear_total con manhatann
+
 
 
     #Error, ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_response.tsv contains multiple phenotypes, so you must specify one using "--mpheno", or use "--mpheno ALL" to analyse all phenotypes
@@ -540,22 +624,24 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
 
 #run the function across the three phenotypes
 #ALSO CONSDIEIRNG REDUCED AND FULL COVARIATE SET
-prs_calc(iter_number, response_variable)
+prs_calc(iter_number, response_variable, covariate_dataset)
 
 
 
 
-###OJO PCA1-PCA2 IS NOT INCLUDED YET!!!
 
 
 #REMOVE PLINK FILES AFTER, IF NOT CRAZY AMOUNT OF SPACE
 
+
+#MAKE A BASELINE regular approach?
 
 
 
 
 
 ###PUT THIS IN A BASH SCRIPT INSIDE LDAK FOLDER
+"""
 run_bash(" \
     mkdir -p ../ldak_versions/; \
     cd ../ldak_versions/; \
@@ -564,7 +650,7 @@ run_bash(" \
 ")
     #http://dougspeed.com/downloads2/
     #https://github.com/dougspeed/LDAK
-
+"""
 
 
 ##WHEN INTERPRETING THE RESULTS OF THE PRS, LOOK SLIDES FROM DOUG
@@ -1058,3 +1144,16 @@ for pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
         #we can see a gap in chromosome 1, 9 and 16. This seems to be pretty common in other Manhattan plots, so it should be something related to the physical characteristics of these chromosomes. I have not found information, but maybe this is caused by the centromeres, because the gap is around the center of these chromosomes.
             #Split on Manhattan plots for chromosomes 1, 9, 16 (GWAS)
 '''
+
+print_text("FINISH", header=1)
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
+#chmod +x ./scripts/production_scripts/03b_prs_calculation.py
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03b_prs_calculation.py --iter_number=1 --response_variable=distance_change --covariate_dataset="large_set_predictors" > ./03b_prs_calculation_iter_1_distance_change.out 2>&1
+    #We should run the 8 dataset_size and phenotype combinations separtaely in the cluster, each combination run in serial 100 iterations, alwaysing requiering just 20GB, each iteration is around 10 minutes, so in 16-20 hours should be done.
+#grep -Ei 'error|false|fail' ./03b_prs_calculation.out
+    #grep: The command used to search for patterns in files.
+    #-E: Enables extended regular expressions.
+    #-i: Makes the search case-insensitive.
+    #'error|false|fail': The pattern to search for. The | character acts as an OR operator, so it matches any line containing "error", "false", or "fail".
+    #03a_phenotype_prep.out: The file to search in.
