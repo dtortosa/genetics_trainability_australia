@@ -2,6 +2,17 @@
 ###process prredictive power and make manhatann plots
 
 
+#we need to check inflation? maybe just bonferroni and show no snp is signifncat, so PRSs are useful
+
+#check overlap across iterations for the samples with the highest PRS values in the training or test set?
+
+
+##WHEN INTERPRETING THE RESULTS OF THE PRS, LOOK SLIDES FROM DOUG
+    #https://dougspeed.com/short/
+###WHEN DONE, YOU CAN CHECK THE SECTION OF INTERPRETATION FROM ORRELLY
+    #Interpretation and presentation of results
+
+
 def manhattan_plot(covariate_dataset, response_variable):
         
 
@@ -25,7 +36,7 @@ def manhattan_plot(covariate_dataset, response_variable):
 
 
     pheno_subset_transform = pd.read_csv( \
-        "./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform.tsv", \
+        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform.tsv", \
         sep="\t", \
         header=True, \
         index=False, \
@@ -34,7 +45,7 @@ def manhattan_plot(covariate_dataset, response_variable):
 
     #save the response variable after changing the names
     pheno_subset_transform[["family_id", "AGRF code", response_variable]].rename(columns=dict_change_names).to_csv( \
-        "./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_response.tsv", \
+        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_response.tsv", \
         sep="\t", \
         header=True, \
         index=False, \
@@ -46,7 +57,7 @@ def manhattan_plot(covariate_dataset, response_variable):
 
         #save sex_code
         pheno_subset_transform[["family_id", "AGRF code", "sex_code"]].rename(columns=dict_change_names).to_csv( \
-            "./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_factors.tsv", \
+            "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_factors.tsv", \
             sep="\t", \
             header=True, \
             index=False, \
@@ -56,7 +67,7 @@ def manhattan_plot(covariate_dataset, response_variable):
     #save the covariates that are continuous
     selected_covariates_cont = [cov for cov in selected_covariates if cov != "sex_code"]
     pheno_subset_transform[["family_id", "AGRF code"] + selected_covariates_cont].rename(columns=dict_change_names).to_csv( \
-        "./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_cont.tsv", \
+        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_cont.tsv", \
         sep="\t", \
         header=True, \
         index=False, \
@@ -65,7 +76,7 @@ def manhattan_plot(covariate_dataset, response_variable):
 
     #create a file with the samples of the selected set
     pheno_subset_transform[["family_id", "AGRF code"]].to_csv( \
-        "./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_samples_in.tsv", \
+        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_samples_in.tsv", \
         sep="\t", \
         header=False, \
         index=False, \
@@ -76,9 +87,9 @@ def manhattan_plot(covariate_dataset, response_variable):
     run_bash(" \
         plink \
             --bfile ./data/plink_filesets/" + covariate_dataset + "/" + response_variable + "_filesets/" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing \
-            --keep ./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_samples_in.tsv \
+            --keep ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_samples_in.tsv \
             --make-bed \
-            --out ./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_plink_fileset \
+            --out ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_plink_fileset \
     ")
         #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
 
@@ -86,16 +97,18 @@ def manhattan_plot(covariate_dataset, response_variable):
     run_bash(" \
         ldak6.1.linux \
             --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/full_dataset/" + response_variable + "_full_dataset_linear \
-            --bfile ./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_plink_fileset \
-            --pheno ./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_response.tsv \
-            --covar ./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_cont.tsv \
-            --factors ./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_factors.tsv \
-            --permute YES \
+            --bfile ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_plink_fileset \
+            --pheno ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_response.tsv \
+            --covar ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_cont.tsv \
+            --factors ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_factors.tsv \
+            --permute NO \
     ")
 
     #--linear
         #https://dougspeed.com/single-predictor-analysis/
 
+
+    #clumping?
 
     print("load assoc results to pandas")
     assoc_results = pd.read_csv( \
@@ -171,6 +184,13 @@ def manhattan_plot(covariate_dataset, response_variable):
 
     ##INFLATION FACTOR?
 
+    #check manhatan plots
+        #there is a strange gap in VO2 max for one of the first chromosomes in the prelim results
 
-    ##COMPRIMIR??? 3GB ONE PHENO AND 10 ITERATIONS!
 
+
+#FOR BAT ANALYSES
+    #this would an additional step in this project that would be outside of the paper
+    #take the 1000kb gene windows for all coding genes, liftover to hg38. If the USCS tool accepts genomic ranges, just use them as input, if not, split in two datasets the start and the end of the gene windows
+    #for each phenotype (VO2, beep....), calculate the average (better than median because want influence of outliers within gene like in iHS, if a SNPs is veery important in a gene that should influence the info about the whole gene) p-value for the association of SNPs inside each gene
+    #then, calculate 1000 random sets of genes, within each set, calculate the median association of all genes inside the set and compare with the BAT set to obtain a distribution and empirical p-value (is association lower in BAT? LOOF BAT PAPER SCRIPTS FOR THIS). Here I want median because i do not want a gene outliser change things, I want the overall impact of BAT genes in general, not just a few genes.

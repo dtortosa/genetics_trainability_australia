@@ -16,7 +16,7 @@
 ######## ASSOCIATION ANALYSIS ########
 ######################################
 
-#This script will perform association analyses. 
+#This script will calculate the Polygenic Risk Scores. 
 
 #This and previous scripts are based on the following tutorials:
     #1. Quality Control Procedures for Genome-Wide Association Studies
@@ -54,7 +54,6 @@ import pandas as pd
 import numpy as np
 import argparse
 from sklearn.model_selection import train_test_split
-import pickle
 from sklearn.preprocessing import quantile_transform
 
 
@@ -158,10 +157,9 @@ run_bash("ls")
 
 #define input arguments to be passed when running this script in bash
 parser=argparse.ArgumentParser()
-parser.add_argument("--iter_number", type=int, default=1, help="Number of the iteration run. Integer always, None does not work!")
+parser.add_argument("--total_iter", type=int, default=100, help="Total number of iterations. Integer always, None does not work!")
 parser.add_argument("--response_variable", type=str, default="distance_change", help="Phenotype to model. String always, None does not work!")
 parser.add_argument("--covariate_dataset", type=str, default="small_set_predictors", help="Type of dataset used, short or long list of covariates. String always, None does not work!")
-parser.add_argument("--manhattan_plot", type=bool, default=False, help="Ask for a Manhattan plot considering the whole dataset. Bool always, None does not work!")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -169,23 +167,9 @@ args=parser.parse_args()
     #https://docs.python.org/3/library/argparse.html
 
 #get the arguments of the function that have been passed through command line
-iter_number = args.iter_number
+total_iter = args.total_iter
 response_variable = args.response_variable
 covariate_dataset = args.covariate_dataset
-manhattan_plot = args.manhattan_plot
-
-
-
-
-######################
-# folder preparation #
-######################
-run_bash(" \
-    mkdir -p \
-        ./data/train_test_sets/" + covariate_dataset + " \
-        ./results/final_results/" + covariate_dataset + "; \
-    ls -l \
-")
 
 # endregion
 
@@ -240,7 +224,7 @@ run_bash(" \
         #https://dougspeed.com/small-datasets/
         #To perform heritability analysis (e.g., estimate SNP heritability or partition heritability), requires that the samples are "unrelated" (in practice, this means at most distantly related, with no pair closer than, say, second cousins). This ensures that the heritability estimates reflect only the heritability contributed by predictors in the dataset (or predictors in local linkage disequilibrium with these). By contrast, if your dataset includes (substantial) relatedness, there will likely be long-range linkage disequilibrium (e.g., between predictors on different chromosomes), and you will end up with inflated estimates.
             #we removed first and second degree, i.e., parent-child, siblings, grandparents, grandchildren, aunts, uncles, nieces, nephews, and half-siblings...
-            #we did not remove cousins, and we could have them. We used the threshold frequently used in GWAS studies. As you will see below, we are going to be limited for the calculation of heritability due to sample size.
+            #we did not remove cousins, and we could have them. We used the threshold frequently used in GWAS studies. As you will see below, we are going to be limited for the calculation of heritability due to sample size anyways.
         #Furthermore, heritability analyses generally require a large sample size. For example, to reliably estimate SNP heritability (standard deviation less than 5%) using a single kinship matrix typically needs at least 7,000 unrelated samples; if you wish to use multiple kinship matrices (i.e., perform Genomic Partitioning), the required number of samples is even higher.
     #According to Doug, the clumping and thresholding method technically assumes NO heritability model (it is classical - only bayesian methods assume a heritability model). In contrast, we will likely get noisy estimates of h2, making it hard to leverage the power of good heritability models when using 1.2K samples. So, yes, 1200 samples is typically considered small (if the trait was very simple, eg Mendelian, 1200 would be sufficient; but assuming the trait is complex, it will be challenging to get prediction with 1200 samples). Note, however, that in the same way, the sample size will affect all PRS tools. 
     #More important, in general, individual-level data tools (e.g., .LDAK) are always better than summary statistic tools (e.g., clumping and thresholding). So even for small sample sizes, it remains better to use individual-level data tools. While the main advantage is accuracy, ind-level methods also have the advantage of reporting measures of accuracy (e.g., LDKA uses internal CV, and will report accuracy from this).
@@ -267,10 +251,13 @@ run_bash(" \
 
 #The heritability model 
     #The first heritability analyses used the GCTA Model, which assumes that all SNP contributes equally. Since then, many different models have been developed, that try to more accurately describe how heritability varies across the genome. For example, we proposed the LDAK Model, where the expected heritability contributed by a SNP depends on its minor allele frequency (MAF) and local levels of linkage disequilibrium (LD).
+        #The GCTA Model assumes E[h2j] = tau1 (i.e., that expected heritability is constant across SNPs). Note that this is the model assumed by any method that first standardizes SNPs, then assigns to each the same prior distribution or penalty function.
         #http://dougspeed.com/technical-details/
     #The LDAK weightings are designed to account for the fact that levels of linkage disequilibrium vary across the genome. The LDAK weightings are designed to equalize the tagging of SNPs across the genome; SNPs in regions of high linkage disquilbirum (LD) will tend to get low weightings, and vice versa. This will influence the impact of each SNP on the overall heredability (see below for the heirtability formula below). If you have 4 SNPs very close and in linakge they all are considered to tag the same underlying variation having then the same weight than a single SNP that is tagging a single source of underlying variation. HOWEVER, they only advise using them when constructing the BLD-LDAK or BLD-LDAK+Alpha Models, our recommended Heritability Models when analysing summary statistics.
+        #The LDAK Model assumes E[h2j] = tau1 wj [fj(1-fj)]0.75, where wj are the LDAK weightings; these will tend to be lower for SNPs in regions of high linkage disequilibrium (LD), and vice versa. Therefore, the LDAK Model assumes that E[h2j] is higher for SNPs in regions of lower LD and for those with higher MAF. Here is where the weigthings enters in action, considering not only the MAF but also the LD level in each genomic region.
         #https://dougspeed.com/method-overview/
     #We have spent much time investigating the best Heritability Model. We now generally recommend using the Human Default Model. Although there are more realistic heritability models (e.g., those that take into account functional annotations), we recommend the Human Default Model because it has robust performance and is easy to use.
+        #The Human Default Model assumes E[h2j] = tau1 [fj(1-fj)]0.75, where fj is the minor allele frequency of SNP j. Therefore, the Human Default Model assumes that more common SNPs have higher E[h2j] than less common SNPs.
     #We now recommend using the Human Default Model, in which the expected heritability of a SNP depends only on its MAF. We first proposed this model in our paper LDAK-GBAT: fast and powerful gene-based association testing using summary statistics (American Journal of Human Genetics). Although there are more realistic heritability models (e.g., those that take into account functional annotations), we recommend the Human Default Model because it has robust performance and is easy to use.
 
 #additional steps besides QC?
@@ -280,6 +267,24 @@ run_bash(" \
 #you could also use LDAK to create the regular approach
     #You may wish to do a classical PRS just for interest / comparison, in which case, you can run --linear (on the training samples), then the file with suffix .score gives classical PRS .corresponding to 7 p-value thresholds (that you can then provide to --calc-scores)
     #NOT SURE IF WE HAVE TO DO CLUMPING, ASK IN THE FUTURE TO DOUG IN CASE NEEDED. 
+
+#CV scheme and independent dataset
+            #In some cases like studies of rare diseases, they use interval validation of the GWAS, i.e., using the same cohort but applying resampling methods. 
+                #This is an option but it would be a clear limitation of the study.
+                #the gold standard in this point is to use an independent and diverse cohort for validation
+            #We also have a good point in the fact we have a very specific cohort. It is very difficult to find a population with similar characteristics. This is just like having a cohort of a rare disease.
+            #Data leaking
+                #we remove SNPs based on the allele frequencies of all samples, including those of the validation dataset.
+                #We also remove samples based on relatedness and PCA considering test and evaluation samples, but you have to related individuals and as you have more data you can do it better...
+                #the most problematic point would be to use PCAs as predictors...
+            #We have explained all of this to Dr.Speed and he does not seem to be specially concern regarding the independence of the samples for evaluation.
+            #info
+                #Evaluation of a two-step iterative resampling procedure for internal validation of genome-wide association studies
+                    #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4859941/
+                #In "Genome-wide association studies", nature review methods, they say that internal validation is a possibility, but no the gold standard
+                    #https://www.nature.com/articles/s43586-021-00056-9
+                #David sent a paper also using this approach
+                    #Personalized Nutrition by Prediction of Glycemic Responses
 
 # endregion
 
@@ -359,16 +364,19 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     if (pheno_subset_transform["sex_code"].unique().size != 2):
         raise ValueError("ERROR: FALSE! WE HAVE TRANSFORMED SEX_CODE")
 
+    #check we do not have NAs
+    if(pheno_subset_transform.isna().sum().sum()!=0):
+        raise ValueError("ERROR: FALSE! WE HAVE NAs IN THE TRANSFORMED DATASET")
+
     print_text("save the full transformed dataset", header=3)
     if(iter_number==1):
         run_bash(" \
             mkdir \
                 -p \
-                ./data/full_set/" + covariate_dataset + "/" + response_variable + " \
-                ./results/final_results/" + covariate_dataset + "/" + response_variable + "/full_dataset/; \
+                ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "; \
         ")
         pheno_subset_transform.to_csv( \
-            "./data/full_set/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform.tsv", \
+            "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform.tsv", \
             sep="\t", \
             header=True, \
             index=False, \
@@ -410,7 +418,7 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             mkdir -p ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/ \
         ")
 
-        print_text("save the input dataframe, test or training", header=3)
+        print_text("save the input dataframe for test or training", header=3)
         input_df.to_csv( \
             "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/" + type_df + "_set/" + response_variable + "_" + type_df + "_set_transform.tsv", \
             sep="\t", \
@@ -427,6 +435,9 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             index=False, \
             na_rep="NA" \
         )
+            #In LDAK, phenotype files should be in PLINK format. The first two columns should provide sample IDs, with subsequent columns providing values for each phenotype. The files can contain a header row, but then the first two elements must be named either FID & IID or ID1 & ID2.
+            #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype). We do not have NAs anyways.
+            #Also, we are going to have just 1 response variable, so no problem with filling NA cases with the average. We have just 1 response and it is free of NAs.
 
         #save the covariates that are factors
         if ("sex_code" in selected_covariates):
@@ -439,6 +450,8 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
                 index=False, \
                 na_rep="NA" \
             )
+                #In LDAK, phenotype files should be in PLINK format. The first two columns should provide sample IDs, with subsequent columns providing values for each phenotype. The files can contain a header row, but then the first two elements must be named either FID & IID or ID1 & ID2.
+                #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype). We do not have NAs anyways.
 
         #save the covariates that are continuous
         selected_covariates_cont = [cov for cov in selected_covariates if cov != "sex_code"]
@@ -449,6 +462,8 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             index=False, \
             na_rep="NA" \
         )
+            #In LDAK, phenotype files should be in PLINK format. The first two columns should provide sample IDs, with subsequent columns providing values for each phenotype. The files can contain a header row, but then the first two elements must be named either FID & IID or ID1 & ID2.
+            #Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype). We do not have NAs anyways.
 
         #create a file with the samples of the selected set
         input_df[["family_id", "AGRF code"]].to_csv( \
@@ -458,6 +473,7 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             index=False, \
             na_rep="NA" \
         )
+            #This is the input for plink´s --keep argument. This accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
 
         #use that file to select the corresponding sample from the plink fileset
         run_bash(" \
@@ -495,10 +511,12 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     ldak_input_prep(type_df="training")
     ldak_input_prep(type_df="test")
 
-    print_text("run LDAK on the training set", header=2)
+    print_text("create and evaluate a PRS using elastic net", header=2)
+    print_text("run LDAK on the training using elastic", header=3)
     run_bash(" \
         mkdir \
-            -p ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/; \
+            -p \
+            ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/; \
         ldak6.1.linux \
           --elastic ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic \
           --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
@@ -507,46 +525,79 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
           --factors ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
           --LOCO NO \
     ")
-    #ELASTIC:
-        #https://dougspeed.com/elastic-net/
+        #Dr. Speed: Yes, your steps sound right - perform QC, then use the PLINK files with --elastic (adding --LOCO NO, because you only care about prediction) and then --calc-scores
+            #We DO NOT CARE ABOUT HERIABILITY BECAUSE WE CANNOT CALCULATE IT PROPERLY!! JUST PREDICTION.
+        #Here we explain how to construct an elastic net prediction model. These instructions assume you are analysing individual-level data.
+            #So I understand we are combining here ridge and lasso, which is the elastic net.
+        #construct an elastic net prediction model by analysing individual-level data (if instead you are analysing summary statistics, you should use MegaPRS).
+            #--bfile/--speed <datastem> or --bgen <datafile> - to specify the genetic data files (see File Formats). If your genetic data are in a different format, you should first Make Data.
+                #LDAK accepts genetic data in many formats. When analyzing SNP data, it is easiest to use bed format (binary PLINK) which is designed to store hard-coded SNP genotypes (all values must be 0, 1, 2 or NA).
+                #LDAK considers the last two columns of the bim file are the A1 and A2 alleles, respectively. During, QC, we checked for strand issues and flip alleles if needed. Then, we select REF and ALT from the VCF files generated from the imputation and converted them to plink format using plink.
+                #Note that plink swaps REF by ALT if the REF is less frequent, but this should not be a problem because we are not going to use the alleles, just PRS. Anyways, if REF is "A" and ALT is "T", as long as we are using the foward strand, then we can compare with other studies, because "T" is indeed "T", so we could see if that allele associate with a given phenotype in the same way than other studies. And we have ensured this during the quality control also removing problematic palindromic cases...
+                    #If needed, you can use "--ref-allele" and input the REF allele list from the source VCF files to correct this.
+            #--pheno <phenofile> - to specify phenotypes (in PLINK format; see above). Samples without a phenotype will be excluded. If <phenofile> contains more than one phenotype, specify which should be used with --mpheno <integer>, or use --mpheno ALL to analyze all phenotypes.
+                #We are using just one phenotype, so we do not need to specify --mpheno
+            #You can use --covar <covarfile> or --factors <factorfile> to provide quantitative or categorical covariates (in PLINK format; see above); the phenotype will be regressed on these prior to estimating effect sizes.
+                #Note that if a categorical covariate has U unique values, LDAK will (internally) replace it with U-1 indicator variables (LDAK will give an error if the total number of indicator variables is greater than half the sample size).
+                #For example, sex code is 1 and 2, so in LDAK would be 0 and 1.
+            #--LOCO NO - to tell LDAK to focus on creating the genome-wide prediction model (instead of creating leave-one-chromosome-out models for use with LDAK-KVIK).
+                #This was the recommendation of Dr. Speed, and we are not using the LDAK-KVIK model anyways.
+            #By default, LDAK will estimate the heritability and the power parameter alpha; to instead specify their values use --power <float> and --her <float> (note that if you use --her, you must also use --power).
+            #By default, LDAK will use 90%/10% cross-validation to determine suitable prior distribution parameters. You can change the fraction of test samples uing --cv-proportion <float>,  specify the test samples using --cv-samples <cvsampsfile>, or turn off cross-validation, using --skip-cv YES (LDAK will then output multiple models, each trained using 100% of samples).
+                #So it uses CV internally, which is great. We do CV to tune the hyperparameters of the model, and then we use the best model to predict the test set.
+            #By default, LDAK will assign all predictors (i.e., SNPs) weighting one (equivalent to using --ignore-weights YES). If you prefer to provide your own weightings, use --weights <weightsfile> or --ind-hers <indhersfile> (note that if using --ind-hers, you can not use --her or --power).
+                #we are just going to use the default weights. To my understanding, LDAK will give different weights to the SNPs depending on their MAF, so we do not need to worry about that.
+            #You can use --keep <keepfile> and/or --remove <removefile> to restrict to a subset of samples, and --extract <extractfile> and/or --exclude <excludefile> to restrict to a subset of predictors (for more details, see Data Filtering).
+            #output:
+                #The estimated prediction model is saved in <outfile>.effects. Usually, this file has five columns, providing the predictor name (SNP), its A1 and A2 alleles, the average number of A1 alleles, then its estimated effect (relative to the A1 allele). If you used --skip-cv YES, there will be effect sizes for each of the different prior parameters. This file is ready to be used for Calculating Scores (i.e., to predict the phenotypes of new samples).
+            #https://dougspeed.com/elastic-net/
 
-
-    ###use -mpheno!!!! to select the pheno you want
-        #http://dougspeed.com/phenotypes-and-covariates/
-
-    ###NO USES MPHENO!!! UN FILE POR PHENO ASI NO TE HACE LA MEDIA
-    ##Missing phenotypic values should be denoted by NA (note that while PLINK also treats -9 as missing, this is not the case in LDAK). Binary phenotypes should only take values 0 (control), 1 (case) or NA (missing). In general, LDAK excludes samples with missing phenotypes (the exception is when analyzing multiple phenotypes, in which case LDAK generally replaces missing values with the mean value of the corresponding phenotype).
-
+    print_text("calculate the PRS in the test set", header=3)
     run_bash(" \
         mkdir \
-            -p ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/; \
+            -p \
+            ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/; \
         ldak6.1.linux \
             --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation \
+            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic.effects \
             --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset \
             --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_response.tsv \
-            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic.effects \
-            --power 0 \
+            --power -1 \
     ")
-
-    #CALCULATE SCORES
+        #calculate linear combinations of predictor values (the linear projection of genetic data onto predictor effect sizes). These are most commonly used for creating polygenic risk scores and testing the performance of prediction models. Please note that if you include a phenotype when calculating scores, then the resulting profile file can be used with Jackknife (in order to compute additional measures of accuracy and corresponding estimates of precision).
+        #--scorefile <scorefile> - to provide the predictor effect sizes. The score file should have at least five columns. The first 4 columns provide the name of each predictor, its two alleles (test allele followed by reference allele), then its centre (the mean number of test alleles); the remaining columns provide sets of predictor effect sizes. The file should have a header row, whose first element must be "Predictor" or "SNP". Note that if centre is "NA" for a predictor, then LDAK will centre values based on the mean number of test alleles in the genetic data.
+        #–bfile/–gen/–sp/–speed <prefix> or --bgen <datafile> - to specify genetic data files (see File Formats)
+        #-pheno <phenofile> - to specify phenotypes (in PLINK format; see above).
+            #Typically, the sets of effect sizes in the score file will correspond to different prediction models, and we are interested in measuring their accuracy. We have phenotypes for samples in the genetic data (i.e., you have individual-level validation data), in which case you should provide these using --pheno <phenofile>. LDAK will then calculate the correlation between scores and phenotypic values for the samples in the genetic data.
+        #Sometimes you will have two sets of prediction models, for example, one computed using training samples and one computed using all samples. You can then use --scorefile <scorefile> to provide the first set of prediction models, --pheno <phenofile> or --summary <sumsfile> to provide phenotypic values or summary statistics, and --final-effects <finaleffectsfile> to provide the second set of prediction models. LDAK will save to <outfile>.effects.best the prediction model from the second set that corresponds to the most accurate model from the first set (for example, if Model 5 from the first set has highest correlation, LDAK will save Model 5 from the second set).
+        #--power <float> - to specify how predictors are scaled (see below). Usually, the score file contains raw effects, so you should use --power 0.
+            #When power equals one, predictors are divided by their expected standard deviation (i.e., are standardised). Therefore, you should use --power=-1 when the score file contains standardised effect sizes. By contrast, when power equals zero, predictors are no longer scaled. Therefore, you should use --power=0 when the score file contains raw effect sizes.
+            #I think our effect sizes coming from the elastic net are standardised, so we should use --power -1, but I have to ask Dr. Speed.
+        #output:
+            #The profile scores will be saved in <outfile>.profile, the (estimated) correlation between scores and phenotypic values will be saved in <outfile>.cors.
         #https://dougspeed.com/profile-scores/
 
+    print_text("calculate evaluation metrics", header=3)
     run_bash(" \
         ldak6.1.linux \
             --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_jacknife_eval \
             --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation.profile \
             --num-blocks 200 \
     ")
-
-    #jacknife
+        #The jackknife function measures the similarity between pairs of vectors containing predicted and observed values. Specifically, it computes the correlation, correlation squared (on the observed scale), mean squared error and mean absolute error, as well as corresponding estimates of standard deviation. The jackknife function was designed for computing the accuracy of polygenic risk scores, such as those created by the Prediction tools.
+            #--data-pairs <datapairs> or --profile <profile> - to provide pairs of predicted and observed values.  If using --data-pairs, then <datapairs> should have either two or three columns (with no headers), containing predicted values, observed values, and (if provided) regression weights. If using --profile, then <profile> should be the output from Calculation Scores.
+            #--pheno (in PLINK format)
+                #Because we included the option --pheno in the previous step (--calc-scores), the resulting profile contains both scores and the phenotypes. Therefore, we can measure how well the scores predict the phenotypes by running
+            #--num-blocks <integer> - to specify the number of jackknife blocks (usually 200 is a good choice).
+            #If the observed values are binary, you can add --AUC YES, and LDAK will additionally compute the area under curve. You can also add --prevalence <float> to specify the proportion of cases in the population, and then LDAK will also report correlation squared on the liability scale.
+            #output:
+                #The accuracy estimates will be saved in <outfile>.jack.
         #https://dougspeed.com/jackknife/
 
 
-    #You may wish to do a classical PRS just for interest / comparison, in which case, you can run --linear (on the training samples), then the file with suffix .score gives classical PRS .corresponding to 7 p-value thresholds (that you can then provide to --calc-scores)
-    #get also from here the manhtan plot? we need to check inflation? maybe just bonferroni and show no snp is signifncat, so PRSs are useful
-
-        #--linear: https://dougspeed.com/single-predictor-analysis/
-
+    print_text("calculate and evaluate a PRS using the classical approach", header=2)
+    #Dr. Speed: You may wish to do a classical PRS just for interest / comparison, in which case, you can run --linear (on the training samples), then the file with suffix .score gives classical PRS .corresponding to 7 p-value thresholds (that you can then provide to --calc-scores)
+    print_text("create Classical PRS in training dataset", header=3)
     run_bash(" \
         ldak6.1.linux \
             --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear \
@@ -554,348 +605,178 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
             --covar ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
             --factors ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
-            --permute YES \
+            --permute NO \
     ")
+        #perform one-predictor-at-a-time analysis, using linear regression (classical model, i.e., not mixed model).
+            #--bfile/--gen/--sp/--speed <datastem> or --bgen <datafile> - to specify the genetic data files (see File Formats).
+            #--pheno <phenofile> - to specify phenotypes (in PLINK format). Samples without a phenotype will be excluded. If <phenofile> contains more than one phenotype, specify which should be used with --mpheno <integer>, or use --mpheno ALL to analyze all phenotypes.
+            #You can use --covar <covarfile> or --factors <factorfile> to provide quantitative or categorical covariates (in PLINK format) as fixed effect in the regression.
+            #If you add --spa-test YES, LDAK will recompute p-values for the most associated predictors using a SaddlePoint Approximation.
+            #It remains possible to  add  --grm <kinfile>, in which case LDAK will perform mixed-model linear regression. However, we instead recommend using LDAK-KVIK, which is usually faster and more powerful.
+            #To perform a within-family analysis, add --families YES (for more details of this analysis, see Howe et al.). Note that LDAK will infer families based on the 1st column of the fam file (the FID).
+            #To perform a trio analysis, add --trios YES. Note that LDAK will infer trios based on the 3rd and 4th column of the fam file (the PID and MID).
+            #To perform weighted linear regression, use --sample-weights <sampleweightfile>. The file <sampleweightfile> should have three columns, where each row provides two sample IDs followed by a positive float. Note that by default, LDAK will use the sandwich estimator of the effect size variance (see this page for an explanation); to instead revert to the standard estimator of variance, add --sandwich NO.
+            #If you add --permute YES - the phenotypic values will be shuffled. This is useful if wishing to perform permutation analysis to see the distribution of p-values or test statistics when there is no true signal.
+                #SO WHEN YOU SET THIS AS YES, YOU ARE GETTING THE P-VALUE WHEN THERE IS NO SIGNAL
+            #output:
+                #When performing a standard analysis, LDAK produces five output files: <outfile>.assoc contains the main results; <outfile>.summaries contains summary statistics (in the format required for use with SumHer, and MegaPRS); <outfile>.pvalues contains p-values (useful if you wish to Thin Predictors); <outfile>.coeff contains estimates of the fixed effects; <outfile>.score contains simple prediction models corresponding to six different p-value thresholds.
+            #https://dougspeed.com/single-predictor-analysis/
 
+    print_text("calculate the classical PRS in the test set", header=3)
     run_bash(" \
-        mkdir \
-            -p ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/; \
         ldak6.1.linux \
             --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical \
+            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear.score \
             --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset \
             --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_response.tsv \
-            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear.score \
-            --power 0 \
+            --power -1 \
     ")
+        #see above for the arguments of --calc-scores, just remember
+            #--scorefile <scorefile> - to provide the predictor effect sizes. The score file should have at least five columns. The first 4 columns provide the name of each predictor, its two alleles (test allele followed by reference allele), then its centre (the mean number of test alleles); the remaining columns provide sets of predictor effect sizes. In the case of the output of --linear, the fifth columns is ALL, and it seems to have effect sizes.
+            #power -1 assumes that the effect sizes of the SNPs in the score file are standardized. 
 
+    print_text("calculate evaluation metrics", header=3)
     run_bash(" \
         ldak6.1.linux \
             --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_classical_jacknife_eval \
             --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical.profile \
             --num-blocks 200 \
     ")
+        #see above for the arguments of jackknife
+        #in the case of --linear, as we have several p-value thresholds, we have several models and hence the metrics for each threshold
+
+    print_text("check we have used the correct samples in both analyses", header=2)
+    print_text("load the FAM files used for training and test", header=3)
+    fam_file_training = pd.read_csv( \
+        "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset.fam", \
+        sep=" ", \
+        header=None \
+    )
+    fam_file_test = pd.read_csv( \
+        "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset.fam", \
+        sep=" ", \
+        header=None \
+    )
+    
+    print_text("samples in files generated by elastic net", header=3)
+    prs_elastic = pd.read_csv( \
+        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic.prs", \
+        sep=" ", \
+        header=0 \
+    )
+    profile_prs_elastic = pd.read_csv( \
+        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation.profile", \
+        sep="\t", \
+        header=0 \
+    )
+    if ( \
+        (not fam_file_training[1].rename("IID").equals(prs_elastic["IID"])) | \
+        (not fam_file_test[1].rename("ID2").equals(profile_prs_elastic["ID2"])) \
+    ):
+        raise ValueError("ERROR: FALSE! WE HAVE NOT SELECTED THE CORRECT SAMPLES FOR ELASTIC NET")
+
+    print_text("samples in files generated by --linear", header=3)
+    combined_linear = pd.read_csv( \
+        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear.combined", \
+        sep=" ", \
+        header=0 \
+    )
+    profile_prs_classic = pd.read_csv( \
+        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical.profile", \
+        sep="\t", \
+        header=0 \
+    )
+    if ( \
+        (not fam_file_training[1].rename("IID").equals(combined_linear["IID"])) | \
+        (not fam_file_test[1].rename("ID2").equals(profile_prs_classic["ID2"])) \
+    ):
+        raise ValueError("ERROR: FALSE! WE HAVE NOT SELECTED THE CORRECT SAMPLES FOR ELASTIC NET")
+
+
+    print_text("compress the results", header=2)
+    print_text("bed and bim plink files", header=3)
+    run_bash(" \
+        cd ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/; \
+        gzip \
+            --force \
+            ./training_set/" + response_variable + "_training_set_plink_fileset.bed \
+            ./training_set/" + response_variable + "_training_set_plink_fileset.bim \
+            ./test_set/" + response_variable + "_test_set_plink_fileset.bed \
+            ./test_set/" + response_variable + "_test_set_plink_fileset.bim; \
+    ")
+    
+    print_text("bed and bim plink files", header=3)
+    run_bash(" \
+        cd ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/; \
+        gzip \
+            --force \
+            ./training_set/" + response_variable + "_training_elastic.effects \
+            ./training_set/" + response_variable + "_training_elastic.probs \
+            ./training_set/" + response_variable + "_training_linear.assoc \
+            ./training_set/" + response_variable + "_training_linear.pvalues \
+            ./training_set/" + response_variable + "_training_linear.score \
+            ./training_set/" + response_variable + "_training_linear.summaries; \
+    ")
 
 
 
-    #Error, ./data/train_test_sets/distance_change/train_test_iter_1/training_set/distance_change_training_set_transform_subset_response.tsv contains multiple phenotypes, so you must specify one using "--mpheno", or use "--mpheno ALL" to analyse all phenotypes
-
-        #Yes, your steps sound right - perform QC, then use the PLINK files with --elastic (adding --LOCO NO, because you only care about prediction) and then --calc-scores
-        #Select the Heritability model
-            #The GCTA Model assumes E[h2j] = tau1 (i.e., that expected heritability is constant across SNPs). Note that this is the model assumed by any method that first standardizes SNPs, then assigns to each the same prior distribution or penalty function. In LDAK, this model is specified by adding the options --ignore-weights YES and --power -1 when Calculating Kinships or Calculating Taggings.
-            #The Human Default Model assumes E[h2j] = tau1 [fj(1-fj)]0.75, where fj is the minor allele frequency of SNP j. Therefore, the Human Default Model assumes that more common SNPs have higher E[h2j] than less common SNPs. In LDAK, this model is specified by adding the options --ignore-weights YES and --power -0.25 when Calculating Kinships or Calculating Taggings.
-                #THIS IS THE RECOMMENDED MODEL IN GENERAL BY DOUG
-            #The LDAK Model assumes E[h2j] = tau1 wj [fj(1-fj)]0.75, where wj are the LDAK weightings; these will tend to be lower for SNPs in regions of high linkage disequilibrium (LD), and vice versa. Therefore, the LDAK Model assumes that E[h2j] is higher for SNPs in regions of lower LD and for those with higher MAF. In LDAK, this model is specified by adding the options --weights <weightsfile> and --power -0.25 when Calculating Kinships or Calculating Taggings, where <weightsfile> provides the LDAK Weightings.
-                #Here is where the weigthings enters in action, considering not only the MAF but also the LD level in each genomic region.
 
 
 
+#########################################
+# region run function across iterations #
+#########################################
 
-
-    #you can use --elasti en el 75%, ahí te hace automaticamente CV para seleccionar hiperparamteros usando plink filset como inputs. El output se puede usar como input para otra funcion que calcula los scores para nuevos individuaos, el 25% restante. Do function that do this for a given iteration so you can use 10 cores to do 100 iterations in 1 day. you can also calculate the regulra PRS in each iteration. at the end of paralelization, in a different script, you will combine R2, accurcy of all iteratons and calculate media and CI. Caclulate the median difference respect to the original PRS approach. you could also calculate the degree of overlap across iterations for the top 10% responders. as a previous step in a different step, use LDAK to do manhatan plot (LDAK-KVIK).
-
-
-
-    #if you compare with trad-PRS, you can use log?
-        #https://dougspeed.com/compare-models/
-
-    #David wants to show also manhatann plots (maybe just use plink or LDAK?), also repeat 10 times the 75-25% and see if the respodners are the same?
-
-
-    ##use simple PRS (linear) as reference as Dr. Speed suggested in your github conversation?
-
-    #you could take from here the p-values to calculate the manhattan plot and the p-values could be used later for the BAT analyses
-
-
-
-#run the function across the three phenotypes
-#ALSO CONSDIEIRNG REDUCED AND FULL COVARIATE SET
-prs_calc(iter_number, response_variable, covariate_dataset, manhattan_plot)
-
-
-
-
-
-#REMOVE PLINK FILES AFTER, IF NOT CRAZY AMOUNT OF SPACE
-
-
-#MAKE A BASELINE regular approach?
-
-
-
-
-
-###PUT THIS IN A BASH SCRIPT INSIDE LDAK FOLDER
-"""
-run_bash(" \
-    mkdir -p ../ldak_versions/; \
-    cd ../ldak_versions/; \
-    wget --output-document ldak6.1.linux https://github.com/dougspeed/LDAK/raw/refs/heads/main/ldak6.1.linux; \
-    chmod +x ./ldak6.1.linux; \
-")
-    #http://dougspeed.com/downloads2/
-    #https://github.com/dougspeed/LDAK
-"""
-
-
-##WHEN INTERPRETING THE RESULTS OF THE PRS, LOOK SLIDES FROM DOUG
-    #https://dougspeed.com/short/
-###WHEN DONE, YOU CAN CHECK THE SECTION OF INTERPRETATION FROM ORRELLY
-    #Interpretation and presentation of results
-
-
+#iterate from 1 to total_iter (add 1 because the last element in range is not considered)
+#iter_number=1; response_variable="distance_change"; covariate_dataset="small_set_predictors"
+for iter_number in range(1, total_iter+1):
+    prs_calc(iter_number, response_variable, covariate_dataset)
 
 # endregion
 
 
 
-##parallelize
-##PARSE ITERATION AS A COMMAND SO YOU CAN RUN EACH ITERATION SEPARATETLY FOR EACH PHENO
-#WE COULD SEND 100 JOBS OF JUST 1 CORE AND 1 HOUR AND THEY SHOULD BE RUNNING FAST
-#ALSO INCLUDE THE PHENO AS A ARGUMENT, SO WE CAN DO THIS FOR EACH OF THE THREE PHENOTYPES
+
+
+####################
+# region questions #
+####################
+
+print_text("Questions", header=1)
+print(""" \
+
+1) I have applied a quantile transformation to normalize phenotypes and covariates, having all of them in the same range. Is this recommended? I have run just one example with unstandarized data and the correlation between the PRS and the phenotype seems to be similar between both approaches.
+      
+2) Related to that point, I have noticed that the phenotype values in the column "Adjusted_Phenotype" from the .prs file obtained from --elastic do not match the values of the input phenotype for each sample. I guess an additional transformation/processing is applied to the phenotypes by LDAK?
+
+3) When using --elastic, I guess I should use the default and assign all predictors a weighting of one. Then, LDAK will consider MAF for the estimation of the impact of each SNP, right?
+
+4) Should covariates also be used with --calc-scores in the test set? Given that the phenotype was regressed against the covariates in the training set prior to estimating effect sizes, I guess it is not necessary to include them in the test set, right? Still I made an attempt and added the continuous covariates (plus coefficients with --coeffsfile) to --calc-score and the correlation improved from 0.04 to 0.06... Although as you will see in a question below, this difference falls within the normal variation I have seen analyzing the same phenotype several times with the same parameters....
+
+5) As you suggested, I am running the classical PRS approach (ussing --linear) as baseline. I just used as input the plink files (plus phenotype data and covariates) of the training set, all default. Should I add a clumping step with --thin-tops to get a reduced set of SNPs that then can be analyzed again with --linear? I took a quick look with one of the phenotypes and given that the p-values for the SNPs are very high, the resulting list after clumping had only 20-30 SNPs....
+
+6) In --linear, --permute YES would give the p-value in the case o no association because the phenotype is suffled, right?
+
+7) Regarding the power argument for --calc-scores, not sure if --power should be 0 or -1. The effect sizes in the .effects files coming out from --elastic seem to be standarized (e.g., quantile 0.25=-3.483200e-07 and 0.75=3.477500e-07 in one case or 0.25=-2.958000e-08 and 0.75=3.049600e-08 in another), so I am using --power -1. But could you confirm me this is the case when using --elastic --LOCO NO and rest default? and the same applies for --linear? I checked one case with --linear in the "ALL" column and the 25th and 75th percentile were -4.072700e-02 and 4.199300e-02, respectively, so I guess it is the same.
+
+8) Also about --calc-scores, I guess it is recommended to use the default options for --calc-scores and NOT use "--hwe-stand NO", right?
+
+9) I have noticed that the results slightly changed after changing the ldak executable. I was using one I downloaded at the end of 2024 and I am now using one I just downloaded today, both ldak6.1.linux from github. The correlation between PRS and phenotype changed from 0.0008 to 0.002. Then I repeated the analysis with the same executable and the correlation changed to 0.001704. I have ensured the same set of samples is used in all cases. This degree of variation is expected?
+
+""")
+
+# endregion
 
 
 
 
 
-#FOR BAT ANALYSES
-    #this would an additional step in this project that would be outside of the paper
-    #take the 1000kb gene windows for all coding genes, liftover to hg38. If the USCS tool accepts genomic ranges, just use them as input, if not, split in two datasets the start and the end of the gene windows
-    #for each phenotype (VO2, beep....), calculate the average (better than median because want influence of outliers within gene like in iHS, if a SNPs is veery important in a gene that should influence the info about the whole gene) p-value for the association of SNPs inside each gene
-    #then, calculate 1000 random sets of genes, within each set, calculate the median association of all genes inside the set and compare with the BAT set to obtain a distribution and empirical p-value (is association lower in BAT? LOOF BAT PAPER SCRIPTS FOR THIS). Here I want median because i do not want a gene outliser change things, I want the overall impact of BAT genes in general, not just a few genes.
-
-
-
-
-
-#Data and validation scheme
-    #Integration of risk factor polygenic risk score with disease polygenic risk score for disease prediction
-    #Estimating Disorder Probability Based on Polygenic Prediction Using the BPC Approach
-    #Exploring the application of deep learning methods for polygenic risk score estimation
-    #Machine Learning Models of Polygenic Risk for Enhanced Prediction of Alzheimer Disease Endophenotypes
-    #Genome-wide association studies and polygenic risk score phenome-wide association studies across complex phenotypes in the human phenotype project
-    #Make a Polygenic predictor score (PPS) of VO2 max trainibility
-        #In order to calculate a PPS, we need effect sizes and p-values for the association between SNPs and the trait obtained from a different study than the one used to train the scores, so we avoid overestimating its predictive power.
-            #"Accuracy measurements can be inflated if the discovery GWAS and the target cohort share individuals"
-                #Genome-wide association studies
-                    #https://www.nature.com/articles/s43586-021-00056-9
-            #if the score has a small effect size but it is associated and robust to confounders, you can at least say that there is a connection between genetics and the trait
-                #"However, if the results are shown to be robust to confounding (see Population genetic structure and the generalizability of PRSs), then the effect size is not important if the aim is only to establish whether an association exists, which may provide etiological insight."
-                    #Interpretation of PRS-trait associations
-                        #https://www.nature.com/articles/s41596-020-0353-1
-        #External validation
-            #I have checked previous GWAS about VO2 max trainability and they all have much lower sample size than this study and hence, less power to detect true associations than us. Therefore, I think makes sense to use this study to associate genes and trainability rather than use p-values from previous GWAS to calculate the scores.
-            #The problem is that we then need at least a second cohort to train the score and see how they predict. 
-                #In the PRS tutorial, they say that you need at least two cohort, the base to obtain GWAS summary statistics and then the target to do cross-validation with the PRS. 
-                #Of course, a test set would be then necessary for truly real predictive power, but in the absence of that, we could just use CV.
-                    #Overfitting in PRS-trait association testing
-                        #https://www.nature.com/articles/s41596-020-0353-1
-                #maybe Improve-HIIT could be used as a test set?
-            #David, I have seen you are co-author of one of the previous GWAS on V02 max trainability, the HIIT-Predict study. Do you think there would have been any possibility to talk with them about using their data for training polygenic scores purposes? They say in the paper data is avaiable upon reasonable request.
-                #we should check that samples from both cohorts are not related, as both come from Australia
-                #maybe Improve-HIIT could be used as a test set?
-                #Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
-                    #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7#Sec21
-            #maybe we could even use our PPS developed in the cohort to test whether it interacts with the intervention type in HIIT?
-                #In other words, try also models with the interaction PPSxTrainingType
-                #maybe high PPS values associate with higher increase in VO2 max only in high volumen HIIT, while not in constant training. This would be a small window to training personalization based on genetics.
-                #I am just speculating in this point because I am not sure if there is enough sample size in Predict-HIIT to do test interaction and also split data for training-evaluation.
-            #In summary, we would take advantage of your experiment and machine learning to develop a new PPS of trainability that would be then tested.
-        #An alternative would be 
-            #just ask for p-values/betas from previous GWAS on VO2 max change like the HERITAGE of Predict-HIIT studies. 
-                #This is not genotypes, just the summary statistics.
-                #the problem is that we would be using studies with smaller sample size to discover variants. Indeed, the Predict-HIIT study did not have any SNP with a significant p-value after correction and the paper say that they are probably underpowered. Their power calculations indicates that "a cohort of 2960 samples would have 80% power to detect a quantitative trait with a true heritability of 30%.". Therefore, it would be better to use our study to discover, given its larger sample size.
-                #if we have data from different gwas we can obtain meta-p-values or something like that
-                    #Deep learning-based polygenic risk analysis for Alzheimer’s disease prediction
-                #previos GWAS about trainability
-                    #some GWAS of VO2 max trainability
-                        #Genes to predict VO2max trainability: a systematic review
-                            #https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-017-4192-6
-                        #Genome wide association study of response to interval and continuous exercise training: the Predict-HIIT study
-                            #https://jbiomedsci.biomedcentral.com/articles/10.1186/s12929-021-00733-7
-                        #Genotype-Phenotype Models Predicting VO2max Response to High-Intensity Interval Training in Physically Inactive Chinese
-            #Obtain p-values/betas from GWAS of baseline VO2 max in the UK Biobank. 
-                #This biobank includes estimates of VO2 max based on a submaximal cycle ramp test and it has a large sample size, which is good for power in the base cohort.
-                #there is already a study that have done a GWAS on this data, so we could just ask them for the summary statistics. In the worst case scenario, we could do the GWAS on our own.
-                #then we can test the polygenic scores in our cohort.
-                    #The genetic case for cardiorespiratory fitness as a clinical vital sign and the routine prescription of physical activity in healthcare
-                        #https://www.medrxiv.org/content/10.1101/2020.12.08.20243337v2
-                #problems
-                    #we would use a correlate of VO2 change, not the trait itself. this can be done, but it is not optimal
-                        #See "Predicting different traits and exploiting multiple PRSs" 
-                            #https://www.nature.com/articles/s41596-020-0353-1
-                    #we would not take advantage of the greater sample size we have in this study compared to previous interventions in order to derive the polygenic score.
-            #Make a Polygenic predictor score of VO2 max
-                #It is less interesting, but it would be easier because we could use the previous GWAS studies to obtain effect sizes, then train in our dataset and even validate in a third dataset, as the UK biobank has VO2 max data along with genetics.
-        #THE OPTION SELECTED BY DAVID AND JONATAN
-            #Just do GWAS of trainability with our cohort
-                #I would not got for this option as we do not have a validation cohort, only the discovery cohort.
-                #In some cases like studies of rare diseases, they use interval validation of the GWAS, i.e., using the same cohort but applying resampling methods. 
-                    #This is an option but it would be a clear limitation of the study.
-                    #the gold standard in this point is to use an independent and diverse cohort for validation
-                #We also have a good point in the fact we have a very specific cohort. It is very difficult to find a population with similar characteristics. This is just like having a cohort of a rare disease.
-                #Data leaking
-                    #we remove SNPs based on the allele frequencies of all samples, including those of the validation dataset.
-                    #We also remove samples based on relatedness and PCA considering test and evaluation samples, but you have to related individuals and as you have more data you can do it better...
-                    #the most problematic point would be to use PCAs as predictors...
-                #info
-                    #Evaluation of a two-step iterative resampling procedure for internal validation of genome-wide association studies
-                        #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4859941/
-                    #In "Genome-wide association studies", nature review methods, they say that internal validation is a possibility, but no the gold standard
-                        #https://www.nature.com/articles/s43586-021-00056-9
-                    #David sent a paper also using this approach
-                        #Personalized Nutrition by Prediction of Glycemic Responses
-    #mail to david
-        #Also, I have been thinking and reading about the approach for doing the validation and I have some thoughts on this. I have found several papers talking about internal validation of GWAS hits for cohorts where replication is not possible like in rare disease (REFS). As we discussed, this is also our case, because our population has very specific characteristics.
-        #I have found, however, more insistence for external validation when reading about poligenic scores due to the risk of overfitting. For example, in this Nature Protocol (REFS), the authors insists in the necessity of having complete independent cohorts when doing the scores. 
-        #As we already discussed, we could just split our dataset in training and evaluation, repeating the associations and scores hundreds of times, but here the risk of "data leak" is extremely high in my opinion. In other words, when we use the model on the evaluation dataset, this data is not completely new, the model has already received information of that dataset when doing the training in the train dataset.
-        #For example, 
-            #we are removing SNPs based on the minor allele frequency across all samples, thus we are pruning our genetic information using data from training and evaluation samples. 
-            #In the same vein, we are going to do imputation, which is the "estimation" of genotypes of SNPs we have not genotyped using the information of SNPs around we did genotype and the information about structural variation in the genomes of the ancestry (~race) of our studied population. So we are extending our data using again all samples.
-            #we are removing samples that are related (e.g., cousins) and, of course, we need to use the whole set of samples.
-            #Last but not least, we need to include a PCA with ancestry information in the models. That PCA is calculated using all samples, so even the predictors already contain information of both training and evaluation.
-        #Therefore, we do not have truly unseen (evaluation) data, so the models are going to be training knowing before the data that will be used for evaluate them later. This can artificially inflate a lot the estimation of the predictive power of the models, so we cannot be confident that the model would be the equally good in other population of the same characteristics.
-        #We could try to do the quality control separated between training and evaluation, but then we would have to repeat the whole analyses (not only associations) hundreds of times and, more important, the QC does not work with a low number of samples, like the one we would have in the smaller evaluation dataset.
-        #Finally, the problem of overfitting does not end here. We will likely need to use models where some hyperparameters need to be tuned or optimized (e.g., degree of correction of p-values in a lasso regression). Therefore, the evaluation set should be split again in training-evaluation, so we train the model with a different set of parameters and then check the performance of these different set of parameters in the new evaluation set. This is a common approach in machine learning, but it is also specifically recommended for polygenic scores, because the lack of parameter optimization can greatly reduce the power of the scores.
-        #In summary, using only our data would lead to split the data several times leading to low sample sizes. The risk of overfitting would be really great, limiting the ability of generalize of our results, i.e., we cannot know how powerful the score is for other individuals (even of the same race). Note that the main motivation/necessity to do training/evaluation splits is to obtain less biased estimations of predictive power, but a data leakage greatly difficult this.
-        #We can, of course, do what we discussed and go for the internal validation, saying that we could not find a sample with similar characteristics and making e a clear disclaimer about the potential inflation of the predictive power estimation. But, if possible, it would be much better to avoid this. 
-        #there is no rush to talk about this as before anything. As we indeed decided, I have to first do the QC and run the GWAS on our dataset. Then, we can see what to do. 
-
-#Specific section for DNNs becuase it can be interesting, but in general use a battery of ML models
-    #alzheimer paper that uses a very cool approach to predict using polygenic scores
-        #https://www.nature.com/articles/s43856-023-00269-x
-    #other option
-        #SNPRS:Stacked Neural network for predicting Polygenic Risk Score
-
-#things to do about associations
-    #add body mass baseline (week 1) for the associations of vO2 max
-    #stratified analysis by sex
-        #According to Jonatan, this is a big deal right now, being a movement to report the differences between sexes if possible.
-        #Remember we have a great imbalance, you have 1057 men! so around 300 females!
-        #We can do this for the association analyses to see what happens
-        #I do not think it is worth it for poligenic scores, because there is big big reduction of sample size with the consequent reduction of power to detect associations and develop the score
-            #think?
-    #impact of body weight
-        #test removing change weight as a covariate for vO2 max
-        #check body mass impact on predicitive power VO2 max
-        #not sure about this, reduction of power across hundreds of SNPs? or in the final polygenic score? if we do it for this covariate, why not for the other three?
-            #I indeed plant to use lasso as one of the tested models, and this model penalize predictors, so maybe it is not necessary?
-                #lasso penalyze all predictors in the same degree?
-    #think about using the batch as covariate
-        #https://academic.oup.com/cardiovascres/article/118/Supplement_1/cvac066.013/6605381
-    #we can leave X, Y, PAR and MT for now
-        #but CHECK WHAT TO DO IN POLYGENIC SCORES
-        #they can impede the score?
-
-
-    #check manhatan plots
-        #there is a strange gap in VO2 max for one of the first chromosomes
-
-
-
-
-''''
-##you can use the following code to create manhatan plots.
-
-print_text("run the associations between SNPs and phenotypes", header=3)
-print_text("make dict for title plots", header=4)
-dict_titles = {
-    "weight_change": "Change of body mass", \
-    "beep_change": "Change in beep test", \
-    "distance_change": "Change in distance", \
-    "vo2_change": "Change in predicted VO2 max"}
-print(dict_titles)
-
-print_text("run the associations and make the Manhattan plots", header=4)
-#pheno="distance_change"
-for pheno in ["weight_change", "beep_change", "distance_change", "vo2_change"]:
-    print("\n \n" + pheno)
-
-    #get the covariate names
-    covs = dict_pvalue_covar_final[pheno][0]
-    sex_cov = dict_pvalue_covar_final[pheno][1]
-
-    print("run plink2 assoc")
-    #we use plink2 because it can directly preprocess phenotypes and covaraites using the quantile transformation (see above for results of the transformation in the phenotypes)
-    run_bash(" \
-        mkdir -p ./results/prelim_results/" + pheno + "/; \
-        plink2 \
-            --bfile .././quality_control/data/genetic_data/quality_control/08_loop_maf_missing/loop_maf_missing_2 \
-            --linear " + sex_cov + " \
-            --quantile-normalize \
-            --input-missing-phenotype " + str(new_nan_value) + " \
-            --pheno ./data/plink_inputs/pheno_file.tsv \
-            --pheno-name " + pheno + "\
-            --covar ./data/plink_inputs/covar_file.tsv \
-            --covar-name " + covs + " \
-            --out ./results/prelim_results/" + pheno + "/first_assoc; \
-        ls -l ./results/prelim_results/" + pheno + "/")
-            #Given a quantitative phenotype and possibly some covariates (in a --covar file), --linear writes a linear regression report to pheno_name.glm.linear.
-                #sex
-                    #First, sex (as defined in the .fam/.psam input file) is normally included as an additional covariate. If you don't want this, add the 'no-x-sex' modifier. Or you can add the 'sex' modifier to include .fam/.psam sex as a covariate everywhere. WHATEVER YOU DO, DON'T INCLUDE SEX FROM THE .FAM/.PSAM FILE AND THE --COVAR FILE AT THE SAME TIME; OTHERWISE THE DUPLICATED COLUMN WILL CAUSE THE REGRESSION TO FAIL
-                #quantile-normalize
-                    #--quantile-normalize forces named quantitative phenotypes and covariates to a N(0, 1) distribution, PRESERVING ONLY THE ORIGINAL RANK ORDERS; if no parameters are provided, all quantitative phenotypes and covariates are affected. --pheno-quantile-normalize does the same for just quantitative phenotypes, while --covar-quantile-normalize does this for just quantitative covariates.
-                #input--missing-phenotype
-                    #Missing case/control or quantitative phenotypes are expected to be encoded as 'NA'/'nan' (any capitalization) or -9. By default, other strings which don't start with a number are now interpreted as categorical phenotype/covariate values; to force them to be interpreted as missing numeric values instead, use --no-categorical.
-                    #You can change the numeric missing phenotype code to another integer with --input-missing-phenotype, or just disable -9 with --no-input-missing-phenotype.
-                #See above for details about --pheno/--covar and the corresponding names
-                #https://www.cog-genomics.org/plink/2.0/assoc
-                #https://www.cog-genomics.org/plink/2.0/assoc#sex
-                #https://www.cog-genomics.org/plink/2.0/data#quantile_normalize
-                #https://www.cog-genomics.org/plink/2.0/input
-
-    print("IMPORTANT: \
-        There are multiple disclamers in the --glm info page, like problems with low minor allele count or how to prune by relatedness, include PCAs for population stratification, etc... \
-        TAKE A LOOK AT THIS!!")
-        #https://www.cog-genomics.org/plink/2.0/assoc
-
-    print("IMPORTANT: \
-        It seems that SEX is not subjected to quantile transformation, only the covariates included in the covar file. \
-        Be careful in the future if you add discrete covariates in the covar file, like batch. \
-        Also you should check how the distribution of the covariates change with the quantile normal transformation, you only did it for phenotypes.")
-
-    print("use awk to see the assoc file. Then use it select only rows for ADD effect of the SNP and the first row, then save as tsv")
-    run_bash(" \
-        cd ./results/prelim_results/" + pheno + "/; \
-        echo 'See 7 first columns of the original assoc file'; \
-        awk \
-            'BEGIN{FS=\" \"}{if(NR<=10){print $1, $2, $3, $4, $5, $6, $7}}END{print \"The number of columns is \"; print NF}' \
-            first_assoc." + pheno + ".glm.linear; \
-        echo '\nProcess with awk to specify the delimiter and then take a look to the file'; \
-        awk \
-            'BEGIN{FS=\" \"; OFS=\"\t\"}{if($7==\"ADD\" || NR==1){print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13}}'\
-            first_assoc." + pheno + ".glm.linear | \
-        gzip \
-            --stdout > first_assoc." + pheno + ".glm.linear.tsv.gz; \
-        gunzip \
-            --stdout \
-            first_assoc." + pheno + ".glm.linear.tsv.gz | \
-        awk \
-            'BEGIN{FS=\"\t\"}{if(NR<=10){print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13}}'")
-
-    #extract the unique cases in the TEST column in order to check if we have selected only ADD
-    unique_test = run_bash(" \
-        cd ./results/prelim_results/" + pheno + "/; \
-        gunzip \
-            --stdout \
-            first_assoc." + pheno + ".glm.linear.tsv.gz | \
-        awk \
-            'BEGIN{FS=\"\t\"}{if(NR>1 && !a[$7]++){print $7}}'", return_value=True).strip()
-        #this is the way to get uniq cases from a colum in awk
-            #if the value in $7 has not been previously included in "a" before, get True (without the "!" you would get false). Then, print the value of $7 in those cases, i.e., the unique value of the TEST column (7th column)
-            #https://stackoverflow.com/questions/1915636/is-there-a-way-to-uniq-by-column
-    print("Do we have correctly selected the ADD rows only (i.e., additive effect of SNPs)?")
-    if (type(unique_test)==str) & (unique_test=="ADD"):
-        print("YES! GOOD TO GO!")
-    else:
-        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM FILTERING THE ROWS WITH THE ADDITIVE EFFECT OF THE SNPS")
-
-'''
 
 print_text("FINISH", header=1)
 #to run the script:
 #cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
 #chmod +x ./scripts/production_scripts/03b_prs_calculation.py
-#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03b_prs_calculation.py --iter_number=1 --response_variable=distance_change --covariate_dataset="large_set_predictors" > ./03b_prs_calculation_iter_1_distance_change.out 2>&1
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03b_prs_calculation.py --total_iter=100 --response_variable="distance_change" --covariate_dataset="small_set_predictors" > ./03b_prs_calculation_small_distance_change_100_iter.out 2>&1
     #We should run the 8 dataset_size and phenotype combinations separtaely in the cluster, each combination run in serial 100 iterations, alwaysing requiering just 20GB, each iteration is around 10 minutes, so in 16-20 hours should be done.
 #grep -Ei 'error|false|fail' ./03b_prs_calculation.out
     #grep: The command used to search for patterns in files.
