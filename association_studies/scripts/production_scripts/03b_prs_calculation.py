@@ -645,6 +645,7 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
         #see above for the arguments of jackknife
         #in the case of --linear, as we have several p-value thresholds, we have several models and hence the metrics for each threshold
 
+
     print_text("check we have used the correct samples in both analyses", header=2)
     print_text("load the FAM files used for training and test", header=3)
     fam_file_training = pd.read_csv( \
@@ -718,7 +719,7 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             ./training_set/" + response_variable + "_training_linear.summaries; \
     ")
 
-
+# endregion
 
 
 

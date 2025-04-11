@@ -4,6 +4,7 @@
 *.log 
 *.RData
 
+association_studies/scripts/production_scripts/slurm_files/
 australian_army_bishop.code-workspace
 hrc_panel_versions/
 admixture_versions/
