@@ -1,0 +1,84 @@
+
+#######################################
+#######################################
+checking function to print nicely: header 1
+#######################################
+#######################################
+
+###### checking function to print nicely: header 2 ######
+
+## checking function to print nicely: header 3 ##
+
+# checking function to print nicely: header 4 #
+
+#######################################
+#######################################
+check behaviour run_bash
+#######################################
+#######################################
+
+###### see working directory ######
+/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+
+
+###### list files/folders there ######
+03a_association_analyses.sif
+03a_phenotype_prep.out
+03aa_final_pca_calc.out
+03c_prepare_slurm_files.out
+data
+literature
+results
+scripts
+
+
+#######################################
+#######################################
+create slurm files
+#######################################
+#######################################
+
+###### preparations ######
+
+## open folder ##
+
+
+## calculate all combinations of predictor set type and phenotypes ##
+
+# define list with the dataset types and phenotypes #
+
+# Calculate all combinations #
+
+###### create a slurm file for each combination ######
+
+## starting slurm file for small_set_predictors and weight_change  ##
+
+## starting slurm file for small_set_predictors and distance_change  ##
+
+## starting slurm file for small_set_predictors and beep_change  ##
+
+## starting slurm file for small_set_predictors and vo2_change  ##
+
+## starting slurm file for large_set_predictors and weight_change  ##
+
+## starting slurm file for large_set_predictors and distance_change  ##
+
+## starting slurm file for large_set_predictors and beep_change  ##
+
+## starting slurm file for large_set_predictors and vo2_change  ##
+
+#######################################
+#######################################
+create master bash script
+#######################################
+#######################################
+
+###### set output file ######
+
+###### Iterate over the combinations using also the index of each combination ######
+
+#######################################
+#######################################
+FINISH
+#######################################
+#######################################

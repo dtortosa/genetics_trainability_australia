@@ -195,7 +195,7 @@ for dataset, response in combinations:
     ### set the constraint for high memory nodes in case you use a lot of memory per node. Normal nodes have a 512Gb limit.
     ###SBATCH --constraint=hi_mem
     ### REQUIRED. Specify the time required for this job, hhh:mm:ss
-    #SBATCH --time=36:00:00
+    #SBATCH --time=48:00:00
 
     
     # --------------------------------------------------------------
