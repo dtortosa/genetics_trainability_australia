@@ -55,6 +55,9 @@ import numpy as np
 import argparse
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import quantile_transform
+from scipy.stats import linregress
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
 
 
 ########################################
@@ -319,7 +322,7 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     selected_covariates = pheno_subset.columns[~pheno_subset.columns.isin(["family_id", "AGRF code", response_variable])]
     print(selected_covariates)
     #check we have correct covariates
-    total_list_covariates = ["Age", "sex_code", "Week 1 Body Mass", "Week 1 Beep Test", "Week 1 Distance (m)", "Week 1 Pred VO2max"] + [f"PCA{i}" for i in range(1,21)]
+    total_list_covariates = ["Age", "sex_code", "Week 1 Body Mass", "Week 1 Beep test", "Week 1 Distance (m)", "Week 1 Pred VO2max"] + [f"PCA{i}" for i in range(1,21)]
     if(sum([1 for cov in selected_covariates if cov not in total_list_covariates])!=0):
         raise ValueError("ERROR: FALSE! WE HAVE COVARIATES THAT ARE NOT IN THE TOTAL LIST")
 
@@ -353,6 +356,8 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             #we use quantile_transform, which is the quivalent function without the estimator API. If you need to invert the transformation, use the transformer: transformer.inverse_transform()
                 #https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html
             #see 03a_phenotype_prep.py for details about the transformation
+            #According to Dr. Speed, not great influence
+                #It probably makes no difference - when you analyze, the regression implicitly assumes a normal distribution. It can be good to transform as a safe way to avoid outliers, but if not the case, I would expect both approaches give similar results.
         #check
         if (\
             (pheno_subset_transform[pheno_to_transform].max() > 6) | \
@@ -383,13 +388,23 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             na_rep="NA" \
         )
 
+    print_text("decompress bim and bed files that will be used as input to create the training and test genetic data", header=3)
+    run_bash(" \
+        cd ./data/plink_filesets/" + covariate_dataset + "/" + response_variable + "_filesets/; \
+        gunzip \
+            --keep \
+            --force \
+            ./" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing.bed.gz \
+            ./" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing.bim.gz; \
+    ")
+
     print_text("create dict to change names of covariates that are problematic for LDAK", header=3)
     dict_change_names={
         "family_id": "FID",
         "AGRF code": "IID",
         "Age": "age",
         "Week 1 Body Mass": "week_1_weight",
-        "Week 1 Beep Test": "week_1_beep",
+        "Week 1 Beep test": "week_1_beep",
         "Week 1 Distance (m)": "week_1_distance",
         "Week 1 Pred VO2max": "week_1_vo2"
     }
@@ -516,9 +531,9 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     run_bash(" \
         mkdir \
             -p \
-            ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/; \
+            ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/elastic; \
         ldak6.1.linux \
-          --elastic ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic \
+          --elastic ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/elastic/" + response_variable + "_training_elastic \
           --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
           --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
           --covar ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
@@ -545,24 +560,116 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             #By default, LDAK will estimate the heritability and the power parameter alpha; to instead specify their values use --power <float> and --her <float> (note that if you use --her, you must also use --power).
             #By default, LDAK will use 90%/10% cross-validation to determine suitable prior distribution parameters. You can change the fraction of test samples uing --cv-proportion <float>,  specify the test samples using --cv-samples <cvsampsfile>, or turn off cross-validation, using --skip-cv YES (LDAK will then output multiple models, each trained using 100% of samples).
                 #So it uses CV internally, which is great. We do CV to tune the hyperparameters of the model, and then we use the best model to predict the test set.
+                #This makes each run to have slighlty different results
+                    #When using elastic, the cross-validation samples are randomly picked, and so it is possible different parameters are picked each time (there might also be other small differences between versions, such as maybe I changed the tolerance or something)
             #By default, LDAK will assign all predictors (i.e., SNPs) weighting one (equivalent to using --ignore-weights YES). If you prefer to provide your own weightings, use --weights <weightsfile> or --ind-hers <indhersfile> (note that if using --ind-hers, you can not use --her or --power).
                 #we are just going to use the default weights. To my understanding, LDAK will give different weights to the SNPs depending on their MAF, so we do not need to worry about that.
+                #Doug: Yes, that is right (no need to use weights, they will automatically be set to one, and ldak automatically estimates alpha, the MAF scaling parameger)
             #You can use --keep <keepfile> and/or --remove <removefile> to restrict to a subset of samples, and --extract <extractfile> and/or --exclude <excludefile> to restrict to a subset of predictors (for more details, see Data Filtering).
             #output:
                 #The estimated prediction model is saved in <outfile>.effects. Usually, this file has five columns, providing the predictor name (SNP), its A1 and A2 alleles, the average number of A1 alleles, then its estimated effect (relative to the A1 allele). If you used --skip-cv YES, there will be effect sizes for each of the different prior parameters. This file is ready to be used for Calculating Scores (i.e., to predict the phenotypes of new samples).
+                #Regarding phenotypes in .PRS file:
+                    #Yes, these are the phenotypes after regressing on covariates (e.g., they will have mean zero)
+                    #I understand this is the previous step where LDAK remove the impact of covariates to then analyze the impact of the SNPs. So, in the .prs file, the phenotype is already adjusted for the covariates.
             #https://dougspeed.com/elastic-net/
 
     print_text("calculate the PRS in the test set", header=3)
+    print_text("regress the phenotype against covariates to get residuals for input them into --calc-scores both for --elastic and --linear", header=4)
+    #Doug: This is tricky. I think you have done it right. For ease, I normally regress phenotypes for test individuals on covariates, then use residuals with --calc-scores. Yes, you would expect correlation to increase, because you are removing nuisance variance
+
+    print("load pheno and covariates")
+    phenotype = pd.read_csv( \
+        "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_response.tsv", \
+        sep="\t", \
+        header=0 \
+    )
+    cov_cont = pd.read_csv( \
+        "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_covars_cont.tsv", \
+        sep="\t", \
+        header=0 \
+    )
+
+    print("get a list of the covariates with the final names")
+    list_covs_to_model = list(selected_covariates)
+    #cov=list_covs_to_model[3]
+    #cov=list_covs_to_model[0]
+    #for each covariate in the list
+    for cov in list_covs_to_model:
+        
+        #check if it is in the dict_change_names
+        if cov in dict_change_names.keys():
+
+            #for each covariate in the list, get its index in the list IF it is indeed the covariate stored in "cov"
+            index = next(i for i, k in enumerate(list_covs_to_model) if k == cov)
+                #without "next" the generator expression itself would not execute and return a value; instead, it would just create a generator object.
+
+            #for the covariate from which we got the index, change its name to the correct name for it according to the dict
+            list_covs_to_model[index] = dict_change_names[cov]
+
+    print("fit the regression model")
+    #add sex if this is a selected covariate
+    if ("sex_code" in list_covs_to_model):
+
+        #load sex
+        cov_factor = pd.read_csv( \
+            "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_covars_factors.tsv", \
+            sep="\t", \
+            header=0 \
+        )
+
+        #merge the dataframes using the IDs
+        modeling_data = phenotype. \
+            merge(cov_cont, on=["FID", "IID"], how="inner"). \
+            merge(cov_factor, on=["FID", "IID"], how="inner")
+            #inner join, so we keep only the samples that are in both dataframes
+            #add first the phenotype to the continuous covariates and then add, to the resulting DF, the factor covariates
+    
+        #model
+        model_test = ols(response_variable + " ~ C(sex_code) + " + " + ".join([i for i in list_covs_to_model if i!="sex_code"]), data=modeling_data).fit()
+            #ols() fits an ordinary least squares (OLS) regression model with the phenotype as the dependent variable and the covariate factor as the independent variable.
+            #The C() function in the formula syntax of statsmodels is used to indicate that a variable is categorical. When you use C(factor), it tells the model to treat factor as a categorical variable with distinct levels, rather than as a continuous variable.
+            #We add the other covariates as continuous variables, so we do not need to use C() for them, just make a list of all non-sex covariates and join them using "+"
+            #https://www.statsmodels.org/stable/example_formulas.html  
+    else:
+
+        #merge the dataframes using the IDs
+        modeling_data = phenotype. \
+            merge(cov_cont, on=["FID", "IID"], how="inner")
+
+        #model
+        model_test = ols(response_variable + " ~ " + " + ".join([i for i in list_covs_to_model if i!="sex_code"]), data=modeling_data).fit()
+
+    print("predcit the values of the phenotype in the test set")
+    predicted_pheno_test = model_test.predict(modeling_data)
+        #if, during modeling, a formula was used, then exog is processed in the same way as the original data. This needs to have key access to the same variable names, and can be a pandas DataFrame or a dict like object that contains numpy arrays.
+
+    print("calcualte the residuals (observed - predicted)")
+    modeling_data[response_variable+"_residuals"] = modeling_data[response_variable] - predicted_pheno_test
+
+    print("check no NA in the residuals")
+    if(modeling_data[response_variable+"_residuals"].isna().sum()!=0):
+        raise ValueError("ERROR: FALSE! WE HAVE NAs IN THE RESIDUALS")
+
+    print("save the residuals")
+    modeling_data[["FID", "IID", response_variable+"_residuals"]].to_csv( \
+        "./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_pheno_residuals.tsv", \
+        sep="\t", \
+        header=True, \
+        index=False, \
+        na_rep="NA" \
+    )
+
+    print_text("do the actual PRS calculation in the test set", header=3)
     run_bash(" \
         mkdir \
             -p \
-            ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/; \
+            ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/elastic/; \
         ldak6.1.linux \
-            --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation \
-            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic.effects \
+            --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/elastic/" + response_variable + "_prs_calculation \
+            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/elastic/" + response_variable + "_training_elastic.effects \
             --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset \
-            --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_response.tsv \
-            --power -1 \
+            --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_pheno_residuals.tsv \
+            --power 0 \
     ")
         #calculate linear combinations of predictor values (the linear projection of genetic data onto predictor effect sizes). These are most commonly used for creating polygenic risk scores and testing the performance of prediction models. Please note that if you include a phenotype when calculating scores, then the resulting profile file can be used with Jackknife (in order to compute additional measures of accuracy and corresponding estimates of precision).
         #--scorefile <scorefile> - to provide the predictor effect sizes. The score file should have at least five columns. The first 4 columns provide the name of each predictor, its two alleles (test allele followed by reference allele), then its centre (the mean number of test alleles); the remaining columns provide sets of predictor effect sizes. The file should have a header row, whose first element must be "Predictor" or "SNP". Note that if centre is "NA" for a predictor, then LDAK will centre values based on the mean number of test alleles in the genetic data.
@@ -572,7 +679,10 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
         #Sometimes you will have two sets of prediction models, for example, one computed using training samples and one computed using all samples. You can then use --scorefile <scorefile> to provide the first set of prediction models, --pheno <phenofile> or --summary <sumsfile> to provide phenotypic values or summary statistics, and --final-effects <finaleffectsfile> to provide the second set of prediction models. LDAK will save to <outfile>.effects.best the prediction model from the second set that corresponds to the most accurate model from the first set (for example, if Model 5 from the first set has highest correlation, LDAK will save Model 5 from the second set).
         #--power <float> - to specify how predictors are scaled (see below). Usually, the score file contains raw effects, so you should use --power 0.
             #When power equals one, predictors are divided by their expected standard deviation (i.e., are standardised). Therefore, you should use --power=-1 when the score file contains standardised effect sizes. By contrast, when power equals zero, predictors are no longer scaled. Therefore, you should use --power=0 when the score file contains raw effect sizes.
-            #I think our effect sizes coming from the elastic net are standardised, so we should use --power -1, but I have to ask Dr. Speed.
+            #Our effect sizes are NOT standardized!!!
+                #Doug: I think the latest version does not require power, but it should be zero, because you will use scorefile to provide raw effect sizes.
+        #I guess it is recommended to use the default options for --calc-scores and NOT use "--hwe-stand NO"
+            #Doug: Go with default, but normally makes no difference
         #output:
             #The profile scores will be saved in <outfile>.profile, the (estimated) correlation between scores and phenotypic values will be saved in <outfile>.cors.
         #https://dougspeed.com/profile-scores/
@@ -580,8 +690,8 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     print_text("calculate evaluation metrics", header=3)
     run_bash(" \
         ldak6.1.linux \
-            --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_jacknife_eval \
-            --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation.profile \
+            --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/elastic/" + response_variable + "_prs_jacknife_eval \
+            --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/elastic/" + response_variable + "_prs_calculation.profile \
             --num-blocks 200 \
     ")
         #The jackknife function measures the similarity between pairs of vectors containing predicted and observed values. Specifically, it computes the correlation, correlation squared (on the observed scale), mean squared error and mean absolute error, as well as corresponding estimates of standard deviation. The jackknife function was designed for computing the accuracy of polygenic risk scores, such as those created by the Prediction tools.
@@ -597,10 +707,13 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
 
     print_text("calculate and evaluate a PRS using the classical approach", header=2)
     #Dr. Speed: You may wish to do a classical PRS just for interest / comparison, in which case, you can run --linear (on the training samples), then the file with suffix .score gives classical PRS .corresponding to 7 p-value thresholds (that you can then provide to --calc-scores)
-    print_text("create Classical PRS in training dataset", header=3)
+    print_text("calculate linear association between SNPs and the phenotype", header=3)
     run_bash(" \
+        mkdir \
+            -p \
+            ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/; \
         ldak6.1.linux \
-            --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear \
+            --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/" + response_variable + "_training_linear_raw \
             --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
             --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
             --covar ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
@@ -618,32 +731,98 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             #To perform weighted linear regression, use --sample-weights <sampleweightfile>. The file <sampleweightfile> should have three columns, where each row provides two sample IDs followed by a positive float. Note that by default, LDAK will use the sandwich estimator of the effect size variance (see this page for an explanation); to instead revert to the standard estimator of variance, add --sandwich NO.
             #If you add --permute YES - the phenotypic values will be shuffled. This is useful if wishing to perform permutation analysis to see the distribution of p-values or test statistics when there is no true signal.
                 #SO WHEN YOU SET THIS AS YES, YOU ARE GETTING THE P-VALUE WHEN THERE IS NO SIGNAL
+                #Doug confirmed this.
             #output:
                 #When performing a standard analysis, LDAK produces five output files: <outfile>.assoc contains the main results; <outfile>.summaries contains summary statistics (in the format required for use with SumHer, and MegaPRS); <outfile>.pvalues contains p-values (useful if you wish to Thin Predictors); <outfile>.coeff contains estimates of the fixed effects; <outfile>.score contains simple prediction models corresponding to six different p-value thresholds.
             #https://dougspeed.com/single-predictor-analysis/
 
-    print_text("calculate the classical PRS in the test set", header=3)
-    run_bash(" \
-        ldak6.1.linux \
-            --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical \
-            --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear.score \
-            --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset \
-            --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_transform_subset_response.tsv \
-            --power -1 \
-    ")
-        #see above for the arguments of --calc-scores, just remember
-            #--scorefile <scorefile> - to provide the predictor effect sizes. The score file should have at least five columns. The first 4 columns provide the name of each predictor, its two alleles (test allele followed by reference allele), then its centre (the mean number of test alleles); the remaining columns provide sets of predictor effect sizes. In the case of the output of --linear, the fifth columns is ALL, and it seems to have effect sizes.
-            #power -1 assumes that the effect sizes of the SNPs in the score file are standardized. 
+    print_text("define p-values cut-offs for thresholding", header=3)
+    #Doug: Clumping normally helps, so I would use --thin-tops (e.g., window-kb 1000, window-prune .2)
+    print_text("load the p-values", header=4)
+    training_linear_raw_pvalues = pd.read_csv( \
+        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/" + response_variable + "_training_linear_raw.pvalues", \
+        sep="\t", \
+        header=0 \
+    )
 
-    print_text("calculate evaluation metrics", header=3)
-    run_bash(" \
-        ldak6.1.linux \
-            --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_classical_jacknife_eval \
-            --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical.profile \
-            --num-blocks 200 \
-    ")
-        #see above for the arguments of jackknife
-        #in the case of --linear, as we have several p-value thresholds, we have several models and hence the metrics for each threshold
+    print_text("get the minimum p-value", header=4)
+    min_p_value = training_linear_raw_pvalues["P"].min()
+
+    print_text("make a list of thresholds that are above the minimum p-value", header=4)
+    list_thresholds_raw = [0.01, 0.001, 0.0001, 0.00001, 5e-8]
+        #if no SNP is under 0.001, then it does not make sense to filter by 0.001 as no SNPs would be left. Indeed this generates an error in LDAK.
+    list_thresholds = [i for i in list_thresholds_raw if i>min_p_value]
+
+    print_text("train the models with the a reduced set of SNPs after thresholding and cumpling and then predict in the test set", header=3)
+    #threshold=list_thresholds[0]
+    for threshold in list_thresholds:
+
+        print_text("perform thresholding considering the threshold " + str(threshold) + " and then perform clumping", header=4)
+        run_bash(" \
+            mkdir \
+                -p \
+                ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/clump_thresholding_" + str(threshold) + "; \
+            ldak6.1.linux \
+                --thin-tops ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + "_predictors \
+                --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
+                --window-prune 0.2 \
+                --window-kb 1000 \
+                --pvalues ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/" + response_variable + "_training_linear_raw.pvalues \
+                --cutoff " + str(threshold) + " \
+        ")
+            #Doug: Clumping normally helps, so I would use --thin-tops (e.g., window-kb 1000, window-prune .2)
+            #--bfile/--gen/--sp/--speed <datastem> or --bgen <datafile> - to specify the genetic data files (see File Formats).
+                #"--thin-tops" is first thresholding by considering only those SNPs below the threshold indicated in "--cutoff". From the set of SNPs below the threshold, it then selects the most significant SNP in each genomic window (window size specified by --window-kb) that are correlated (correlation threshold set in --window-prune) and discards all other SNPs in that block.
+            #--window-prune <float> - to specify the correlation squared threshold.
+            #--window-cm <float>, --window-kb <float> or --window-length <integer> - to specify the window size (how far to search for correlated predictors, where the units are centiMorgans, kilobase or number of predictors, respectively). Note that --window-length ALL will tell LDAK to consider all predictors on the same chromosome.
+            #--pvalues <pvalues> - to provide p-values for each predictor (the file <pvalues> should have two columns, that provide predictor names then p-values). When LDAK finds two highly correlated predictors, it will discard the one with the highest p-value.
+            #--cutoff <float> - to provide the p-value threshold (LDAK will only consider predictors with p-values below this threshold). In other words, predictors with p-values below the cutoff will be treated as top predictors.
+            #output:
+                #The lists of retained and discarded predictors are saved in the files <output>.in and <output>.out, respectively.
+            #https://dougspeed.com/clumping/
+
+        print_text("run again linear on the reduced set of SNPs", header=4)
+        run_bash(" \
+            ldak6.1.linux \
+                --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + " \
+                --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_plink_fileset \
+                --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_response.tsv \
+                --covar ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_cont.tsv \
+                --factors ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_set_transform_subset_covars_factors.tsv \
+                --extract ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + "_predictors.in \
+                --permute NO \
+        ")
+            #You can use --keep <keepfile> and/or --remove <removefile> to restrict to a subset of samples, and --extract <extractfile> and/or --exclude <excludefile> to restrict to a subset of predictors (for more details, see Data Filtering).
+                #I am using as input just a file with one column, the SNP names. There is no problem of having similar IDs across chromosomes because our IDs include the chromosome name, position and alelles.
+                #https://dougspeed.com/data-filtering/
+
+        print_text("calculate the classical PRS in the test set", header=4)
+        run_bash(" \
+            mkdir \
+                -p \
+                ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/; \
+            ldak6.1.linux \
+                --calc-scores ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_clump_thresholding_" + str(threshold) + " \
+                --scorefile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + ".score \
+                --bfile ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_plink_fileset \
+                --pheno ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_test_set_pheno_residuals.tsv \
+                --power 0 \
+        ")
+            #see above for the arguments of --calc-scores, just remember
+                #--scorefile <scorefile> - to provide the predictor effect sizes. The score file should have at least five columns. The first 4 columns provide the name of each predictor, its two alleles (test allele followed by reference allele), then its centre (the mean number of test alleles); the remaining columns provide sets of predictor effect sizes. In the case of the output of --linear, the fifth columns is ALL, and it seems to have effect sizes.
+                #power 0 assumes that the effect sizes of the SNPs in the score file are raw.
+                #We are using as input the residuals after regressing the phenotype against the covariates.
+
+        print_text("calculate evaluation metrics", header=3)
+        run_bash(" \
+            ldak6.1.linux \
+                --jackknife ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_jacknife_eval \
+                --profile ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_clump_thresholding_" + str(threshold) + ".profile \
+                --num-blocks 200 \
+        ")
+            #see above for the arguments of jackknife
+            #in the case of --linear, as we have several p-value thresholds, we have several models and hence the metrics for each threshold
+                #note however we are applying beforehand a specific threshold with --thin-tops, so if for example yo apply a threshold of 0.0001, you are gonna have the same SNPs for the results of calc-score for 0.01, 0.001 and 0.0001 because there are no SNPs above 0.0001 anyways.
 
 
     print_text("check we have used the correct samples in both analyses", header=2)
@@ -660,42 +839,52 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     )
     
     print_text("samples in files generated by elastic net", header=3)
-    prs_elastic = pd.read_csv( \
-        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_elastic.prs", \
+    combined_elastic = pd.read_csv( \
+        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/elastic/" + response_variable + "_training_elastic.combined", \
         sep=" ", \
         header=0 \
     )
     profile_prs_elastic = pd.read_csv( \
-        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation.profile", \
+        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/elastic/" + response_variable + "_prs_calculation.profile", \
         sep="\t", \
         header=0 \
     )
     if ( \
-        (not fam_file_training[1].rename("IID").equals(prs_elastic["IID"])) | \
+        (not fam_file_training[1].rename("IID").equals(combined_elastic["IID"])) | \
         (not fam_file_test[1].rename("ID2").equals(profile_prs_elastic["ID2"])) \
     ):
         raise ValueError("ERROR: FALSE! WE HAVE NOT SELECTED THE CORRECT SAMPLES FOR ELASTIC NET")
 
-    print_text("samples in files generated by --linear", header=3)
-    combined_linear = pd.read_csv( \
-        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/" + response_variable + "_training_linear.combined", \
-        sep=" ", \
-        header=0 \
-    )
-    profile_prs_classic = pd.read_csv( \
-        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/" + response_variable + "_prs_calculation_classical.profile", \
-        sep="\t", \
-        header=0 \
-    )
-    if ( \
-        (not fam_file_training[1].rename("IID").equals(combined_linear["IID"])) | \
-        (not fam_file_test[1].rename("ID2").equals(profile_prs_classic["ID2"])) \
-    ):
-        raise ValueError("ERROR: FALSE! WE HAVE NOT SELECTED THE CORRECT SAMPLES FOR ELASTIC NET")
+    print_text("samples in files generated by linear", header=3)
+    #threshold=list_thresholds[0]
+    for threshold in list_thresholds:
+        combined_linear = pd.read_csv( \
+            "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + ".combined", \
+            sep=" ", \
+            header=0 \
+        )
+        profile_prs_classic = pd.read_csv( \
+            "./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_clump_thresholding_" + str(threshold) + ".profile", \
+            sep="\t", \
+            header=0 \
+        )
+        if ( \
+            (not fam_file_training[1].rename("IID").equals(combined_linear["IID"])) | \
+            (not fam_file_test[1].rename("ID2").equals(profile_prs_classic["ID2"])) \
+        ):
+            raise ValueError("ERROR: FALSE! WE HAVE NOT SELECTED THE CORRECT SAMPLES FOR ELASTIC NET")
 
 
     print_text("compress the results", header=2)
-    print_text("bed and bim plink files", header=3)
+    print_text("remove bed and bim plink files initialles used as input (compressed files already created)", header=3)
+    run_bash(" \
+        cd ./data/plink_filesets/" + covariate_dataset + "/" + response_variable + "_filesets/; \
+        rm \
+            ./" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing.bed \
+            ./" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing.bim; \
+    ")
+
+    print_text("bed and bim plink files for training and evaluation", header=3)
     run_bash(" \
         cd ./data/train_test_sets/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/; \
         gzip \
@@ -706,18 +895,39 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             ./test_set/" + response_variable + "_test_set_plink_fileset.bim; \
     ")
     
-    print_text("bed and bim plink files", header=3)
+    print_text("elastic outputs", header=3)
     run_bash(" \
         cd ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/; \
         gzip \
             --force \
-            ./training_set/" + response_variable + "_training_elastic.effects \
-            ./training_set/" + response_variable + "_training_elastic.probs \
-            ./training_set/" + response_variable + "_training_linear.assoc \
-            ./training_set/" + response_variable + "_training_linear.pvalues \
-            ./training_set/" + response_variable + "_training_linear.score \
-            ./training_set/" + response_variable + "_training_linear.summaries; \
+            ./training_set/elastic/" + response_variable + "_training_elastic.effects \
+            ./training_set/elastic/" + response_variable + "_training_elastic.probs \
     ")
+
+    print_text("linear outputs", header=3)
+    print_text("first raw outputs before clumping", header=4)
+    run_bash(" \
+        cd ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/; \
+        gzip \
+            --force \
+                " + response_variable + "_training_linear_raw.assoc \
+                " + response_variable + "_training_linear_raw.pvalues \
+                " + response_variable + "_training_linear_raw.score \
+                " + response_variable + "_training_linear_raw.summaries; \
+    ")
+
+    print_text("then outputs after clumping", header=4)
+    #threshold=list_thresholds[0]
+    for threshold in list_thresholds:
+        run_bash(" \
+            cd ./results/final_results/" + covariate_dataset + "/" + response_variable + "/train_test_iter_" + str(iter_number) + "/training_set/linear/clump_thresholding_" + str(threshold) + "/; \
+            gzip \
+                --force \
+                ./" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + ".assoc \
+                ./" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + ".pvalues \
+                ./" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + ".score \
+                ./" + response_variable + "_training_linear_clump_thresholding_" + str(threshold) + ".summaries; \
+        ")
 
 # endregion
 
@@ -747,26 +957,37 @@ print_text("Questions", header=1)
 print(""" \
 
 1) I have applied a quantile transformation to normalize phenotypes and covariates, having all of them in the same range. Is this recommended? I have run just one example with unstandarized data and the correlation between the PRS and the phenotype seems to be similar between both approaches.
-      
+    - It probably makes no difference - when you analyze, the regression implicitly assumes a normal distribution. It can be good to transform as a safe way to avoid outliers, but if not the case, I would expect both approaches give similar results.
+ 
 2) Related to that point, I have noticed that the phenotype values in the column "Adjusted_Phenotype" from the .prs file obtained from --elastic do not match the values of the input phenotype for each sample. I guess an additional transformation/processing is applied to the phenotypes by LDAK?
-
+    - Yes, these are the phenotypes after regressing on covariates (e.g., they will have mean zero)
+    - I understand this is the previous step where LDAK remove the impact of covariates to then analyze the impact of the SNPs. So, in the .prs file, the phenotype is already adjusted for the covariates.
+      
 3) When using --elastic, I guess I should use the default and assign all predictors a weighting of one. Then, LDAK will consider MAF for the estimation of the impact of each SNP, right?
+    - Yes, that is right (no need to use weights, they will automatically be set to one, and ldak automatically estimates alpha, the MAF scaling parameger)
 
 4) Should covariates also be used with --calc-scores in the test set? Given that the phenotype was regressed against the covariates in the training set prior to estimating effect sizes, I guess it is not necessary to include them in the test set, right? Still I made an attempt and added the continuous covariates (plus coefficients with --coeffsfile) to --calc-score and the correlation improved from 0.04 to 0.06... Although as you will see in a question below, this difference falls within the normal variation I have seen analyzing the same phenotype several times with the same parameters....
+    - This is tricky. I think you have done it right. For ease, I normally regress phenotypes for test individuals on covariates, then use residuals with --calc-scores. Yes, you would expect correlation to increase, because you are removing nuisance variance
 
 5) As you suggested, I am running the classical PRS approach (ussing --linear) as baseline. I just used as input the plink files (plus phenotype data and covariates) of the training set, all default. Should I add a clumping step with --thin-tops to get a reduced set of SNPs that then can be analyzed again with --linear? I took a quick look with one of the phenotypes and given that the p-values for the SNPs are very high, the resulting list after clumping had only 20-30 SNPs....
-
+    - Clumping normally helps, so I would use --thin-tops (e.g., window-kb 1000, window-prune .2)
+      
 6) In --linear, --permute YES would give the p-value in the case o no association because the phenotype is suffled, right?
-
+    - Yes
+      
 7) Regarding the power argument for --calc-scores, not sure if --power should be 0 or -1. The effect sizes in the .effects files coming out from --elastic seem to be standarized (e.g., quantile 0.25=-3.483200e-07 and 0.75=3.477500e-07 in one case or 0.25=-2.958000e-08 and 0.75=3.049600e-08 in another), so I am using --power -1. But could you confirm me this is the case when using --elastic --LOCO NO and rest default? and the same applies for --linear? I checked one case with --linear in the "ALL" column and the 25th and 75th percentile were -4.072700e-02 and 4.199300e-02, respectively, so I guess it is the same.
+    - I think the latest version does not require power, but it should be zero, because you will use scorefile to provide raw effect sizes.
 
 8) Also about --calc-scores, I guess it is recommended to use the default options for --calc-scores and NOT use "--hwe-stand NO", right?
-
+    - Go with default, but normally makes no difference
+ 
 9) I have noticed that the results slightly changed after changing the ldak executable. I was using one I downloaded at the end of 2024 and I am now using one I just downloaded today, both ldak6.1.linux from github. The correlation between PRS and phenotype changed from 0.0008 to 0.002. Then I repeated the analysis with the same executable and the correlation changed to 0.001704. I have ensured the same set of samples is used in all cases. This degree of variation is expected?
+    - When using elastic, the cross-validation samples are randomly picked, and so it is possible different parameters are picked each time (there might also be other small differences between versions, such as maybe I changed the tolerance or something)
 
 """)
 
 # endregion
+
 
 
 

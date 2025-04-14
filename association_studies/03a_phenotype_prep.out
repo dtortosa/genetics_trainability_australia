@@ -26,22 +26,18 @@ check behaviour run_bash
 03a_phenotype_prep.out
 03aa_final_pca_calc.out
 data
-ldak6.1.linux
 literature
 results
 scripts
-vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.log
 
-total 677860
--rwxr-xr-x 1 dftortosa dftortosa 671535104 Apr  2 19:14 03a_association_analyses.sif
--rw-rw-r-- 1 dftortosa dftortosa         0 Apr  4 20:45 03a_phenotype_prep.out
+total 656020
+-rwxr-xr-x 1 dftortosa dftortosa 671723520 Apr 11 12:33 03a_association_analyses.sif
+-rw-rw-r-- 1 dftortosa dftortosa         0 Apr 13 16:29 03a_phenotype_prep.out
 -rw-rw-r-- 1 dftortosa dftortosa     19683 Apr  3 12:02 03aa_final_pca_calc.out
-drwxr-xr-x 5 dftortosa dftortosa      4096 Apr  4 20:45 data
--rwxrwxr-x 1 dftortosa dftortosa  22546352 Jan 27 19:43 ldak6.1.linux
+drwxr-xr-x 5 dftortosa dftortosa      4096 Apr 13 16:29 data
 drwxr-xr-x 3 dftortosa dftortosa      4096 Oct 31  2023 literature
-drwxr-xr-x 4 dftortosa dftortosa      4096 Jan 24 17:57 results
+drwxr-xr-x 4 dftortosa dftortosa      4096 Apr 10 17:20 results
 drwxr-xr-x 4 dftortosa dftortosa      4096 Oct 31  2023 scripts
--rw-rw-r-- 1 dftortosa dftortosa       642 Apr  4 16:51 vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.log
 
 
 #######################################
@@ -52,10 +48,10 @@ combine the excel file, FAM file and the PCAs
 
 ###### load the excel file ######
 total 164
--rw-rw-r-- 1 dftortosa dftortosa    181 Apr  4 20:45 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Apr  4 20:45 large_set_predictors
--rw-r--r-- 1 dftortosa dftortosa 154414 Apr  4 20:45 pheno_data.xlsx
-drwxrwxr-x 2 dftortosa dftortosa   4096 Apr  4 20:45 small_set_predictors
+-rw-rw-r-- 1 dftortosa dftortosa    181 Apr 13 16:29 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 Apr 13 16:29 large_set_predictors
+-rw-r--r-- 1 dftortosa dftortosa 154414 Apr 13 16:29 pheno_data.xlsx
+drwxrwxr-x 2 dftortosa dftortosa   4096 Apr 13 16:29 small_set_predictors
 
      Gender        Age  ...  Week 8 Pred VO2max  AGRF code
 0         M  25.000000  ...                47.7   8244TCOJ
@@ -939,12 +935,12 @@ combat_ILGSA24-17303:0200JCJM -0.0301 0.0039 -0.0282 -0.0149 -0.0242
 combat_ILGSA24-17303:0200JCMM -0.0109 0.0063 0.0435 0.0345 0.0041
 combat_ILGSA24-17303:0200JEJM 0.0291 0.0476 -0.0792 -0.0263 0.0397
 total 27960
--rw-rw-r-- 1 dftortosa dftortosa      181 Apr  4 20:45 README.txt
--rw-rw-r-- 1 dftortosa dftortosa 28072430 Apr  4 20:46 eigen_vectors_pairwise.png
-drwxrwxr-x 2 dftortosa dftortosa     4096 Apr  4 20:45 large_set_predictors
--rw-r--r-- 1 dftortosa dftortosa   154414 Apr  4 20:45 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa   386521 Apr  4 20:46 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa     4096 Apr  4 20:45 small_set_predictors
+-rw-rw-r-- 1 dftortosa dftortosa      181 Apr 13 16:29 README.txt
+-rw-rw-r-- 1 dftortosa dftortosa 28072430 Apr 13 16:30 eigen_vectors_pairwise.png
+drwxrwxr-x 2 dftortosa dftortosa     4096 Apr 13 16:29 large_set_predictors
+-rw-r--r-- 1 dftortosa dftortosa   154414 Apr 13 16:29 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa   386521 Apr 13 16:30 pheno_data_cleaned.tsv
+drwxrwxr-x 2 dftortosa dftortosa     4096 Apr 13 16:29 small_set_predictors
 
 
 #######################################
@@ -1626,6 +1622,7 @@ OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTE
 
 
 
+
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
 Logging to ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset.log.
@@ -1731,6 +1728,7 @@ Note: No phenotypes present.
 + ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
+
 
 
 
@@ -1843,6 +1841,7 @@ OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTE
 
 
 
+
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
 Logging to ./data/plink_filesets/small_set_predictors/vo2_change_filesets/vo2_change_subset.log.
@@ -1948,6 +1947,7 @@ Note: No phenotypes present.
 + ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
+
 
 
 
@@ -2060,6 +2060,7 @@ OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTE
 
 
 
+
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
 Logging to ./data/plink_filesets/large_set_predictors/beep_change_filesets/beep_change_subset.log.
@@ -2165,6 +2166,7 @@ Note: No phenotypes present.
 + ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for beep_change
+
 
 
 
@@ -2277,6 +2279,7 @@ OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTE
 
 
 
+
 PLINK v1.90b7 64-bit (16 Jan 2023)             www.cog-genomics.org/plink/1.9/
 (C) 2005-2023 Shaun Purcell, Christopher Chang   GNU General Public License v3
 Logging to ./data/plink_filesets/large_set_predictors/vo2_change_filesets/vo2_change_subset.log.
@@ -2382,6 +2385,7 @@ Note: No phenotypes present.
 + ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim +
 ./vo2_change_subset_missing_clean_maf_hwe_sample_snp_missing.fam ... 0%1%2%3%4%5%6%7%8%9%10%11%12%13%14%15%16%17%18%19%20%21%22%23%24%25%26%27%28%29%30%31%32%33%34%35%36%37%38%39%40%41%42%43%44%45%46%47%48%49%50%51%52%53%54%55%56%57%58%59%60%61%62%63%64%65%66%67%68%69%70%71%72%73%74%75%76%77%78%79%80%81%82%83%84%85%86%87%88%89%90%91%92%93%94%95%96%97%98%99%done.
 OK! GOOD TO GO! WE HAVE REMOVED AN ADEQUATE NUMBER OF SNPS DUE TO MISSINING AFTER THE REMOVAL OF PHENO NAs for vo2_change
+
 
 
 #######################################

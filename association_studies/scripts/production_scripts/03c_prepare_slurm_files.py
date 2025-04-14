@@ -30,11 +30,8 @@
 # imports #
 ###########
 
-import pandas as pd
-import numpy as np
-import argparse
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import quantile_transform
+from itertools import product
+import textwrap
 
 
 ########################################
@@ -139,25 +136,36 @@ run_bash("ls")
 #############################
 # region create slurm files #
 #############################
-
+print_text("create slurm files", header=1)
+print_text("preparations", header=2)
+print_text("open folder", header=3)
 run_bash("\
     mkdir \
         -p \
         ./scripts/production_scripts/slurm_files; \
 ")
 
-
+print_text("calculate all combinations of predictor set type and phenotypes", header=3)
+print_text("define list with the dataset types and phenotypes", header=4)
 dataset_type = ["small_set_predictors", "large_set_predictors"]
 response_variables = ["weight_change", "distance_change", "beep_change", "vo2_change"]
 
-# Calculate all combinations
-from itertools import product
+print_text("Calculate all combinations", header=4)
 combinations = list(product(dataset_type, response_variables))
+    #Product is a function from the itertools module that computes the Cartesian product of the two lists.
+    #It generates all possible pairs of elements, where the first element comes from dataset_type and the second element comes from response_variables
+    #"product" generates a generator, which means it produces items one at a time as you iterate over it, rather than storing all the items in memory at once. Then, you have to call list() to do the operation to be done and save the results in a list, i.e., a list of tuples with each pair of dataset type and phenotype.
+if(len(combinations)!=len(dataset_type)*len(response_variables)):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE COMBINATIONS")
 
+
+print_text("create a slurm file for each combination", header=2)
 #dataset=combinations[0][0]; response=combinations[0][1]
 for dataset, response in combinations:
 
-    slurm_file_content = f"""#!/bin/bash
+    print_text(f"starting slurm file for {dataset} and {response} ", header=3)
+    slurm_file_content = f"""
+    #!/bin/bash
     # --------------------------------------------------------------
     ### PART 1: Requests resources to run your job.
     # --------------------------------------------------------------
@@ -198,12 +206,19 @@ for dataset, response in combinations:
     cd /home/UGR002/dsalazar/climahealth/combat_genes
         #/home is the stable directory, while scratch is where results of analyses can be stored temporary, as stuff gets removed after 20 days
     ### Run your work
-    singularity exec ./03a_association_analyses.sif ./03b_prs_calculation.py --total_iter=100 --response_variable="{response}" --covariate_dataset="{dataset}" > ./03b_prs_calculation_100_iter_{dataset}_{response}.out 2>&1
+    singularity exec ./03a_association_analyses.sif ./scripts/03b_prs_calculation.py --total_iter=100 --response_variable="{response}" --covariate_dataset="{dataset}" > ./03b_prs_calculation_100_iter_{dataset}_{response}.out 2>&1
     """
+
+    #remove the first empty line and the spaces at the beginning of the lines
+    slurm_file_content_update = textwrap.dedent("\n".join(slurm_file_content.splitlines()[1:]))
+        #slurm_file_content.splitlines() Splits the multi-line string slurm_file_content into a list of individual lines. Indeed, "slurm_file_content.splitlines()[0]" is the first empty line, while "slurm_file_content.splitlines()[1]" is the line with the shebang.
+        #so we select all lines except the first one (i.e., the empty one)
+        #Joins the remaining lines back into a single string, with each line separated by a newline character (\n).
+        #using "textwrap.dedent", take the result and remove any common leading whitespace (including tabs) from all lines in the string.
 
     # Save the SLURM file
     with open(f"./scripts/production_scripts/slurm_files/{dataset}_{response}.slurm", "w") as slurm_file:
-        slurm_file.write(slurm_file_content)
+        slurm_file.write(slurm_file_content_update)
 
 # endregion
 
@@ -216,35 +231,50 @@ for dataset, response in combinations:
 #############################
 # region MASTER BASH SCRIPT #
 #############################
-
+print_text("create master bash script", header=1)
+print_text("set output file", header=2)
 output_file = "./scripts/production_scripts/slurm_files/master_bash_script.sh"
 
-# Iterate over the combinations
+print_text("Iterate over the combinations using also the index of each combination", header=2)
 #idx=0; dataset=combinations[0][0]; response=combinations[0][1]
 for idx, (dataset, response) in enumerate(combinations):
     
-    # Create the line to add
+    #create the line to add
     line = f"sbatch {dataset}_{response}.slurm;\n"
 
-    #last line
-    last_line = "n_jobs=$(squeue -u dsalazar | awk '{if(NR!=1){count++}}END{print count}');\necho 'WE HAVE ' $n_jobs ' jobs'\n#to stop all jobs #squeue -u dsalazar | awk '{if(NR!=1){print $1}}' | xargs scancel\n#chmod +x 00_master_bash.sh; ./00_master_bash.sh > 00_master_bash.out 2>&1"
-
-    # Write or append to the file
+    #write or append to the file
     if idx == 0:
-        # For the first item, create the file and write the line
+        
+        #for the first item, create the file and write the line
         with open(output_file, "w") as file:
             file.write("#!/bin/bash\n") #Add the shebang at the top and
-            file.write("chmod +x ../03b_prs_calculation.py\n") #the main script executable
-            file.write(line) #add the first slurm file
+            file.write("chmod +x ../03b_prs_calculation.py\n") #make the main script executable
+            file.write(line) #add the line of the dataset - phenotype combination
     else:
-        if(idx != len(combinations)-1): 
-            # For subsequent items, append the line
-            with open(output_file, "a") as file:
-                file.write(line)
-        else:
-             with open(output_file, "a") as file:
-                file.write(line)
-                file.write(last_line)
 
+        #append the line of the selected dataset - phenotype combination, as it is not the first one and the file has been already created
+        with open(output_file, "a") as file:
+            file.write(line)
+
+#finish the file adding the last line
+with open(output_file, "a") as file:
+    file.write("n_jobs=$(squeue -u dsalazar | awk '{if(NR!=1){count++}}END{print count}');\necho 'WE HAVE ' $n_jobs ' jobs'\n#to stop all jobs #squeue -u dsalazar | awk '{if(NR!=1){print $1}}' | xargs scancel\n#chmod +x 00_master_bash.sh; ./00_master_bash.sh > 00_master_bash.out 2>&1")
 
 # endregion
+
+
+
+
+
+
+print_text("FINISH", header=1)
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
+#chmod +x ./scripts/production_scripts/03c_prepare_slurm_files.py
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03c_prepare_slurm_files.py > ./03c_prepare_slurm_files.out 2>&1
+#grep -Ei 'error|false|fail' ./03c_prepare_slurm_files.out
+    #grep: The command used to search for patterns in files.
+    #-E: Enables extended regular expressions.
+    #-i: Makes the search case-insensitive.
+    #'error|false|fail': The pattern to search for. The | character acts as an OR operator, so it matches any line containing "error", "false", or "fail".
+    #03a_phenotype_prep.out: The file to search in.

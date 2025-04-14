@@ -1135,6 +1135,21 @@ def pheno_subset(subset_type="small"):
         ")
             #We use the same threshold than in 02d_post_imputation_qc.py. Check that script for more details.
 
+        #compress big plink files
+        run_bash(" \
+            cd " + path_to_save_plink + change_pheno + "_filesets/; \
+            gzip \
+                --force \
+                ./" + change_pheno + "_subset.bim \
+                ./" + change_pheno + "_subset.bed \
+                ./" + change_pheno + "_subset_missing_clean.bim \
+                ./" + change_pheno + "_subset_missing_clean.bed \
+                ./" + change_pheno + "_subset_missing_clean_maf_hwe.bim \
+                ./" + change_pheno + "_subset_missing_clean_maf_hwe.bed \
+                ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.bim \
+                ./" + change_pheno + "_subset_missing_clean_maf_hwe_sample_snp_missing.bed; \
+        ")
+
 print_text("run the function to create the subsets for the small and large set of predictors", header=4)
 pheno_subset(subset_type="small")
 pheno_subset(subset_type="large")
