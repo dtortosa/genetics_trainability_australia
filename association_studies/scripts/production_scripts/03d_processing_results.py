@@ -339,12 +339,11 @@ print_text("Initialize an empty DataFrame for the reshaped data", header=4)
 eval_metrics = pd.DataFrame()
 
 print_text("loop the function", header=4)
-#response_variable="beep_change"; dataset_type="large_set_predictors"
-#[i for i in combinations_pheno_dataset_iter if i[0]=="beep_change" and i[1]=="small_set_predictors"]
-#[i for i in combinations_pheno_dataset_iter if i[0]=="weight_change" and i[1]=="small_set_predictors"]
+#response_variable="beep_change"; dataset_type="small_set_predictors"
+#[i for i in combinations_pheno_dataset_iter if i[1]=="small_set_predictors"]
 for response_variable, dataset_type in combinations_pheno_dataset_iter:
 
-    print("get elastic metrics")
+    print("get elastic metrics for " + dataset_type + " and " + response_variable)
     #empty list to save results
     elastic_metrics_list = list()
 
@@ -404,7 +403,7 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
     #convert the dict to a DF (each key as a column) and the concatenate to the eval metrics
     eval_metrics = pd.concat([eval_metrics, pd.DataFrame([elastic_row])])
 
-    print("get linear metrics")
+    print("get linear metrics for " + dataset_type + " and " + response_variable)
     #empty list to save results
     linear_metrics_list = list()
 
@@ -414,21 +413,38 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
         linear_metrics_list.append(extract_metrics(response_variable=response_variable, dataset_type=dataset_type, model_type="linear", iteration=iteration))
 
     #check we have the same column names in all iterations
+    #we cannot do this for linear because we can have different thresholds for different iterations if there smaller p-values in some iterations that are below more stringent thresholds
     #i=linear_metrics_list[0]
-    if(sum([1 for i in linear_metrics_list if i[0]!=linear_metrics_list[0][0]])!=0):
-        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE COLUMN NAMES FOR LINEAR METRICS")
+    #if(sum([1 for i in linear_metrics_list if i[0]!=linear_metrics_list[0][0]])!=0):
+        #raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE COLUMN NAMES FOR LINEAR METRICS")
             #for each iteration, check whether the names (first element) is not the same than the names in the first iteration, if not, then add 1. 
             #if the sum is not 0, then we have a problem.
 
     #extract column names from the first tuple of the first sublist
     column_names = linear_metrics_list[0][0]
 
+
+    max_n_names = max([len(sublist[0]) for sublist in linear_metrics_list])
+
+    column_names = [sublist[0] for sublist in linear_metrics_list if len(sublist[0])==max_n_names]
+
+
+
     #extract all float tuples (second element of each sublist)
     #sublist=linear_metrics_list[0]
-    elastic_tuples_metrics = [sublist[1] for sublist in linear_metrics_list]
+    linear_tuples_metrics = [sublist[1] for sublist in linear_metrics_list]
 
     #create the DataFrame
-    linear_metrics_df = pd.DataFrame(elastic_tuples_metrics, columns=column_names)
+    linear_metrics_df = pd.DataFrame(linear_tuples_metrics)
+
+    linear_metrics_df.columns = column_names[0]
+
+        #the NAs will be always at the end? if you have data at 0.0001, you should have data at 0.001 because signicaint snps with the more stringent threshold should be also significant with the less stringent one. So, the NAs should be at the end of the list.
+
+    linear_metrics_df.isna().sum()>0
+
+    linear_metrics_df = linear_metrics_df.loc[:, ~(linear_metrics_df.isna().sum() > 0)]
+
 
     #calculate percentiles for each column
     percentiles = [2.5, 50, 97.5]
@@ -483,7 +499,7 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
         eval_metrics = pd.concat([eval_metrics, pd.DataFrame([linear_row])])
 
 print_text("print the results", header=4)
-print(eval_metrics.iloc[:, 0:6])
+print(eval_metrics.iloc[:, 0:7])
 
 print_text("check number rows and columns", header=4)
 #IF:
