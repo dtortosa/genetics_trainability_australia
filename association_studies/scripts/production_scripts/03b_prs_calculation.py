@@ -749,7 +749,7 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
     min_p_value = training_linear_raw_pvalues["P"].min()
 
     print_text("make a list of thresholds that are above the minimum p-value", header=4)
-    list_thresholds_raw = [0.01, 0.001, 0.0001, 0.00001, 5e-8]
+    list_thresholds_raw = [1, 0.1, 0.01, 0.001, 0.0001, 0.00001, 5e-8]
         #if no SNP is under 0.001, then it does not make sense to filter by 0.001 as no SNPs would be left. Indeed this generates an error in LDAK.
     list_thresholds = [i for i in list_thresholds_raw if i>min_p_value]
 

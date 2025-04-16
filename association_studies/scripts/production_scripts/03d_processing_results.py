@@ -163,8 +163,8 @@ run_bash("ls")
     #40 rows:
         #2 dataset types x 4 phenotype for elastic
         #2 dataset types x 4 phenotype x 4 thresholds for linear
-    #12 columns
-        #3 columns for 95CI x 4 evaluation metrics
+    #16 columns
+        #3 columns for 95CI x 4 evaluation metrics + 4 columns indicating phenotype, dataset type, model type and threshold
     #First will a go distance_change with small set and linear, then the same phentoype and dataset with elastic net, then the same phenotype with large and linear/elastic and so on. In this way, we can easily compare the classic PRS approach with the newer one for each phentoype and also small vs large predictors set. The next phenotypes will be beep_test and VO2 max, finishing with weight change.
 
 # endregion
@@ -249,24 +249,30 @@ combinations_pheno_dataset_iter = list(product(response_variables, dataset_types
 if(len(combinations_pheno_dataset_iter)!=len(response_variables)*len(dataset_types)):
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE COMBINATIONS")
 
-print_text("define function to extract the evaluation metrics", header=2)
+
+print_text("summarize the evaluation metrics and store them in a table", header=2)
+print_text("define function to extract the values of the metrics", header=3)
 #response_variable="beep_change"; dataset_type="large_set_predictors"; model_type="elastic"; iteration=1
 #response_variable="beep_change"; dataset_type="large_set_predictors"; model_type="linear"; iteration=1
 def extract_metrics(response_variable, dataset_type, model_type, iteration):
 
+    #if the model type is linear, we need to get the thresholds from the folders
     if model_type=="linear":
 
+        #get the names of folders with thresholds results
         threshold_folders = run_bash(" \
             ls ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/linear/ \
         ", return_value=True).split("\n")[0:-1]
+            #split the output by new line and avoid the last element which is an empty space
 
-        threshold_list = sorted([float(i.split("_")[-1]) for i in threshold_folders], reverse=True)
+        #get the value of each threshold
+        #threshold=threshold_folders[0]
+        threshold_list = sorted([float(threshold.split("_")[-1]) for threshold in threshold_folders], reverse=True)
+            #for each folder name, split the name by "_" and get the last element, which is the threshold value, then convert the string to float and sort the list in descending order
 
-
-
-
+        #iterate across thresholds to get the evaluation metrics
+        #empty list
         evaluation_metrics_raw_list = list()
-
         #threshold=threshold_list[0]
         for threshold in threshold_list:
 
@@ -277,8 +283,9 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
                             print $3; \
                         } \
                     }' \
-                    ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/" + model_type + "/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_jacknife_eval.jack \
+                    ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_jacknife_eval.jack \
             ", return_value=True).split("\n")[:-1]
+                #I understand that we have 7 scores corresponding with ALL, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001. So, given we have already filtered in previous steps with --thin-tops, we can use the first row considering all SNPs that were used as input (which in our case are already filtered)
 
             evaluation_metrics_raw_list.append(tuple(evaluation_metrics_raw))
 
@@ -422,9 +429,20 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
 
 
 
-
 # Print the reshaped DataFrame
 print(eval_metrics.iloc[:, 0:6])
+
+
+#IF:
+    #the number of rows IS NOT the number of phenotypes times number of dataset types times 5 (1 for elastic and 4 for linear as we have 4 thresholds)
+    #OR
+    #the number of columns IS NOT 4 evaluation metrics times 3 percentiles plus 4 columns indicating phenotype, dataset type, model type and threshold
+if ( \
+    (eval_metrics.shape[0]!=len(response_variables)*len(dataset_types)*5) | \
+    (eval_metrics.shape[1]!=4*3+4) \
+):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE FINAL TABLE")
+
 
 eval_metrics.to_csv("./results/final_results/evaluation_metrics.tsv", sep="\t", header=True, index=False, na_rep="NA")
 
