@@ -1,3 +1,7 @@
+
+
+#we need to check inflation? maybe just bonferroni and show no snp is signifncat, so PRSs are useful
+
 def manhattan_plot(covariate_dataset, response_variable):
         
 

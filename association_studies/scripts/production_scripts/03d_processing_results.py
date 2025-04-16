@@ -228,6 +228,10 @@ for response_variable, dataset_type in combinations_pheno_dataset:
                 #if the error case does not include any of these phrases, then we have an actual error
                 raise ValueError(f"ERROR! FALSE! WE FOUND AN ERROR FOR {dataset_type} and {response_variable}: {line.strip()}")
 
+    print("check the last line indicates the end of the process")
+    if(lines[-3]!="FINISH\n"):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE LAST LINE OF THE FILE. IT SHOULD BE 'FINISH', but it is not")
+
 # endregion
 
 
@@ -276,6 +280,7 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
         #threshold=threshold_list[0]
         for threshold in threshold_list:
 
+            #get the evaluation metrics for each threshold
             evaluation_metrics_raw = run_bash(" \
                 awk \
                     'BEGIN{FS=\" \"}{ \
@@ -285,21 +290,27 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
                     }' \
                     ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_jacknife_eval.jack \
             ", return_value=True).split("\n")[:-1]
-                #I understand that we have 7 scores corresponding with ALL, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001. So, given we have already filtered in previous steps with --thin-tops, we can use the first row considering all SNPs that were used as input (which in our case are already filtered)
-
+                #get only the rows with the first column equal to 1, which are the evaluation metrics for the first PRS. From these rows, get the third column, which is the estimate of the evaluation metric
+                    #I understand that we have 7 scores corresponding with ALL, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001. So, given we have already filtered in previous steps with --thin-tops, we can use the first row considering all SNPs that were used as input (which in our case are already filtered)
+                #split the output by new line and avoid the last element which is an empty space
+            
+            #convert the list to a tuple and append to the list with the results across thresholds
             evaluation_metrics_raw_list.append(tuple(evaluation_metrics_raw))
 
-
+        #convert all metrics to float and flatten the list to get all of them in a single tuple
+        #sublist=evaluation_metrics_raw_list[0]; item=sublist[0]
         evaluation_metrics = tuple([float(item) for sublist in evaluation_metrics_raw_list for item in sublist])
 
-        evaluation_metrics
-
+        #get the names of the columns
         column_names = [f"{metric}_{threshold}" for threshold in threshold_list for metric in ["correlation", "squared_correlation", "mean_squared_error", "mean_absolute_error"]]
+        
+        #add the threshold to the column names
         evaluation_metrics = [tuple(column_names), evaluation_metrics]
         
-        
+    #else, if the model is elastic  
     elif model_type=="elastic":
 
+        #get the evaluation metrics for the elastic model
         evaluation_metrics_raw = run_bash(" \
             awk \
                 'BEGIN{FS=\" \"}{ \
@@ -307,152 +318,211 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
                         print $3; \
                     } \
                 }' \
-                ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/" + model_type + "/" + response_variable + "_prs_jacknife_eval.jack \
+                ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/elastic/" + response_variable + "_prs_jacknife_eval.jack \
         ", return_value=True).split("\n")[:-1]
 
+        #convert the list of strings to a tuple of floats
+        #metric=evaluation_metrics_raw[0]
         evaluation_metrics = tuple([float(metric) for metric in evaluation_metrics_raw])
 
+        #get the names of the columns
         column_names = ["correlation", "squared_correlation", "mean_squared_error", "mean_absolute_error"]
+        
+        #add the threshold to the column names
         evaluation_metrics = [tuple(column_names), evaluation_metrics]
 
-
+    #return the evaluation metrics
     return evaluation_metrics
 
-
-# Initialize an empty DataFrame for the reshaped data
+print_text("run the function across all combinations", header=3)
+print_text("Initialize an empty DataFrame for the reshaped data", header=4)
 eval_metrics = pd.DataFrame()
 
+print_text("loop the function", header=4)
 #response_variable="beep_change"; dataset_type="large_set_predictors"
+#[i for i in combinations_pheno_dataset_iter if i[0]=="beep_change" and i[1]=="small_set_predictors"]
+#[i for i in combinations_pheno_dataset_iter if i[0]=="weight_change" and i[1]=="small_set_predictors"]
 for response_variable, dataset_type in combinations_pheno_dataset_iter:
 
-    ##get elastic
+    print("get elastic metrics")
+    #empty list to save results
     elastic_metrics_list = list()
-    for iteration in range(1, 2):
+
+    #loop across iterations to extract the metrics and save in the empty list
+    #iteration=1
+    for iteration in range(1, 101):
         elastic_metrics_list.append(extract_metrics(response_variable=response_variable, dataset_type=dataset_type, model_type="elastic", iteration=iteration))
 
-    # Extract column names from the first tuple of the first sublist
+    #check we have the same column names in all iterations
+    #i=elastic_metrics_list[0]
+    if(sum([1 for i in elastic_metrics_list if i[0]!=elastic_metrics_list[0][0]])!=0):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE COLUMN NAMES FOR ELASTIC METRICS")
+            #for each iteration, check whether the names (first element) is not the same than the names in the first iteration, if not, then add 1. 
+            #if the sum is not 0, then we have a problem.
+
+    #extract column names from the first tuple of the first sublist
     column_names = elastic_metrics_list[0][0]
 
-    # Extract all float tuples (second element of each sublist)
-    rows = [sublist[1] for sublist in elastic_metrics_list]
+    #extract all float tuples with the metrics (second element of each sublist)
+    #sublist=elastic_metrics_list[0]
+    elastic_tuples_metrics = [sublist[1] for sublist in elastic_metrics_list]
 
-    # Create the DataFrame
-    elastic_metrics_df = pd.DataFrame(rows, columns=column_names)
+    #create the DataFrame
+    elastic_metrics_df = pd.DataFrame(elastic_tuples_metrics, columns=column_names)
 
-    # Extract all float tuples (second element of each sublist)
-    rows = [sublist[1] for sublist in elastic_metrics_list]
-
-    # Create the DataFrame
-    elastic_metrics_df = pd.DataFrame(rows, columns=column_names)
-
-
-    # Calculate percentiles for each column
-    percentiles = [0.025, 0.5, 0.975]
-    #p=0.025
+    #calculate percentiles for each column
+    percentiles = [2.5, 50, 97.5]
+    #p=2.5
     result_elastic = pd.DataFrame(
-        {f"{p}th_percentile": elastic_metrics_df.quantile(p) for p in percentiles}
+        {f"{p}th_percentile": elastic_metrics_df.quantile(p/100) for p in percentiles}
     )
+        #with a comprehension, calculate the three percentiles for each column using "elastic_metrics_df.quantile()". 
+        #each percentile is store as a key/value pair in the dictionary, where the key is the name of the column with the percentile and the value is the result of the quantile calculation for that column.
+        #the dict is converted to a DF where each key (percentile) is a column
 
-    result_elastic["metric"] = result_elastic.index
+    #flatten the rows into a single row, i.e., all metrics of a given phenotype and dataset type are in a single row
+    elastic_row = {}
+        #this empty dict will store the values of each metric and percentile as a different key
+    #row_index=result_elastic.index[0]; row_data=result_elastic.iloc[0,:]
+    #iterate over the rows of the data.frame
+    for row_index, row_data in result_elastic.iterrows():
 
-    # Flatten the rows into a single row
-    row = {}
-    #row_data=result_elastic.iloc[0,:]
-    for _, row_data in result_elastic.iterrows():
-        metric = row_data["metric"]
-        row["phenotype"] = response_variable
-        row["dataset_type"] = dataset_type
-        row["model_type"] = "elastic"
-        row["threshold"] = np.nan
-        row[f"{metric}_0.025th_percentile"] = row_data["0.025th_percentile"]
-        row[f"{metric}_0.5th_percentile"] = row_data["0.5th_percentile"]
-        row[f"{metric}_0.975th_percentile"] = row_data["0.975th_percentile"]
-    
-    eval_metrics = pd.concat([eval_metrics, pd.DataFrame([row])])
+        #get the metric name
+        metric = row_index
 
+        #add the phenotype, model.... to the empty dict
+        elastic_row["phenotype"] = response_variable
+        elastic_row["dataset_type"] = dataset_type
+        elastic_row["model_type"] = "elastic"
+        elastic_row["threshold"] = np.nan
 
-    ##get linear
+        #add the percentiles
+        elastic_row[f"{metric}_2.5th_percentile"] = row_data["2.5th_percentile"]
+        elastic_row[f"{metric}_50th_percentile"] = row_data["50th_percentile"]
+        elastic_row[f"{metric}_97.5th_percentile"] = row_data["97.5th_percentile"]
+
+    #convert the dict to a DF (each key as a column) and the concatenate to the eval metrics
+    eval_metrics = pd.concat([eval_metrics, pd.DataFrame([elastic_row])])
+
+    print("get linear metrics")
+    #empty list to save results
     linear_metrics_list = list()
-    for iteration in range(1, 2):
+
+    #loop across iterations to extract the metrics and save in the empty list
+    #iteration=1
+    for iteration in range(1, 101):
         linear_metrics_list.append(extract_metrics(response_variable=response_variable, dataset_type=dataset_type, model_type="linear", iteration=iteration))
 
-    # Extract column names from the first tuple of the first sublist
+    #check we have the same column names in all iterations
+    #i=linear_metrics_list[0]
+    if(sum([1 for i in linear_metrics_list if i[0]!=linear_metrics_list[0][0]])!=0):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE COLUMN NAMES FOR LINEAR METRICS")
+            #for each iteration, check whether the names (first element) is not the same than the names in the first iteration, if not, then add 1. 
+            #if the sum is not 0, then we have a problem.
+
+    #extract column names from the first tuple of the first sublist
     column_names = linear_metrics_list[0][0]
 
-    #CHECK WE AHVE RTHE SAME COLUMN NAMES, I.E., THE SAME THRESHOLDS IN ALL CASES
+    #extract all float tuples (second element of each sublist)
+    #sublist=linear_metrics_list[0]
+    elastic_tuples_metrics = [sublist[1] for sublist in linear_metrics_list]
 
-    # Extract all float tuples (second element of each sublist)
-    rows = [sublist[1] for sublist in linear_metrics_list]
+    #create the DataFrame
+    linear_metrics_df = pd.DataFrame(elastic_tuples_metrics, columns=column_names)
 
-    # Create the DataFrame
-    linear_metrics_df = pd.DataFrame(rows, columns=column_names)
-
-
-    # Calculate percentiles for each column
-    percentiles = [0.025, 0.5, 0.975]
-    #p=0.025
-    result = pd.DataFrame(
-        {f"{p}th_percentile": linear_metrics_df.quantile(p) for p in percentiles}
+    #calculate percentiles for each column
+    percentiles = [2.5, 50, 97.5]
+    #p=2.5
+    results_linear = pd.DataFrame(
+        {f"{p}th_percentile": linear_metrics_df.quantile(p/100) for p in percentiles}
     )
+        #with a comprehension, calculate the three percentiles for each column using "elastic_metrics_df.quantile()". 
+        #each percentile is store as a key/value pair in the dictionary, where the key is the name of the column with the percentile and the value is the result of the quantile calculation for that column.
+        #the dict is converted to a DF where each key (percentile) is a column
 
+    #split the index to get thresholds and metrics
+    split_index = results_linear.index.str.split("_")
 
-    # Extract thresholds and metrics from the index
-    result["threshold"] = result.index.str.split("_").str[-1]
-    result["metric"] = ["_".join(i[0:-1]) for i in result.index.str.split("_")]
+    #extract metrics and the thresholds from the index
+    #i=split_index[1]
+    results_linear["metric"] = ["_".join(i[0:-1]) for i in split_index]
+        #for each splitted index, get all elements execpt the last one (which is the threshold) and join them with "_"
+    results_linear["threshold"] = [i[-1] for i in split_index]
+        #just the last element
 
-    
-
-
-    # Iterate over unique thresholds
+    #iterate over unique thresholds
     #threshold=result["threshold"].unique()[0]
-    for threshold in result["threshold"].unique():
+    for threshold in results_linear["threshold"].unique():
         
-        # Filter rows for the current threshold
-        subset = result[result["threshold"] == threshold]
+        #filter rows for the current threshold
+        subset_threshold = results_linear[results_linear["threshold"] == threshold]
         
-        # Flatten the rows into a single row
-        row = {}
-        #row_data=subset.iloc[0,:]
-        for _, row_data in subset.iterrows():
+        #flatten the rows into a single row, i.e., all metrics of a given phenotype and dataset type are in a single row
+        #this empty dict will store the values of each metric and percentile as a different key
+        linear_row = {}
+        #iterate across rows
+            #"_," is used as a throwaway variable. It indicates that the value it holds is not going to be used in the loop.
+        #row_data=subset_threshold.iloc[0,:]
+        for _, row_data in subset_threshold.iterrows():
+            
+            #get the metric name
             metric = row_data["metric"]
-            row["phenotype"] = response_variable
-            row["dataset_type"] = dataset_type
-            row["model_type"] = "linear"
-            row["threshold"] = threshold
-            row[f"{metric}_0.025th_percentile"] = row_data["0.025th_percentile"]
-            row[f"{metric}_0.5th_percentile"] = row_data["0.5th_percentile"]
-            row[f"{metric}_0.975th_percentile"] = row_data["0.975th_percentile"]
-        
-        
-        # Append the row to the reshaped DataFrame
-        eval_metrics = pd.concat([eval_metrics, pd.DataFrame([row])])
 
+            #add the phenotype, dataset set, model type and threshold to the empty dict
+            linear_row["phenotype"] = response_variable
+            linear_row["dataset_type"] = dataset_type
+            linear_row["model_type"] = "linear"
+            linear_row["threshold"] = threshold
 
+            #save the percentiles
+            linear_row[f"{metric}_2.5th_percentile"] = row_data["2.5th_percentile"]
+            linear_row[f"{metric}_50th_percentile"] = row_data["50th_percentile"]
+            linear_row[f"{metric}_97.5th_percentile"] = row_data["97.5th_percentile"]
 
-# Print the reshaped DataFrame
+        #convert the dict to a DF (each key as a column) and the concatenate to the eval metrics
+        eval_metrics = pd.concat([eval_metrics, pd.DataFrame([linear_row])])
+
+print_text("print the results", header=4)
 print(eval_metrics.iloc[:, 0:6])
 
-
+print_text("check number rows and columns", header=4)
 #IF:
-    #the number of rows IS NOT the number of phenotypes times number of dataset types times 5 (1 for elastic and 4 for linear as we have 4 thresholds)
+    #the number of rows IS NOT the number of phenotypes times number of dataset types times 7 (1 for elastic and 6 for linear as we have 6 thresholds)
     #OR
     #the number of columns IS NOT 4 evaluation metrics times 3 percentiles plus 4 columns indicating phenotype, dataset type, model type and threshold
 if ( \
-    (eval_metrics.shape[0]!=len(response_variables)*len(dataset_types)*5) | \
+    (eval_metrics.shape[0]!=len(response_variables)*len(dataset_types)*7) | \
     (eval_metrics.shape[1]!=4*3+4) \
 ):
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE FINAL TABLE")
 
+print_text("save results", header=4)
+eval_metrics.to_csv( \
+    "./results/final_results/evaluation_metrics.tsv", \
+    sep="\t", \
+    header=True, \
+    index=False, \
+    na_rep="NA" \
+)
 
-eval_metrics.to_csv("./results/final_results/evaluation_metrics.tsv", sep="\t", header=True, index=False, na_rep="NA")
 
 
-#in the results of --linear
-    #I think you only have look at the first row of cors because we are already applying a threshold with --thin-tops, if you used a threshold during clumping of 0.0001, no snps above 0.0001 are going to be present, thus it does not make sense to see the different profiles generated by --calc-score thorugh 0.01, 0.001... we are already iterating over that list of thresholds, see previous code ofr further details
 
-#we need to check inflation? maybe just bonferroni and show no snp is signifncat, so PRSs are useful
 
-#check overlap across iterations for the samples with the highest PRS values in the training or test set?
+
+##########################
+# region Overlap top PRS #
+##########################
+print_text("Overlap top PRS", header=1)
+print("""
+It was suggested we can check the overlap across iterations for the samples with the highest PRS values in the training or test set.
+
+We could do this by checking the top 1% of samples in the training set and the test set for each iteration and then calculate wath percentage of sample is the same across ALL iterations.
+      
+The problem here is that we have several phenotypes, datasets, models, thresholds.... so we should do it for each combination of these variables. Considering this and the fact that we already have several evaluation metrics that specifically target the predictive power of the PRSs, I think it is not worth to do this analysis.
+""")
+
+
 
 
 ##WHEN INTERPRETING THE RESULTS OF THE PRS, LOOK SLIDES FROM DOUG
