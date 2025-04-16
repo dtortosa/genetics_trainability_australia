@@ -420,15 +420,17 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
             #for each iteration, check whether the names (first element) is not the same than the names in the first iteration, if not, then add 1. 
             #if the sum is not 0, then we have a problem.
 
-    #extract column names from the first tuple of the first sublist
-    column_names = linear_metrics_list[0][0]
-
-
+    #get the max number of metric names we have
+    #sublist=linear_metrics_list[0]
     max_n_names = max([len(sublist[0]) for sublist in linear_metrics_list])
+        #for each sublist, which is a list of two tuples, the names of the metrics and the actual values, calculate the length of the first element, i.e., the names of the metrics
+        #get the maximum length of the names of the metrics across all iterations
+        #we are doing this because we can have different thresholds for different iterations if there smaller p-values in some iterations that are below more stringent thresholds and hence we would have metrics for more thresholds in one iterations than in others
 
+    #get the column names for the cases with the max number of thresholds
+    #sublist=linear_metrics_list[0]
     column_names = [sublist[0] for sublist in linear_metrics_list if len(sublist[0])==max_n_names]
-
-
+        #select the sublist with the maximum number of names and get the names of the metrics
 
     #extract all float tuples (second element of each sublist)
     #sublist=linear_metrics_list[0]
@@ -436,15 +438,17 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
 
     #create the DataFrame
     linear_metrics_df = pd.DataFrame(linear_tuples_metrics)
+        #we have NA for the iterations where the number of thresholds is slower
+        #the NAs will be always at the end? if you have data at 0.0001 for an iteration, you should have data at 0.001 in that iteration because signicaint snps with the more stringent threshold should be also significant with the less stringent one. So, the NAs should be at the end of the list.
 
+    #add the column names to the DataFrame
     linear_metrics_df.columns = column_names[0]
+        #we use column_names[0] because we may have several iterations with the max number of names and hence we would have a list of tuples with the same sames, so we just take the first one
 
-        #the NAs will be always at the end? if you have data at 0.0001, you should have data at 0.001 because signicaint snps with the more stringent threshold should be also significant with the less stringent one. So, the NAs should be at the end of the list.
-
-    linear_metrics_df.isna().sum()>0
-
-    linear_metrics_df = linear_metrics_df.loc[:, ~(linear_metrics_df.isna().sum() > 0)]
-
+    #count the number of NAs in each column and select those columns with more than 1 NAs
+    linear_metrics_df = linear_metrics_df.loc[:, ~(linear_metrics_df.isna().sum() > 1)]
+        #If a column has more than 1 NAs, it means that this threshold has not been used for at least all iterations and the corresponding median would not be based on 100 iterations, so we discart that threshold.
+        #If we have 1 or less NAs, it means that we have at least 99 iterations with that threshold and we can use the median of those iterations to calculate the percentiles.
 
     #calculate percentiles for each column
     percentiles = [2.5, 50, 97.5]
@@ -467,7 +471,7 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
         #just the last element
 
     #iterate over unique thresholds
-    #threshold=result["threshold"].unique()[0]
+    #threshold=results_linear["threshold"].unique()[0]
     for threshold in results_linear["threshold"].unique():
         
         #filter rows for the current threshold
@@ -504,6 +508,7 @@ print(eval_metrics.iloc[:, 0:7])
 print_text("check number rows and columns", header=4)
 #IF:
     #the number of rows IS NOT the number of phenotypes times number of dataset types times 7 (1 for elastic and 6 for linear as we have 6 thresholds)
+        #our thresholds are 1, 0.1, 0.01, 0.001, 0.0001 and 0.00001. The last threshold (0.000001) is not used never becuase there are no SNPs below that threhold for any phenotype
     #OR
     #the number of columns IS NOT 4 evaluation metrics times 3 percentiles plus 4 columns indicating phenotype, dataset type, model type and threshold
 if ( \
@@ -541,9 +546,32 @@ The problem here is that we have several phenotypes, datasets, models, threshold
 
 
 
-##WHEN INTERPRETING THE RESULTS OF THE PRS, LOOK SLIDES FROM DOUG
-    #https://dougspeed.com/short/
-###WHEN DONE, YOU CAN CHECK THE SECTION OF INTERPRETATION FROM ORRELLY
-    #Interpretation and presentation of results
 
+
+#########################
+# region Interpretation #
+#########################
+
+#Relevant links
+    #https://dougspeed.com/short/
+    #O´reilly paper
+
+# endregion
+
+
+
+
+
+
+print_text("FINISH", header=1)
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
+#chmod +x ./scripts/production_scripts/03d_processing_results.py
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03d_processing_results.py > ./03d_processing_results.out 2>&1
+#grep -Ei 'error|false|fail' ./03d_processing_results.out
+    #grep: The command used to search for patterns in files.
+    #-E: Enables extended regular expressions.
+    #-i: Makes the search case-insensitive.
+    #'error|false|fail': The pattern to search for. The | character acts as an OR operator, so it matches any line containing "error", "false", or "fail".
+    #03a_phenotype_prep.out: The file to search in.
 
