@@ -1,6 +1,40 @@
 
 
-#we need to check inflation? maybe just bonferroni and show no snp is signifncat, so PRSs are useful
+#maybe do general PRS plots with the whole dataset using elastic?
+    #Association and goodness-of-fit metrics
+        #https://www.nature.com/articles/s41596-020-0353-1
+
+
+"""
+Notes about Genomic control and confounding effects from Dr. Speed's slides
+
+- Confounding due to population structure in GWAS
+    Compared with observational epidemiology, GWAS have few opportunities for confounding bias. The main problem is population structure, which refers to 
+        - mating patterns within a pop -> subpops (more relatedness within than between)
+        - allele frequency differences across subpops 
+        - environmental exposures may also vary across subpops. 
+
+    Phenotypes can also vary across subpops, because 
+        - the causal alleles vary in frequency and/or
+        - they vary with environmental factors correlated with pop structure, and/or 
+        - ascertainment bias: recruitment of phenotypic groups differs across subpops 
+
+    These can lead to significant associations not with CVs but with SNPs whose allele frequencies correlate with trait across subpops
+
+- Adjustments for pop structure confounding: genomic control (GC) + PCA
+    GC was an early approach to adjusting for confounding, based on the idea that pop structure can lead to many significant SNPs genome-wide 
+        - all association test stats (with χ21 null distribution) are divided by the ratio of empirical to null medians (called a genomic inflation factor, GIF) provided GIF > 1 
+        - assumes sparsity: true causals are rare, so there are few non-null test stats, so median test statistic is close to null value. 
+    
+    However, the omnigenic nature of many complex traits means that the assumption is false and GC is overly conservative. 
+    
+    The first few eigenvectors (or principal components) of XX T often reflect pop structure   
+        - Included as covariates in GWAS regression models, they can absorb pop structure effects on the trait. 
+    
+    Now Mixed Model Association Analysis (MMAA) is the preferred approach to adjusting for pop structure effects in tests of association (see slide 40 from Dr. Speed's slides; teaching_slides.pdf)
+
+- Given we have performed a fine analysis of population structure, removing many PCA outliers (we only have 1 ancestry) and then calculating PCAs on very clean data and considering these PCAs in the models, we have covered this point, so no need for genomic control.
+"""
 
 def manhattan_plot(covariate_dataset, response_variable):
         
@@ -171,7 +205,6 @@ def manhattan_plot(covariate_dataset, response_variable):
         #https://python-graph-gallery.com/manhattan-plot-with-matplotlib/
 
 
-    ##INFLATION FACTOR?
 
     #check manhatan plots
         #there is a strange gap in VO2 max for one of the first chromosomes in the prelim results

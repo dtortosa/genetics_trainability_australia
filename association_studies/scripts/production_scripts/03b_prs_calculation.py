@@ -289,6 +289,10 @@ covariate_dataset = args.covariate_dataset
                 #David sent a paper also using this approach
                     #Personalized Nutrition by Prediction of Glycemic Responses
 
+#Besides Dr. Speed papers
+    #“Improved genetic prediction of complex traits from individual-level data or summary statistics”, Zhang et al., Nature Communications, 2021
+#you can get a summary of all these PRS approaches in his teaching slides (Prediction section, slide 45): ./association_studies/literature/speed_slides_course_apr_2025
+
 # endregion
 
 
@@ -607,6 +611,11 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             list_covs_to_model[index] = dict_change_names[cov]
 
     print("fit the regression model")
+    #We are going to regress the phenotype against the covariates in the test set and then use the residuals of the models (i.e., observed - predicted) to retain non-explained variance by covariates and use that to assess the impact of the PRS.
+    #From Dr. Speed:
+        #For ease, I normally regress phenotypes for test individuals on covariates, then use residuals with --calc-scores. Yes, you would expect correlation to increase, because you are removing nuisance variance
+        #Yes. One solution is to do the following in R: a=lm(Y~Z); where Y is a vector phenotypes and Z is a matrix of covariates. Then the residuals are a$residuals
+        #Alternatively, you can use ldak: --reml output --pheno phenotypes --covar covariates; the adjusted phenotypes are in column 5 of the .indi.res file
     #add sex if this is a selected covariate
     if ("sex_code" in list_covs_to_model):
 
@@ -777,6 +786,11 @@ def prs_calc(iter_number, response_variable, covariate_dataset):
             #--window-cm <float>, --window-kb <float> or --window-length <integer> - to specify the window size (how far to search for correlated predictors, where the units are centiMorgans, kilobase or number of predictors, respectively). Note that --window-length ALL will tell LDAK to consider all predictors on the same chromosome.
             #--pvalues <pvalues> - to provide p-values for each predictor (the file <pvalues> should have two columns, that provide predictor names then p-values). When LDAK finds two highly correlated predictors, it will discard the one with the highest p-value.
             #--cutoff <float> - to provide the p-value threshold (LDAK will only consider predictors with p-values below this threshold). In other words, predictors with p-values below the cutoff will be treated as top predictors.
+                #Note that this is thresholding, just remove SNPs above a threshold, and then clumping will be applied on the resulting list of SNPs.
+                #See for example this examples from LDAK page:
+                    #./ldak.out --thin-tops clump --bfile human --window-prune 0.05 --window-cm 1 --pvalues quant.pvalues --cutoff 5e-8
+                    #In total, there were six predictors with p-value less than 5e-8; after clumping, four of these remain (listed in the file clump.in).
+                    #Therefore, you got first 6 predictors after thresholding, and then after clumping you lose 2 more, so --cutoff is doing thresholding while --window-prune/--window-kb are doing clumping.
             #output:
                 #The lists of retained and discarded predictors are saved in the files <output>.in and <output>.out, respectively.
             #https://dougspeed.com/clumping/

@@ -291,7 +291,8 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
                     ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/linear/clump_thresholding_" + str(threshold) + "/" + response_variable + "_prs_calculation_classical_jacknife_eval.jack \
             ", return_value=True).split("\n")[:-1]
                 #get only the rows with the first column equal to 1, which are the evaluation metrics for the first PRS. From these rows, get the third column, which is the estimate of the evaluation metric
-                    #I understand that we have 7 scores corresponding with ALL, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001. So, given we have already filtered in previous steps with --thin-tops, we can use the first row considering all SNPs that were used as input (which in our case are already filtered)
+                    #I understand that we have 7 scores corresponding with ALL (P<1), P<0.1, P<0.01, P<0.001, P<0.0001, P<0.00001, P<0.000001. So, given we have already filtered in previous steps with --thin-tops, we can use the first row considering all SNPs that were used as input (which in our case are already filtered)
+                    #Doug has confirmed that the 7 scores you get in jackknife correspond to these 7 thresholds.
                 #split the output by new line and avoid the last element which is an empty space
             
             #convert the list to a tuple and append to the list with the results across thresholds
@@ -310,6 +311,23 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
     #else, if the model is elastic  
     elif model_type=="elastic":
 
+        #get the heritability metrics from elastic
+        heritability_elastic_raw = run_bash(" \
+            awk \
+                'BEGIN{FS=\" \"}{ \
+                    if ($1==\"RHE\") { \
+                        print $1, $4; \
+                    } else if ($1==\"MCREML\") { \
+                        print $1, $4; \
+                    } \
+                }' \
+                ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/training_set/elastic/" + response_variable + "_training_elastic.hers \
+        ", return_value=True) 
+
+        #get a list with each heritability metric as a different element, i.e., split the string 
+        heritability_elastic = re.split(r"[ \n]+", heritability_elastic_raw)[:-1]
+            #split the resulting string by space and new line and avoid the last element which is an empty space
+
         #get the evaluation metrics for the elastic model
         evaluation_metrics_raw = run_bash(" \
             awk \
@@ -321,14 +339,23 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
                 ./results/final_results/" + dataset_type + "/" + response_variable + "/train_test_iter_" + str(iteration) + "/test_set/elastic/" + response_variable + "_prs_jacknife_eval.jack \
         ", return_value=True).split("\n")[:-1]
 
-        #convert the list of strings to a tuple of floats
+        #convert the list of evaluation metrics to a tuple of floats
         #metric=evaluation_metrics_raw[0]
-        evaluation_metrics = tuple([float(metric) for metric in evaluation_metrics_raw])
+        evaluation_metrics_raw_2 = tuple([float(metric) for metric in evaluation_metrics_raw])
+
+        #make a single tuple with the evaluation metrics and the heritability metrics
+        #i=heritability_elastic[0]
+        #i=heritability_elastic[1]
+        evaluation_metrics = evaluation_metrics_raw_2 + tuple(float(i) for i in heritability_elastic if i not in ["RHE", "MCREML"])
+            #add to the evaluation metrics the heritability metrics, but only the values, not the names
 
         #get the names of the columns
-        column_names = ["correlation", "squared_correlation", "mean_squared_error", "mean_absolute_error"]
-        
-        #add the threshold to the column names
+        #i=heritability_elastic[0]
+        #i=heritability_elastic[1]
+        column_names = ["correlation", "squared_correlation", "mean_squared_error", "mean_absolute_error"] + [i for i in heritability_elastic if i in ["RHE", "MCREML"]]
+            #we first have the evaluation metrics and then the heritability metrics, so we can just add the names of the heritability metrics to the end of the list
+
+        #make a list with two tuples, the column names and the values
         evaluation_metrics = [tuple(column_names), evaluation_metrics]
 
     #return the evaluation metrics
@@ -339,7 +366,7 @@ print_text("Initialize an empty DataFrame for the reshaped data", header=4)
 eval_metrics = pd.DataFrame()
 
 print_text("loop the function", header=4)
-#response_variable="beep_change"; dataset_type="small_set_predictors"
+#response_variable="beep_change"; dataset_type="large_set_predictors"
 #[i for i in combinations_pheno_dataset_iter if i[1]=="small_set_predictors"]
 for response_variable, dataset_type in combinations_pheno_dataset_iter:
 
@@ -359,6 +386,11 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
             #for each iteration, check whether the names (first element) is not the same than the names in the first iteration, if not, then add 1. 
             #if the sum is not 0, then we have a problem.
 
+    #check we have the correct number of columns
+    #i=elastic_metrics_list[0]
+    if(sum([1 for i in elastic_metrics_list if (len(i[0])!=6) | (len(i[1])!=6)])!=0):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NUMBER OF COLUMNS FOR ELASTIC METRICS")
+    
     #extract column names from the first tuple of the first sublist
     column_names = elastic_metrics_list[0][0]
 
@@ -382,18 +414,19 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
     #flatten the rows into a single row, i.e., all metrics of a given phenotype and dataset type are in a single row
     elastic_row = {}
         #this empty dict will store the values of each metric and percentile as a different key
-    #row_index=result_elastic.index[0]; row_data=result_elastic.iloc[0,:]
+    
+    #add the phenotype, model.... to the empty dict
+    elastic_row["phenotype"] = response_variable
+    elastic_row["dataset_type"] = dataset_type
+    elastic_row["model_type"] = "elastic"
+    elastic_row["threshold"] = np.nan
+    
     #iterate over the rows of the data.frame
+    #row_index=result_elastic.index[0]; row_data=result_elastic.iloc[0,:]
     for row_index, row_data in result_elastic.iterrows():
 
         #get the metric name
         metric = row_index
-
-        #add the phenotype, model.... to the empty dict
-        elastic_row["phenotype"] = response_variable
-        elastic_row["dataset_type"] = dataset_type
-        elastic_row["model_type"] = "elastic"
-        elastic_row["threshold"] = np.nan
 
         #add the percentiles
         elastic_row[f"{metric}_2.5th_percentile"] = row_data["2.5th_percentile"]
@@ -419,6 +452,12 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
         #raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE COLUMN NAMES FOR LINEAR METRICS")
             #for each iteration, check whether the names (first element) is not the same than the names in the first iteration, if not, then add 1. 
             #if the sum is not 0, then we have a problem.
+
+    #check we have the correct number of columns
+    #we cannot do this check for the same reason as above
+    #i=linear_metrics_list[0]
+    #if(sum([1 for i in linear_metrics_list if (len(i[0])!=6) | (len(i[1])!=6)])!=0):
+        #raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NUMBER OF COLUMNS FOR LINEAR METRICS")
 
     #get the max number of metric names we have
     #sublist=linear_metrics_list[0]
@@ -480,6 +519,13 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
         #flatten the rows into a single row, i.e., all metrics of a given phenotype and dataset type are in a single row
         #this empty dict will store the values of each metric and percentile as a different key
         linear_row = {}
+
+        #add the phenotype, dataset set, model type and threshold to the empty dict
+        linear_row["phenotype"] = response_variable
+        linear_row["dataset_type"] = dataset_type
+        linear_row["model_type"] = "linear"
+        linear_row["threshold"] = threshold
+
         #iterate across rows
             #"_," is used as a throwaway variable. It indicates that the value it holds is not going to be used in the loop.
         #row_data=subset_threshold.iloc[0,:]
@@ -488,16 +534,21 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
             #get the metric name
             metric = row_data["metric"]
 
-            #add the phenotype, dataset set, model type and threshold to the empty dict
-            linear_row["phenotype"] = response_variable
-            linear_row["dataset_type"] = dataset_type
-            linear_row["model_type"] = "linear"
-            linear_row["threshold"] = threshold
-
             #save the percentiles
             linear_row[f"{metric}_2.5th_percentile"] = row_data["2.5th_percentile"]
             linear_row[f"{metric}_50th_percentile"] = row_data["50th_percentile"]
             linear_row[f"{metric}_97.5th_percentile"] = row_data["97.5th_percentile"]
+
+        #add the columns for percentiles of heritability metrics
+        linear_row[f"RHE_2.5th_percentile"] = np.nan
+        linear_row[f"RHE_50th_percentile"] = np.nan
+        linear_row[f"RHE_97.5th_percentile"] = np.nan
+        linear_row[f"MCREML_2.5th_percentile"] = np.nan
+        linear_row[f"MCREML_50th_percentile"] = np.nan
+        linear_row[f"MCREML_97.5th_percentile"] = np.nan
+            #these should be NA because we do not have heritability metrics for linear models
+                #It seems the heritability can be calculated from linear models in ldak using the Human Default Model (./ldak.out --sum-hers snpher1 --summary quant.summaries --tagfile HumDef.tagging), but we are not doing it now, just we will use the estimations from elastic models.
+            #we still need them to be able to concatenate the DF we are going to generate from this dict with the DF we generated for elastic models
 
         #convert the dict to a DF (each key as a column) and the concatenate to the eval metrics
         eval_metrics = pd.concat([eval_metrics, pd.DataFrame([linear_row])])
@@ -553,8 +604,23 @@ The problem here is that we have several phenotypes, datasets, models, threshold
 #########################
 
 #Relevant links
-    #https://dougspeed.com/short/
+    #slides from Dr. Speed
+        #https://dougspeed.com/short/
     #O´reilly paper
+        #https://www.nature.com/articles/s41596-020-0353-1
+
+#Clinical utility of PRSs
+    #“Polygenic risk scores: from research tools to clinical instruments”, 
+        #Lewis and Vassos, Genome Medicine, 2020 (figure below) 
+    #“Could Polygenic Risk Scores Be Useful in Psychiatry? A Review”, 
+        #Murray et al., JAMA Psychiatry, 2020 (figure on next page)
+
+"""
+- I have calculated the correlation between the PRSs and phenotype residuals in 100 different test sets (i.e., 100 different training/test partitions) and then calculated the 95CI across the 100 values. For most phenotypes, --elastic shows a higher correlation compared to --linear, but the thing is that most correlations are pretty low. The median across iterations is between 0.03 and 0.08 and, in all cases expect one phenotype, the 95CI overlaps with zero. Even for the best phenotype, the percentile 2.5th is almost at zero (0.0027). Note that I ran this using the new PCAs based on the clean data, and also checked that adding more covariates into the model (i.e., add all PCAs) does not have an influence. Would you say this level of correlation preclude to consider these scores informative for the phenotypes under study?
+    - Dr. Speed: yes, these seem weak scores (but good you were careful and used 100 replicates). You can get an idea friom the screen output (or .hers file) whether this is purely due to your low sample size, or also reflects that the traits have small heritability
+
+- Using --elastic, I got a median heritability around 0.7-0.8 according to both RHE and MCREML. So I guess this means that the heritability of the phenotype is high but we do not have enough power due to low sample size, right? Or do you think we cannot conclude even that because the low sample size could make the h2 estimates too noisy?
+"""
 
 # endregion
 

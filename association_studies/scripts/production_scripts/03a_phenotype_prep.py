@@ -249,6 +249,10 @@ fam_file = pd.read_csv( \
         #Sex code ('1' = male, '2' = female, '0' = unknown)
         #Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
             #https://www.cog-genomics.org/plink/1.9/formats#fam
+    #Dr. Speed regarding 1/2/0
+        #I think this will cause problems, because ldak will not know one of the values corresponds to missing
+        #THerefore, please ensure missing sex is coded as NA (the values assigned to males and females are arbitrary, but common to use 0 and 1)
+        #No problem about NAs in sex. I have ensured that 0 cases are coded as NA. I do not have NAs for sex anyways, only 1 and 2.
 print(fam_file)
 
 print_text("check the fam file do not have any duplicated IDs", header=3)
