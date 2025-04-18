@@ -561,10 +561,10 @@ print_text("check number rows and columns", header=4)
     #the number of rows IS NOT the number of phenotypes times number of dataset types times 7 (1 for elastic and 6 for linear as we have 6 thresholds)
         #our thresholds are 1, 0.1, 0.01, 0.001, 0.0001 and 0.00001. The last threshold (0.000001) is not used never becuase there are no SNPs below that threhold for any phenotype
     #OR
-    #the number of columns IS NOT 4 evaluation metrics times 3 percentiles plus 4 columns indicating phenotype, dataset type, model type and threshold
+    #the number of columns IS NOT 4 evaluation metrics and 2 heritability metrics times 3 percentiles plus 4 columns indicating phenotype, dataset type, model type and threshold
 if ( \
     (eval_metrics.shape[0]!=len(response_variables)*len(dataset_types)*7) | \
-    (eval_metrics.shape[1]!=4*3+4) \
+    (eval_metrics.shape[1]!=6*3+4) \
 ):
     raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE FINAL TABLE")
 

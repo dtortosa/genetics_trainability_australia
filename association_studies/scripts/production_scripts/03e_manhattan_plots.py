@@ -36,6 +36,15 @@ Notes about Genomic control and confounding effects from Dr. Speed's slides
 - Given we have performed a fine analysis of population structure, removing many PCA outliers (we only have 1 ancestry) and then calculating PCAs on very clean data and considering these PCAs in the models, we have covered this point, so no need for genomic control.
 """
 
+"""
+Quantile plot of transformed phenotype against PRS quantiles
+
+Quantile plots corresponding to the effect of a PRS on a normally distributed target trait should reflect the S-shape of the probit function (Fig. 5a). This is because the trait values are more spread out between quantiles at the tails of a normal distribution. Thus, plotting quantiles of PRS versus (absolute) effect on trait shows increasingly larger jumps up/down the y-axis from the median to the extreme upper/lower quantiles. When unequal strata are plotted, with the smallest strata at the tails, then this effect appears stronger. When the target outcome is disease status and prevalence or OR are plotted on the y-axis, then the shape is expected to be different: here, the shape is asymmetrical, showing a marked inflection at the upper end (Fig. 5b), since cases are enriched at the upper end only. Thus, inflections of risk at the tails of the PRS distribution82,83 should be interpreted according to these statistical expectations and not as interesting in themselves.
+
+https://www.nature.com/articles/s41596-020-0353-1
+"""
+
+
 def manhattan_plot(covariate_dataset, response_variable):
         
 
