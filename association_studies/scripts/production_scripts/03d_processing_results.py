@@ -271,8 +271,8 @@ def extract_metrics(response_variable, dataset_type, model_type, iteration):
 
         #get the value of each threshold
         #threshold=threshold_folders[0]
-        threshold_list = sorted([float(threshold.split("_")[-1]) for threshold in threshold_folders], reverse=True)
-            #for each folder name, split the name by "_" and get the last element, which is the threshold value, then convert the string to float and sort the list in descending order
+        threshold_list = sorted([int(threshold.split("_")[-1]) if threshold=="clump_thresholding_1" else float(threshold.split("_")[-1]) for threshold in threshold_folders], reverse=True)
+            #for each folder name, split the name by "_" and get the last element, which is the threshold value, then convert the string to int if the threshols is 1 (we do not want to have 1.0, which is not the actual name of the folder with results but 1), or to float if the threshodl is not 1, then sort the list in descending order
 
         #iterate across thresholds to get the evaluation metrics
         #empty list
@@ -553,8 +553,11 @@ for response_variable, dataset_type in combinations_pheno_dataset_iter:
         #convert the dict to a DF (each key as a column) and the concatenate to the eval metrics
         eval_metrics = pd.concat([eval_metrics, pd.DataFrame([linear_row])])
 
-print_text("print the results", header=4)
+print_text("print the results for the correlation between PRSs and phenotypes", header=4)
 print(eval_metrics.iloc[:, 0:7])
+
+print_text("print the results for heritability metrics", header=4)
+print(eval_metrics.iloc[:, -6:])
 
 print_text("check number rows and columns", header=4)
 #IF:
