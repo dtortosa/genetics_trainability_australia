@@ -55,6 +55,9 @@ import pandas as pd
 import numpy as np
 from itertools import product
 import re
+import matplotlib.pyplot as plt
+from scipy.stats import uniform
+from scipy.stats import randint
 
 
 ########################################
@@ -551,6 +554,349 @@ def prs_calc(response_variable):
             raise ValueError("ERROR: FALSE! WE HAVE NOT SELECTED THE CORRECT SAMPLES FOR ELASTIC NET")
 
 
+    print_text("plot PRS against phenotype", header=2)
+    print_text("prepare folders", header=3)
+    run_bash(" \
+        mkdir \
+            -p \
+            ./results/final_results/analysis_full_data/" + response_variable + "/plots; \
+    ")
+
+    print_text("load the phenotype data before transformation", header=3)
+    original_cleaned_data = pd.read_csv( \
+        "./data/pheno_data/pheno_data_cleaned.tsv", \
+        sep="\t", \
+        header=0 \
+    )
+
+    print_text("process it", header=3)
+    print_text("get only the samples finally included in modelling", header=4)
+    original_cleaned_data_response = original_cleaned_data.loc[ \
+        original_cleaned_data["ID"].isin( \
+            pheno_subset_transform["family_id"] + ":" + pheno_subset_transform["AGRF code"]), \
+        ["ID", response_variable] \
+    ]
+        #select rows whose ID is included in the combination of family_id and AGRF code, as in pheno_subset_transform the IDs are split.
+        #from there get the Id and the response
+
+    print_text("split the ID into FID and IID", header=4)
+    original_cleaned_data_response[["ID1", "ID2"]] = original_cleaned_data_response["ID"].str.split(":", expand=True)
+
+    print_text("check that the new variables has been correctly create", header=4)
+    if ( \
+        not original_cleaned_data_response["ID"].equals(original_cleaned_data_response["ID1"] + ":" + original_cleaned_data_response["ID2"])
+    ):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM PROCESSING THE PHENO DATA BEFORE TRANSFORMATION")
+        #if the original ID is not equal to the new ID, then we have a problem.
+
+    print_text("open the plot", header=3)
+    print_text("Create a figure with 8 subplots arranged in a grid (e.g., 2 rows x 4 columns)", header=4)
+    fig, axes = plt.subplots(4, 2, figsize=(10, 20))
+
+    print_text("Flatten the axes array for easier iteration", header=3)
+    axes = axes.flatten()
+        #if you do not flatten the axes array, you will have to use 2D indexing to access each subplot (e.g., axes[0, 0] for the first subplot, axes[0, 1] for the second subplot, etc.). Flattening makes it easier to iterate over the subplots in a single loop.
+
+    print_text("create a list of models", header=3)
+    list_models = ["elastic"]+list_thresholds
+        #we are going to use the elastic net and the thresholds we defined before.
+
+    print_text("iterate across models", header=3)
+    #model_type=list_models[0]
+    #model_type=list_models[1]
+    for model_type in list_models:
+
+        print_text("load the PRS file", header=4)
+        #select depending on the model type and extract only the IDs and the Profile 1 column, which is the first PRS. In the case of linear, you have 7 columns for 7 thresholds, but we are doing the thresholding manually, so we do not need to use the other columns, jsut the first one without thresholding (P<1)
+        if model_type == "elastic":
+            prs_file = pd.read_csv( \
+                "./results/final_results/analysis_full_data/" + response_variable + "/" + response_variable + "_small_set_predictors_set_elastic_prs_calc_without_pheno.profile", \
+                sep="\t", \
+                header=0 \
+            )[["ID1", "ID2", "Profile_1"]]
+        else:
+            prs_file = pd.read_csv( \
+                "./results/final_results/analysis_full_data/" + response_variable + "/clump_thresholding_" + str(model_type) + "/" + response_variable + "_linear_clump_thresholding_" + str(model_type) + "_prs_calc_without_pheno.profile", \
+                sep="\t", \
+                header=0 \
+            )[["ID1", "ID2", "Profile_1"]]
+
+        print_text("merge the PRS with the response variable not transformed", header=4)
+        pheno_prs = prs_file.merge(original_cleaned_data_response, on=["ID1", "ID2"])
+
+        print_text("check merging", header=4)
+        if ( \
+            (not pheno_prs["ID"].equals(pheno_prs["ID1"] + ":" + pheno_prs["ID2"])) | \
+            (sum(pheno_prs["ID"].isin(original_cleaned_data_response["ID"])) != original_cleaned_data_response.shape[0]) | \
+            (sum(pheno_prs["ID"].isin(prs_file["ID1"]+":"+prs_file["ID2"])) != prs_file.shape[0]) \
+        ): \
+            raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM MERGING THE PRS AND THE PHENO DATA")
+            #check that, in pheno_prs, the ID is equal to the combination of ID1 and ID2
+            #check all samples in pheno_prs are in the original_cleaned_data_response
+            #check all samples in pheno_prs are in the prs_file
+
+        print_text("calculate 20 quantiles based on the PRS", header=4) 
+        pheno_prs["quantile"] = pd.qcut( \
+            pheno_prs["Profile_1"], \
+            q=20, \
+            labels=False, \
+            duplicates="drop" \
+        )
+            #This function divides the data into equal-sized bins (quantiles) based on the rank or distribution of the data
+            #Unlike pd.cut(), which divides data into bins of equal width, pd.qcut() ensures that each bin contains approximately the same number of data points.
+            #with 20 quantiles, each quantile will contain approximately 5% of the data points.
+            #labels=False
+                #Instead of returning the actual quantile ranges (e.g., (0.1, 0.2], (0.2,0.3]...), this option assigns integer labels to each quantile.
+                #The labels range from 0 (lowest quantile) to 19 (highest quantile).
+            #duplicates="drop" (the alternative is "raise" error)
+                #If there are duplicate bin edges (e.g., due to many identical values in the data), this option drops the duplicate edges and reduces the number of quantiles accordingly.
+                #In the context of pd.qcut() in pandas, duplicate bin edges occur when the data being divided into quantiles contains many identical values, causing some quantile boundaries (edges) to overlap. This can happen when the data has limited variability or many repeated values.
+
+        print_text("Iterate over each quantile", header=4)
+        results = []
+        #quantile=pheno_prs["quantile"].unique()[0]
+        for quantile in pheno_prs["quantile"].unique():
+            
+            #select samples within the current quantile
+            quantile_data = pheno_prs[pheno_prs["quantile"] == quantile]
+            
+            #calculate the 95CI of the response variable
+            lower_ci_pheno = quantile_data[response_variable].quantile(0.025)
+            median_pheno = quantile_data[response_variable].quantile(0.5)
+            higher_ci_pheno = quantile_data[response_variable].quantile(0.975)
+
+            #append the results as a dictionary
+            results.append({"quantile": quantile, "lower_ci_response": lower_ci_pheno, "median_response": median_pheno, "higher_ci_response": higher_ci_pheno})
+
+        print_text("convert results to a DataFrame", header=4)
+        quantile_stats = pd.DataFrame(results)
+
+        print_text("Adjust quantile for better visualization (1 to 20 instead of 0 to 19)", header=4)
+        quantile_stats["quantile"] = quantile_stats["quantile"]+1
+
+        print_text("print the results", header=4)
+        print(quantile_stats)
+
+        print_text("plot the results", header=4)
+        #select the appropriate subplot based on the model type
+        selected_ax = axes[list_models.index(model_type)]
+
+        #plot the mean as dots
+        selected_ax.scatter( \
+            x=quantile_stats["quantile"], \
+            y=quantile_stats["median_response"], \
+            color="black" \
+        )
+
+        #calculate the length of the lower and upper errors
+        lower_errors = quantile_stats["median_response"] - quantile_stats["lower_ci_response"]
+        upper_errors = quantile_stats["higher_ci_response"] - quantile_stats["median_response"]
+            #this is absolute differences because we are substracting the lower CI from the median and then the median from the upper CI.
+            #lower CI will be always lower than the median, and upper CI will be always higher than the median, so no negative values.
+
+        #plot the error bars (95CI)
+        selected_ax.errorbar(
+            x=quantile_stats["quantile"], 
+            y=quantile_stats["median_response"], 
+            yerr=(lower_errors, upper_errors),
+            fmt="o", 
+            color="black", 
+            capsize=5, 
+            label="Median ± 95CI"
+        )
+            #x=quantile_stats["quantile"]:
+                #Specifies the x-coordinates of the data points.
+                #In this case, it uses the quantile column from the quantile_stats DataFrame, which represents the quantile numbers (e.g., 1, 2, 3, ...).
+            #y=quantile_stats["median_response"]:
+                #Specifies the y-coordinates of the data points.
+                #Here, it uses the median_response column from the quantile_stats DataFrame, which represents the median value of the response variable for each quantile.
+            #yerr=(lower_errors, upper_errors):
+                #Specifies the lengths of the error bars for each data point.
+                    #lower_errors: The distance from the median_response to the lower confidence interval (lower_ci_response).
+                    #upper_errors: The distance from the median_response to the upper confidence interval (higher_ci_response).
+                #This allows for asymmetric error bars, where the error bar above the median can be a different length than the one below.
+            #fmt="o":
+                #Specifies the marker style for the data points.
+                #"o" means the data points will be plotted as circles.
+            #color="black":
+                #Sets the color of the markers and error bars to black.
+            #capsize=5:
+                #Specifies the size of the caps at the ends of the error bars.
+                #A larger value makes the caps more visible.
+
+        #set x ticks
+        num_quantiles = quantile_stats["quantile"].max()  # Get the number of quantiles
+        selected_ax.set_xticks(range(1, num_quantiles+1))  # Set x-ticks as integers from 1 to num_quantiles (inclusive)
+
+        #add labels
+        selected_ax.set_xlabel(f"Quantiles for PRS")
+        selected_ax.set_ylabel(f"95CI {[k for k, v in dict_change_responses.items() if v==response_variable][0]}")
+            #we extract the name of the response variable from the dictionary dict_change_responses, which contains the mapping between response variables and their corresponding labels.
+
+        #add title
+        if model_type=="elastic":
+            selected_ax.set_title("Elastic net")
+        else:
+            selected_ax.set_title("Thresholding (P<" + str(model_type) + ") + Clumping")
+
+    #leave the last subplot (8th) empty if we have less than 8 models
+    if len(list_models)<8:
+        axes[-1].axis("off")  # Turn off the axis for the last panel
+
+    print_text("finish the plot", header=4)
+    #adjust layout to prevent overlapping
+    plt.tight_layout()
+
+    # Show the plot
+    plt.savefig("./results/final_results/analysis_full_data/" + response_variable + "/plots/prs_quantiles.png", dpi=300)
+    plt.close()
+
+
+    print_text("manhattan plots", header=2)
+    #code from:
+        #https://python-graph-gallery.com/manhattan-plot-with-matplotlib/
+    print_text("load assoc results to pandas", header=3)
+    assoc_results = pd.read_csv( \
+        "./results/final_results/analysis_full_data/" + response_variable + "/" + response_variable + "_small_set_predictors_set_linear_raw.assoc", \
+        sep="\t", \
+        header=0, \
+        low_memory=False)
+    print(assoc_results)
+        
+    print_text("check we have the correct columns", header=3)  
+    if(not assoc_results["Wald_P"].equals(training_linear_raw_pvalues["P"])):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE P-VALUES")
+    
+    print_text("check we have the correct dtypes", header=3)
+    if( \
+        (assoc_results["Chromosome"].dtype != "int64") | \
+        (assoc_results["Basepair"].dtype != "int64") | \
+        (assoc_results["Wald_P"].dtype != "float64") | \
+        (assoc_results["Predictor"].dtype != "O") \
+    ):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DTYPE OF THE COLUMNS")
+
+    print_text("calculate -log_10(pvalue)", header=3)
+    assoc_results["minuslog10pvalue"] = -np.log10(assoc_results["Wald_P"])
+    
+    print_text("convert chromosome to category and then sort by it", header=3)
+    assoc_results["Chromosome"] = assoc_results["Chromosome"].astype("category")
+    if (assoc_results["Chromosome"].cat.categories.to_list() != [i for i in range(1,23)]):
+        raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE CATEGORIES OF THE CHROMOSOME")
+    
+    print_text("sort rows by chromosome and basepair position", header=3)
+    assoc_results = assoc_results.sort_values(["Chromosome", "Basepair"])
+
+    print_text("Creates a new column called ind in the assoc_results DataFrame", header=3)
+    assoc_results["ind"] = range(len(assoc_results))
+        #This column assigns a unique integer index to each row, ranging from 0 to len(assoc_results) - 1.
+        #The ind column is often used to create a continuous x-axis for plotting purposes, especially when the data is grouped by categories (e.g., chromosomes in a Manhattan plot).
+        #It ensures that each row has a unique position along the x-axis, even when grouped by chromosome.
+
+    print_text("Groups the assoc_results DataFrame by the Chromosome column", header=3)
+    df_grouped = assoc_results.groupby(('Chromosome'), observed=True)
+        #The result is a DataFrameGroupBy object (df_grouped) that contains subsets of the data, one for each unique value in the Chromosome column.
+            #[i for i in df_grouped]
+        #In the context of a Manhattan plot, this allows you to plot data for each chromosome in a different color or style.
+        #The observed parameter in groupby() determines whether only the observed combinations of categorical groupers are considered or all possible combinations of categories are included.
+    
+    print_text("make manhattan plot", header=3)
+    print_text("open the plot", header=4)
+    fig = plt.figure(figsize=(22, 8))
+    ax = fig.add_subplot(111)
+        #Adds a single subplot to the figure.
+        #The argument 111 specifies the layout of the subplot grid:
+            #The first 1 means there is 1 row.
+            #The second 1 means there is 1 column.
+            #The third 1 means this is the first subplot in the grid.
+        #Since the grid is 1x1, this creates a single subplot that occupies the entire figur
+
+    print_text("Define a colorblind-friendly palette", header=4)
+    colors = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#999999']
+
+    print_text("iterate across chromosomes", header=4)
+    x_labels = []
+    x_labels_pos = []
+    #num, (name, group)=[i for i in enumerate(df_grouped)][0]
+        #number or index
+        #actual chromosome name
+        #rows of the chromosome
+    for num, (name, group) in enumerate(df_grouped):
+        
+        #make scatter plot of each SNP against -log10(pvalue) within the chromosome data
+        group.plot( \
+            kind='scatter', \
+            x='ind', \
+            y='minuslog10pvalue',\
+            color=colors[num % len(colors)], \
+            ax=ax \
+        )
+            #The expression colors[num % len(colors)] is used to cycle through a list of colors in a way that ensures the colors repeat if there are more items (e.g., chromosomes) than colors in the list.
+                #The modulo operator (%) calculates the remainder when num (index of the chromosome group) is divided by len(colors).
+                #This ensures that the index used to access the colors list wraps around to the beginning when num exceeds the length of the list
+                #If num = 0, 0 % 8 = 0 → colors[0]
+                #If num = 7, 7 % 8 = 7 → colors[7]
+                #If num = 8, 8 % 8 = 0 → colors[0] (wraps back to the start)
+                #If num = 9, 9 % 8 = 1 → colors[1]
+            #so the first 7 chromosomes will be assigned different colors, and the 8th will be assigned the first color again, then the 9th will be assigned the second color, and so on.
+
+        #save the name of the chromosome for the X label
+        x_labels.append(name)
+
+        #get the position of the chromosome in the x-axis
+        x_labels_pos.append((group['ind'].iloc[-1] - (group['ind'].iloc[-1] - group['ind'].iloc[0])/2))
+            #calculate the position of the chromosome in the x-axis by taking the last index of the chromosome group and subtracting half of the difference between the last and first index.
+            #If, to the last SNP position of the chromsome, you substract half of the difference between the last and first SNP position, you get the middle position of the chromosome in the x-axis.
+    
+    print_text("set the x-axis ticks and labels of these ticks", header=4)
+    ax.set_xticks(x_labels_pos)
+    ax.set_xticklabels(x_labels)
+        
+    print_text("add p-value thresholds as horizontal lines", header=4)
+    #define the nomminal threshold
+    nominal_threshold = 0.05
+    genome_wide_threshold_nominal = -np.log10(nominal_threshold)
+
+    #the bonferroni threshold
+    bonferroni_threshold = nominal_threshold / assoc_results.shape[0]
+    genome_wide_threshold_bonferroni = -np.log10(bonferroni_threshold)
+
+    #add the horizontal lines to the plot
+    ax.axhline( \
+        y=genome_wide_threshold_nominal,  \
+        color='#88CCEE',  \
+        linestyle='--',  \
+        linewidth=1.5,  \
+        label=f'Nominal threshold ({nominal_threshold:.2f})' \
+    )
+    ax.axhline( \
+        y=genome_wide_threshold_bonferroni,  \
+        color='#882255',  \
+        linestyle='--', \
+        linewidth=1.5,  \
+        label=f'Bonferroni threshold ({bonferroni_threshold:.2e})' \
+    )
+
+    print_text("set axis limits", header=4)
+    ax.set_xlim([0, len(assoc_results)])
+        #from zero to the number of SNPs in the dataset
+    if (assoc_results['minuslog10pvalue'].max() > genome_wide_threshold_bonferroni):
+        ax.set_ylim([0, assoc_results['minuslog10pvalue'].max() + 2])
+    else:
+        ax.set_ylim([0, genome_wide_threshold_bonferroni + 2])
+        #we set the Y limit depending on the maximum value of the -log10(pvalue) or the bonferroni threshold, whichever is higher.
+
+    print_text("set the axis label", header=4)
+    ax.set_ylabel('-log10(p-value)')
+    ax.set_xlabel('Chromosome')
+
+    print_text("add a legend to the subplot", header=4)
+    ax.legend(loc="best")  # Automatically places the legend in the best location    
+
+    print_text("save the plot as a static image", header=4)
+    plt.savefig("./results/final_results/analysis_full_data/" + response_variable + "/plots/manhattan_plot_" + response_variable + ".png", dpi=300)
+
+
     print_text("compress the results", header=2)
     print_text("remove bed and bim plink files initialles used as input (compressed files already created)", header=3)
     run_bash(" \
@@ -561,7 +907,13 @@ def prs_calc(response_variable):
     ")
     
     print_text("elastic outputs", header=3)
-    #not needed
+    run_bash(" \
+        cd ./results/final_results/analysis_full_data/" + response_variable + "/; \
+        gzip \
+            --force \
+                " + response_variable + "_small_set_predictors_set_elastic.effects \
+                " + response_variable + "_small_set_predictors_set_elastic.probs; \
+    ")
 
     print_text("linear outputs", header=3)
     print_text("first raw outputs before clumping", header=4)
@@ -588,120 +940,11 @@ def prs_calc(response_variable):
                 ./" + response_variable + "_linear_clump_thresholding_" + str(threshold) + ".summaries; \
         ")
 
-
-    print_text("plot PRS against phenotype", header=2)
-    print_text("load the phenotype data", header=3)
-    original_cleaned_data = pd.read_csv( \
-        "./data/pheno_data/pheno_data_cleaned.tsv", \
-        sep="\t", \
-        header=0 \
-    )
-
-
-    original_cleaned_data_response = original_cleaned_data.loc[original_cleaned_data["ID"].isin(pheno_subset_transform["family_id"] + ":" + pheno_subset_transform["AGRF code"]), ["ID", response_variable]]
-
-    original_cleaned_data_response[["ID1", "ID2"]] = original_cleaned_data_response["ID"].str.split(":", expand=True)
-
-    # Create a figure with 8 subplots arranged in a grid (e.g., 2 rows x 4 columns)
-    fig, axes = plt.subplots(2, 4, figsize=(20, 10))  # Adjust figsize as needed
-
-    # Flatten the axes array for easier iteration
-    axes = axes.flatten()
-
-    #model_type=list_thresholds[0]
-    for model_type in ["elastic"]+list_thresholds:
-
-        selected_ax = axes[list_thresholds.index(model_type)]
-
-        if model_type == "elastic":
-            prs_file = pd.read_csv( \
-                "./results/final_results/analysis_full_data/" + response_variable + "/" + response_variable + "_elastic_prs_calc_without_pheno.profile", \
-                sep="\t", \
-                header=0 \
-            )[["ID1", "ID2", "Profile_1"]]
-        else:
-            prs_file = pd.read_csv( \
-                "./results/final_results/analysis_full_data/" + response_variable + "/clump_thresholding_" + str(model_type) + "/" + response_variable + "_linear_clump_thresholding_" + str(model_type) + "_prs_calc_without_pheno.profile", \
-                sep="\t", \
-                header=0 \
-            )[["ID1", "ID2", "Profile_1"]]
-
-        pheno_prs = prs_file.merge(original_cleaned_data_response, on=["ID1", "ID2"])
-
-
-        pheno_prs["ID"].equals(pheno_prs["ID1"] + ":" + pheno_prs["ID2"])
-
-
-
-        # Calculate 20 quantiles based on "response_variable"
-        pheno_prs["quantile"] = pd.qcut(pheno_prs[response_variable], q=20, labels=False, duplicates="drop")
-
-        # Initialize a list to store results
-        results = []
-
-        # Iterate over each quantile
-        #quantile=pheno_linear_prs["quantile"].unique()[0]
-        for quantile in pheno_prs["quantile"].unique():
-            # Select samples within the current quantile
-            quantile_data = pheno_prs[pheno_prs["quantile"] == quantile]
-            
-            # Calculate mean and standard deviation for the "prs" column
-            lower_ci_pheno_linear = quantile_data[response_variable].quantile(0.025)
-            median_pheno_linear = quantile_data[response_variable].quantile(0.5)
-            higher_ci_pheno_linear = quantile_data[response_variable].quantile(0.975)
-
-
-            # Append the results
-            results.append({"quantile": quantile, "lower_ci_prs": lower_ci_pheno_linear, "median_prs": median_pheno_linear, "higher_ci_prs": higher_ci_pheno_linear})
-
-        # Convert results to a DataFrame
-        quantile_stats = pd.DataFrame(results)
-
-        # Print the results
-        print(quantile_stats)
-
-
-        import matplotlib.pyplot as plt
-
-
-        
-
-        # Plot the mean as dots
-        selected_ax.scatter(quantile_stats["quantile"], quantile_stats["median_prs"], color="black", label="Median PRS")
-
-        # Plot the error bars (mean ± sd)
-        selected_ax.errorbar(
-            quantile_stats["quantile"], 
-            quantile_stats["median_prs"], 
-            yerr=quantile_stats["higher_ci_prs"]-quantile_stats["lower_ci_prs"],
-            fmt="o", 
-            color="black", 
-            capsize=5, 
-            label="Median ± 95CI"
-        )
-
-        # Add labels and title
-        selected_ax.set_xlabel("Quantile")
-        selected_ax.set_ylabel([k for k, v in dict_change_responses.items() if v==response_variable][0])
-        selected_ax.set_title("Thresholding (P<" + str(model_type) + ") + Clumping")
-
-
-
-    # Adjust layout to prevent overlapping
-    plt.tight_layout()
-
-    # Show the plot
-    plt.savefig("./results/final_results/analysis_full_data/" + response_variable + "/prs_quantiles.png", dpi=300)
-    plt.close()
-
-
-
-
-
-#parallelize per phenotype
-
-
 # endregion
+
+
+
+#better that parallelize, pass arguments and run each pheno in a different script?
 
 
 
@@ -761,178 +1004,16 @@ https://www.nature.com/articles/s41596-020-0353-1
 """
 
 
-def manhattan_plot(covariate_dataset, response_variable):
         
-
-    dict_change_names={
-        "family_id": "FID",
-        "AGRF code": "IID",
-        "Age": "age",
-        "Week 1 Body Mass": "week_1_weight",
-        "Week 1 Beep Test": "week_1_beep",
-        "Week 1 Distance (m)": "week_1_distance",
-        "Week 1 Pred VO2max": "week_1_vo2"
-    }
-
-    print_text("specify the covariates", header=3)
-    selected_covariates = pheno_subset.columns[~pheno_subset.columns.isin(["family_id", "AGRF code", response_variable])]
-    print(selected_covariates)
-    #check we have correct covariates
-    total_list_covariates = ["Age", "sex_code", "Week 1 Body Mass", "Week 1 Beep Test", "Week 1 Distance (m)", "Week 1 Pred VO2max"] + [f"PCA{i}" for i in range(1,21)]
-    if(sum([1 for cov in selected_covariates if cov not in total_list_covariates])!=0):
-        raise ValueError("ERROR: FALSE! WE HAVE COVARIATES THAT ARE NOT IN THE TOTAL LIST")
-
-
-    pheno_subset_transform = pd.read_csv( \
-        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform.tsv", \
-        sep="\t", \
-        header=True, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    #save the response variable after changing the names
-    pheno_subset_transform[["family_id", "AGRF code", response_variable]].rename(columns=dict_change_names).to_csv( \
-        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_response.tsv", \
-        sep="\t", \
-        header=True, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    #save the covariates that are factors
-    if ("sex_code" in selected_covariates):
-
-        #save sex_code
-        pheno_subset_transform[["family_id", "AGRF code", "sex_code"]].rename(columns=dict_change_names).to_csv( \
-            "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_factors.tsv", \
-            sep="\t", \
-            header=True, \
-            index=False, \
-            na_rep="NA" \
-        )
-
-    #save the covariates that are continuous
-    selected_covariates_cont = [cov for cov in selected_covariates if cov != "sex_code"]
-    pheno_subset_transform[["family_id", "AGRF code"] + selected_covariates_cont].rename(columns=dict_change_names).to_csv( \
-        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_cont.tsv", \
-        sep="\t", \
-        header=True, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    #create a file with the samples of the selected set
-    pheno_subset_transform[["family_id", "AGRF code"]].to_csv( \
-        "./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_samples_in.tsv", \
-        sep="\t", \
-        header=False, \
-        index=False, \
-        na_rep="NA" \
-    )
-
-    #use that file to select the corresponding sample from the plink fileset
-    run_bash(" \
-        plink \
-            --bfile ./data/plink_filesets/" + covariate_dataset + "/" + response_variable + "_filesets/" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing \
-            --keep ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_samples_in.tsv \
-            --make-bed \
-            --out ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_plink_fileset \
-    ")
-        #--keep accepts a space/tab-delimited text file with family IDs in the first column and within-family IDs in the second column, and removes all unlisted samples from the current analysis. --remove does the same for all listed samples.
-
-
-    run_bash(" \
-        ldak6.1.linux \
-            --linear ./results/final_results/" + covariate_dataset + "/" + response_variable + "/full_dataset/" + response_variable + "_full_dataset_linear \
-            --bfile ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_plink_fileset \
-            --pheno ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_response.tsv \
-            --covar ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_cont.tsv \
-            --factors ./data/full_set_transform/" + covariate_dataset + "/" + response_variable + "/" + response_variable + "_full_set_transform_covars_factors.tsv \
-            --permute NO \
-    ")
-
-    #--linear
-        #https://dougspeed.com/single-predictor-analysis/
-
-
-    #clumping?
-
-    print("load assoc results to pandas")
-    assoc_results = pd.read_csv( \
-        "./results/final_results/" + covariate_dataset + "/" + response_variable + "/full_dataset/" + response_variable + "_full_dataset_linear.assoc", \
-        sep="\t", \
-        header=0, \
-        low_memory=False)
-    print(assoc_results)
-        #CHECK COLUMNS
-        #compare wald P with the .pvalue file
-    
-
-    print("check we have the correct dtypes for dash_bio.ManhattanPlot (see code below)")
-    print(assoc_results["Chromosome"].dtype == "int64")
-    print(assoc_results["Basepair"].dtype == "int64")
-    print(assoc_results["Wald_P"].dtype == "float64")
-    print(assoc_results["Predictor"].dtype == "O")
-
-    dict_titles = { \
-        "distance_change": "Change in distance (m)", \
-        "beep_test": "Change in beep test", \
-        "vo2max": "Change in predicted VO2max", \
-        "weight": "Change in body mass", \
-    }
-
-    # import libraries
-    from scipy.stats import uniform
-    from scipy.stats import randint
-    import matplotlib.pyplot as plt
-
-
-    # -log_10(pvalue)
-    assoc_results['minuslog10pvalue'] = -np.log10(assoc_results["Wald_P"])
-    assoc_results["Chromosome"] = assoc_results["Chromosome"].astype('category')
-    assoc_results = assoc_results.sort_values('Chromosome')
-
-    # How to plot gene vs. -log10(pvalue) and colour it by chromosome?
-    assoc_results['ind'] = range(len(assoc_results))
-    df_grouped = assoc_results.groupby(('Chromosome'))
-
-    # manhattan plot
-    fig = plt.figure(figsize=(22, 8)) # Set the figure size
-    ax = fig.add_subplot(111)
-    colors = ['darkred','darkgreen','darkblue', 'gold']
-    x_labels = []
-    x_labels_pos = []
-    for num, (name, group) in enumerate(df_grouped):
-        group.plot(kind='scatter', x='ind', y='minuslog10pvalue',color=colors[num % len(colors)], ax=ax)
-        x_labels.append(name)
-        x_labels_pos.append((group['ind'].iloc[-1] - (group['ind'].iloc[-1] - group['ind'].iloc[0])/2))
-    ax.set_xticks(x_labels_pos)
-    ax.set_xticklabels(x_labels)
-
-    genome_wide_threshold = -np.log10(0.05/assoc_results.shape[0])
-    ax.axhline(y=genome_wide_threshold, color='red', linestyle='--', linewidth=1.5, label=f'Genome-wide threshold ({genome_wide_threshold:.2f})')
-    
-    # set axis limits
-    ax.set_xlim([0, len(assoc_results)])
-    if (assoc_results['minuslog10pvalue'].max() > genome_wide_threshold):
-        ax.set_ylim([0, assoc_results['minuslog10pvalue'].max() + 2])
-    else:
-        ax.set_ylim([0, genome_wide_threshold + 2])
-
-    # x axis label
-    ax.set_xlabel('Chromosome')
-
-    # Save the plot as a static image
-    plt.savefig("./results/final_results/" + covariate_dataset + "/" + response_variable + "/full_dataset/" + response_variable + ".png", dpi=300)
-
-    #code from:
-        #https://python-graph-gallery.com/manhattan-plot-with-matplotlib/
-
-
-
-    #check manhatan plots
-        #there is a strange gap in VO2 max for one of the first chromosomes in the prelim results
-
-
+print_text("FINISH", header=1)
+#to run the script:
+#cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
+#chmod +x ./scripts/production_scripts/03d_processing_results.py
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03d_processing_results.py > ./03d_processing_results.out 2>&1
+#grep -Ei 'error|false|fail' ./03d_processing_results.out
+    #grep: The command used to search for patterns in files.
+    #-E: Enables extended regular expressions.
+    #-i: Makes the search case-insensitive.
+    #'error|false|fail': The pattern to search for. The | character acts as an OR operator, so it matches any line containing "error", "false", or "fail".
+    #03a_phenotype_prep.out: The file to search in.
 
