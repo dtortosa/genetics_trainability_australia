@@ -42,6 +42,73 @@
 
 
 
+###########################
+# region Summary strategy #
+###########################
+
+#results to show in the paper:
+    #manhattan plot showing significance of snps between nominal and bonferroni in the full dataset using linear
+        #low significance
+    #correlation between PRS and phenotype in full dataset
+        #We are going to analyze both elastic and linear across thresholds and using only the small dataset. We have already seen no meaninful differences between small and large when running the PRSs in 100 training/evaluation sets. The impact of dataset size will be shown in the CV table
+        #high correlation for elastic and linear P=1, problem with stringent thresholds. Again, low number of significant SNPs.
+            #From O´reailly:
+                #For instance, if the GWAS data are relatively underpowered, then the optimal threshold is more likely to be P = 1 (all SNPs) even if a small fraction of SNPs are causal (see ref. 5 for details).
+                #OUR CASE, argument in favour of limited power in our case, as P=1 is the best threshold. we get very few significant SNPs, and the best threshold is 1, i.e., just clumping.
+
+    #table with median evaluation metrics across CV across 100 iterations
+        #lack of correlation specially for stringent thresholds, this and hers estimate suggests we do not have enough power
+        #compare hers with bouchard...
+        #maybe hers noisy because of low sample size but still thresholds results say teh same, underpower
+
+# endregion
+
+
+
+
+
+
+
+######################################
+# region Notes about genomic control #
+######################################
+
+#Notes about Genomic control and confounding effects from Dr. Speed's slides
+
+    #Confounding due to population structure in GWAS
+        #Compared with observational epidemiology, GWAS have few opportunities for confounding bias. The main problem is population structure, which refers to 
+            #mating patterns within a pop -> subpops (more relatedness within than between)
+            #allele frequency differences across subpops 
+            #environmental exposures may also vary across subpops. 
+
+        #Phenotypes can also vary across subpops, because:
+            #the causal alleles vary in frequency and/or
+            #they vary with environmental factors correlated with pop structure, and/or 
+            #ascertainment bias: recruitment of phenotypic groups differs across subpops 
+
+        #These can lead to significant associations not with CVs but with SNPs whose allele frequencies correlate with trait across subpops
+
+    #Adjustments for pop structure confounding: genomic control (GC) + PCA
+        #GC was an early approach to adjusting for confounding, based on the idea that pop structure can lead to many significant SNPs genome-wide 
+            #all association test stats (with χ21 null distribution) are divided by the ratio of empirical to null medians (called a genomic inflation factor, GIF) provided GIF > 1 
+            #assumes sparsity: true causals are rare, so there are few non-null test stats, so median test statistic is close to null value. 
+    
+        #However, the omnigenic nature of many complex traits means that the assumption is false and GC is overly conservative. 
+    
+        #The first few eigenvectors (or principal components) of XX T often reflect pop structure   
+            #Included as covariates in GWAS regression models, they can absorb pop structure effects on the trait. 
+    
+        #Now Mixed Model Association Analysis (MMAA) is the preferred approach to adjusting for pop structure effects in tests of association (see slide 40 from Dr. Speed's slides; teaching_slides.pdf)
+
+    #Given we have performed a fine analysis of population structure, removing many PCA outliers (we only have 1 ancestry) and then calculating PCAs on very clean data and considering these PCAs in the models, we have covered this point, so no need for genomic control.
+
+# endregion
+
+
+
+
+
+
 #######################################
 # region INITIAL ANOTATIONS AND STEPS #
 #######################################
@@ -53,11 +120,8 @@
 
 import pandas as pd
 import numpy as np
-from itertools import product
-import re
 import matplotlib.pyplot as plt
-from scipy.stats import uniform
-from scipy.stats import randint
+import argparse
 
 
 ########################################
@@ -152,6 +216,23 @@ run_bash("pwd")
 print_text("list files/folders there", header=2)
 run_bash("ls")
 
+
+#######################################
+# Passing arguments of python program #
+#######################################
+
+#define input arguments to be passed when running this script in bash
+parser=argparse.ArgumentParser()
+parser.add_argument("--response_variable", type=str, default="distance_change", help="Phenotype to model. String always, None does not work!")
+    #type=str to use the input as string
+    #type=int converts to integer
+    #default is the default value when the argument is not passed
+args=parser.parse_args()
+    #https://docs.python.org/3/library/argparse.html
+
+#get the arguments of the function that have been passed through command line
+response_variable = args.response_variable
+
 # endregion
 
 
@@ -163,11 +244,8 @@ run_bash("ls")
 # region RUN THE PRSs ON THE FULL DATASET #
 ###########################################
 
-#Both elastic and linear across thresholds
-
-#We are going to use small dataset only. We have already seen no meaninful differences between small and large when running the PRSs in 100 training/evaluation sets
-
-#response_variable="beep_change"
+#define the function
+#response_variable="distance_change"
 def prs_calc(response_variable):
 
     print_text(f"For phenotype {response_variable}, and the small dataset of covariates", header=1)
@@ -217,11 +295,18 @@ def prs_calc(response_variable):
 
     print_text("create dict to change names of responses", header=3)
     dict_change_responses={
-        "Change in Body Mass": "weight_change",
-        "Change in Beep Test": "beep_change",
-        "Change in Distance (m)": "distance_change",
-        "Change in VO2max": "vo2_change"
+        "Change in Body Mass (kg)": "weight_change",
+        "Change in Multistage Fitness Test (MSFT)": "beep_change",
+        "Change in Total Distance (m)": "distance_change",
+        r"Change in Predicted VO2max ($\mathrm{mL \cdot kg^{-1} \cdot min^{-1}}$)": "vo2_change"
     }
+        #1. **`r"$...$"`**:
+            #The `r` before the string makes it a raw string, which ensures that backslashes (`\`) are treated literally.
+            #The `$...$` syntax tells Matplotlib to interpret the enclosed text as a LaTeX-style formula.
+        #2. **`\mathrm{}`**:
+            #Ensures that the text inside is rendered in a regular, non-italic font (useful for units).
+        #3. **`\cdot`**:
+            #Represents a multiplication dot (`·`) in LaTeX.
 
 
     print_text("prepare LDAK inputs", header=2)
@@ -554,7 +639,9 @@ def prs_calc(response_variable):
             raise ValueError("ERROR: FALSE! WE HAVE NOT SELECTED THE CORRECT SAMPLES FOR ELASTIC NET")
 
 
-    print_text("plot PRS against phenotype", header=2)
+    print_text("plot quantiles of PRS against phenotype", header=2)
+    #From O´Really:
+        #Quantile plots corresponding to the effect of a PRS on a normally distributed target trait should reflect the S-shape of the probit function (Fig. 5a). This is because the trait values are more spread out between quantiles at the tails of a normal distribution. Thus, plotting quantiles of PRS versus (absolute) effect on trait shows increasingly larger jumps up/down the y-axis from the median to the extreme upper/lower quantiles. When unequal strata are plotted, with the smallest strata at the tails, then this effect appears stronger. Thus, inflections of risk at the tails of the PRS distribution82,83 should be interpreted according to these statistical expectations and not as interesting in themselves.
     print_text("prepare folders", header=3)
     run_bash(" \
         mkdir \
@@ -568,6 +655,7 @@ def prs_calc(response_variable):
         sep="\t", \
         header=0 \
     )
+        #We want to use the original phenotype data, not the one we used for training and test, as we want to plot the quantiles of the PRS against the original phenotype data.
 
     print_text("process it", header=3)
     print_text("get only the samples finally included in modelling", header=4)
@@ -750,6 +838,7 @@ def prs_calc(response_variable):
     # Show the plot
     plt.savefig("./results/final_results/analysis_full_data/" + response_variable + "/plots/prs_quantiles.png", dpi=300)
     plt.close()
+        #IMPORTANT: Do not interpret that the wider 95CI in the tails of the PRS is reflecting something related to the risk, according to O´Reilly et al. (2016) it is just a consequence of the normal distribution of the response variable: "trait values are more spread out between quantiles at the tails of a normal distribution". I guess long tails of a normal distribution are causing this.
 
 
     print_text("manhattan plots", header=2)
@@ -940,77 +1029,21 @@ def prs_calc(response_variable):
                 ./" + response_variable + "_linear_clump_thresholding_" + str(threshold) + ".summaries; \
         ")
 
+#run it
+prs_calc(response_variable)
+
 # endregion
 
 
 
-#better that parallelize, pass arguments and run each pheno in a different script?
-
-
-
-
-#manhattan plot showing low number of snps betqeen nominal and bonferroni
-    #low significance
-#correlation between PRS and phenotype in full dataset
-    #high correlation for elastic and linear P=1, problem with stringent thresholds, low signifiance
-#CV across 100 iterations, lack of correlation specially for stringent thresholds, this and hers estimate suggests we do not have enough power
-    #compare hers with bouchard...
-    #maybe hers noisy because of low sample size but still thresholds results say teh same, underpower
-
-
-    #For instance, if the GWAS data are relatively underpowered, then the optimal threshold is more likely to be P = 1 (all SNPs) even if a small fraction of SNPs are causal (see ref. 5 for details).
-        #OUR CASE, argument in favour of limited power in our case, as P=1 is the best threshold. we get very few significant SNPs, and the best threshold is 1, i.e., just clumping.
-        #hers is very high also, but cor is low, same line but not sure we can trust hers estimate withe this very low sample size
-        #https://www.nature.com/articles/s41596-020-0353-1
-
-
-"""
-Notes about Genomic control and confounding effects from Dr. Speed's slides
-
-- Confounding due to population structure in GWAS
-    Compared with observational epidemiology, GWAS have few opportunities for confounding bias. The main problem is population structure, which refers to 
-        - mating patterns within a pop -> subpops (more relatedness within than between)
-        - allele frequency differences across subpops 
-        - environmental exposures may also vary across subpops. 
-
-    Phenotypes can also vary across subpops, because 
-        - the causal alleles vary in frequency and/or
-        - they vary with environmental factors correlated with pop structure, and/or 
-        - ascertainment bias: recruitment of phenotypic groups differs across subpops 
-
-    These can lead to significant associations not with CVs but with SNPs whose allele frequencies correlate with trait across subpops
-
-- Adjustments for pop structure confounding: genomic control (GC) + PCA
-    GC was an early approach to adjusting for confounding, based on the idea that pop structure can lead to many significant SNPs genome-wide 
-        - all association test stats (with χ21 null distribution) are divided by the ratio of empirical to null medians (called a genomic inflation factor, GIF) provided GIF > 1 
-        - assumes sparsity: true causals are rare, so there are few non-null test stats, so median test statistic is close to null value. 
-    
-    However, the omnigenic nature of many complex traits means that the assumption is false and GC is overly conservative. 
-    
-    The first few eigenvectors (or principal components) of XX T often reflect pop structure   
-        - Included as covariates in GWAS regression models, they can absorb pop structure effects on the trait. 
-    
-    Now Mixed Model Association Analysis (MMAA) is the preferred approach to adjusting for pop structure effects in tests of association (see slide 40 from Dr. Speed's slides; teaching_slides.pdf)
-
-- Given we have performed a fine analysis of population structure, removing many PCA outliers (we only have 1 ancestry) and then calculating PCAs on very clean data and considering these PCAs in the models, we have covered this point, so no need for genomic control.
-"""
-
-"""
-Quantile plot of transformed phenotype against PRS quantiles
-
-Quantile plots corresponding to the effect of a PRS on a normally distributed target trait should reflect the S-shape of the probit function (Fig. 5a). This is because the trait values are more spread out between quantiles at the tails of a normal distribution. Thus, plotting quantiles of PRS versus (absolute) effect on trait shows increasingly larger jumps up/down the y-axis from the median to the extreme upper/lower quantiles. When unequal strata are plotted, with the smallest strata at the tails, then this effect appears stronger. When the target outcome is disease status and prevalence or OR are plotted on the y-axis, then the shape is expected to be different: here, the shape is asymmetrical, showing a marked inflection at the upper end (Fig. 5b), since cases are enriched at the upper end only. Thus, inflections of risk at the tails of the PRS distribution82,83 should be interpreted according to these statistical expectations and not as interesting in themselves.
-
-https://www.nature.com/articles/s41596-020-0353-1
-"""
-
-
         
+
 print_text("FINISH", header=1)
 #to run the script:
 #cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
-#chmod +x ./scripts/production_scripts/03d_processing_results.py
-#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03d_processing_results.py > ./03d_processing_results.out 2>&1
-#grep -Ei 'error|false|fail' ./03d_processing_results.out
+#chmod +x ./scripts/production_scripts/03e_manhattan_plots.py
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="distance_change" > ./03e_manhattan_plots_distance_change.out 2>&1
+#grep -Ei 'error|false|fail' ./03e_manhattan_plots_distance_change.out
     #grep: The command used to search for patterns in files.
     #-E: Enables extended regular expressions.
     #-i: Makes the search case-insensitive.
