@@ -106,6 +106,9 @@ From: ubuntu:22.04 #When using the library bootstrap agent, the From keyword bec
 	#install wget to download spark
 	apt -y install wget
 
+	#install unzip
+	apt -y install unzip
+
 	#install a required libraries for using smartpca
     apt -y install libgsl-dev
 	apt -y install libopenblas-base
