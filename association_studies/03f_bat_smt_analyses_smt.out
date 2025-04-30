@@ -1,0 +1,256 @@
+
+#######################################
+#######################################
+checking function to print nicely: header 1
+#######################################
+#######################################
+
+###### checking function to print nicely: header 2 ######
+
+## checking function to print nicely: header 3 ##
+
+# checking function to print nicely: header 4 #
+
+#######################################
+#######################################
+check behaviour run_bash
+#######################################
+#######################################
+
+###### see working directory ######
+/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+
+
+###### list files/folders there ######
+03a_association_analyses.sif
+03a_phenotype_prep.out
+03aa_final_pca_calc.out
+03c_prepare_slurm_files.out
+03f_bat_smt_analyses_bat.out
+03f_bat_smt_analyses_metabolic.out
+03f_bat_smt_analyses_smt.out
+data
+literature
+results
+scripts
+
+
+#######################################
+#######################################
+Calculate the average SNP effect per gene across phenotypes
+#######################################
+#######################################
+
+###### data preparation ######
+
+## load the gene coordinates file in hg19 ##
+        chromosome_name hgnc_symbol  ... test_chr_name  test_na_cds
+0                     1       SCYL3  ...          True         True
+1                     1       SCYL3  ...          True         True
+2                     1       SCYL3  ...          True         True
+3                     1       SCYL3  ...          True         True
+4                     1       SCYL3  ...          True         True
+...                 ...         ...  ...           ...          ...
+643583               22         NaN  ...          True         True
+643584               22         NaN  ...          True         True
+643585               22         NaN  ...          True         True
+643586               22         NaN  ...          True         True
+643587               22         NaN  ...          True         True
+
+[643588 rows x 60 columns]
+
+## process the file ##
+
+# Select only one row per gene because in this file, each row is an exon, but all the rows of the same gene have the same middle gene position and gene windows as all the rows belongs to the same gene #
+        chromosome_name hgnc_symbol  ... test_chr_name  test_na_cds
+0                     1       SCYL3  ...          True         True
+49                    1    C1orf112  ...          True         True
+113                   1         FGR  ...          True         True
+174                   1         CFH  ...          True         True
+215                   1       STPG1  ...          True         True
+...                 ...         ...  ...           ...          ...
+643579               22         NaN  ...          True         True
+643581               22         NaN  ...          True         True
+643582               22         NaN  ...          True         True
+643584               22         NaN  ...          True         True
+643586               22         NaN  ...          True         True
+
+[19252 rows x 60 columns]
+Check that the subset has as many rows as unique gene IDs in the original file. If True, remove the original gene coirdinate file
+
+# select only the columns we need #
+        chromosome_name  ... upper_end_window_1000kb
+0                     1  ...             170341089.0
+49                    1  ...             170227232.0
+113                   1  ...              28450181.0
+174                   1  ...             197168820.0
+215                   1  ...              25213456.0
+...                 ...  ...                     ...
+643579               22  ...              51214226.0
+643581               22  ...              31314340.0
+643582               22  ...              36527110.0
+643584               22  ...              21859382.0
+643586               22  ...              42185536.0
+
+[19252 rows x 8 columns]
+
+# check that the gene_id has no NA #
+
+# remove genes with NA for the 1000kb windows #
+
+# add the string 'chr' to the chromosome numbers #
+
+# convert the coordinates of the windows to 0-based to match the format of BED files in USCS #
+
+# check the gene windows are float with .0 only, no more decimals #
+
+## convert the coordinates of the windows to int ##
+
+## print the updated data frame ##
+       chromosome_name  ... upper_end_window_1000kb
+0                 chr1  ...               170341089
+49                chr1  ...               170227232
+113               chr1  ...                28450181
+174               chr1  ...               197168820
+215               chr1  ...                25213456
+...                ...  ...                     ...
+643579           chr22  ...                51214226
+643581           chr22  ...                31314340
+643582           chr22  ...                36527110
+643584           chr22  ...                21859382
+643586           chr22  ...                42185536
+
+[18959 rows x 5 columns]
+
+## save the DF to be used as input in liftover ##
+
+
+## do the liftover from hg19 to hg38 ##
+
+# run liftover with the following parameters #
+
+# load results liftover #
+
+# see lost genes to lack of alignemnt between ensembles #
+
+# set column names #
+
+# convert the start of the windows to 1-based like the rest of our data #
+
+## define function to calculate the average effect size obtained from the GWAS per phenotype and gene ##
+
+## run the function ##
+
+# get the list of phenotypes #
+
+# use multiprocessing Pool to process each phenotype in parallel #
+
+# flatten the list of lists into a single list #
+
+# convert the results into a DataFrame #
+             phenotype chromosome_name          gene_id  mean_effect  sd_effect
+0      distance_change            chr1  ENSG00000000457     0.032467   0.027405
+1      distance_change            chr1  ENSG00000000460     0.032298   0.027055
+2      distance_change            chr1  ENSG00000000938     0.044956   0.037533
+3      distance_change            chr1  ENSG00000000971     0.043216   0.028425
+4      distance_change            chr1  ENSG00000001460     0.029291   0.020493
+...                ...             ...              ...          ...        ...
+71535    weight_change            chr9  ENSG00000269305     0.036932   0.028022
+71536    weight_change            chr9  ENSG00000269408     0.038330   0.027623
+71537    weight_change            chr9  ENSG00000269510     0.039677   0.044026
+71538    weight_change            chr9  ENSG00000269738     0.036688   0.028295
+71539    weight_change            chr9  ENSG00000272896     0.062515   0.043389
+
+[71540 rows x 5 columns]
+
+# merge the results with the original coordinate files having gene symbols #
+
+###### calculate enrichment of effect size in interest set of genes ######
+
+## first extract the connectome of the interest gene ##
+
+## create folder for the selective pressure ##
+
+
+## do operations specific of the connectome sets ##
+
+# load the connectome having SLN as core gene #
+
+warning [./data/bat_smt_analyses/all_human_gene-specific_connectomes_122015.zip]:  4294967296 extra bytes at beginning or within zipfile
+  (attempting to process anyway)
+
+
+# load the connectome having SLN as core gene #
+         Target  ...  Degrees_connectivity
+0           SLN  ...                     0
+1        ATP2A1  ...                     1
+2           PLN  ...                     1
+3        ATP2A2  ...                     1
+4        TMEM79  ...                     1
+...         ...  ...                   ...
+16721     THAP6  ...                     5
+16722   FAM27E3  ...                     7
+16723  PNLIPRP3  ...                     8
+16724   CLEC18C  ...                     6
+16725      OCA2  ...                     6
+
+[16726 rows x 10 columns]
+
+# check we have selected the correct connectome, i.e., the one with the correct core gene #
+
+# if UCP1 is the core gene, check that the connectome extracted from the zip is the same as the original used for BAT analyses #
+We are not working with BAT, but with smt
+
+# if UCP1 is the core gene, check that file with BAT relationships has the same genes than the connectome 1% obtained now #
+We are not working with BAT, but with smt
+
+# Percentile 10% :  select the interest genes #
+0           SLN
+1        ATP2A1
+2           PLN
+3        ATP2A2
+4        TMEM79
+         ...   
+1669      EPHB4
+1670    SLC10A1
+1671       FHL2
+1672       GRK5
+1673     STEAP4
+Name: Target, Length: 1674, dtype: object
+
+# check we have not lost many genes for not having hg38 coordinates #
+
+## calculate metrics in the interest set of genes ##
+
+# empty list for results #
+
+# iterate over phenotypes #
+
+# convert results to DF #
+
+## calculate empirical p-value about the interest set of genes having a higher effect compared to random set of genes ##
+
+# define function #
+
+# prepare parallelization creating an instance of the function to be run specifically with the required number of iterations #
+
+# Use multiprocessing Pool to process each phenotype in parallel #
+
+# convert the results into a DataFrame #
+             pheno  random_lower_95CI  random_upper_95CI  connectome_median  \
+0  distance_change           0.042118           0.043117           0.042388   
+1       vo2_change           0.041389           0.042282           0.041549   
+2      beep_change           0.041509           0.042384           0.041765   
+3    weight_change           0.040709           0.041650           0.041174   
+
+   empirical_p_value  
+0            0.80990  
+1            0.90236  
+2            0.82286  
+3            0.51520  
+
+#######################################
+#######################################
+FINISH
+#######################################
+#######################################
