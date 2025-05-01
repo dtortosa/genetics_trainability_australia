@@ -237,15 +237,15 @@ Name: Target, Length: 1674, dtype: object
 # convert the results into a DataFrame #
              pheno  random_lower_95CI  random_upper_95CI  connectome_median  \
 0  distance_change           0.042096           0.043101           0.042612   
-1       vo2_change           0.041377           0.042286           0.041646   
-2      beep_change           0.041513           0.042377           0.041749   
+1       vo2_change           0.041375           0.042287           0.041646   
+2      beep_change           0.041513           0.042376           0.041749   
 3    weight_change           0.040670           0.041598           0.041485   
 
    empirical_p_value  
-0            0.48934  
-1            0.80534  
-2            0.83583  
-3            0.06493  
+0           0.490093  
+1           0.804803  
+2           0.834938  
+3           0.064859  
 
 #######################################
 #######################################

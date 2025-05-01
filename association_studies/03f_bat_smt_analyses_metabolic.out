@@ -215,16 +215,16 @@ Name: hgnc_symbol, Length: 1038, dtype: object
 
 # convert the results into a DataFrame #
              pheno  random_lower_95CI  random_upper_95CI  connectome_median  \
-0  distance_change           0.041990           0.043248           0.042149   
-1       vo2_change           0.041257           0.042437           0.040987   
-2      beep_change           0.041383           0.042519           0.041613   
-3    weight_change           0.040532           0.041741           0.041759   
+0  distance_change           0.041985           0.043247           0.042149   
+1       vo2_change           0.041253           0.042440           0.040987   
+2      beep_change           0.041384           0.042520           0.041613   
+3    weight_change           0.040532           0.041738           0.041759   
 
    empirical_p_value  
-0            0.91977  
-1            0.99654  
-2            0.88263  
-3            0.02155  
+0           0.918295  
+1           0.996426  
+2           0.880546  
+3           0.021020  
 
 #######################################
 #######################################

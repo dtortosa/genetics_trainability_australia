@@ -420,6 +420,16 @@ results_df_symbol = results_df.merge(gene_coords_no_duplicated_subset[["gene_id"
     #merge based on "gene_id" column
         #on: Column or index level names to join on. These must be found in both DataFrames.
 
+print_text("save the results", header=4)
+results_df_symbol.to_csv( \
+    "data/bat_smt_analyses/average_effect_per_gene_across_phenotypes.csv", \
+    sep="\t", \
+    header=True, \
+    index=False \
+)
+
+#IMPORTANT: If you need to obtain the gene closest to EACH SNP, you can take the gene center from the original coordinate files, liftover to hg38 and select for each SNP the closest gene center.
+
 # endregion
 
 
