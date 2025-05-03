@@ -587,7 +587,13 @@ elif(pressure_name == "metabolic"):
         header=0, \
         low_memory=False \
     )
-
+        #61 out 168 genes of the BAT connectome (percentile 1%) are included in metabolic genes
+            #sum(bat.isin(metabolic))
+        #47 out 168 genes of the SMT connectome (percentile 1%) are included in metabolic genes
+            #sum(smt.isin(metabolic))
+        #23 out 168 genes of the SMT connectome (percentile 1%) are included in the BAT connectome (percentile 1%)
+            #sum(smt.isin(bat))
+    
     print_text("check the column names", header=4)
     metabolic_genes.columns=["hgnc_symbol", "gene_id"]
 
