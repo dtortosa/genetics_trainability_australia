@@ -1081,6 +1081,8 @@ I think you also need the phenotype data I used as input. I was using a file cal
 I am also sending again the file with the evaluation metrics across 100 iterations just to be sure you have the correct data (remember I had problems showing the table during our meeting). I have also removed the last columns with the heritability estimates as I have not found information about how these are calculated in LDAK.
 """
 
+# endregion
+
 
 
 
