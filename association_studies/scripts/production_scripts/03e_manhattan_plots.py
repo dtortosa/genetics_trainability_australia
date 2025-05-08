@@ -1038,6 +1038,54 @@ prs_calc(response_variable)
 
         
 
+
+
+##############################################
+# region EMAILS EXPLAINING RESULTS AND FILES #
+##############################################
+
+"""
+Email 1:
+So to recap a bit, I was having some issues with the PCAs and the covariates. So I added an additional PCA analysis using the genetic data after the imputation (but using only actual genotyped SNPs) and applying a more stringent control for Linkage Disequilibrium, which was causing issues. I obtained 20 new PCAs that are not very different in the most part from the original PCAs.
+
+Using these PCAs and the rest of covariates and phenotypic data (cleaned considering all we have discussed about it), I calculated the PRS of our phenotypes. I have included weight change in the analyses just in case you have any interest in that, but I guess weight is not a very good metric for adiposity.... I have considered 7 models in LDAK: Elastic Net (a combination of ridge and lasso regression) and the classical Thresholding and Clumping approach where SNPs are filtered by p-value and then an additional filter is applied looking for clusters of correlated SNPs and selecting only the one with the highest p-value. I considered 7 p-value thresholds (<1, <0.1, <0.01....). I did this considering only those covariates significantly associated with the phenotype, and also repeated the whole thing using ALL covariates we have. Regarding the validation scheme, I trained the PRS with 75% of the samples and then predicted and evaluated the PRS in the other 25%. Importantly, I have done this 100 times, i.e., with 100 different random sets of training/evaluation sets. Therefore, 4 phenotypes x 7 models x 2 covariate sets x 100 iterations makes a total of 5600 polygenic scores calculated and evaluated.
+
+Starting with the results, in the zip file you can see a folder with manhattan plots, showing that the significance of the SNPs is low in general, being far away from the Bonferroni thresholds. In the folder with PRS plots, you can see plots showing the following: 20 quantiles of the PRS (i.e., 20 bins that includes 5% of the data each) against the median value of the corresponding phenotype in that bin (also showing the 95CI). You can see a higher training response as we move higher in the PRS, but note that this is using the whole data, (no training/evaluation), so it is optimistic. Another important thing is that, as we increase the threshold of the classic approach, the correlation between the phenotype and the PRS decreases. This makes sense because we have low significance, so just a bit of increase in the threshold reduces the number of available SNPs a lot. I think this explains the next results.
+
+The evaluation of the models can be seen in the tsv table (should open in excel using tabs as delimiter), just look at the first 7 columns. You can see the correlation (0-1) of the PRS and the phenotype in the test set. Each row considers a given phenotype, covariate set, model and threshold. Given we have 100 test sets, I am showing the 95CI and the median across the iterations. As you can see, the correlation is extremely low (between 0.06 and 0.08) being overlapped with zero (2.5% percentile) for all phenotypes except for VO2 max. The best models are Elastic net and Clumping+Thresholding with P<1, i.e., no application of threshold, just clumping. As we go down in the thresholds, the correlation becomes even lower.... To me, this strongly suggests that we are having a limited power to test the associations due to sample size. So, it is better to put millions of SNPs with low or no signal than to apply a threshold. This is further supported by the high heritability of these traits estimated by the models (RHE and MCREML in the last columns; around 0.6-0.8), suggesting we are indeed unable to capture the impact of genetics on these traits. Although take a grain of salt the last results about heritability because I do not have a good grasp of the calculations done by LDAK to calculate this. The important thing is that the models get a lot worse as we increase the thresholds just a bit.
+
+So this is what the data is showing. My plan is to send you a text detailing the methodological aspects of my analyses by the end of the month. By then, I will start my new position at a biotech company in Portugal. Considering this plus the new baby I would prefer, if you do not mind, to take a secondary role in the writing of the paper. I would be, of course, available to give feedback about the manuscript, but I honestly do not think I have the time to sit and write a paper in my current circumstances. I will also try to send you the data generated (pre and post imputation) although I am not sure yet how I can do it.... at least I will send the P-values for all SNPs and the polygenic scores for each phenotype and sample.
+"""
+
+"""
+Email 2:
+
+I am sending here part of the results generated in the final analyses. In the following link (it will be available until May 15th) you can download a zip file with the results for the analyses considering the whole dataset, meaning no training/evaluation splits. So this is just the 1000 samples analyzed to calculate the association between each SNP and the 4 phenotypes and then the different polygenic scores, but without any evaluation metric.
+
+Inside the zip file you can find 4 parent folders, one for each phenotype. Inside each folder, the most important files are the following:
+
+    *_small_set_predictors_set_linear_raw.assoc.gz
+        This is a table with the linear associations between each SNP and the corresponding phenotype. For each SNP you have the chromosome, the predictor (i.e., SNP name), the physical position (Basepair), the alleles (A1 and A2), statistic value for the test (Wald_Stat), the p-value (Wald_P) and the effect size (Effect), among others... Note that the SNP name is not in the format "rs_number". Instead, I am using the chromosome, position and alleles as ID (e.g., chr1_858952_G_A) to avoid problems associated with the rs numbers.
+        You can open this table in excel (using tabs as delimiter) and sort by the P-value. Then you can take a look for the first SNPs as you suggested. You can search in ncbi (link) and do a search like this: (1[Chromosome]) AND (858952[Base Position]). Then you can click on the rs number (rs12127425 in this case) and it will take you to a report page for the SNP including potential related publications. Probably also a good idea to directly look in pubmed with the rs number for papers.
+        Note that the SNP you select has to have the correct base position for GRCh38, which is our version of genome build. In other words, the Base position indicated by ncbi should be the same than that in the "Basepair" column.
+    *_small_set_predictors_set_linear_raw.pvalues.gz
+        This is a subset of the previous table showing just the name of the SNP and the P-value.
+    *_small_set_predictors_set_elastic_prs_calc_with_pheno.profile
+        For each sample this shows: the batch ID, the sample ID, the phenotype value, the covariates and PRS. The last column is the combined effect of all SNPs on the phenotype according to the elastic model.
+        Note that the covariate column is empty, but I did use covariates, so do not worry. I just had to use another approach to add them so I could avoid a problem with LDAK.
+    In the folders named "clump_thresholding_XXX" you have the same files .assoc, .pvalues and .profile, but for the linear model considering different p-value thresholds as noted in the folder name.
+    The "plot" folder includes the manhattan plots and the plot showing the PRS quantiles vs phenotype.
+
+I think you also need the phenotype data I used as input. I was using a file called "Combat gene DNA GWAS 23062022_v2.xlsx" I received from you. I am attaching this file named as "pheno_data.xlsx". From there, I removed data based on what we discussed about problematic samples, resulting in the file file "pheno_data_cleaned.tsv". This was basically the input for all the analyses although slight differences could exist between phenotypes because I also removed samples with NA for the phenotype under analysis (e.g., a sample that has NA for vo2 max but has data for weight will be used for the latter but not for the former).
+
+I am also sending again the file with the evaluation metrics across 100 iterations just to be sure you have the correct data (remember I had problems showing the table during our meeting). I have also removed the last columns with the heritability estimates as I have not found information about how these are calculated in LDAK.
+"""
+
+
+
+
+
+
 print_text("FINISH", header=1)
 #to run the script:
 #cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
