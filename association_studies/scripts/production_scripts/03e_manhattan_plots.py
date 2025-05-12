@@ -298,7 +298,7 @@ def prs_calc(response_variable):
         "Change in Body Mass (kg)": "weight_change",
         "Change in Multistage Fitness Test (MSFT)": "beep_change",
         "Change in Total Distance (m)": "distance_change",
-        r"Change in Predicted VO2max ($\mathrm{mL \cdot kg^{-1} \cdot min^{-1}}$)": "vo2_change"
+        r"Change in Predicted VO$_{2\mathrm{max}}$ ($\mathrm{mL \cdot kg^{-1} \cdot min^{-1}}$)": "vo2_change"
     }
         #1. **`r"$...$"`**:
             #The `r` before the string makes it a raw string, which ensures that backslashes (`\`) are treated literally.
@@ -816,17 +816,28 @@ def prs_calc(response_variable):
         num_quantiles = quantile_stats["quantile"].max()  # Get the number of quantiles
         selected_ax.set_xticks(range(1, num_quantiles+1))  # Set x-ticks as integers from 1 to num_quantiles (inclusive)
 
-        #add labels
-        selected_ax.set_xlabel(f"Quantiles for PRS")
-        selected_ax.set_ylabel(f"95CI {[k for k, v in dict_change_responses.items() if v==response_variable][0]}")
+        #add x label only for plots 5 and 6
+        if list_models.index(model_type) not in [5,6] :  # Check if the axis index is uneven
+            selected_ax.set_xlabel("")  # Leave ylabel empty
+        else:
+            selected_ax.set_xlabel(f"Quantiles for PRS", fontsize=18)
+        
+        #add y label only for even plots
+        if list_models.index(model_type) % 2 != 0:  # Check if the axis index is uneven
+            selected_ax.set_ylabel("")  # Leave ylabel empty
+        else:
+            selected_ax.set_ylabel(f"95CI {[k for k, v in dict_change_responses.items() if v==response_variable][0]}", fontsize=12)
             #we extract the name of the response variable from the dictionary dict_change_responses, which contains the mapping between response variables and their corresponding labels.
 
         #add title
         if model_type=="elastic":
-            selected_ax.set_title("Elastic net")
+            selected_ax.set_title("Elastic net", fontsize=20)
         else:
-            selected_ax.set_title("Thresholding (P<" + str(model_type) + ") + Clumping")
-
+            selected_ax.set_title("Thresholding (P<" + str(model_type) + ") + Clumping", fontsize=16)
+    
+        #Increase font size for tick labels
+        selected_ax.tick_params(axis='both', which='major', labelsize=10)  # Adjust the font size as needed
+    
     #leave the last subplot (8th) empty if we have less than 8 models
     if len(list_models)<8:
         axes[-1].axis("off")  # Turn off the axis for the last panel
@@ -899,6 +910,9 @@ def prs_calc(response_variable):
             #The second 1 means there is 1 column.
             #The third 1 means this is the first subplot in the grid.
         #Since the grid is 1x1, this creates a single subplot that occupies the entire figur
+
+    print_text("Add a title to the plot", header=4)
+    ax.set_title(f'{[k for k, v in dict_change_responses.items() if v==response_variable][0]}', fontsize=24)
 
     print_text("Define a colorblind-friendly palette", header=4)
     colors = ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7', '#999999']
@@ -976,11 +990,15 @@ def prs_calc(response_variable):
         #we set the Y limit depending on the maximum value of the -log10(pvalue) or the bonferroni threshold, whichever is higher.
 
     print_text("set the axis label", header=4)
-    ax.set_ylabel('-log10(p-value)')
-    ax.set_xlabel('Chromosome')
+    ax.set_ylabel('-log10(p-value)', fontsize=20)
+    ax.set_xlabel('Chromosome', fontsize=20)
+
+    print_text("Increase font size for tick labels", header=4)
+    ax.tick_params(axis='both', which='major', labelsize=14)  # Adjust the font size as needed
+
 
     print_text("add a legend to the subplot", header=4)
-    ax.legend(loc="best")  # Automatically places the legend in the best location    
+    ax.legend(loc="best", fontsize=20)  # Automatically places the legend in the best location    
 
     print_text("save the plot as a static image", header=4)
     plt.savefig("./results/final_results/analysis_full_data/" + response_variable + "/plots/manhattan_plot_" + response_variable + ".png", dpi=300)
@@ -1036,7 +1054,163 @@ prs_calc(response_variable)
 
 
 
+
+
+
+##########################################################
+# region CALCULATE FOREST PLOT ON THE EVALUATION RESULTS #
+##########################################################
+
+#load evaluation metrics
+evaluation_metrics_data = pd.read_csv( \
+    "./results/final_results/evaluation_metrics.tsv", \
+    sep="\t", \
+    header=0 \
+)
+
+#define fuction to make forest plots
+#evaluation_metric="correlation"; dataset_type="small_set_predictors"; phenotypes=["distance_change", "beep_change", "vo2_change"]
+def plot_forest(evaluation_metric, dataset_type, phenotypes):
+
+    #filter the DataFrame by the specified dataset type
+    filtered_data = evaluation_metrics_data[evaluation_metrics_data['dataset_type'] == dataset_type]
+
+    #create a figure with subplots for each phenotype
+    num_phenotypes = len(phenotypes)
+    fig, axes = plt.subplots(num_phenotypes, 1, figsize=(10, 5 * num_phenotypes), sharex=True)
+        #set the height if the based on the number of pheno, 5 per pheno
+
+    #if there's only one phenotype, axes won't be an array so put it in a list to avoid problems
+    if num_phenotypes == 1:
+        axes = [axes]
+
+    #ax, phenotype = [(ax, phenotype) for ax, phenotype in zip(axes, phenotypes)][0]
+    for ax, phenotype in zip(axes, phenotypes):
         
+        #filter data for the current phenotype
+        phenotype_data = filtered_data[filtered_data['phenotype'] == phenotype]
+
+        #create variable with model name and threshold
+        bind_model_threshold = phenotype_data["model_type"] + "_" + phenotype_data["threshold"].astype(str)
+
+        #convert the model to a nice format
+        #i=bind_model_threshold[0]
+        #i=bind_model_threshold[1]
+        bind_model_threshold_nice = [ \
+            "Elastic net" if "elastic" in i else i.split("_")[0].capitalize() + " " + i.split("_")[1] \
+            for i in bind_model_threshold \
+        ]
+
+        #extract data for the forest plot
+        model_types = bind_model_threshold_nice
+        lower_bounds = phenotype_data[f'{evaluation_metric}_2.5th_percentile']
+        medians = phenotype_data[f'{evaluation_metric}_50th_percentile']
+        upper_bounds = phenotype_data[f'{evaluation_metric}_97.5th_percentile']
+
+        #create the forest plot for the current phenotype
+        ax.errorbar( \
+            x=medians, \
+            y=range(len(model_types)), \
+            xerr=[medians - lower_bounds, upper_bounds - medians], \
+            fmt='o', \
+            color='black', \
+            capsize=5, \
+            label='95% CI' \
+        )
+
+        #add labels...
+        ax.set_yticks(range(len(model_types)))
+        ax.set_yticklabels(model_types)
+        ax.axvline(x=0, color='red', linestyle='--', label='No Correlation')
+        ax.set_title([k for k, v in dict_change_responses.items() if v==phenotype][0], fontsize=20)
+        ax.tick_params(axis='both', which='major', labelsize=14)  # Adjust the font size as needed
+
+
+    # Set common labels
+    fig.text(0.5, 0.04, evaluation_metric.capitalize(), ha='center', fontsize=20)
+    fig.text(0.04, 0.5, 'Model Types', va='center', rotation='vertical', fontsize=20)
+
+    # Adjust layout
+    plt.tight_layout(rect=[0.05, 0.05, 1, 1])
+
+    # Save the figure
+    plt.savefig(f'./results/final_results/forest_plot_{evaluation_metric}_all_phenotypes_{dataset_type}.png', dpi=300)
+    plt.close()
+
+#run the function
+plot_forest(evaluation_metric="correlation", dataset_type="small_set_predictors", phenotypes=["distance_change", "beep_change", "vo2_change"])
+
+# endregion
+
+
+
+
+
+
+##############################################
+# region SUBSET TABLE WIT EVALUATION RESULTS #
+##############################################
+
+#remove weight_change rows and non-cor columns
+evaluation_metrics_data_v2 = evaluation_metrics_data.loc[ \
+    evaluation_metrics_data["phenotype"]!="weight_change", \
+    ~evaluation_metrics_data.columns.str.contains("squared_correlation|mean_squared_error|mean_absolute_error|RHE|MCREML") \
+]
+    #Checks if column names contain any of the specified substrings ("mean_squared_error", "mean_absolute_error", "RHE", "MCREML").
+    #The | operator acts as an OR condition.
+
+#update phenotype names
+evaluation_metrics_data_v2.loc[:,"phenotype"] = evaluation_metrics_data_v2 \
+    .loc[:, "phenotype"] \
+    .replace({ \
+        v: k if v!="vo2_change" else "Change in Predicted VO2 max" \
+        for k, v in dict_change_responses.items() \
+    })
+    #replace the phenotype names by the nice name
+    #we have to swap the dict before using as the nice names are keys, not values
+        #put value and then key except for vo2_change where you manually change the nice name
+
+#update the name of the dataset type
+evaluation_metrics_data_v2.loc[:, "dataset_type"] = evaluation_metrics_data_v2 \
+    .loc[:, "dataset_type"] \
+    .replace({ \
+        "small_set_predictors": "Reduced set of covariates", \
+        "large_set_predictors": "Full set of covariates" \
+    })
+
+#update the model names
+evaluation_metrics_data_v2.loc[:, "model_type"] = evaluation_metrics_data_v2 \
+    .loc[:, "model_type"] \
+    .replace({ \
+        "elastic": "Elastic net", \
+        "linear": "Linear" \
+    })
+
+#rename the columns
+evaluation_metrics_data_v2 = evaluation_metrics_data_v2 \
+    .rename(columns={ \
+        "phenotype": "Phenotype", \
+        "dataset_type":"Covariate dataset", \
+        "model_type":"Model type", \
+        "threshold":"Threshold", \
+        "correlation_2.5th_percentile": "2.5th percentile of correlation", \
+        "correlation_50th_percentile": "50th percentile of correlation", \
+        "correlation_97.5th_percentile": "97.5th percentile of correlation" \
+    })
+
+#save to a file
+evaluation_metrics_data_v2.to_csv( \
+    "./results/final_results/evaluation_metrics_v2.tsv", \
+    sep="\t", \
+    index=False, \
+    header=True, \
+    na_rep="NA" \
+)    
+
+# endregion       
+
+
+
 
 
 
