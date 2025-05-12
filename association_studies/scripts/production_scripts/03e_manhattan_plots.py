@@ -224,6 +224,7 @@ run_bash("ls")
 #define input arguments to be passed when running this script in bash
 parser=argparse.ArgumentParser()
 parser.add_argument("--response_variable", type=str, default="distance_change", help="Phenotype to model. String always, None does not work!")
+parser.add_argument("--forest_plot", type=bool, default=False, help="wether to make forest plots or not. Boolean always, None does not work!")
     #type=str to use the input as string
     #type=int converts to integer
     #default is the default value when the argument is not passed
@@ -232,6 +233,39 @@ args=parser.parse_args()
 
 #get the arguments of the function that have been passed through command line
 response_variable = args.response_variable
+forest_plot = args.forest_plot
+
+
+
+#############################
+# Create dicts for plotting #
+#############################
+
+#create dict to change names of covariates that are problematic for LDAK
+dict_change_names={
+    "family_id": "FID",
+    "AGRF code": "IID",
+    "Age": "age",
+    "Week 1 Body Mass": "week_1_weight",
+    "Week 1 Beep test": "week_1_beep",
+    "Week 1 Distance (m)": "week_1_distance",
+    "Week 1 Pred VO2max": "week_1_vo2"
+}
+
+#create dict to change names of responses
+dict_change_responses={
+    "Change in Body Mass (kg)": "weight_change",
+    "Change in Multistage Fitness Test (MSFT)": "beep_change",
+    "Change in Total Distance (m)": "distance_change",
+    r"Change in Predicted VO$_{2\mathrm{max}}$ ($\mathrm{mL \cdot kg^{-1} \cdot min^{-1}}$)": "vo2_change"
+}
+    #1. **`r"$...$"`**:
+        #The `r` before the string makes it a raw string, which ensures that backslashes (`\`) are treated literally.
+        #The `$...$` syntax tells Matplotlib to interpret the enclosed text as a LaTeX-style formula.
+    #2. **`\mathrm{}`**:
+        #Ensures that the text inside is rendered in a regular, non-italic font (useful for units).
+    #3. **`\cdot`**:
+        #Represents a multiplication dot (`·`) in LaTeX.
 
 # endregion
 
@@ -281,32 +315,6 @@ def prs_calc(response_variable):
             ./" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing.bed.gz \
             ./" + response_variable + "_subset_missing_clean_maf_hwe_sample_snp_missing.bim.gz; \
     ")
-
-    print_text("create dict to change names of covariates that are problematic for LDAK", header=3)
-    dict_change_names={
-        "family_id": "FID",
-        "AGRF code": "IID",
-        "Age": "age",
-        "Week 1 Body Mass": "week_1_weight",
-        "Week 1 Beep test": "week_1_beep",
-        "Week 1 Distance (m)": "week_1_distance",
-        "Week 1 Pred VO2max": "week_1_vo2"
-    }
-
-    print_text("create dict to change names of responses", header=3)
-    dict_change_responses={
-        "Change in Body Mass (kg)": "weight_change",
-        "Change in Multistage Fitness Test (MSFT)": "beep_change",
-        "Change in Total Distance (m)": "distance_change",
-        r"Change in Predicted VO$_{2\mathrm{max}}$ ($\mathrm{mL \cdot kg^{-1} \cdot min^{-1}}$)": "vo2_change"
-    }
-        #1. **`r"$...$"`**:
-            #The `r` before the string makes it a raw string, which ensures that backslashes (`\`) are treated literally.
-            #The `$...$` syntax tells Matplotlib to interpret the enclosed text as a LaTeX-style formula.
-        #2. **`\mathrm{}`**:
-            #Ensures that the text inside is rendered in a regular, non-italic font (useful for units).
-        #3. **`\cdot`**:
-            #Represents a multiplication dot (`·`) in LaTeX.
 
 
     print_text("prepare LDAK inputs", header=2)
@@ -1055,159 +1063,162 @@ prs_calc(response_variable)
 
 
 
+#run this and the next steps only if requested
+if(forest_plot==True):
 
 
-##########################################################
-# region CALCULATE FOREST PLOT ON THE EVALUATION RESULTS #
-##########################################################
-
-#load evaluation metrics
-evaluation_metrics_data = pd.read_csv( \
-    "./results/final_results/evaluation_metrics.tsv", \
-    sep="\t", \
-    header=0 \
-)
-
-#define fuction to make forest plots
-#evaluation_metric="correlation"; dataset_type="small_set_predictors"; phenotypes=["distance_change", "beep_change", "vo2_change"]
-def plot_forest(evaluation_metric, dataset_type, phenotypes):
-
-    #filter the DataFrame by the specified dataset type
-    filtered_data = evaluation_metrics_data[evaluation_metrics_data['dataset_type'] == dataset_type]
-
-    #create a figure with subplots for each phenotype
-    num_phenotypes = len(phenotypes)
-    fig, axes = plt.subplots(num_phenotypes, 1, figsize=(10, 5 * num_phenotypes), sharex=True)
-        #set the height if the based on the number of pheno, 5 per pheno
-
-    #if there's only one phenotype, axes won't be an array so put it in a list to avoid problems
-    if num_phenotypes == 1:
-        axes = [axes]
-
-    #ax, phenotype = [(ax, phenotype) for ax, phenotype in zip(axes, phenotypes)][0]
-    for ax, phenotype in zip(axes, phenotypes):
-        
-        #filter data for the current phenotype
-        phenotype_data = filtered_data[filtered_data['phenotype'] == phenotype]
-
-        #create variable with model name and threshold
-        bind_model_threshold = phenotype_data["model_type"] + "_" + phenotype_data["threshold"].astype(str)
-
-        #convert the model to a nice format
-        #i=bind_model_threshold[0]
-        #i=bind_model_threshold[1]
-        bind_model_threshold_nice = [ \
-            "Elastic net" if "elastic" in i else i.split("_")[0].capitalize() + " " + i.split("_")[1] \
-            for i in bind_model_threshold \
-        ]
-
-        #extract data for the forest plot
-        model_types = bind_model_threshold_nice
-        lower_bounds = phenotype_data[f'{evaluation_metric}_2.5th_percentile']
-        medians = phenotype_data[f'{evaluation_metric}_50th_percentile']
-        upper_bounds = phenotype_data[f'{evaluation_metric}_97.5th_percentile']
-
-        #create the forest plot for the current phenotype
-        ax.errorbar( \
-            x=medians, \
-            y=range(len(model_types)), \
-            xerr=[medians - lower_bounds, upper_bounds - medians], \
-            fmt='o', \
-            color='black', \
-            capsize=5, \
-            label='95% CI' \
-        )
-
-        #add labels...
-        ax.set_yticks(range(len(model_types)))
-        ax.set_yticklabels(model_types)
-        ax.axvline(x=0, color='red', linestyle='--', label='No Correlation')
-        ax.set_title([k for k, v in dict_change_responses.items() if v==phenotype][0], fontsize=20)
-        ax.tick_params(axis='both', which='major', labelsize=14)  # Adjust the font size as needed
+    ##########################################################
+    # region CALCULATE FOREST PLOT ON THE EVALUATION RESULTS #
+    ##########################################################
 
 
-    # Set common labels
-    fig.text(0.5, 0.04, evaluation_metric.capitalize(), ha='center', fontsize=20)
-    fig.text(0.04, 0.5, 'Model Types', va='center', rotation='vertical', fontsize=20)
+    #load evaluation metrics
+    evaluation_metrics_data = pd.read_csv( \
+        "./results/final_results/evaluation_metrics.tsv", \
+        sep="\t", \
+        header=0 \
+    )
 
-    # Adjust layout
-    plt.tight_layout(rect=[0.05, 0.05, 1, 1])
+    #define fuction to make forest plots
+    #evaluation_metric="correlation"; dataset_type="small_set_predictors"; phenotypes=["distance_change", "beep_change", "vo2_change"]
+    def plot_forest(evaluation_metric, dataset_type, phenotypes):
 
-    # Save the figure
-    plt.savefig(f'./results/final_results/forest_plot_{evaluation_metric}_all_phenotypes_{dataset_type}.png', dpi=300)
-    plt.close()
+        #filter the DataFrame by the specified dataset type
+        filtered_data = evaluation_metrics_data[evaluation_metrics_data['dataset_type'] == dataset_type]
 
-#run the function
-plot_forest(evaluation_metric="correlation", dataset_type="small_set_predictors", phenotypes=["distance_change", "beep_change", "vo2_change"])
+        #create a figure with subplots for each phenotype
+        num_phenotypes = len(phenotypes)
+        fig, axes = plt.subplots(num_phenotypes, 1, figsize=(10, 5 * num_phenotypes), sharex=True)
+            #set the height if the based on the number of pheno, 5 per pheno
 
-# endregion
+        #if there's only one phenotype, axes won't be an array so put it in a list to avoid problems
+        if num_phenotypes == 1:
+            axes = [axes]
+
+        #ax, phenotype = [(ax, phenotype) for ax, phenotype in zip(axes, phenotypes)][0]
+        for ax, phenotype in zip(axes, phenotypes):
+            
+            #filter data for the current phenotype
+            phenotype_data = filtered_data[filtered_data['phenotype'] == phenotype]
+
+            #create variable with model name and threshold
+            bind_model_threshold = phenotype_data["model_type"] + "_" + phenotype_data["threshold"].astype(str)
+
+            #convert the model to a nice format
+            #i=bind_model_threshold[0]
+            #i=bind_model_threshold[1]
+            bind_model_threshold_nice = [ \
+                "Elastic net" if "elastic" in i else i.split("_")[0].capitalize() + " " + i.split("_")[1] \
+                for i in bind_model_threshold \
+            ]
+
+            #extract data for the forest plot
+            model_types = bind_model_threshold_nice
+            lower_bounds = phenotype_data[f'{evaluation_metric}_2.5th_percentile']
+            medians = phenotype_data[f'{evaluation_metric}_50th_percentile']
+            upper_bounds = phenotype_data[f'{evaluation_metric}_97.5th_percentile']
+
+            #create the forest plot for the current phenotype
+            ax.errorbar( \
+                x=medians, \
+                y=range(len(model_types)), \
+                xerr=[medians - lower_bounds, upper_bounds - medians], \
+                fmt='o', \
+                color='black', \
+                capsize=5, \
+                label='95% CI' \
+            )
+
+            #add labels...
+            ax.set_yticks(range(len(model_types)))
+            ax.set_yticklabels(model_types)
+            ax.axvline(x=0, color='red', linestyle='--', label='No Correlation')
+            ax.set_title([k for k, v in dict_change_responses.items() if v==phenotype][0], fontsize=20)
+            ax.tick_params(axis='both', which='major', labelsize=14)  # Adjust the font size as needed
 
 
+        # Set common labels
+        fig.text(0.5, 0.04, evaluation_metric.capitalize(), ha='center', fontsize=20)
+        fig.text(0.04, 0.5, 'Model Types', va='center', rotation='vertical', fontsize=20)
 
+        # Adjust layout
+        plt.tight_layout(rect=[0.05, 0.05, 1, 1])
+
+        # Save the figure
+        plt.savefig(f'./results/final_results/forest_plot_{evaluation_metric}_all_phenotypes_{dataset_type}.png', dpi=300)
+        plt.close()
+
+    #run the function
+    plot_forest(evaluation_metric="correlation", dataset_type="small_set_predictors", phenotypes=["distance_change", "beep_change", "vo2_change"])
+
+    # endregion
 
 
 
-##############################################
-# region SUBSET TABLE WIT EVALUATION RESULTS #
-##############################################
 
-#remove weight_change rows and non-cor columns
-evaluation_metrics_data_v2 = evaluation_metrics_data.loc[ \
-    evaluation_metrics_data["phenotype"]!="weight_change", \
-    ~evaluation_metrics_data.columns.str.contains("squared_correlation|mean_squared_error|mean_absolute_error|RHE|MCREML") \
-]
-    #Checks if column names contain any of the specified substrings ("mean_squared_error", "mean_absolute_error", "RHE", "MCREML").
-    #The | operator acts as an OR condition.
 
-#update phenotype names
-evaluation_metrics_data_v2.loc[:,"phenotype"] = evaluation_metrics_data_v2 \
-    .loc[:, "phenotype"] \
-    .replace({ \
-        v: k if v!="vo2_change" else "Change in Predicted VO2 max" \
-        for k, v in dict_change_responses.items() \
-    })
-    #replace the phenotype names by the nice name
-    #we have to swap the dict before using as the nice names are keys, not values
-        #put value and then key except for vo2_change where you manually change the nice name
 
-#update the name of the dataset type
-evaluation_metrics_data_v2.loc[:, "dataset_type"] = evaluation_metrics_data_v2 \
-    .loc[:, "dataset_type"] \
-    .replace({ \
-        "small_set_predictors": "Reduced set of covariates", \
-        "large_set_predictors": "Full set of covariates" \
-    })
+    ##############################################
+    # region SUBSET TABLE WITH EVALUATION RESULTS #
+    ##############################################
 
-#update the model names
-evaluation_metrics_data_v2.loc[:, "model_type"] = evaluation_metrics_data_v2 \
-    .loc[:, "model_type"] \
-    .replace({ \
-        "elastic": "Elastic net", \
-        "linear": "Linear" \
-    })
+    #remove weight_change rows and non-cor columns
+    evaluation_metrics_data_v2 = evaluation_metrics_data.loc[ \
+        evaluation_metrics_data["phenotype"]!="weight_change", \
+        ~evaluation_metrics_data.columns.str.contains("squared_correlation|mean_squared_error|mean_absolute_error|RHE|MCREML") \
+    ]
+        #Checks if column names contain any of the specified substrings ("mean_squared_error", "mean_absolute_error", "RHE", "MCREML").
+        #The | operator acts as an OR condition.
 
-#rename the columns
-evaluation_metrics_data_v2 = evaluation_metrics_data_v2 \
-    .rename(columns={ \
-        "phenotype": "Phenotype", \
-        "dataset_type":"Covariate dataset", \
-        "model_type":"Model type", \
-        "threshold":"Threshold", \
-        "correlation_2.5th_percentile": "2.5th percentile of correlation", \
-        "correlation_50th_percentile": "50th percentile of correlation", \
-        "correlation_97.5th_percentile": "97.5th percentile of correlation" \
-    })
+    #update phenotype names
+    evaluation_metrics_data_v2.loc[:,"phenotype"] = evaluation_metrics_data_v2 \
+        .loc[:, "phenotype"] \
+        .replace({ \
+            v: k if v!="vo2_change" else "Change in Predicted VO2 max" \
+            for k, v in dict_change_responses.items() \
+        })
+        #replace the phenotype names by the nice name
+        #we have to swap the dict before using as the nice names are keys, not values
+            #put value and then key except for vo2_change where you manually change the nice name
 
-#save to a file
-evaluation_metrics_data_v2.to_csv( \
-    "./results/final_results/evaluation_metrics_v2.tsv", \
-    sep="\t", \
-    index=False, \
-    header=True, \
-    na_rep="NA" \
-)    
+    #update the name of the dataset type
+    evaluation_metrics_data_v2.loc[:, "dataset_type"] = evaluation_metrics_data_v2 \
+        .loc[:, "dataset_type"] \
+        .replace({ \
+            "small_set_predictors": "Reduced set of covariates", \
+            "large_set_predictors": "Full set of covariates" \
+        })
 
-# endregion       
+    #update the model names
+    evaluation_metrics_data_v2.loc[:, "model_type"] = evaluation_metrics_data_v2 \
+        .loc[:, "model_type"] \
+        .replace({ \
+            "elastic": "Elastic net", \
+            "linear": "Linear" \
+        })
+
+    #rename the columns
+    evaluation_metrics_data_v2 = evaluation_metrics_data_v2 \
+        .rename(columns={ \
+            "phenotype": "Phenotype", \
+            "dataset_type":"Covariate dataset", \
+            "model_type":"Model type", \
+            "threshold":"Threshold", \
+            "correlation_2.5th_percentile": "2.5th percentile of correlation", \
+            "correlation_50th_percentile": "50th percentile of correlation", \
+            "correlation_97.5th_percentile": "97.5th percentile of correlation" \
+        })
+
+    #save to a file
+    evaluation_metrics_data_v2.to_csv( \
+        "./results/final_results/evaluation_metrics_v2.tsv", \
+        sep="\t", \
+        index=False, \
+        header=True, \
+        na_rep="NA" \
+    )    
+
+    # endregion       
 
 
 
@@ -1266,7 +1277,10 @@ print_text("FINISH", header=1)
 #to run the script:
 #cd /home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies/
 #chmod +x ./scripts/production_scripts/03e_manhattan_plots.py
-#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="distance_change" > ./03e_manhattan_plots_distance_change.out 2>&1
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="distance_change" --forest_plot=True > ./03e_manhattan_plots_distance_change.out 2>&1
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="beep_change" > ./03e_manhattan_plots_beep_change.out 2>&1
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="vo2_change" > ./03e_manhattan_plots_vo2_change.out 2>&1
+#singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="weight_change" > ./03e_manhattan_plots_weight_change.out 2>&1
 #grep -Ei 'error|false|fail' ./03e_manhattan_plots_distance_change.out
     #grep: The command used to search for patterns in files.
     #-E: Enables extended regular expressions.
