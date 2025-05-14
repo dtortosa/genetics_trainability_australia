@@ -25,7 +25,20 @@ check behaviour run_bash
 03a_association_analyses.sif
 03a_phenotype_prep.out
 03aa_final_pca_calc.out
+03b_prs_calculation_100_iter_large_set_predictors_beep_change.out
+03b_prs_calculation_100_iter_large_set_predictors_distance_change.out
+03b_prs_calculation_100_iter_large_set_predictors_vo2_change.out
+03b_prs_calculation_100_iter_large_set_predictors_weight_change.out
+03b_prs_calculation_100_iter_small_set_predictors_beep_change.out
+03b_prs_calculation_100_iter_small_set_predictors_distance_change.out
+03b_prs_calculation_100_iter_small_set_predictors_vo2_change.out
+03b_prs_calculation_100_iter_small_set_predictors_weight_change.out
 03c_prepare_slurm_files.out
+03d_processing_results.out
+03e_manhattan_plots_beep_change.out
+03e_manhattan_plots_distance_change.out
+03e_manhattan_plots_vo2_change.out
+03e_manhattan_plots_weight_change.out
 03f_bat_smt_analyses_bat.out
 03f_bat_smt_analyses_metabolic.out
 03f_bat_smt_analyses_smt.out
@@ -164,6 +177,8 @@ Check that the subset has as many rows as unique gene IDs in the original file. 
 [71540 rows x 5 columns]
 
 # merge the results with the original coordinate files having gene symbols #
+
+# save the results #
 
 ###### calculate enrichment of effect size in interest set of genes ######
 

@@ -1282,6 +1282,9 @@ print_text("FINISH", header=1)
 #singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="vo2_change" > ./03e_manhattan_plots_vo2_change.out 2>&1
 #singularity exec ./03a_association_analyses.sif ./scripts/production_scripts/03e_manhattan_plots.py --response_variable="weight_change" > ./03e_manhattan_plots_weight_change.out 2>&1
 #grep -Ei 'error|false|fail' ./03e_manhattan_plots_distance_change.out
+#grep -Ei 'error|false|fail' ./03e_manhattan_plots_beep_change.out
+#grep -Ei 'error|false|fail' ./03e_manhattan_plots_vo2_change.out
+#grep -Ei 'error|false|fail' ./03e_manhattan_plots_weight_change.out
     #grep: The command used to search for patterns in files.
     #-E: Enables extended regular expressions.
     #-i: Makes the search case-insensitive.
