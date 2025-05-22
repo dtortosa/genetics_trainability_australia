@@ -25,19 +25,53 @@ check behaviour run_bash
 03a_association_analyses.sif
 03a_phenotype_prep.out
 03aa_final_pca_calc.out
+03b_prs_calculation_100_iter_large_set_predictors_beep_change.out
+03b_prs_calculation_100_iter_large_set_predictors_distance_change.out
+03b_prs_calculation_100_iter_large_set_predictors_vo2_change.out
+03b_prs_calculation_100_iter_large_set_predictors_weight_change.out
+03b_prs_calculation_100_iter_small_set_predictors_beep_change.out
+03b_prs_calculation_100_iter_small_set_predictors_distance_change.out
+03b_prs_calculation_100_iter_small_set_predictors_vo2_change.out
+03b_prs_calculation_100_iter_small_set_predictors_weight_change.out
+03c_prepare_slurm_files.out
+03d_processing_results.out
+03e_manhattan_plots_beep_change.out
+03e_manhattan_plots_distance_change.out
+03e_manhattan_plots_vo2_change.out
+03e_manhattan_plots_weight_change.out
+03f_bat_smt_analyses_bat.out
+03f_bat_smt_analyses_metabolic.out
+03f_bat_smt_analyses_smt.out
 data
 literature
 results
 scripts
 
-total 656020
--rwxr-xr-x 1 dftortosa dftortosa 671723520 Apr 11 12:33 03a_association_analyses.sif
--rw-rw-r-- 1 dftortosa dftortosa         0 Apr 13 16:29 03a_phenotype_prep.out
+total 819032
+-rwxr-xr-x 1 dftortosa dftortosa 672374784 Apr 29 18:33 03a_association_analyses.sif
+-rw-rw-r-- 1 dftortosa dftortosa         0 May 22 17:48 03a_phenotype_prep.out
 -rw-rw-r-- 1 dftortosa dftortosa     19683 Apr  3 12:02 03aa_final_pca_calc.out
-drwxr-xr-x 5 dftortosa dftortosa      4096 Apr 13 16:29 data
-drwxr-xr-x 3 dftortosa dftortosa      4096 Oct 31  2023 literature
-drwxr-xr-x 4 dftortosa dftortosa      4096 Apr 10 17:20 results
-drwxr-xr-x 4 dftortosa dftortosa      4096 Oct 31  2023 scripts
+-rw-rw-r-- 1 dftortosa dftortosa  20717150 May 14 14:57 03b_prs_calculation_100_iter_large_set_predictors_beep_change.out
+-rw-rw-r-- 1 dftortosa dftortosa  21082259 May 14 14:57 03b_prs_calculation_100_iter_large_set_predictors_distance_change.out
+-rw-rw-r-- 1 dftortosa dftortosa  20782941 May 14 14:57 03b_prs_calculation_100_iter_large_set_predictors_vo2_change.out
+-rw-rw-r-- 1 dftortosa dftortosa  20967338 May 14 14:57 03b_prs_calculation_100_iter_large_set_predictors_weight_change.out
+-rw-rw-r-- 1 dftortosa dftortosa  20328136 May 14 14:57 03b_prs_calculation_100_iter_small_set_predictors_beep_change.out
+-rw-rw-r-- 1 dftortosa dftortosa  20501424 May 14 14:57 03b_prs_calculation_100_iter_small_set_predictors_distance_change.out
+-rw-rw-r-- 1 dftortosa dftortosa  20528166 May 14 14:57 03b_prs_calculation_100_iter_small_set_predictors_vo2_change.out
+-rw-rw-r-- 1 dftortosa dftortosa  20097059 May 14 14:57 03b_prs_calculation_100_iter_small_set_predictors_weight_change.out
+-rw-rw-r-- 1 dftortosa dftortosa      2910 Apr 16 10:27 03c_prepare_slurm_files.out
+-rw-rw-r-- 1 dftortosa dftortosa    363427 May 14 14:57 03d_processing_results.out
+-rw-rw-r-- 1 dftortosa dftortosa    212088 May 12 21:01 03e_manhattan_plots_beep_change.out
+-rw-rw-r-- 1 dftortosa dftortosa    205283 May 12 20:59 03e_manhattan_plots_distance_change.out
+-rw-rw-r-- 1 dftortosa dftortosa    218703 May 12 21:03 03e_manhattan_plots_vo2_change.out
+-rw-rw-r-- 1 dftortosa dftortosa    208686 May 12 21:00 03e_manhattan_plots_weight_change.out
+-rw-rw-r-- 1 dftortosa dftortosa     10432 May 14 13:00 03f_bat_smt_analyses_bat.out
+-rw-rw-r-- 1 dftortosa dftortosa      9404 May 14 13:00 03f_bat_smt_analyses_metabolic.out
+-rw-rw-r-- 1 dftortosa dftortosa     10537 May 14 12:59 03f_bat_smt_analyses_smt.out
+drwxr-xr-x 6 dftortosa dftortosa      4096 May 22 17:48 data
+drwxr-xr-x 4 dftortosa dftortosa      4096 Apr 17 05:35 literature
+drwxr-xr-x 4 dftortosa dftortosa      4096 May  8 06:58 results
+drwxr-xr-x 4 dftortosa dftortosa      4096 Apr 27 19:57 scripts
 
 
 #######################################
@@ -47,89 +81,37 @@ combine the excel file, FAM file and the PCAs
 #######################################
 
 ###### load the excel file ######
-total 164
--rw-rw-r-- 1 dftortosa dftortosa    181 Apr 13 16:29 README.txt
-drwxrwxr-x 2 dftortosa dftortosa   4096 Apr 13 16:29 large_set_predictors
--rw-r--r-- 1 dftortosa dftortosa 154414 Apr 13 16:29 pheno_data.xlsx
-drwxrwxr-x 2 dftortosa dftortosa   4096 Apr 13 16:29 small_set_predictors
+total 212
+-rw-rw-r-- 1 dftortosa dftortosa    215 May 22 17:48 README.txt
+drwxrwxr-x 2 dftortosa dftortosa   4096 May 22 17:48 large_set_predictors
+-rw-rw-r-- 1 dftortosa dftortosa 202737 May 22 17:48 pheno_data.xlsx
+drwxrwxr-x 2 dftortosa dftortosa   4096 May 22 17:48 small_set_predictors
 
-     Gender        Age  ...  Week 8 Pred VO2max  AGRF code
-0         M  25.000000  ...                47.7   8244TCOJ
-1         M  43.720548  ...                43.6   6976MCJS
-2         M  35.049315  ...                49.0   3484JSJJ
-3         F  23.561644  ...                43.6   1389HSNM
-4         M  26.164384  ...                54.0   7593DBAO
-...     ...        ...  ...                 ...        ...
-1459    NaN        NaN  ...                 NaN   2471AWMA
-1460    NaN        NaN  ...                 NaN   6897TSSS
-1461    NaN        NaN  ...                 NaN   6899DWOS
-1462    NaN        NaN  ...                 NaN   6296TONJ
-1463    NaN        NaN  ...                 NaN   7799BTDO
+      Level - Shuttle  Lvl.Shut.  ...  Level - Shuttle.1  Total distance (m)
+0                 3.8       3.08  ...                3.8                 NaN
+1                 4.1       4.01  ...                4.1               480.0
+2                 4.2       4.02  ...                4.2               500.0
+3                 4.3       4.03  ...                4.3               520.0
+4                 4.4       4.04  ...                4.4               540.0
+...               ...        ...  ...                ...                 ...
+1459              NaN        NaN  ...                NaN                 NaN
+1460              NaN        NaN  ...                NaN                 NaN
+1461              NaN        NaN  ...                NaN                 NaN
+1462              NaN        NaN  ...                NaN                 NaN
+1463              NaN        NaN  ...                NaN                 NaN
 
-[1464 rows x 11 columns]
+[1464 rows x 23 columns]
+
+###### select columns of interest ######
+
+###### update the name of adjusted Beep Test Scores ######
 
 ###### do some checks about the variables ######
 
-## Check that the dtype of the new beep distance columns is float64 ##
+## Check that the dtypes are ok ##
 YES! GOOD TO GO!!
 
-## Check that the new version of the pheno_data is exactly the same than the previous one if we remove the new beep distance variables ##
-
-# load the original phenotype data #
-     Gender        Age  ...  Week 8 Pred VO2max  AGRF code
-0         M  25.000000  ...                47.7   8244TCOJ
-1         M  43.720548  ...                43.6   6976MCJS
-2         M  35.049315  ...                49.0   3484JSJJ
-3         F  23.561644  ...                43.6   1389HSNM
-4         M  26.164384  ...                54.0   7593DBAO
-...     ...        ...  ...                 ...        ...
-1459    NaN        NaN  ...                 NaN   2471AWMA
-1460    NaN        NaN  ...                 NaN   6897TSSS
-1461    NaN        NaN  ...                 NaN   6899DWOS
-1462    NaN        NaN  ...                 NaN   6296TONJ
-1463    NaN        NaN  ...                 NaN   7799BTDO
-
-[1464 rows x 9 columns]
-
-# make the check #
-YES! GOOD TO GO!!
-
-## Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0 ##
-
-# see the problem #
-11.1O
-Gender                        M
-Age                        18.0
-Week 1 Body Mass            NaN
-Week 8 Body Mass           62.2
-Week 1 Beep test           11.7
-Week 8 beep test          11.1O
-Week 1 Distance (m)      2120.0
-Week 8 Distance (m)         NaN
-Week 1 Pred VO2max         52.2
-Week 8 Pred VO2max         53.1
-AGRF code              8244FGNJ
-Name: 1193, dtype: object
-
-# change 11.1O for 11.10 #
-Gender                        M
-Age                        18.0
-Week 1 Body Mass            NaN
-Week 8 Body Mass           62.2
-Week 1 Beep test           11.7
-Week 8 beep test           11.1
-Week 1 Distance (m)      2120.0
-Week 8 Distance (m)         NaN
-Week 1 Pred VO2max         52.2
-Week 8 Pred VO2max         53.1
-AGRF code              8244FGNJ
-Name: 1193, dtype: object
-
-# convert the dtype of this column from string to float #
-old dtype: object
-new dtype: float64
-GOOD TO GO: we have correctly change the dtype of the column with beep test data week 8
-Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number
+## Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0. THAT SHOULD NOT BE HERE IN THE LAST EXCEL ##
 
 ###### load fam file ######
 
@@ -162,30 +144,30 @@ GOOD TO GO: we do not have duplicated IDs in the plink FAM file, SO WE CAN MERGE
 ###### merge and the excel file with the FAM file ######
 
 ## do the merge ##
-     Gender        Age  Week 1 Body Mass  ...  ID_mother  sex_code  phenotype_value
-0         M  19.024658              76.7  ...          0         1               -9
-1         F  18.679452              57.4  ...          0         2               -9
-2         F  18.369863              72.5  ...          0         2               -9
-3         M  18.556164              54.5  ...          0         1               -9
-4         F  19.216438              58.5  ...          0         2               -9
-...     ...        ...               ...  ...        ...       ...              ...
-1198      M  26.000000               NaN  ...          0         1               -9
-1199      M  24.000000               NaN  ...          0         1               -9
-1200      M  23.000000               NaN  ...          0         1               -9
-1201      M  20.000000               NaN  ...          0         1               -9
-1202      M  20.000000               NaN  ...          0         1               -9
+     AGRF code Gender        Age  ...  ID_mother  sex_code  phenotype_value
+0     0200ADMM      M  19.024658  ...          0         1               -9
+1     0200ASJM      F  18.679452  ...          0         2               -9
+2     0200BHNM      F  18.369863  ...          0         2               -9
+3     0200CBOM      M  18.556164  ...          0         1               -9
+4     0200CDFM      F  19.216438  ...          0         2               -9
+...        ...    ...        ...  ...        ...       ...              ...
+1198  9693JMNM      M  26.000000  ...          0         1               -9
+1199  9696DWFM      M  24.000000  ...          0         1               -9
+1200  9697STJM      M  23.000000  ...          0         1               -9
+1201  9699DNOM      M  20.000000  ...          0         1               -9
+1202  9699ISMM      M  20.000000  ...          0         1               -9
 
 [1203 rows x 16 columns]
                       count         mean  ...         75%          max
 Age                  1203.0    21.585398  ...    22.89589    56.254237
 Week 1 Body Mass     1037.0    76.429585  ...    85.60000   116.200000
 Week 8 Body Mass     1203.0    71.291438  ...    84.00000   111.000000
-Week 1 Beep test     1203.0     8.984838  ...    10.10000    13.900000
-Week 8 beep test     1203.0     9.813408  ...    10.70000    14.100000
-Week 1 Distance (m)  1203.0  1441.113882  ...  1680.00000  2620.000000
-Week 8 Distance (m)  1202.0  1626.539101  ...  1880.00000  3900.000000
-Week 1 Pred VO2max   1203.0    43.130507  ...    47.20000    60.100000
-Week 8 Pred VO2max   1203.0    46.111554  ...    49.30000    60.900000
+Week 1 Beep test     1203.0     8.606185  ...    10.01000    13.110000
+Week 8 beep test     1203.0     9.471189  ...    10.07000    14.010000
+Week 1 Distance (m)  1203.0  1437.755611  ...  1680.00000  2580.000000
+Week 8 Distance (m)  1203.0  1619.434746  ...  1800.00000  2640.000000
+Week 1 Pred VO2max   1203.0    43.240399  ...    47.20000    60.100000
+Week 8 Pred VO2max   1203.0    46.082959  ...    49.00000    60.900000
 ID_father            1203.0     0.000000  ...     0.00000     0.000000
 ID_mother            1203.0     0.000000  ...     0.00000     0.000000
 sex_code             1203.0     1.139651  ...     1.00000     2.000000
@@ -194,6 +176,7 @@ phenotype_value      1203.0    -9.000000  ...    -9.00000    -9.000000
 [13 rows x 8 columns]
 
 # total sum of NaNs or zero cases per column #
+AGRF code                 0
 Gender                    0
 Age                       0
 Week 1 Body Mass        185
@@ -201,10 +184,9 @@ Week 8 Body Mass         97
 Week 1 Beep test          0
 Week 8 beep test          0
 Week 1 Distance (m)       0
-Week 8 Distance (m)       1
-Week 1 Pred VO2max        3
+Week 8 Distance (m)       0
+Week 1 Pred VO2max        0
 Week 8 Pred VO2max        0
-AGRF code                 0
 family_id                 0
 ID_father              1203
 ID_mother              1203
@@ -215,6 +197,7 @@ dtype: int64
 ## check and remove cases with zero in phenotypes ##
 
 # sum the number of Zeros per column #
+AGRF code                 0
 Gender                    0
 Age                       0
 Week 1 Body Mass         19
@@ -223,9 +206,8 @@ Week 1 Beep test          0
 Week 8 beep test          0
 Week 1 Distance (m)       0
 Week 8 Distance (m)       0
-Week 1 Pred VO2max        3
+Week 1 Pred VO2max        0
 Week 8 Pred VO2max        0
-AGRF code                 0
 family_id                 0
 ID_father              1203
 ID_mother              1203
@@ -235,19 +217,14 @@ dtype: int64
 
 # Weight: Given that weight is going to be used for the rest of variables as covariate, we will set as missing the weight of these samples. Importantly, a weight of zero does not make sense. #
 
-# VO2 max week 1: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan #
-      Week 1 Beep test  ...  Week 8 Pred VO2max
-1072               9.3  ...                47.2
-1078              12.0  ...                55.4
-1095               9.8  ...                51.1
-
-[3 rows x 4 columns]
+# VO2 max week 1: In earlier version we had 0 for VO2 max, this should not be the case anymore #
 
 # Sex_code: We initially had missing for some samples, but these have been removed during the QC, also 2397LDJA was updated to 2399LDJA, so we should not have any zero for sex #
 
 # Parents ID: We do not have any parent in the cohort, so they all should be zero #
 
 # sum again the number of Zeros per column #
+AGRF code                 0
 Gender                    0
 Age                       0
 Week 1 Body Mass          0
@@ -258,7 +235,6 @@ Week 1 Distance (m)       0
 Week 8 Distance (m)       0
 Week 1 Pred VO2max        0
 Week 8 Pred VO2max        0
-AGRF code                 0
 family_id                 0
 ID_father              1203
 ID_mother              1203
@@ -374,8 +350,8 @@ Week 8 Body Mass        97
 Week 1 Beep test         0
 Week 8 beep test         0
 Week 1 Distance (m)      0
-Week 8 Distance (m)      1
-Week 1 Pred VO2max       3
+Week 8 Distance (m)      0
+Week 1 Pred VO2max       0
 Week 8 Pred VO2max       0
 ID_father                0
 ID_mother                0
@@ -383,8 +359,8 @@ sex_code                 0
 phenotype_value          0
 weight_change          244
 beep_change              0
-distance_change          1
-vo2_change               3
+distance_change          0
+vo2_change               0
 dtype: int64
 Weight change
 True
@@ -442,8 +418,8 @@ distance_change           0
 vo2_change                0
 dtype: int64
                                  ID    PCA1  ...  distance_change  vo2_change
-0     combat_ILGSA24-17303:0200ADMM  0.0017  ...            200.0         1.9
-1     combat_ILGSA24-17303:0200ASJM  0.0792  ...           -480.0        -4.7
+0     combat_ILGSA24-17303:0200ADMM  0.0017  ...            120.0         1.9
+1     combat_ILGSA24-17303:0200ASJM  0.0792  ...           -480.0        -7.5
 2     combat_ILGSA24-17303:0200BHNM -0.0238  ...             20.0         0.3
 3     combat_ILGSA24-17303:0200CBOM -0.0173  ...             40.0         0.7
 4     combat_ILGSA24-17303:0200CDFM  0.0162  ...             20.0         0.3
@@ -452,7 +428,7 @@ dtype: int64
 1199  combat_ILGSA24-17873:9696DWFM -0.0107  ...            480.0         7.5
 1200  combat_ILGSA24-17873:9697STJM -0.0129  ...            180.0         2.8
 1201  combat_ILGSA24-17873:9699DNOM  0.0442  ...            540.0         8.5
-1202  combat_ILGSA24-17873:9699ISMM -0.0058  ...            260.0         2.9
+1202  combat_ILGSA24-17873:9699ISMM -0.0058  ...            180.0         2.9
 
 [1203 rows x 40 columns]
 GOOD TO GO: we only have -9 cases in the 'change variables'
@@ -508,14 +484,14 @@ Week 8 Body Mass        97
 Week 1 Beep test         0
 Week 8 beep test         0
 Week 1 Distance (m)      0
-Week 8 Distance (m)      1
-Week 1 Pred VO2max       3
+Week 8 Distance (m)      0
+Week 1 Pred VO2max       0
 Week 8 Pred VO2max       0
 sex_code                 0
 weight_change          244
 beep_change              0
-distance_change          1
-vo2_change               3
+distance_change          0
+vo2_change               0
 dtype: int64
 
 ## check we have the correct number of missing based on the raw merged data ##
@@ -599,8 +575,8 @@ dtype: bool
 
 # see the final data #
                                  ID    PCA1  ...  distance_change  vo2_change
-0     combat_ILGSA24-17303:0200ADMM  0.0017  ...            200.0         1.9
-1     combat_ILGSA24-17303:0200ASJM  0.0792  ...           -480.0        -4.7
+0     combat_ILGSA24-17303:0200ADMM  0.0017  ...            120.0         1.9
+1     combat_ILGSA24-17303:0200ASJM  0.0792  ...           -480.0        -7.5
 2     combat_ILGSA24-17303:0200BHNM -0.0238  ...             20.0         0.3
 3     combat_ILGSA24-17303:0200CBOM -0.0173  ...             40.0         0.7
 4     combat_ILGSA24-17303:0200CDFM  0.0162  ...             20.0         0.3
@@ -609,7 +585,7 @@ dtype: bool
 1199  combat_ILGSA24-17873:9696DWFM -0.0107  ...            480.0         7.5
 1200  combat_ILGSA24-17873:9697STJM -0.0129  ...            180.0         2.8
 1201  combat_ILGSA24-17873:9699DNOM  0.0442  ...            540.0         8.5
-1202  combat_ILGSA24-17873:9699ISMM -0.0058  ...            260.0         2.9
+1202  combat_ILGSA24-17873:9699ISMM -0.0058  ...            180.0         2.9
 
 [1203 rows x 38 columns]
 
@@ -638,17 +614,17 @@ PCA20                1203.0  9.975062e-07  ...     0.02020     0.093200
 Age                  1203.0  2.158540e+01  ...    22.89589    56.254237
 Week 1 Body Mass     1018.0  7.785607e+01  ...    85.87500   116.200000
 Week 8 Body Mass     1106.0  7.754394e+01  ...    84.87500   111.000000
-Week 1 Beep test     1203.0  8.984838e+00  ...    10.10000    13.900000
-Week 8 beep test     1203.0  9.813408e+00  ...    10.70000    14.100000
-Week 1 Distance (m)  1203.0  1.441114e+03  ...  1680.00000  2620.000000
-Week 8 Distance (m)  1202.0  1.626539e+03  ...  1880.00000  3900.000000
-Week 1 Pred VO2max   1200.0  4.323833e+01  ...    47.20000    60.100000
-Week 8 Pred VO2max   1203.0  4.611155e+01  ...    49.30000    60.900000
+Week 1 Beep test     1203.0  8.606185e+00  ...    10.01000    13.110000
+Week 8 beep test     1203.0  9.471189e+00  ...    10.07000    14.010000
+Week 1 Distance (m)  1203.0  1.437756e+03  ...  1680.00000  2580.000000
+Week 8 Distance (m)  1203.0  1.619435e+03  ...  1800.00000  2640.000000
+Week 1 Pred VO2max   1203.0  4.324040e+01  ...    47.20000    60.100000
+Week 8 Pred VO2max   1203.0  4.608296e+01  ...    49.00000    60.900000
 sex_code             1203.0  1.139651e+00  ...     1.00000     2.000000
 weight_change         959.0  5.309698e-02  ...     2.30000    31.200000
-beep_change          1203.0  8.285702e-01  ...     1.40000     5.200000
-distance_change      1202.0  1.859900e+02  ...   300.00000  2780.000000
-vo2_change           1200.0  2.860417e+00  ...     4.80000    17.800000
+beep_change          1203.0  8.650042e-01  ...     1.06000     5.920000
+distance_change      1203.0  1.816791e+02  ...   300.00000  1180.000000
+vo2_change           1203.0  2.842560e+00  ...     4.70000    17.800000
 
 [34 rows x 8 columns]
 
@@ -839,23 +815,23 @@ percentile 75: 84.875
 percentile 97.5: 99.3375
 
 Week 1 Beep test
-mean: 8.984837905236907
-percentile 2.5: 7.5
-percentile 25: 7.9
-percentile 50: 8.5
-percentile 75: 10.1
-percentile 97.5: 12.2
+mean: 8.606184538653366
+percentile 2.5: 7.05
+percentile 25: 7.09
+percentile 50: 8.05
+percentile 75: 10.01
+percentile 97.5: 12.02
 
 Week 8 beep test
-mean: 9.813408146300915
-percentile 2.5: 7.6
-percentile 25: 8.8
-percentile 50: 9.7
-percentile 75: 10.7
-percentile 97.5: 12.695000000000004
+mean: 9.471188694929344
+percentile 2.5: 7.06
+percentile 25: 8.09
+percentile 50: 9.07
+percentile 75: 10.07
+percentile 97.5: 12.07
 
 Week 1 Distance (m)
-mean: 1441.1138819617622
+mean: 1437.7556109725685
 percentile 2.5: 1120.0
 percentile 25: 1200.0
 percentile 50: 1320.0
@@ -863,15 +839,15 @@ percentile 75: 1680.0
 percentile 97.5: 2160.0
 
 Week 8 Distance (m)
-mean: 1626.5391014975041
+mean: 1619.4347464671655
 percentile 2.5: 1140.0
-percentile 25: 1440.0
-percentile 50: 1660.0
-percentile 75: 1880.0
-percentile 97.5: 2360.0
+percentile 25: 1400.0
+percentile 50: 1580.0
+percentile 75: 1800.0
+percentile 97.5: 2260.0
 
 Week 1 Pred VO2max
-mean: 43.23833333333334
+mean: 43.24039900249376
 percentile 2.5: 38.2
 percentile 25: 39.6
 percentile 50: 41.5
@@ -879,11 +855,11 @@ percentile 75: 47.2
 percentile 97.5: 54.3
 
 Week 8 Pred VO2max
-mean: 46.11155444721529
+mean: 46.08295926849543
 percentile 2.5: 38.5
 percentile 25: 42.7
 percentile 50: 45.5
-percentile 75: 49.3
+percentile 75: 49.0
 percentile 97.5: 55.7
 
 weight_change
@@ -895,28 +871,28 @@ percentile 75: 2.299999999999997
 percentile 97.5: 7.905000000000001
 
 beep_change
-mean: 0.8285702410640067
-percentile 2.5: -1.1989999999999994
-percentile 25: 0.2999999999999994
-percentile 50: 0.8000000000000007
-percentile 75: 1.4000000000000004
-percentile 97.5: 2.6000000000000014
+mean: 0.8650041562759766
+percentile 2.5: -1.0099999999999998
+percentile 25: 0.03500000000000014
+percentile 50: 0.9800000000000004
+percentile 75: 1.0600000000000005
+percentile 97.5: 2.959999999999999
 
 distance_change
-mean: 185.99001663893512
-percentile 2.5: -260.0
-percentile 25: 40.0
-percentile 50: 200.0
+mean: 181.67913549459684
+percentile 2.5: -259.0
+percentile 25: 60.0
+percentile 50: 180.0
 percentile 75: 300.0
-percentile 97.5: 600.0
+percentile 97.5: 560.0
 
 vo2_change
-mean: 2.8604166666666666
-percentile 2.5: -3.799999999999997
+mean: 2.8425602660016622
+percentile 2.5: -3.794999999999997
 percentile 25: 1.0
-percentile 50: 2.900000000000002
-percentile 75: 4.799999999999997
-percentile 97.5: 9.002499999999987
+percentile 50: 2.8999999999999986
+percentile 75: 4.700000000000003
+percentile 97.5: 8.899999999999999
 The values of the phenotypes make sense: 
 A tendency for lower values in the highest percentiles of weight at week 8, i.e., more decrease for people starting with more weight. There is a tendency of increased weight for lower percentile. The median change of weight is 0, meaning that half of sample did not lose weight. The distribution is centered around zero.
 A tendency of increase of beep test, distance and VO2 max in all percentiles at week 8. The higher percentiles of changes tend to be more separated from zero than the lower percentile, i.e., the distribution is displaced to positive values, meaning increase of cardiorespiratory fitness.
@@ -934,13 +910,13 @@ combat_ILGSA24-17303:0200CDJM 0.0005 -0.0106 0.007 0.0484 0.0025
 combat_ILGSA24-17303:0200JCJM -0.0301 0.0039 -0.0282 -0.0149 -0.0242
 combat_ILGSA24-17303:0200JCMM -0.0109 0.0063 0.0435 0.0345 0.0041
 combat_ILGSA24-17303:0200JEJM 0.0291 0.0476 -0.0792 -0.0263 0.0397
-total 27960
--rw-rw-r-- 1 dftortosa dftortosa      181 Apr 13 16:29 README.txt
--rw-rw-r-- 1 dftortosa dftortosa 28072430 Apr 13 16:30 eigen_vectors_pairwise.png
-drwxrwxr-x 2 dftortosa dftortosa     4096 Apr 13 16:29 large_set_predictors
--rw-r--r-- 1 dftortosa dftortosa   154414 Apr 13 16:29 pheno_data.xlsx
--rw-rw-r-- 1 dftortosa dftortosa   386521 Apr 13 16:30 pheno_data_cleaned.tsv
-drwxrwxr-x 2 dftortosa dftortosa     4096 Apr 13 16:29 small_set_predictors
+total 28012
+-rw-rw-r-- 1 dftortosa dftortosa      215 May 22 17:48 README.txt
+-rw-rw-r-- 1 dftortosa dftortosa 28072430 May 22 17:48 eigen_vectors_pairwise.png
+drwxrwxr-x 2 dftortosa dftortosa     4096 May 22 17:48 large_set_predictors
+-rw-rw-r-- 1 dftortosa dftortosa   202737 May 22 17:48 pheno_data.xlsx
+-rw-rw-r-- 1 dftortosa dftortosa   389537 May 22 17:49 pheno_data_cleaned.tsv
+drwxrwxr-x 2 dftortosa dftortosa     4096 May 22 17:48 small_set_predictors
 
 
 #######################################
@@ -975,7 +951,7 @@ The number of missing removed is correct?
 YES! GOOD TO GO!
 performing quantile transformation
 test for normality
-KstestResult(statistic=array([0.03001764]), pvalue=array([0.22396756]), statistic_location=array([0.19205977]), statistic_sign=array([-1.]))
+KstestResult(statistic=array([0.02919472]), pvalue=array([0.25182019]), statistic_location=array([0.17673132]), statistic_sign=array([1.]))
 OK: GOOD TO GO! We did NOT find evidence that beep_change is strongly deviated from normality
 plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
 
@@ -985,7 +961,7 @@ The number of missing removed is correct?
 YES! GOOD TO GO!
 performing quantile transformation
 test for normality
-KstestResult(statistic=array([0.03164732]), pvalue=array([0.17614276]), statistic_location=array([0.32459055]), statistic_sign=array([1.]))
+KstestResult(statistic=array([0.0318509]), pvalue=array([0.17039339]), statistic_location=array([0.1946188]), statistic_sign=array([-1.]))
 OK: GOOD TO GO! We did NOT find evidence that distance_change is strongly deviated from normality
 plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
 
@@ -995,7 +971,7 @@ The number of missing removed is correct?
 YES! GOOD TO GO!
 performing quantile transformation
 test for normality
-KstestResult(statistic=array([0.02012191]), pvalue=array([0.70826048]), statistic_location=array([-1.06124812]), statistic_sign=array([-1.]))
+KstestResult(statistic=array([0.0209438]), pvalue=array([0.65892625]), statistic_location=array([-1.04810729]), statistic_sign=array([-1.]))
 OK: GOOD TO GO! We did NOT find evidence that vo2_change is strongly deviated from normality
 plotting the raw vs. transformed phenotype and the histogram of the transformed phenotype
 
@@ -1124,369 +1100,369 @@ Residual           746.578122  957.0         NaN           NaN
 
 PCA1
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.197180     1.0  1.160578  0.281562
-Residual           1238.877664  1201.0       NaN       NaN
+covar_transformed     1.802414     1.0  1.753327  0.185711
+Residual           1234.624085  1201.0       NaN       NaN
 
 PCA2
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.452374     1.0  0.438298  0.508072
-Residual           1239.569215  1201.0       NaN       NaN
+covar_transformed     0.261638     1.0  0.254216  0.614214
+Residual           1236.062104  1201.0       NaN       NaN
 
 PCA3
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.001408     1.0  0.001364  0.970549
-Residual           1239.994199  1201.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     0.002258     1.0  0.002194  0.96265
+Residual           1236.305321  1201.0       NaN      NaN
 
 PCA4
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.785845     1.0  1.731916  0.188417
-Residual           1238.396668  1201.0       NaN       NaN
+covar_transformed     2.431153     1.0  2.365913  0.124275
+Residual           1234.117384  1201.0       NaN       NaN
 
 PCA5
-                        sum_sq      df         F    PR(>F)
-covar_transformed     2.877578     1.0  2.793106  0.094931
-Residual           1237.321794  1201.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     3.707274     1.0  3.611224  0.05763
+Residual           1232.943818  1201.0       NaN      NaN
 
 PCA6
-                        sum_sq      df        F    PR(>F)
-covar_transformed     1.144411     1.0  1.10944  0.292416
-Residual           1238.857495  1201.0      NaN       NaN
+                       sum_sq      df         F    PR(>F)
+covar_transformed     0.51146     1.0  0.497057  0.480933
+Residual           1235.80181  1201.0       NaN       NaN
 
 PCA7
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.493002     1.0  1.447564  0.229156
-Residual           1238.697864  1201.0       NaN       NaN
+covar_transformed     1.283142     1.0  1.247633  0.264228
+Residual           1235.181216  1201.0       NaN       NaN
 
 PCA8
                         sum_sq      df         F    PR(>F)
-covar_transformed     4.472375     1.0  4.346454  0.037297
-Residual           1235.794141  1201.0       NaN       NaN
+covar_transformed     3.229865     1.0  3.145379  0.076396
+Residual           1233.259127  1201.0       NaN       NaN
 
 PCA9
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.323410     1.0  0.313328  0.575749
-Residual           1239.644586  1201.0       NaN       NaN
+covar_transformed     0.272274     1.0  0.264561  0.607098
+Residual           1236.013031  1201.0       NaN       NaN
 
 PCA10
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.042095     1.0  0.040773  0.840011
-Residual           1239.958433  1201.0       NaN       NaN
+covar_transformed     0.180495     1.0  0.175363  0.675463
+Residual           1236.147982  1201.0       NaN       NaN
 
 PCA11
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.155511     1.0  1.120183  0.290092
-Residual           1238.877276  1201.0       NaN       NaN
+covar_transformed     1.340893     1.0  1.303962  0.253718
+Residual           1235.015148  1201.0       NaN       NaN
 
 PCA12
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.864950     1.0  0.838417  0.360034
-Residual           1239.007432  1201.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     0.436751     1.0  0.424448  0.51485
+Residual           1235.810596  1201.0       NaN      NaN
 
 PCA13
-                        sum_sq      df         F   PR(>F)
-covar_transformed     2.397959     1.0  2.326509  0.12745
-Residual           1237.883920  1201.0       NaN      NaN
+                        sum_sq      df         F    PR(>F)
+covar_transformed     2.764774     1.0  2.691156  0.101168
+Residual           1233.853906  1201.0       NaN       NaN
 
 PCA14
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.087552     1.0  0.084805  0.770939
-Residual           1239.913842  1201.0       NaN       NaN
+covar_transformed     0.202761     1.0  0.197001  0.657233
+Residual           1236.114476  1201.0       NaN       NaN
 
 PCA15
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.587530     1.0  1.539452  0.214942
-Residual           1238.508104  1201.0       NaN       NaN
+covar_transformed     1.404919     1.0  1.366284  0.242683
+Residual           1234.961193  1201.0       NaN       NaN
 
 PCA16
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.485491     1.0  1.440543  0.230288
-Residual           1238.474265  1201.0       NaN       NaN
+covar_transformed     2.124831     1.0  2.067744  0.150704
+Residual           1234.157487  1201.0       NaN       NaN
 
 PCA17
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.643652     1.0  0.623751  0.429813
-Residual           1239.319345  1201.0       NaN       NaN
+covar_transformed     0.665619     1.0  0.646979  0.421354
+Residual           1235.601232  1201.0       NaN       NaN
 
 PCA18
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.464428     1.0  1.420147  0.233615
-Residual           1238.447688  1201.0       NaN       NaN
+covar_transformed     0.989833     1.0  0.962391  0.326783
+Residual           1235.246521  1201.0       NaN       NaN
 
 PCA19
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.025291     1.0  0.024496  0.875655
-Residual           1239.970783  1201.0       NaN       NaN
+covar_transformed     0.015455     1.0  0.015014  0.902499
+Residual           1236.292476  1201.0       NaN       NaN
 
 PCA20
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.176224     1.0  0.170707  0.679558
-Residual           1239.810773  1201.0       NaN       NaN
+covar_transformed     0.097362     1.0  0.094589  0.758475
+Residual           1236.205201  1201.0       NaN       NaN
 
 Age
-                        sum_sq      df         F    PR(>F)
-covar_transformed     1.808099     1.0  1.753111  0.185738
-Residual           1238.670745  1201.0       NaN       NaN
+                        sum_sq      df        F    PR(>F)
+covar_transformed     2.671559     1.0  2.59928  0.107175
+Residual           1234.396441  1201.0      NaN       NaN
 
 sex_code
                   sum_sq      df          F        PR(>F)
-C(sex_code)    52.673166     1.0  52.562171  7.445617e-13
-Residual     1203.536152  1201.0        NaN           NaN
+C(sex_code)    45.438746     1.0  45.359339  2.536731e-11
+Residual     1203.102498  1201.0        NaN           NaN
 
 Week 1 Body Mass
                         sum_sq      df         F    PR(>F)
-covar_transformed     7.683727     1.0  7.443929  0.006475
-Residual           1048.729324  1016.0       NaN       NaN
+covar_transformed     5.599766     1.0  5.412608  0.020188
+Residual           1051.131337  1016.0       NaN       NaN
 
  Week 1 Beep test
                         sum_sq      df           F        PR(>F)
-covar_transformed   136.838241     1.0  148.533098  2.683779e-32
-Residual           1106.438426  1201.0         NaN           NaN
+covar_transformed   145.986739     1.0  160.550283  1.264672e-34
+Residual           1092.057081  1201.0         NaN           NaN
 
  
  #distance_change#
 
 PCA1
                         sum_sq      df         F    PR(>F)
-covar_transformed     2.438173     1.0  2.374652  0.123583
-Residual           1232.099360  1200.0       NaN       NaN
+covar_transformed     2.055826     1.0  1.997375  0.157831
+Residual           1236.145963  1201.0       NaN       NaN
 
 PCA2
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.149429     1.0  0.145282  0.703152
-Residual           1234.250015  1200.0       NaN       NaN
+                        sum_sq      df        F    PR(>F)
+covar_transformed     0.325301     1.0  0.31564  0.574344
+Residual           1237.759773  1201.0      NaN       NaN
 
 PCA3
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.305227     1.0  0.296803  0.585995
-Residual           1234.059157  1200.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     0.004778     1.0  0.004635  0.94573
+Residual           1238.061942  1201.0       NaN      NaN
 
 PCA4
                         sum_sq      df         F    PR(>F)
-covar_transformed     2.092137     1.0  2.037092  0.153763
-Residual           1232.425534  1200.0       NaN       NaN
+covar_transformed     2.358721     1.0  2.292041  0.130302
+Residual           1235.939494  1201.0       NaN       NaN
 
 PCA5
                         sum_sq      df         F    PR(>F)
-covar_transformed     2.843965     1.0  2.770417  0.096282
-Residual           1231.857156  1200.0       NaN       NaN
+covar_transformed     3.375358     1.0  3.282458  0.070274
+Residual           1234.990637  1201.0       NaN       NaN
 
 PCA6
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.978693     1.0  1.926596  0.165389
-Residual           1232.449232  1200.0       NaN       NaN
+covar_transformed     0.833953     1.0  0.809523  0.368442
+Residual           1237.244126  1201.0       NaN       NaN
 
 PCA7
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.983937     1.0  0.957277  0.328071
-Residual           1233.420336  1200.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     1.084409     1.0  1.052755  0.30508
+Residual           1237.111819  1201.0       NaN      NaN
 
 PCA8
                         sum_sq      df         F    PR(>F)
-covar_transformed     2.744361     1.0  2.673646  0.102284
-Residual           1231.738748  1200.0       NaN       NaN
+covar_transformed     2.995484     1.0  2.912481  0.088155
+Residual           1235.227487  1201.0       NaN       NaN
 
 PCA9
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.161884     1.0  0.157395  0.691636
-Residual           1234.219043  1200.0       NaN       NaN
+covar_transformed     0.134741     1.0  0.130722  0.717748
+Residual           1237.923683  1201.0       NaN       NaN
 
 PCA10
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.154328     1.0  0.150045  0.698561
-Residual           1234.253315  1200.0       NaN       NaN
+covar_transformed     0.125878     1.0  0.122121  0.726807
+Residual           1237.956381  1201.0       NaN       NaN
 
 PCA11
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.677981     1.0  0.659428  0.416923
-Residual           1233.762805  1200.0       NaN       NaN
+covar_transformed     0.950473     1.0  0.922711  0.336958
+Residual           1237.136265  1201.0       NaN       NaN
 
 PCA12
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.383676     1.0  1.346804  0.246068
-Residual           1232.852858  1200.0       NaN       NaN
+covar_transformed     0.645739     1.0  0.626776  0.428697
+Residual           1237.337168  1201.0       NaN       NaN
 
 PCA13
-                        sum_sq      df         F    PR(>F)
-covar_transformed     2.275472     1.0  2.215635  0.136882
-Residual           1232.408207  1200.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     2.546379     1.0  2.474767  0.11595
+Residual           1235.753268  1201.0       NaN      NaN
 
 PCA14
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.397437     1.0  0.386488  0.534269
-Residual           1233.994858  1200.0       NaN       NaN
+covar_transformed     0.087184     1.0  0.084579  0.771235
+Residual           1237.983312  1201.0       NaN       NaN
 
 PCA15
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.763097     1.0  1.716218  0.190431
-Residual           1232.778402  1200.0       NaN       NaN
+covar_transformed     1.320531     1.0  1.282304  0.257697
+Residual           1236.803305  1201.0       NaN       NaN
 
 PCA16
                         sum_sq      df         F    PR(>F)
-covar_transformed     2.634972     1.0  2.567449  0.109347
-Residual           1231.559274  1200.0       NaN       NaN
+covar_transformed     2.028787     1.0  1.971303  0.160568
+Residual           1236.021688  1201.0       NaN       NaN
 
 PCA17
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.759595     1.0  0.738901  0.390185
-Residual           1233.607796  1200.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     0.492324     1.0  0.477787  0.48956
+Residual           1237.541609  1201.0       NaN      NaN
 
 PCA18
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.795127     1.0  1.747738  0.186413
-Residual           1232.537266  1200.0       NaN       NaN
+covar_transformed     0.803496     1.0  0.779976  0.377325
+Residual           1237.215508  1201.0       NaN       NaN
 
 PCA19
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.061907     1.0  0.060185  0.806245
-Residual           1234.329140  1200.0       NaN       NaN
+covar_transformed     0.008635     1.0  0.008376  0.927093
+Residual           1238.058854  1201.0       NaN       NaN
 
 PCA20
-                        sum_sq      df         F   PR(>F)
-covar_transformed     0.263626     1.0  0.256339  0.61274
-Residual           1234.114847  1200.0       NaN      NaN
+                        sum_sq      df        F    PR(>F)
+covar_transformed     0.220440     1.0  0.21388  0.643827
+Residual           1237.836265  1201.0      NaN       NaN
 
 Age
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.345324     1.0  1.308917  0.252819
-Residual           1233.377394  1200.0       NaN       NaN
+covar_transformed     1.945643     1.0  1.889533  0.169511
+Residual           1236.663733  1201.0       NaN       NaN
 
 sex_code
-                  sum_sq      df          F        PR(>F)
-C(sex_code)    58.988855     1.0  59.214489  2.937502e-14
-Residual     1195.427465  1200.0        NaN           NaN
+                  sum_sq      df         F        PR(>F)
+C(sex_code)    57.066611     1.0  57.15856  7.954395e-14
+Residual     1199.067978  1201.0       NaN           NaN
 
 Week 1 Body Mass
                         sum_sq      df         F    PR(>F)
-covar_transformed     8.155944     1.0  7.896618  0.005048
-Residual           1049.365557  1016.0       NaN       NaN
+covar_transformed     6.707061     1.0  6.495163  0.010963
+Residual           1049.146053  1016.0       NaN       NaN
 
  Week 1 Distance (m)
                         sum_sq      df           F        PR(>F)
-covar_transformed   104.943618     1.0  112.307817  3.798494e-25
-Residual           1121.314125  1200.0         NaN           NaN
+covar_transformed   110.552945     1.0  118.025764  2.729604e-26
+Residual           1124.958512  1201.0         NaN           NaN
 
  
  #vo2_change#
 
 PCA1
-                        sum_sq      df         F   PR(>F)
-covar_transformed     2.093891     1.0  2.031983  0.15428
-Residual           1234.499490  1198.0       NaN      NaN
+                        sum_sq      df         F    PR(>F)
+covar_transformed     1.971147     1.0  1.913185  0.166867
+Residual           1237.385951  1201.0       NaN       NaN
 
 PCA2
-                       sum_sq      df         F   PR(>F)
-covar_transformed     0.25742     1.0  0.249471  0.61754
-Residual           1236.17544  1198.0       NaN      NaN
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.437813     1.0  0.424446  0.514852
+Residual           1238.822726  1201.0       NaN       NaN
 
 PCA3
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.001221     1.0  0.001183  0.972564
-Residual           1236.412097  1198.0       NaN       NaN
+covar_transformed     0.000189     1.0  0.000183  0.989211
+Residual           1239.236305  1201.0       NaN       NaN
 
 PCA4
-                        sum_sq      df         F    PR(>F)
-covar_transformed     2.616203     1.0  2.539776  0.111274
-Residual           1234.050498  1198.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     2.299590     1.0  2.232363  0.13541
+Residual           1237.167999  1201.0       NaN      NaN
 
 PCA5
-                        sum_sq      df         F   PR(>F)
-covar_transformed     3.575878     1.0  3.473871  0.06259
-Residual           1233.178315  1198.0       NaN      NaN
+                        sum_sq      df         F    PR(>F)
+covar_transformed     3.334922     1.0  3.239982  0.072112
+Residual           1236.192476  1201.0       NaN       NaN
 
 PCA6
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.767520     1.0  0.744128  0.388514
-Residual           1235.659489  1198.0       NaN       NaN
+                        sum_sq      df         F   PR(>F)
+covar_transformed     0.780066     1.0  0.756469  0.38461
+Residual           1238.464471  1201.0       NaN      NaN
 
 PCA7
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.216884     1.0  1.180106  0.277553
-Residual           1235.335441  1198.0       NaN       NaN
+covar_transformed     1.131863     1.0  1.097824  0.294955
+Residual           1238.237823  1201.0       NaN       NaN
 
 PCA8
-                        sum_sq      df         F    PR(>F)
-covar_transformed     3.336864     1.0  3.241494  0.072047
-Residual           1233.247391  1198.0       NaN       NaN
+                        sum_sq      df         F  PR(>F)
+covar_transformed     3.281983     1.0  3.188731  0.0744
+Residual           1236.122538  1201.0       NaN     NaN
 
 PCA9
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.180895     1.0  0.175303  0.675516
-Residual           1236.219666  1198.0       NaN       NaN
+covar_transformed     0.160100     1.0  0.155182  0.693702
+Residual           1239.064759  1201.0       NaN       NaN
 
 PCA10
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.034796     1.0  0.033716  0.854343
-Residual           1236.382622  1198.0       NaN       NaN
+covar_transformed     0.144857     1.0  0.140402  0.707948
+Residual           1239.108588  1201.0       NaN       NaN
 
 PCA11
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.267059     1.0  1.228909  0.267842
-Residual           1235.190191  1198.0       NaN       NaN
+covar_transformed     1.110782     1.0  1.077449  0.299478
+Residual           1238.154681  1201.0       NaN       NaN
 
 PCA12
-                        sum_sq      df         F    PR(>F)
-covar_transformed     0.863980     1.0  0.837807  0.360209
-Residual           1235.425816  1198.0       NaN       NaN
+                        sum_sq      df        F    PR(>F)
+covar_transformed     0.647156     1.0  0.62756  0.428408
+Residual           1238.501991  1201.0      NaN       NaN
 
 PCA13
                         sum_sq      df         F    PR(>F)
-covar_transformed     2.856668     1.0  2.773677  0.096087
-Residual           1233.845239  1198.0       NaN       NaN
+covar_transformed     3.116502     1.0  3.027189  0.082136
+Residual           1236.433813  1201.0       NaN       NaN
 
 PCA14
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.128894     1.0  0.124902  0.723839
-Residual           1236.289711  1198.0       NaN       NaN
+covar_transformed     0.104203     1.0  0.100996  0.750693
+Residual           1239.136354  1201.0       NaN       NaN
 
 PCA15
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.090477     1.0  1.057508  0.303992
-Residual           1235.349477  1198.0       NaN       NaN
+covar_transformed     1.520660     1.0  1.475472  0.224723
+Residual           1237.782046  1201.0       NaN       NaN
 
 PCA16
                         sum_sq      df         F    PR(>F)
-covar_transformed     2.976220     1.0  2.890706  0.089351
-Residual           1233.440027  1198.0       NaN       NaN
+covar_transformed     2.102050     1.0  2.040682  0.153401
+Residual           1237.117029  1201.0       NaN       NaN
 
 PCA17
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.439073     1.0  0.425593  0.514284
-Residual           1235.943191  1198.0       NaN       NaN
+covar_transformed     0.511598     1.0  0.496031  0.481386
+Residual           1238.691407  1201.0       NaN       NaN
 
 PCA18
-                        sum_sq      df         F  PR(>F)
-covar_transformed     0.782866     1.0  0.759052  0.3838
-Residual           1235.585896  1198.0       NaN     NaN
+                        sum_sq      df         F    PR(>F)
+covar_transformed     0.673914     1.0  0.653499  0.419025
+Residual           1238.519601  1201.0       NaN       NaN
 
 PCA19
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.000911     1.0  0.000883  0.976303
-Residual           1236.412581  1198.0       NaN       NaN
+covar_transformed     0.016941     1.0  0.016419  0.898062
+Residual           1239.219633  1201.0       NaN       NaN
 
 PCA20
                         sum_sq      df         F    PR(>F)
-covar_transformed     0.264235     1.0  0.256084  0.612917
-Residual           1236.132745  1198.0       NaN       NaN
+covar_transformed     0.208826     1.0  0.202419  0.652857
+Residual           1239.017556  1201.0       NaN       NaN
 
 Age
                         sum_sq      df         F    PR(>F)
-covar_transformed     1.764320     1.0  1.711269  0.191072
-Residual           1235.139311  1198.0       NaN       NaN
+covar_transformed     1.972616     1.0  1.913954  0.166782
+Residual           1237.810144  1201.0       NaN       NaN
 
 sex_code
                   sum_sq      df          F        PR(>F)
-C(sex_code)    55.755229     1.0  55.768824  1.564773e-13
-Residual     1197.707965  1198.0        NaN           NaN
+C(sex_code)    51.298641     1.0  51.210749  1.440216e-12
+Residual     1203.061257  1201.0        NaN           NaN
 
 Week 1 Body Mass
                         sum_sq      df         F    PR(>F)
-covar_transformed     6.460871     1.0  6.244048  0.012618
-Residual           1051.280275  1016.0       NaN       NaN
+covar_transformed     6.518637     1.0  6.300467  0.012225
+Residual           1051.181587  1016.0       NaN       NaN
 
  Week 1 Pred VO2max
                         sum_sq      df           F        PR(>F)
-covar_transformed   130.922069     1.0  141.484917  6.420929e-31
-Residual           1108.560848  1198.0         NaN           NaN
+covar_transformed   131.587677     1.0  142.412451  4.190499e-31
+Residual           1109.711959  1201.0         NaN           NaN
 Covariates with P-value<0.1
 
 # check that the cases with NA for the response variable all have NA for wegith at week 1, so we are going to be removed anyways #
@@ -1502,7 +1478,7 @@ GOOD TO GO! for vo2_change
 
 ## print the small and the large list of covariates ##
 # small list of covariates #
-{'weight_change': ['PCA1', 'PCA2', 'PCA8', 'PCA11', 'age', 'sex_code', 'week_1_weight'], 'beep_change': ['PCA5', 'PCA8', 'sex_code', 'week_1_weight', 'week_1_beep'], 'distance_change': ['PCA5', 'sex_code', 'week_1_weight', 'week_1_distance'], 'vo2_change': ['PCA5', 'PCA8', 'PCA13', 'PCA16', 'sex_code', 'week_1_weight', 'week_1_vo2']}
+{'weight_change': ['PCA1', 'PCA2', 'PCA8', 'PCA11', 'age', 'sex_code', 'week_1_weight'], 'beep_change': ['PCA5', 'PCA8', 'sex_code', 'week_1_weight', 'week_1_beep'], 'distance_change': ['PCA5', 'PCA8', 'sex_code', 'week_1_weight', 'week_1_distance'], 'vo2_change': ['PCA5', 'PCA8', 'PCA13', 'sex_code', 'week_1_weight', 'week_1_vo2']}
 # large list of covariates #
 {'weight_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20'], 'beep_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20', 'week_1_beep'], 'distance_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20', 'week_1_distance'], 'vo2_change': ['age', 'sex_code', 'week_1_weight', 'PCA1', 'PCA2', 'PCA3', 'PCA4', 'PCA5', 'PCA6', 'PCA7', 'PCA8', 'PCA9', 'PCA10', 'PCA11', 'PCA12', 'PCA13', 'PCA14', 'PCA15', 'PCA16', 'PCA17', 'PCA18', 'PCA19', 'PCA20', 'week_1_vo2']}
 

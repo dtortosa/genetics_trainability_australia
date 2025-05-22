@@ -175,63 +175,53 @@ print_text("load the excel file", header=2)
 #This include reported sex and VO2 max data. I have checked that the data is the same directly reading from excel than converting to csv
 run_bash(" \
     cp \
-        ../quality_control/data/pheno_data/'Combat gene DNA GWAS 23062022_v2.xlsx' \
+        ../quality_control/data/pheno_data/'Final Adjusted Combat gene DNA GWAS NS.xlsx' \
         ./data/pheno_data/pheno_data.xlsx; \
-    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/'Combat gene DNA GWAS 23062022_v2.xlsx', which is the second raw excel I got from D. Bishop after they add beep distance' > ./data/pheno_data/README.txt; \
+    echo 'pheno_data.xlsx comes from ../quality_control/data/pheno_data/'Final Adjusted Combat gene DNA GWAS NS.xlsx', which is the final excel file I got from D. Bishop after they solved the problem with beep test calculation' > ./data/pheno_data/README.txt; \
     ls -l ./data/pheno_data/")
-pheno_data = pd.read_excel(
+pheno_data_raw = pd.read_excel(
     "./data/pheno_data/pheno_data.xlsx",
     header=0,
-    sheet_name="All DNA samples")
-print(pheno_data)
+    sheet_name="All DNA samples", 
+    skiprows=1)
+print(pheno_data_raw)
+    #skip the first row as this does not have data
+
+print_text("select columns of interest", header=2)
+pheno_data = pheno_data_raw[["AGRF code", "Gender", "Age", "Week 1 Body Mass", "Week 8 Body Mass", "Adjusted Week 1 Beep Test", "Adjusted Week 8 Beep Test", "Week 1 Distance (m)", "Week 8 Distance (m)", "Week 1 Pred VO2max", "Week 8 Pred VO2max"]]
+
+
+print_text("update the name of adjusted Beep Test Scores", header=2)
+pheno_data = pheno_data.rename(columns={ \
+    "Adjusted Week 1 Beep Test": "Week 1 Beep test", \
+    "Adjusted Week 8 Beep Test": "Week 8 beep test", \
+})
+    #David: there was an issue with beep test scores like 6.TEN not being distinguished from 6.1
+    #This has been solved in "adjusted Beep Test Scores"
 
 
 print_text("do some checks about the variables", header=2)
-print_text("Check that the dtype of the new beep distance columns is float64", header=3)
-if (pheno_data["Week 1 Distance (m)"].dtype == "float64") & (pheno_data["Week 8 Distance (m)"].dtype == "float64"):
+print_text("Check that the dtypes are ok", header=3)
+if ( \
+    (pheno_data["AGRF code"].dtype == "O") & \
+    (pheno_data["Gender"].dtype == "O") & \
+    (pheno_data["Age"].dtype == "float64") & \
+    (pheno_data["Week 1 Body Mass"].dtype == "float64") & \
+    (pheno_data["Week 8 Body Mass"].dtype == "float64") & \
+    (pheno_data["Week 1 Distance (m)"].dtype == "float64") & \
+    (pheno_data["Week 8 Distance (m)"].dtype == "float64") & \
+    (pheno_data["Week 1 Beep test"].dtype == "float64") & \
+    (pheno_data["Week 8 beep test"].dtype == "float64") & \
+    (pheno_data["Week 1 Pred VO2max"].dtype == "float64") & \
+    (pheno_data["Week 8 Pred VO2max"].dtype == "float64") \
+):
     print("YES! GOOD TO GO!!")
 else:
-    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DTYPE OF THE NEW BEEP DISTANCE COLUMNS")
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE DTYPES OF THE VARIABLES")
 
-print_text("Check that the new version of the pheno_data is exactly the same than the previous one if we remove the new beep distance variables", header=3)
-print_text("load the original phenotype data", header=4)
-pheno_data_no_beep_distance = pd.read_excel(
-    "../quality_control/data/pheno_data/combact gene DNA GWAS 23062022.xlsx",
-    header=0,
-    sheet_name="All DNA samples")
-print(pheno_data_no_beep_distance)
-
-print_text("make the check", header=4)
-check_pheno_versions = \
-    pheno_data \
-        .loc[:, ~pheno_data.columns.isin(["Week 1 Distance (m)", "Week 8 Distance (m)"])] \
-        .equals(pheno_data_no_beep_distance)
-if check_pheno_versions:
-    print("YES! GOOD TO GO!!")
-else:
-    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE NEW VERSION OF THE PHENO DATA")
-
-print_text("Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0", header=3)
-print_text("see the problem", header=4)
-index_problematic_sample = np.where(pheno_data["Week 8 beep test"] == "11.1O")[0][0]
-index_problematic_column = np.where(pheno_data.columns == "Week 8 beep test")[0][0]
-print(pheno_data.iloc[index_problematic_sample, index_problematic_column])
-print(pheno_data.iloc[index_problematic_sample,:])
-
-print_text("change 11.1O for 11.10", header=4)
-pheno_data.iloc[index_problematic_sample, index_problematic_column] = 11.1
-print(pheno_data.iloc[index_problematic_sample,:])
-
-print_text("convert the dtype of this column from string to float", header=4)
-print("old dtype: " + str(pheno_data["Week 8 beep test"].dtype))
-pheno_data["Week 8 beep test"] = pheno_data["Week 8 beep test"].astype(dtype="float64")
-print("new dtype: " + str(pheno_data["Week 8 beep test"].dtype))
-if(pheno_data["Week 8 beep test"].dtype == "float64"):
-    print("GOOD TO GO: we have correctly change the dtype of the column with beep test data week 8")
-else:
-    raise ValueError("ERROR: FALSE! The dtype of the beep test week 8 column is not correct")
-print("Sample 8244FGNJ has NA for Week 8 Distance (m). I detected a typo in the Week 8 beep test for that same sample, having 11.1O instead of 11.10, i.e., there is letter O instead of the zero number")
-
+print_text("Week 8 beep test for one of the samples is 11.1O, i.e., letter O instead number 0. THAT SHOULD NOT BE HERE IN THE LAST EXCEL", header=3)
+if(sum(pheno_data["Week 8 beep test"] == "11.1O") != 0):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE WEEK 8 BEEP TEST, i.e., letter O instead number 0")
 
 print_text("load fam file", header=2)
 print_text("load the last fam file", header=3)
@@ -308,9 +298,9 @@ print_text("Weight: Given that weight is going to be used for the rest of variab
 merged_data_raw_2.loc[merged_data_raw_2["Week 1 Body Mass"]==0, "Week 1 Body Mass"] = np.nan
 merged_data_raw_2.loc[merged_data_raw_2["Week 8 Body Mass"]==0, "Week 8 Body Mass"] = np.nan
 
-print_text("VO2 max week 1: In the case of VO2 max, this is probably caused by the equation. It is indeed a very strange value because the beep test data is ok and the VO2 max of the 8th week is also ok. We are going to set this as nan", header=4)
-print(merged_data_raw_2.loc[merged_data_raw_2["Week 1 Pred VO2max"]==0, ["Week 1 Beep test", "Week 8 beep test", "Week 1 Pred VO2max", "Week 8 Pred VO2max",]])
-merged_data_raw_2.loc[merged_data_raw_2["Week 1 Pred VO2max"]==0, "Week 1 Pred VO2max"] = np.nan
+print_text("VO2 max week 1: In earlier version we had 0 for VO2 max, this should not be the case anymore", header=4)
+if (sum(merged_data_raw_2["Week 1 Pred VO2max"]==0)!=0):
+    raise ValueError("ERROR: FALSE! WE HAVE A PROBLEM WITH THE WEEK 1 VO2 MAX, i.e., 0 values")
 
 print_text("Sex_code: We initially had missing for some samples, but these have been removed during the QC, also 2397LDJA was updated to 2399LDJA, so we should not have any zero for sex", header=4)
 if (merged_data_raw_2.loc[merged_data_raw_2["sex_code"]==0, :].shape[0]!=0):
@@ -1015,8 +1005,11 @@ def pheno_subset(subset_type="small"):
             raise ValueError("ERROR! FALSE! SAMPLE 8244FGNJ IS STILL PRESENT")
             #This was a problematic sample:
                 #It had a typo (letter O instead of 0)
+                    #SOLVED
                 #It had NA for distance but not for beep, which does not make sense
+                    #SOLVED
                 #Finally, and most important, it had NA for weight, so it has to go out
+                    #week 1 response variables do nit have it as cov in small dataset
 
         #save the subset
         subset_pheno_no_na.to_csv( \
