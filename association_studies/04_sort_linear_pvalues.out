@@ -1,0 +1,240 @@
+
+#######################################
+#######################################
+checking function to print nicely: header 1
+#######################################
+#######################################
+
+###### checking function to print nicely: header 2 ######
+
+## checking function to print nicely: header 3 ##
+
+# checking function to print nicely: header 4 #
+
+#######################################
+#######################################
+check behaviour run_bash
+#######################################
+#######################################
+
+###### see working directory ######
+/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+
+
+###### list files/folders there ######
+03a_association_analyses.sif
+03a_phenotype_prep.out
+03aa_final_pca_calc.out
+03b_prs_calculation_100_iter_large_set_predictors_beep_change.out
+03b_prs_calculation_100_iter_large_set_predictors_distance_change.out
+03b_prs_calculation_100_iter_large_set_predictors_vo2_change.out
+03b_prs_calculation_100_iter_large_set_predictors_weight_change.out
+03b_prs_calculation_100_iter_small_set_predictors_beep_change.out
+03b_prs_calculation_100_iter_small_set_predictors_distance_change.out
+03b_prs_calculation_100_iter_small_set_predictors_vo2_change.out
+03b_prs_calculation_100_iter_small_set_predictors_weight_change.out
+03c_prepare_slurm_files.out
+03d_processing_results.out
+03e_manhattan_plots_beep_change.out
+03e_manhattan_plots_distance_change.out
+03e_manhattan_plots_vo2_change.out
+03e_manhattan_plots_weight_change.out
+03f_bat_smt_analyses_bat.out
+03f_bat_smt_analyses_metabolic.out
+03f_bat_smt_analyses_smt.out
+04_sort_linear_pvalues.out
+data
+literature
+results
+scripts
+
+
+#######################################
+#######################################
+starting distance_change
+#######################################
+#######################################
+
+###### load assoc results to pandas ######
+         Chromosome           Predictor  Basepair  ... CallRate MachR2  SPA_Status
+0                 1     chr1_858952_G_A    858952  ...      1.0    NaN    NOT_USED
+1                 1     chr1_905373_T_C    905373  ...      1.0    NaN    NOT_USED
+2                 1     chr1_911428_C_T    911428  ...      1.0    NaN    NOT_USED
+3                 1     chr1_918870_A_G    918870  ...      1.0    NaN    NOT_USED
+4                 1     chr1_931513_T_C    931513  ...      1.0    NaN    NOT_USED
+...             ...                 ...       ...  ...      ...    ...         ...
+3189214          22  chr22_50749145_C_T  50749145  ...      1.0    NaN    NOT_USED
+3189215          22  chr22_50749470_T_C  50749470  ...      1.0    NaN    NOT_USED
+3189216          22  chr22_50749890_T_G  50749890  ...      1.0    NaN    NOT_USED
+3189217          22  chr22_50751123_G_T  50751123  ...      1.0    NaN    NOT_USED
+3189218          22  chr22_50752652_C_G  50752652  ...      1.0    NaN    NOT_USED
+
+[3189219 rows x 13 columns]
+
+###### sort in increaseing order by Wald_P ######
+
+###### check we correlectly sorted ######
+         Chromosome            Predictor  ...  MachR2 SPA_Status
+2455367          12  chr12_131538996_A_G  ...     NaN   NOT_USED
+2455361          12  chr12_131537088_C_T  ...     NaN   NOT_USED
+2455364          12  chr12_131537816_C_T  ...     NaN   NOT_USED
+2455380          12  chr12_131546545_G_A  ...     NaN   NOT_USED
+2455390          12  chr12_131551368_G_A  ...     NaN   NOT_USED
+...             ...                  ...  ...     ...        ...
+2810605          16   chr16_52604963_G_A  ...     NaN   NOT_USED
+1866739           9    chr9_32267516_T_C  ...     NaN   NOT_USED
+1197188           5   chr5_174995091_G_T  ...     NaN   NOT_USED
+1866737           9    chr9_32267326_A_G  ...     NaN   NOT_USED
+598093            3    chr3_56193390_C_T  ...     NaN   NOT_USED
+
+[3189219 rows x 13 columns]
+
+###### get the first 10K SNPs ######
+
+###### check the number of rows ######
+
+###### save the results ######
+
+#######################################
+#######################################
+starting beep_change
+#######################################
+#######################################
+
+###### load assoc results to pandas ######
+         Chromosome           Predictor  Basepair  ... CallRate MachR2  SPA_Status
+0                 1     chr1_858952_G_A    858952  ...      1.0    NaN    NOT_USED
+1                 1     chr1_905373_T_C    905373  ...      1.0    NaN    NOT_USED
+2                 1     chr1_911428_C_T    911428  ...      1.0    NaN    NOT_USED
+3                 1     chr1_918870_A_G    918870  ...      1.0    NaN    NOT_USED
+4                 1     chr1_931513_T_C    931513  ...      1.0    NaN    NOT_USED
+...             ...                 ...       ...  ...      ...    ...         ...
+3189214          22  chr22_50749145_C_T  50749145  ...      1.0    NaN    NOT_USED
+3189215          22  chr22_50749470_T_C  50749470  ...      1.0    NaN    NOT_USED
+3189216          22  chr22_50749890_T_G  50749890  ...      1.0    NaN    NOT_USED
+3189217          22  chr22_50751123_G_T  50751123  ...      1.0    NaN    NOT_USED
+3189218          22  chr22_50752652_C_G  50752652  ...      1.0    NaN    NOT_USED
+
+[3189219 rows x 13 columns]
+
+###### sort in increaseing order by Wald_P ######
+
+###### check we correlectly sorted ######
+         Chromosome            Predictor  ...  MachR2 SPA_Status
+2455361          12  chr12_131537088_C_T  ...     NaN   NOT_USED
+2455367          12  chr12_131538996_A_G  ...     NaN   NOT_USED
+2455380          12  chr12_131546545_G_A  ...     NaN   NOT_USED
+2455364          12  chr12_131537816_C_T  ...     NaN   NOT_USED
+2455390          12  chr12_131551368_G_A  ...     NaN   NOT_USED
+...             ...                  ...  ...     ...        ...
+1320320           6    chr6_77631023_A_T  ...     NaN   NOT_USED
+1320322           6    chr6_77631076_C_T  ...     NaN   NOT_USED
+257388            2     chr2_4911398_G_A  ...     NaN   NOT_USED
+1527718           7    chr7_50569732_G_A  ...     NaN   NOT_USED
+290592            2    chr2_34102200_A_G  ...     NaN   NOT_USED
+
+[3189219 rows x 13 columns]
+
+###### get the first 10K SNPs ######
+
+###### check the number of rows ######
+
+###### save the results ######
+
+#######################################
+#######################################
+starting vo2_change
+#######################################
+#######################################
+
+###### load assoc results to pandas ######
+         Chromosome           Predictor  Basepair  ... CallRate MachR2  SPA_Status
+0                 1     chr1_858952_G_A    858952  ...      1.0    NaN    NOT_USED
+1                 1     chr1_905373_T_C    905373  ...      1.0    NaN    NOT_USED
+2                 1     chr1_911428_C_T    911428  ...      1.0    NaN    NOT_USED
+3                 1     chr1_918870_A_G    918870  ...      1.0    NaN    NOT_USED
+4                 1     chr1_931513_T_C    931513  ...      1.0    NaN    NOT_USED
+...             ...                 ...       ...  ...      ...    ...         ...
+3189214          22  chr22_50749145_C_T  50749145  ...      1.0    NaN    NOT_USED
+3189215          22  chr22_50749470_T_C  50749470  ...      1.0    NaN    NOT_USED
+3189216          22  chr22_50749890_T_G  50749890  ...      1.0    NaN    NOT_USED
+3189217          22  chr22_50751123_G_T  50751123  ...      1.0    NaN    NOT_USED
+3189218          22  chr22_50752652_C_G  50752652  ...      1.0    NaN    NOT_USED
+
+[3189219 rows x 13 columns]
+
+###### sort in increaseing order by Wald_P ######
+
+###### check we correlectly sorted ######
+         Chromosome            Predictor  ...  MachR2 SPA_Status
+2455361          12  chr12_131537088_C_T  ...     NaN   NOT_USED
+2455367          12  chr12_131538996_A_G  ...     NaN   NOT_USED
+2455380          12  chr12_131546545_G_A  ...     NaN   NOT_USED
+2455364          12  chr12_131537816_C_T  ...     NaN   NOT_USED
+2455390          12  chr12_131551368_G_A  ...     NaN   NOT_USED
+...             ...                  ...  ...     ...        ...
+1882428           9    chr9_75696059_G_A  ...     NaN   NOT_USED
+1882426           9    chr9_75695851_A_T  ...     NaN   NOT_USED
+1882427           9    chr9_75695980_G_A  ...     NaN   NOT_USED
+2597158          14   chr14_28227463_A_G  ...     NaN   NOT_USED
+2637447          14   chr14_58002763_G_A  ...     NaN   NOT_USED
+
+[3189219 rows x 13 columns]
+
+###### get the first 10K SNPs ######
+
+###### check the number of rows ######
+
+###### save the results ######
+
+#######################################
+#######################################
+starting weight_change
+#######################################
+#######################################
+
+###### load assoc results to pandas ######
+         Chromosome           Predictor  Basepair  ... CallRate MachR2  SPA_Status
+0                 1     chr1_858952_G_A    858952  ...      1.0    NaN    NOT_USED
+1                 1     chr1_905373_T_C    905373  ...      1.0    NaN    NOT_USED
+2                 1     chr1_911428_C_T    911428  ...      1.0    NaN    NOT_USED
+3                 1     chr1_918870_A_G    918870  ...      1.0    NaN    NOT_USED
+4                 1     chr1_931513_T_C    931513  ...      1.0    NaN    NOT_USED
+...             ...                 ...       ...  ...      ...    ...         ...
+3187478          22  chr22_50749145_C_T  50749145  ...      1.0    NaN    NOT_USED
+3187479          22  chr22_50749470_T_C  50749470  ...      1.0    NaN    NOT_USED
+3187480          22  chr22_50749890_T_G  50749890  ...      1.0    NaN    NOT_USED
+3187481          22  chr22_50751123_G_T  50751123  ...      1.0    NaN    NOT_USED
+3187482          22  chr22_50752652_C_G  50752652  ...      1.0    NaN    NOT_USED
+
+[3187483 rows x 13 columns]
+
+###### sort in increaseing order by Wald_P ######
+
+###### check we correlectly sorted ######
+         Chromosome           Predictor   Basepair  ... CallRate MachR2  SPA_Status
+2983414          18  chr18_61207402_A_G   61207402  ...      1.0    NaN    NOT_USED
+2983415          18  chr18_61209328_G_A   61209328  ...      1.0    NaN    NOT_USED
+2983384          18  chr18_61186091_A_G   61186091  ...      1.0    NaN    NOT_USED
+2983374          18  chr18_61183433_G_A   61183433  ...      1.0    NaN    NOT_USED
+2983372          18  chr18_61183039_G_C   61183039  ...      1.0    NaN    NOT_USED
+...             ...                 ...        ...  ...      ...    ...         ...
+3164679          22  chr22_32158175_C_T   32158175  ...      1.0    NaN    NOT_USED
+834634            4   chr4_57332857_C_T   57332857  ...      1.0    NaN    NOT_USED
+704891            3  chr3_152156125_G_A  152156125  ...      1.0    NaN    NOT_USED
+2023986          10  chr10_53545044_A_G   53545044  ...      1.0    NaN    NOT_USED
+2023985          10  chr10_53544887_T_A   53544887  ...      1.0    NaN    NOT_USED
+
+[3187483 rows x 13 columns]
+
+###### get the first 10K SNPs ######
+
+###### check the number of rows ######
+
+###### save the results ######
+
+#######################################
+#######################################
+FINISH
+#######################################
+#######################################

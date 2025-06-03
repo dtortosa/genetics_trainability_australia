@@ -162,11 +162,11 @@ Check that the subset has as many rows as unique gene IDs in the original file. 
 
 # convert the results into a DataFrame #
              phenotype chromosome_name          gene_id  mean_effect  sd_effect
-0      distance_change            chr1  ENSG00000000457     0.032467   0.027405
-1      distance_change            chr1  ENSG00000000460     0.032298   0.027055
-2      distance_change            chr1  ENSG00000000938     0.044956   0.037533
-3      distance_change            chr1  ENSG00000000971     0.043216   0.028425
-4      distance_change            chr1  ENSG00000001460     0.029291   0.020493
+0      distance_change            chr1  ENSG00000000457     0.035467   0.026916
+1      distance_change            chr1  ENSG00000000460     0.035568   0.027019
+2      distance_change            chr1  ENSG00000000938     0.039562   0.040417
+3      distance_change            chr1  ENSG00000000971     0.037883   0.031684
+4      distance_change            chr1  ENSG00000001460     0.029587   0.021945
 ...                ...             ...              ...          ...        ...
 71535    weight_change            chr9  ENSG00000269305     0.036932   0.028022
 71536    weight_change            chr9  ENSG00000269408     0.038330   0.027623
@@ -251,15 +251,15 @@ Name: Target, Length: 1674, dtype: object
 
 # convert the results into a DataFrame #
              pheno  random_lower_95CI  random_upper_95CI  connectome_median  \
-0  distance_change           0.042096           0.043101           0.042612   
-1       vo2_change           0.041375           0.042287           0.041646   
-2      beep_change           0.041513           0.042376           0.041749   
+0  distance_change           0.041717           0.042673           0.042007   
+1       vo2_change           0.041393           0.042367           0.041547   
+2      beep_change           0.041076           0.041967           0.041361   
 3    weight_change           0.040670           0.041598           0.041485   
 
    empirical_p_value  
-0           0.490093  
-1           0.804803  
-2           0.834938  
+0           0.751513  
+1           0.898845  
+2           0.721364  
 3           0.064859  
 
 #######################################

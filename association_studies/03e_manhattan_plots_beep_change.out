@@ -18,13 +18,11 @@ check behaviour run_bash
 #######################################
 
 ###### see working directory ######
-/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+/home/UGR002/dsalazar/climahealth/combat_genes
 
 
 ###### list files/folders there ######
 03a_association_analyses.sif
-03a_phenotype_prep.out
-03aa_final_pca_calc.out
 03b_prs_calculation_100_iter_large_set_predictors_beep_change.out
 03b_prs_calculation_100_iter_large_set_predictors_distance_change.out
 03b_prs_calculation_100_iter_large_set_predictors_vo2_change.out
@@ -33,17 +31,10 @@ check behaviour run_bash
 03b_prs_calculation_100_iter_small_set_predictors_distance_change.out
 03b_prs_calculation_100_iter_small_set_predictors_vo2_change.out
 03b_prs_calculation_100_iter_small_set_predictors_weight_change.out
-03c_prepare_slurm_files.out
 03d_processing_results.out
 03e_manhattan_plots_beep_change.out
 03e_manhattan_plots_distance_change.out
-03e_manhattan_plots_vo2_change.out
-03e_manhattan_plots_weight_change.out
-03f_bat_smt_analyses_bat.out
-03f_bat_smt_analyses_metabolic.out
-03f_bat_smt_analyses_smt.out
 data
-literature
 results
 scripts
 
@@ -61,17 +52,17 @@ For phenotype beep_change, and the small dataset of covariates
 
 ## load the phenotype data ##
                  family_id AGRF code  ...  Week 1 Beep test  beep_change
-0     combat_ILGSA24-17303  0200ADMM  ...          0.269686    -0.269686
-1     combat_ILGSA24-17303  0200ASJM  ...          1.447926    -2.463212
-2     combat_ILGSA24-17303  0200BHNM  ...         -1.713535    -0.885320
-3     combat_ILGSA24-17303  0200CBOM  ...         -0.922440    -0.757386
-4     combat_ILGSA24-17303  0200CDFM  ...         -0.143587    -0.885320
+0     combat_ILGSA24-17303  0200ADMM  ...          0.269686    -0.515363
+1     combat_ILGSA24-17303  0200ASJM  ...          1.433991    -2.463212
+2     combat_ILGSA24-17303  0200BHNM  ...         -1.713535    -0.903724
+3     combat_ILGSA24-17303  0200CBOM  ...         -0.922440    -0.787307
+4     combat_ILGSA24-17303  0200CDFM  ...         -0.153565    -0.903724
 ...                    ...       ...  ...               ...          ...
-1013  combat_ILGSA24-17873  8098ATDN  ...          0.405596     0.416334
-1014  combat_ILGSA24-17873  8098RSJN  ...         -0.223901    -1.025520
-1015  combat_ILGSA24-17873  8098TSAN  ...          0.814507    -0.593047
-1016  combat_ILGSA24-17873  8099AJNN  ...          0.269686     0.336863
-1017  combat_ILGSA24-17873  8099COSN  ...          0.405596     0.079031
+1013  combat_ILGSA24-17873  8098ATDN  ...          0.394904     0.342090
+1014  combat_ILGSA24-17873  8098RSJN  ...         -0.234031    -1.025520
+1015  combat_ILGSA24-17873  8098TSAN  ...          0.807651    -0.656020
+1016  combat_ILGSA24-17873  8099AJNN  ...          0.269686     0.342090
+1017  combat_ILGSA24-17873  8099COSN  ...          0.394904     0.074082
 
 [1018 rows x 8 columns]
 
@@ -216,7 +207,8 @@ Calculating traces for Chunk 12001 of 12458
 Calculating traces for Chunk 12201 of 12458
 Calculating traces for Chunk 12401 of 12458
 
-Best power is -1.0000 and estimated heritability is 0.5314
+Best power is -1.0000 and estimated heritability is 2.7208
+Warning, the heritability is very high, so has been reduced to 0.8000
 
 Time check: have so far spent 0.02 hours
 
@@ -286,7 +278,7 @@ Scan 1: estimating training effect sizes for Chunk 11801 of 12458
 Scan 1: estimating training effect sizes for Chunk 12001 of 12458
 Scan 1: estimating training effect sizes for Chunk 12201 of 12458
 Scan 1: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.62
+Average number of iterations per chunk: 3.54
 
 Scan 2: estimating training effect sizes for Chunk 1 of 12458
 Scan 2: estimating training effect sizes for Chunk 201 of 12458
@@ -351,7 +343,7 @@ Scan 2: estimating training effect sizes for Chunk 11801 of 12458
 Scan 2: estimating training effect sizes for Chunk 12001 of 12458
 Scan 2: estimating training effect sizes for Chunk 12201 of 12458
 Scan 2: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.13
+Average number of iterations per chunk: 3.36
 
 Scan 3: estimating training effect sizes for Chunk 1 of 12458
 Scan 3: estimating training effect sizes for Chunk 201 of 12458
@@ -416,7 +408,7 @@ Scan 3: estimating training effect sizes for Chunk 11801 of 12458
 Scan 3: estimating training effect sizes for Chunk 12001 of 12458
 Scan 3: estimating training effect sizes for Chunk 12201 of 12458
 Scan 3: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.01
+Average number of iterations per chunk: 3.03
 
 Scan 4: estimating training effect sizes for Chunk 1 of 12458
 Scan 4: estimating training effect sizes for Chunk 201 of 12458
@@ -481,7 +473,7 @@ Scan 4: estimating training effect sizes for Chunk 11801 of 12458
 Scan 4: estimating training effect sizes for Chunk 12001 of 12458
 Scan 4: estimating training effect sizes for Chunk 12201 of 12458
 Scan 4: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.65
 
 Scan 5: estimating training effect sizes for Chunk 1 of 12458
 Scan 5: estimating training effect sizes for Chunk 201 of 12458
@@ -546,7 +538,7 @@ Scan 5: estimating training effect sizes for Chunk 11801 of 12458
 Scan 5: estimating training effect sizes for Chunk 12001 of 12458
 Scan 5: estimating training effect sizes for Chunk 12201 of 12458
 Scan 5: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.43
 
 Scan 6: estimating training effect sizes for Chunk 1 of 12458
 Scan 6: estimating training effect sizes for Chunk 201 of 12458
@@ -611,7 +603,7 @@ Scan 6: estimating training effect sizes for Chunk 11801 of 12458
 Scan 6: estimating training effect sizes for Chunk 12001 of 12458
 Scan 6: estimating training effect sizes for Chunk 12201 of 12458
 Scan 6: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.33
 
 Scan 7: estimating training effect sizes for Chunk 1 of 12458
 Scan 7: estimating training effect sizes for Chunk 201 of 12458
@@ -676,7 +668,7 @@ Scan 7: estimating training effect sizes for Chunk 11801 of 12458
 Scan 7: estimating training effect sizes for Chunk 12001 of 12458
 Scan 7: estimating training effect sizes for Chunk 12201 of 12458
 Scan 7: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.25
 
 Scan 8: estimating training effect sizes for Chunk 1 of 12458
 Scan 8: estimating training effect sizes for Chunk 201 of 12458
@@ -741,7 +733,7 @@ Scan 8: estimating training effect sizes for Chunk 11801 of 12458
 Scan 8: estimating training effect sizes for Chunk 12001 of 12458
 Scan 8: estimating training effect sizes for Chunk 12201 of 12458
 Scan 8: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.20
 
 Scan 9: estimating training effect sizes for Chunk 1 of 12458
 Scan 9: estimating training effect sizes for Chunk 201 of 12458
@@ -806,90 +798,25 @@ Scan 9: estimating training effect sizes for Chunk 11801 of 12458
 Scan 9: estimating training effect sizes for Chunk 12001 of 12458
 Scan 9: estimating training effect sizes for Chunk 12201 of 12458
 Scan 9: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.00
-
-Scan 10: estimating training effect sizes for Chunk 1 of 12458
-Scan 10: estimating training effect sizes for Chunk 201 of 12458
-Scan 10: estimating training effect sizes for Chunk 401 of 12458
-Scan 10: estimating training effect sizes for Chunk 601 of 12458
-Scan 10: estimating training effect sizes for Chunk 801 of 12458
-Scan 10: estimating training effect sizes for Chunk 1001 of 12458
-Scan 10: estimating training effect sizes for Chunk 1201 of 12458
-Scan 10: estimating training effect sizes for Chunk 1401 of 12458
-Scan 10: estimating training effect sizes for Chunk 1601 of 12458
-Scan 10: estimating training effect sizes for Chunk 1801 of 12458
-Scan 10: estimating training effect sizes for Chunk 2001 of 12458
-Scan 10: estimating training effect sizes for Chunk 2201 of 12458
-Scan 10: estimating training effect sizes for Chunk 2401 of 12458
-Scan 10: estimating training effect sizes for Chunk 2601 of 12458
-Scan 10: estimating training effect sizes for Chunk 2801 of 12458
-Scan 10: estimating training effect sizes for Chunk 3001 of 12458
-Scan 10: estimating training effect sizes for Chunk 3201 of 12458
-Scan 10: estimating training effect sizes for Chunk 3401 of 12458
-Scan 10: estimating training effect sizes for Chunk 3601 of 12458
-Scan 10: estimating training effect sizes for Chunk 3801 of 12458
-Scan 10: estimating training effect sizes for Chunk 4001 of 12458
-Scan 10: estimating training effect sizes for Chunk 4201 of 12458
-Scan 10: estimating training effect sizes for Chunk 4401 of 12458
-Scan 10: estimating training effect sizes for Chunk 4601 of 12458
-Scan 10: estimating training effect sizes for Chunk 4801 of 12458
-Scan 10: estimating training effect sizes for Chunk 5001 of 12458
-Scan 10: estimating training effect sizes for Chunk 5201 of 12458
-Scan 10: estimating training effect sizes for Chunk 5401 of 12458
-Scan 10: estimating training effect sizes for Chunk 5601 of 12458
-Scan 10: estimating training effect sizes for Chunk 5801 of 12458
-Scan 10: estimating training effect sizes for Chunk 6001 of 12458
-Scan 10: estimating training effect sizes for Chunk 6201 of 12458
-Scan 10: estimating training effect sizes for Chunk 6401 of 12458
-Scan 10: estimating training effect sizes for Chunk 6601 of 12458
-Scan 10: estimating training effect sizes for Chunk 6801 of 12458
-Scan 10: estimating training effect sizes for Chunk 7001 of 12458
-Scan 10: estimating training effect sizes for Chunk 7201 of 12458
-Scan 10: estimating training effect sizes for Chunk 7401 of 12458
-Scan 10: estimating training effect sizes for Chunk 7601 of 12458
-Scan 10: estimating training effect sizes for Chunk 7801 of 12458
-Scan 10: estimating training effect sizes for Chunk 8001 of 12458
-Scan 10: estimating training effect sizes for Chunk 8201 of 12458
-Scan 10: estimating training effect sizes for Chunk 8401 of 12458
-Scan 10: estimating training effect sizes for Chunk 8601 of 12458
-Scan 10: estimating training effect sizes for Chunk 8801 of 12458
-Scan 10: estimating training effect sizes for Chunk 9001 of 12458
-Scan 10: estimating training effect sizes for Chunk 9201 of 12458
-Scan 10: estimating training effect sizes for Chunk 9401 of 12458
-Scan 10: estimating training effect sizes for Chunk 9601 of 12458
-Scan 10: estimating training effect sizes for Chunk 9801 of 12458
-Scan 10: estimating training effect sizes for Chunk 10001 of 12458
-Scan 10: estimating training effect sizes for Chunk 10201 of 12458
-Scan 10: estimating training effect sizes for Chunk 10401 of 12458
-Scan 10: estimating training effect sizes for Chunk 10601 of 12458
-Scan 10: estimating training effect sizes for Chunk 10801 of 12458
-Scan 10: estimating training effect sizes for Chunk 11001 of 12458
-Scan 10: estimating training effect sizes for Chunk 11201 of 12458
-Scan 10: estimating training effect sizes for Chunk 11401 of 12458
-Scan 10: estimating training effect sizes for Chunk 11601 of 12458
-Scan 10: estimating training effect sizes for Chunk 11801 of 12458
-Scan 10: estimating training effect sizes for Chunk 12001 of 12458
-Scan 10: estimating training effect sizes for Chunk 12201 of 12458
-Scan 10: estimating training effect sizes for Chunk 12401 of 12458
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.18
 
 The revised estimate of heritability is 0.0100
 
 Measuring accuracy of each model
-Model 1: heritability 0.0100, p 0.0000, f2 1.0000, mean squared error 0.9929
-Model 2: heritability 0.0100, p 0.5000, f2 0.5000, mean squared error 0.9929
-Model 3: heritability 0.0100, p 0.5000, f2 0.3000, mean squared error 0.9950
-Model 4: heritability 0.0100, p 0.5000, f2 0.1000, mean squared error 1.0019
-Model 5: heritability 0.0100, p 0.1000, f2 0.5000, mean squared error 0.9960
-Model 6: heritability 0.0100, p 0.1000, f2 0.3000, mean squared error 0.9992
-Model 7: heritability 0.0100, p 0.1000, f2 0.1000, mean squared error 1.0059
-Model 8: heritability 0.0100, p 0.0100, f2 0.5000, mean squared error 0.9955
-Model 9: heritability 0.0100, p 0.0100, f2 0.3000, mean squared error 0.9902
-Model 10: heritability 0.0100, p 0.0100, f2 0.1000, mean squared error 0.9925
+Model 1: heritability 0.0100, p 0.0000, f2 1.0000, mean squared error 1.0047
+Model 2: heritability 0.0100, p 0.5000, f2 0.5000, mean squared error 1.0047
+Model 3: heritability 0.0100, p 0.5000, f2 0.3000, mean squared error 1.0084
+Model 4: heritability 0.0100, p 0.5000, f2 0.1000, mean squared error 1.0088
+Model 5: heritability 0.0100, p 0.1000, f2 0.5000, mean squared error 1.0067
+Model 6: heritability 0.0100, p 0.1000, f2 0.3000, mean squared error 1.0084
+Model 7: heritability 0.0100, p 0.1000, f2 0.1000, mean squared error 1.0116
+Model 8: heritability 0.0100, p 0.0100, f2 0.5000, mean squared error 1.0050
+Model 9: heritability 0.0100, p 0.0100, f2 0.3000, mean squared error 1.0053
+Model 10: heritability 0.0100, p 0.0100, f2 0.1000, mean squared error 1.0056
 
-Time check: have so far spent 0.14 hours
+Time check: have so far spent 0.27 hours
 
-Constructing final PRS (heritability 0.0100, p 0.0100, f2 0.3000) using all samples
+Constructing final PRS (heritability 0.0100, p 0.5000, f2 0.5000) using all samples
 
 Scan 1: estimating final effect sizes for Chunk 1 of 12458
 Scan 1: estimating final effect sizes for Chunk 201 of 12458
@@ -1021,13 +948,16 @@ Scan 2: estimating final effect sizes for Chunk 12201 of 12458
 Scan 2: estimating final effect sizes for Chunk 12401 of 12458
 Average number of iterations per chunk: 1.00
 
+Scan 3: estimating final effect sizes for Chunk 1 of 4
+Average number of iterations per chunk: 1.00
+
 Best-fitting model saved in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_elastic.effects, with posterior probabilities in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_elastic.probs
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:46:42 2025 and ended at Mon May 12 20:55:24 2025
-The elapsed time was 0.14 hours
-Given the command used one thread, this means the CPU time was also 0.14 hours
+This command started at Sun May 25 08:45:05 2025 and ended at Sun May 25 09:01:49 2025
+The elapsed time was 0.28 hours
+Given the command used one thread, this means the CPU time was also 0.28 hours
 Mission completed. All your basepair are belong to us :)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -1138,11 +1068,11 @@ Calculating scores for Chunk 3151 of 3200
 
 Profile saved in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_elastic_prs_calc_with_pheno.profile
 
-Correlation between score and phenotype is 0.8657, saved in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_elastic_prs_calc_with_pheno.cors
+Correlation between score and phenotype is 0.8586, saved in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_elastic_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:55:24 2025 and ended at Mon May 12 20:55:43 2025
+This command started at Sun May 25 09:01:49 2025 and ended at Sun May 25 09:02:21 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -1254,7 +1184,7 @@ Profile saved in ./results/final_results/analysis_full_data/beep_change/beep_cha
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:55:43 2025 and ended at Mon May 12 20:56:03 2025
+This command started at Sun May 25 09:02:21 2025 and ended at Sun May 25 09:02:53 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -1643,9 +1573,9 @@ Main results saved in ./results/final_results/analysis_full_data/beep_change/bee
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:03 2025 and ended at Mon May 12 20:56:20 2025
-The elapsed time was 0.00 hours
-Given the command used one thread, this means the CPU time was also 0.00 hours
+This command started at Sun May 25 09:02:53 2025 and ended at Sun May 25 09:03:26 2025
+The elapsed time was 0.01 hours
+Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -1694,94 +1624,94 @@ All of these are in the data
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
 Reading p-values from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues
-First few p-values are: chr1_858952_G_A 7.3421e-01 | chr1_905373_T_C 6.4949e-01 | chr1_911428_C_T 1.5342e-01
+First few p-values are: chr1_858952_G_A 8.0753e-01 | chr1_905373_T_C 7.1965e-01 | chr1_911428_C_T 2.4518e-01
 
 Will prune in two passes; first with windows of size 10kb, then 1000.00kb
 
 The bit-size will be set to 25 (you can change this using "--bit-size")
 
 Pass 1: Thinning for Chunk 1 of 127569; stay tuned for updates ;)
-Pass 1: Thinning for Chunk 2001 of 127569; kept 5349 out of 50000 predictors (10.70%)
-Pass 1: Thinning for Chunk 4001 of 127569; kept 10136 out of 100000 predictors (10.14%)
-Pass 1: Thinning for Chunk 6001 of 127569; kept 15020 out of 150000 predictors (10.01%)
-Pass 1: Thinning for Chunk 8001 of 127569; kept 19794 out of 200000 predictors (9.90%)
-Pass 1: Thinning for Chunk 10001 of 127569; kept 24362 out of 250000 predictors (9.74%)
-Pass 1: Thinning for Chunk 12001 of 127569; kept 28870 out of 300000 predictors (9.62%)
-Pass 1: Thinning for Chunk 14001 of 127569; kept 33428 out of 350000 predictors (9.55%)
-Pass 1: Thinning for Chunk 16001 of 127569; kept 38039 out of 400000 predictors (9.51%)
-Pass 1: Thinning for Chunk 18001 of 127569; kept 42841 out of 450000 predictors (9.52%)
-Pass 1: Thinning for Chunk 20001 of 127569; kept 48242 out of 500000 predictors (9.65%)
-Pass 1: Thinning for Chunk 22001 of 127569; kept 52767 out of 550000 predictors (9.59%)
-Pass 1: Thinning for Chunk 24001 of 127569; kept 57504 out of 600000 predictors (9.58%)
-Pass 1: Thinning for Chunk 26001 of 127569; kept 61943 out of 650000 predictors (9.53%)
-Pass 1: Thinning for Chunk 28001 of 127569; kept 66711 out of 700000 predictors (9.53%)
-Pass 1: Thinning for Chunk 30001 of 127569; kept 71454 out of 750000 predictors (9.53%)
-Pass 1: Thinning for Chunk 32001 of 127569; kept 76041 out of 800000 predictors (9.51%)
-Pass 1: Thinning for Chunk 34001 of 127569; kept 80232 out of 850000 predictors (9.44%)
-Pass 1: Thinning for Chunk 36001 of 127569; kept 84557 out of 900000 predictors (9.40%)
-Pass 1: Thinning for Chunk 38001 of 127569; kept 88986 out of 950000 predictors (9.37%)
-Pass 1: Thinning for Chunk 40001 of 127569; kept 93330 out of 1000000 predictors (9.33%)
-Pass 1: Thinning for Chunk 42001 of 127569; kept 97951 out of 1050000 predictors (9.33%)
-Pass 1: Thinning for Chunk 44001 of 127569; kept 102872 out of 1100000 predictors (9.35%)
-Pass 1: Thinning for Chunk 46001 of 127569; kept 107212 out of 1150000 predictors (9.32%)
-Pass 1: Thinning for Chunk 48001 of 127569; kept 112244 out of 1200000 predictors (9.35%)
-Pass 1: Thinning for Chunk 50001 of 127569; kept 116743 out of 1250000 predictors (9.34%)
-Pass 1: Thinning for Chunk 52001 of 127569; kept 120562 out of 1300000 predictors (9.27%)
-Pass 1: Thinning for Chunk 54001 of 127569; kept 124884 out of 1350000 predictors (9.25%)
-Pass 1: Thinning for Chunk 56001 of 127569; kept 129799 out of 1400000 predictors (9.27%)
-Pass 1: Thinning for Chunk 58001 of 127569; kept 134057 out of 1450000 predictors (9.25%)
-Pass 1: Thinning for Chunk 60001 of 127569; kept 138229 out of 1500000 predictors (9.22%)
-Pass 1: Thinning for Chunk 62001 of 127569; kept 142252 out of 1550000 predictors (9.18%)
-Pass 1: Thinning for Chunk 64001 of 127569; kept 147204 out of 1600000 predictors (9.20%)
-Pass 1: Thinning for Chunk 66001 of 127569; kept 151677 out of 1650000 predictors (9.19%)
-Pass 1: Thinning for Chunk 68001 of 127569; kept 155435 out of 1700000 predictors (9.14%)
-Pass 1: Thinning for Chunk 70001 of 127569; kept 159941 out of 1750000 predictors (9.14%)
-Pass 1: Thinning for Chunk 72001 of 127569; kept 164623 out of 1800000 predictors (9.15%)
-Pass 1: Thinning for Chunk 74001 of 127569; kept 169049 out of 1850000 predictors (9.14%)
-Pass 1: Thinning for Chunk 76001 of 127569; kept 173835 out of 1900000 predictors (9.15%)
-Pass 1: Thinning for Chunk 78001 of 127569; kept 178721 out of 1950000 predictors (9.17%)
-Pass 1: Thinning for Chunk 80001 of 127569; kept 183417 out of 2000000 predictors (9.17%)
-Pass 1: Thinning for Chunk 82001 of 127569; kept 187490 out of 2050000 predictors (9.15%)
-Pass 1: Thinning for Chunk 84001 of 127569; kept 192287 out of 2100000 predictors (9.16%)
-Pass 1: Thinning for Chunk 86001 of 127569; kept 196676 out of 2150000 predictors (9.15%)
-Pass 1: Thinning for Chunk 88001 of 127569; kept 201191 out of 2200000 predictors (9.15%)
-Pass 1: Thinning for Chunk 90001 of 127569; kept 205945 out of 2250000 predictors (9.15%)
-Pass 1: Thinning for Chunk 92001 of 127569; kept 210596 out of 2300000 predictors (9.16%)
-Pass 1: Thinning for Chunk 94001 of 127569; kept 214955 out of 2350000 predictors (9.15%)
-Pass 1: Thinning for Chunk 96001 of 127569; kept 219609 out of 2400000 predictors (9.15%)
-Pass 1: Thinning for Chunk 98001 of 127569; kept 224693 out of 2450000 predictors (9.17%)
-Pass 1: Thinning for Chunk 100001 of 127569; kept 229516 out of 2500000 predictors (9.18%)
-Pass 1: Thinning for Chunk 102001 of 127569; kept 233905 out of 2550000 predictors (9.17%)
-Pass 1: Thinning for Chunk 104001 of 127569; kept 238708 out of 2600000 predictors (9.18%)
-Pass 1: Thinning for Chunk 106001 of 127569; kept 243035 out of 2650000 predictors (9.17%)
-Pass 1: Thinning for Chunk 108001 of 127569; kept 248119 out of 2700000 predictors (9.19%)
-Pass 1: Thinning for Chunk 110001 of 127569; kept 253379 out of 2750000 predictors (9.21%)
-Pass 1: Thinning for Chunk 112001 of 127569; kept 258154 out of 2800000 predictors (9.22%)
-Pass 1: Thinning for Chunk 114001 of 127569; kept 262988 out of 2850000 predictors (9.23%)
-Pass 1: Thinning for Chunk 116001 of 127569; kept 268448 out of 2900000 predictors (9.26%)
-Pass 1: Thinning for Chunk 118001 of 127569; kept 274063 out of 2950000 predictors (9.29%)
-Pass 1: Thinning for Chunk 120001 of 127569; kept 278819 out of 3000000 predictors (9.29%)
-Pass 1: Thinning for Chunk 122001 of 127569; kept 284236 out of 3050000 predictors (9.32%)
-Pass 1: Thinning for Chunk 124001 of 127569; kept 289376 out of 3100000 predictors (9.33%)
-Pass 1: Thinning for Chunk 126001 of 127569; kept 294426 out of 3150000 predictors (9.35%)
+Pass 1: Thinning for Chunk 2001 of 127569; kept 5359 out of 50000 predictors (10.72%)
+Pass 1: Thinning for Chunk 4001 of 127569; kept 10173 out of 100000 predictors (10.17%)
+Pass 1: Thinning for Chunk 6001 of 127569; kept 15077 out of 150000 predictors (10.05%)
+Pass 1: Thinning for Chunk 8001 of 127569; kept 19860 out of 200000 predictors (9.93%)
+Pass 1: Thinning for Chunk 10001 of 127569; kept 24427 out of 250000 predictors (9.77%)
+Pass 1: Thinning for Chunk 12001 of 127569; kept 28937 out of 300000 predictors (9.65%)
+Pass 1: Thinning for Chunk 14001 of 127569; kept 33527 out of 350000 predictors (9.58%)
+Pass 1: Thinning for Chunk 16001 of 127569; kept 38143 out of 400000 predictors (9.54%)
+Pass 1: Thinning for Chunk 18001 of 127569; kept 42966 out of 450000 predictors (9.55%)
+Pass 1: Thinning for Chunk 20001 of 127569; kept 48384 out of 500000 predictors (9.68%)
+Pass 1: Thinning for Chunk 22001 of 127569; kept 52886 out of 550000 predictors (9.62%)
+Pass 1: Thinning for Chunk 24001 of 127569; kept 57645 out of 600000 predictors (9.61%)
+Pass 1: Thinning for Chunk 26001 of 127569; kept 62134 out of 650000 predictors (9.56%)
+Pass 1: Thinning for Chunk 28001 of 127569; kept 66899 out of 700000 predictors (9.56%)
+Pass 1: Thinning for Chunk 30001 of 127569; kept 71637 out of 750000 predictors (9.55%)
+Pass 1: Thinning for Chunk 32001 of 127569; kept 76255 out of 800000 predictors (9.53%)
+Pass 1: Thinning for Chunk 34001 of 127569; kept 80439 out of 850000 predictors (9.46%)
+Pass 1: Thinning for Chunk 36001 of 127569; kept 84774 out of 900000 predictors (9.42%)
+Pass 1: Thinning for Chunk 38001 of 127569; kept 89254 out of 950000 predictors (9.40%)
+Pass 1: Thinning for Chunk 40001 of 127569; kept 93592 out of 1000000 predictors (9.36%)
+Pass 1: Thinning for Chunk 42001 of 127569; kept 98240 out of 1050000 predictors (9.36%)
+Pass 1: Thinning for Chunk 44001 of 127569; kept 103203 out of 1100000 predictors (9.38%)
+Pass 1: Thinning for Chunk 46001 of 127569; kept 107568 out of 1150000 predictors (9.35%)
+Pass 1: Thinning for Chunk 48001 of 127569; kept 112613 out of 1200000 predictors (9.38%)
+Pass 1: Thinning for Chunk 50001 of 127569; kept 117105 out of 1250000 predictors (9.37%)
+Pass 1: Thinning for Chunk 52001 of 127569; kept 120907 out of 1300000 predictors (9.30%)
+Pass 1: Thinning for Chunk 54001 of 127569; kept 125222 out of 1350000 predictors (9.28%)
+Pass 1: Thinning for Chunk 56001 of 127569; kept 130162 out of 1400000 predictors (9.30%)
+Pass 1: Thinning for Chunk 58001 of 127569; kept 134420 out of 1450000 predictors (9.27%)
+Pass 1: Thinning for Chunk 60001 of 127569; kept 138616 out of 1500000 predictors (9.24%)
+Pass 1: Thinning for Chunk 62001 of 127569; kept 142658 out of 1550000 predictors (9.20%)
+Pass 1: Thinning for Chunk 64001 of 127569; kept 147596 out of 1600000 predictors (9.22%)
+Pass 1: Thinning for Chunk 66001 of 127569; kept 152089 out of 1650000 predictors (9.22%)
+Pass 1: Thinning for Chunk 68001 of 127569; kept 155878 out of 1700000 predictors (9.17%)
+Pass 1: Thinning for Chunk 70001 of 127569; kept 160409 out of 1750000 predictors (9.17%)
+Pass 1: Thinning for Chunk 72001 of 127569; kept 165106 out of 1800000 predictors (9.17%)
+Pass 1: Thinning for Chunk 74001 of 127569; kept 169516 out of 1850000 predictors (9.16%)
+Pass 1: Thinning for Chunk 76001 of 127569; kept 174326 out of 1900000 predictors (9.18%)
+Pass 1: Thinning for Chunk 78001 of 127569; kept 179230 out of 1950000 predictors (9.19%)
+Pass 1: Thinning for Chunk 80001 of 127569; kept 183893 out of 2000000 predictors (9.19%)
+Pass 1: Thinning for Chunk 82001 of 127569; kept 187992 out of 2050000 predictors (9.17%)
+Pass 1: Thinning for Chunk 84001 of 127569; kept 192783 out of 2100000 predictors (9.18%)
+Pass 1: Thinning for Chunk 86001 of 127569; kept 197175 out of 2150000 predictors (9.17%)
+Pass 1: Thinning for Chunk 88001 of 127569; kept 201648 out of 2200000 predictors (9.17%)
+Pass 1: Thinning for Chunk 90001 of 127569; kept 206392 out of 2250000 predictors (9.17%)
+Pass 1: Thinning for Chunk 92001 of 127569; kept 211061 out of 2300000 predictors (9.18%)
+Pass 1: Thinning for Chunk 94001 of 127569; kept 215449 out of 2350000 predictors (9.17%)
+Pass 1: Thinning for Chunk 96001 of 127569; kept 220081 out of 2400000 predictors (9.17%)
+Pass 1: Thinning for Chunk 98001 of 127569; kept 225180 out of 2450000 predictors (9.19%)
+Pass 1: Thinning for Chunk 100001 of 127569; kept 230041 out of 2500000 predictors (9.20%)
+Pass 1: Thinning for Chunk 102001 of 127569; kept 234415 out of 2550000 predictors (9.19%)
+Pass 1: Thinning for Chunk 104001 of 127569; kept 239186 out of 2600000 predictors (9.20%)
+Pass 1: Thinning for Chunk 106001 of 127569; kept 243557 out of 2650000 predictors (9.19%)
+Pass 1: Thinning for Chunk 108001 of 127569; kept 248616 out of 2700000 predictors (9.21%)
+Pass 1: Thinning for Chunk 110001 of 127569; kept 253882 out of 2750000 predictors (9.23%)
+Pass 1: Thinning for Chunk 112001 of 127569; kept 258680 out of 2800000 predictors (9.24%)
+Pass 1: Thinning for Chunk 114001 of 127569; kept 263493 out of 2850000 predictors (9.25%)
+Pass 1: Thinning for Chunk 116001 of 127569; kept 268943 out of 2900000 predictors (9.27%)
+Pass 1: Thinning for Chunk 118001 of 127569; kept 274559 out of 2950000 predictors (9.31%)
+Pass 1: Thinning for Chunk 120001 of 127569; kept 279290 out of 3000000 predictors (9.31%)
+Pass 1: Thinning for Chunk 122001 of 127569; kept 284746 out of 3050000 predictors (9.34%)
+Pass 1: Thinning for Chunk 124001 of 127569; kept 289886 out of 3100000 predictors (9.35%)
+Pass 1: Thinning for Chunk 126001 of 127569; kept 294931 out of 3150000 predictors (9.36%)
 
 The bit-size has now been set to 124
 
-Pass 2: Thinning for Chunk 1 of 2408; stay tuned for updates ;)
-Pass 2: Thinning for Chunk 401 of 2408; kept 15562 out of 49600 predictors (31.38%)
-Pass 2: Thinning for Chunk 801 of 2408; kept 31681 out of 99200 predictors (31.94%)
-Pass 2: Thinning for Chunk 1201 of 2408; kept 46786 out of 148800 predictors (31.44%)
-Pass 2: Thinning for Chunk 1601 of 2408; kept 64456 out of 198400 predictors (32.49%)
-Pass 2: Thinning for Chunk 2001 of 2408; kept 80944 out of 248000 predictors (32.64%)
-Pass 2: Thinning for Chunk 2401 of 2408; kept 101985 out of 297600 predictors (34.27%)
+Pass 2: Thinning for Chunk 1 of 2413; stay tuned for updates ;)
+Pass 2: Thinning for Chunk 401 of 2413; kept 15490 out of 49600 predictors (31.23%)
+Pass 2: Thinning for Chunk 801 of 2413; kept 31602 out of 99200 predictors (31.86%)
+Pass 2: Thinning for Chunk 1201 of 2413; kept 46595 out of 148800 predictors (31.31%)
+Pass 2: Thinning for Chunk 1601 of 2413; kept 64255 out of 198400 predictors (32.39%)
+Pass 2: Thinning for Chunk 2001 of 2413; kept 80550 out of 248000 predictors (32.48%)
+Pass 2: Thinning for Chunk 2401 of 2413; kept 101788 out of 297600 predictors (34.20%)
 
-Thinning complete: 102539 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.in), 3086680 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.trivial)
+Thinning complete: 102483 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.in), 3086736 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.trivial)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:21 2025 and ended at Mon May 12 20:57:13 2025
-The elapsed time was 0.01 hours
-Given the command used one thread, this means the CPU time was also 0.01 hours
+This command started at Sun May 25 09:03:28 2025 and ended at Sun May 25 09:05:06 2025
+The elapsed time was 0.03 hours
+Given the command used one thread, this means the CPU time was also 0.03 hours
 Mission completed. All your basepair are belong to us :)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -1827,9 +1757,9 @@ Checking responses for 1018 samples from ./results/final_results/analysis_full_d
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-Reading list of 102539 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.in
+Reading list of 102483 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_small_set_predictors_set_linear_clump_thresholding_1_predictors.in
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 102539)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 102483)
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -1858,7 +1788,7 @@ Main results saved in ./results/final_results/analysis_full_data/beep_change/clu
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:13 2025 and ended at Mon May 12 20:57:19 2025
+This command started at Sun May 25 09:05:07 2025 and ended at Sun May 25 09:05:14 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -1900,7 +1830,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 102539 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_linear_clump_thresholding_1.score
+Reading details for 102483 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_linear_clump_thresholding_1.score
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -1910,11 +1840,11 @@ Calculating scores for Chunk 101 of 115
 
 Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_linear_clump_thresholding_1_prs_calc_with_pheno.profile
 
-Correlations between 7 scores and phenotype range from 0.3007 to 0.8763, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_linear_clump_thresholding_1_prs_calc_with_pheno.cors
+Correlations between 7 scores and phenotype range from 0.2437 to 0.8703, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_linear_clump_thresholding_1_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:19 2025 and ended at Mon May 12 20:57:24 2025
+This command started at Sun May 25 09:05:14 2025 and ended at Sun May 25 09:05:23 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -1955,7 +1885,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 102539 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_linear_clump_thresholding_1.score
+Reading details for 102483 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1/beep_change_linear_clump_thresholding_1.score
 
 Calculating scores for Chunk 1 of 115
 Calculating scores for Chunk 51 of 115
@@ -1965,7 +1895,7 @@ Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_t
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:24 2025 and ended at Mon May 12 20:57:29 2025
+This command started at Sun May 25 09:05:23 2025 and ended at Sun May 25 09:05:31 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2003,36 +1933,36 @@ Reading IDs for 1018 samples from ./data/plink_filesets/small_set_predictors/bee
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-327106 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-01
+328514 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-01
 All of these are in the data
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 327106)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 328514)
 
 Reading p-values from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues
-First few p-values are: chr1_962184_T_C 3.5539e-02 | chr1_984039_T_C 3.8654e-02 | chr1_1094994_G_A 3.9304e-02
+First few p-values are: chr1_962184_T_C 3.5768e-02 | chr1_984039_T_C 3.0091e-02 | chr1_1094994_G_A 3.9481e-02
 
 Will prune in two passes; first with windows of size 10kb, then 1000.00kb
 
 The bit-size will be set to 20 (you can change this using "--bit-size")
 
-Pass 1: Thinning for Chunk 1 of 16356; stay tuned for updates ;)
-Pass 1: Thinning for Chunk 2501 of 16356; kept 8240 out of 50000 predictors (16.48%)
-Pass 1: Thinning for Chunk 5001 of 16356; kept 16030 out of 100000 predictors (16.03%)
-Pass 1: Thinning for Chunk 7501 of 16356; kept 24219 out of 150000 predictors (16.15%)
-Pass 1: Thinning for Chunk 10001 of 16356; kept 32265 out of 200000 predictors (16.13%)
-Pass 1: Thinning for Chunk 12501 of 16356; kept 40206 out of 250000 predictors (16.08%)
-Pass 1: Thinning for Chunk 15001 of 16356; kept 48769 out of 300000 predictors (16.26%)
+Pass 1: Thinning for Chunk 1 of 16426; stay tuned for updates ;)
+Pass 1: Thinning for Chunk 2501 of 16426; kept 8229 out of 50000 predictors (16.46%)
+Pass 1: Thinning for Chunk 5001 of 16426; kept 15951 out of 100000 predictors (15.95%)
+Pass 1: Thinning for Chunk 7501 of 16426; kept 24234 out of 150000 predictors (16.16%)
+Pass 1: Thinning for Chunk 10001 of 16426; kept 32303 out of 200000 predictors (16.15%)
+Pass 1: Thinning for Chunk 12501 of 16426; kept 40049 out of 250000 predictors (16.02%)
+Pass 1: Thinning for Chunk 15001 of 16426; kept 48605 out of 300000 predictors (16.20%)
 
 The bit-size has now been set to 25
 
 Pass 2: Thinning for Chunk 1 of 2144; stay tuned for updates ;)
-Pass 2: Thinning for Chunk 2001 of 2144; kept 22837 out of 50000 predictors (45.67%)
+Pass 2: Thinning for Chunk 2001 of 2144; kept 22790 out of 50000 predictors (45.58%)
 
-Thinning complete: 24862 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.in), 302244 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.trivial)
+Thinning complete: 24835 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.in), 303679 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.trivial)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:29 2025 and ended at Mon May 12 20:57:57 2025
+This command started at Sun May 25 09:05:31 2025 and ended at Sun May 25 09:06:16 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2080,9 +2010,9 @@ Checking responses for 1018 samples from ./results/final_results/analysis_full_d
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-Reading list of 24862 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.in
+Reading list of 24835 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_small_set_predictors_set_linear_clump_thresholding_0.1_predictors.in
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 24862)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 24835)
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2103,7 +2033,7 @@ Main results saved in ./results/final_results/analysis_full_data/beep_change/clu
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:57 2025 and ended at Mon May 12 20:58:01 2025
+This command started at Sun May 25 09:06:16 2025 and ended at Sun May 25 09:06:23 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2145,7 +2075,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 24862 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_linear_clump_thresholding_0.1.score
+Reading details for 24835 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_linear_clump_thresholding_0.1.score
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2153,11 +2083,11 @@ Calculating scores for Chunk 1 of 35
 
 Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_linear_clump_thresholding_0.1_prs_calc_with_pheno.profile
 
-Correlations between 7 scores and phenotype range from 0.3007 to 0.8750, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_linear_clump_thresholding_0.1_prs_calc_with_pheno.cors
+Correlations between 7 scores and phenotype range from 0.2437 to 0.8694, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_linear_clump_thresholding_0.1_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:01 2025 and ended at Mon May 12 20:58:06 2025
+This command started at Sun May 25 09:06:23 2025 and ended at Sun May 25 09:06:30 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2198,7 +2128,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 24862 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_linear_clump_thresholding_0.1.score
+Reading details for 24835 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.1/beep_change_linear_clump_thresholding_0.1.score
 
 Calculating scores for Chunk 1 of 35
 
@@ -2206,7 +2136,7 @@ Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_t
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:06 2025 and ended at Mon May 12 20:58:11 2025
+This command started at Sun May 25 09:06:30 2025 and ended at Sun May 25 09:06:37 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2244,29 +2174,29 @@ Reading IDs for 1018 samples from ./data/plink_filesets/small_set_predictors/bee
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-33074 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-02
+32836 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-02
 All of these are in the data
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 33074)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 32836)
 
 Reading p-values from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues
-First few p-values are: chr1_3417031_G_A 7.2980e-03 | chr1_3972702_C_T 9.6218e-03 | chr1_4061687_C_A 1.3533e-04
+First few p-values are: chr1_3972702_C_T 5.6554e-03 | chr1_4061687_C_A 7.3383e-05 | chr1_4163015_G_A 7.5650e-03
 
 Will prune in two passes; first with windows of size 10kb, then 1000.00kb
 
 The bit-size will be set to 20 (you can change this using "--bit-size")
 
-Pass 1: Thinning for Chunk 1 of 1654; stay tuned for updates ;)
+Pass 1: Thinning for Chunk 1 of 1642; stay tuned for updates ;)
 
 The bit-size has now been set to 20
 
-Pass 2: Thinning for Chunk 1 of 334; stay tuned for updates ;)
+Pass 2: Thinning for Chunk 1 of 333; stay tuned for updates ;)
 
-Thinning complete: 3704 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.in), 29370 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.trivial)
+Thinning complete: 3742 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.in), 29094 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.trivial)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:11 2025 and ended at Mon May 12 20:58:38 2025
+This command started at Sun May 25 09:06:37 2025 and ended at Sun May 25 09:07:16 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2314,9 +2244,9 @@ Checking responses for 1018 samples from ./results/final_results/analysis_full_d
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-Reading list of 3704 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.in
+Reading list of 3742 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_small_set_predictors_set_linear_clump_thresholding_0.01_predictors.in
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3704)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3742)
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2336,7 +2266,7 @@ Main results saved in ./results/final_results/analysis_full_data/beep_change/clu
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:38 2025 and ended at Mon May 12 20:58:42 2025
+This command started at Sun May 25 09:07:16 2025 and ended at Sun May 25 09:07:23 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2378,7 +2308,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 3704 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_linear_clump_thresholding_0.01.score
+Reading details for 3742 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_linear_clump_thresholding_0.01.score
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2386,11 +2316,11 @@ Calculating scores for Chunk 1 of 22
 
 Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_linear_clump_thresholding_0.01_prs_calc_with_pheno.profile
 
-Correlations between 7 scores and phenotype range from 0.3007 to 0.8677, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_linear_clump_thresholding_0.01_prs_calc_with_pheno.cors
+Correlations between 7 scores and phenotype range from 0.2437 to 0.8618, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_linear_clump_thresholding_0.01_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:42 2025 and ended at Mon May 12 20:58:47 2025
+This command started at Sun May 25 09:07:23 2025 and ended at Sun May 25 09:07:30 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2431,7 +2361,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 3704 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_linear_clump_thresholding_0.01.score
+Reading details for 3742 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.01/beep_change_linear_clump_thresholding_0.01.score
 
 Calculating scores for Chunk 1 of 22
 
@@ -2439,7 +2369,7 @@ Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_t
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:47 2025 and ended at Mon May 12 20:58:51 2025
+This command started at Sun May 25 09:07:30 2025 and ended at Sun May 25 09:07:37 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2477,29 +2407,29 @@ Reading IDs for 1018 samples from ./data/plink_filesets/small_set_predictors/bee
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-3254 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-03
+3195 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-03
 All of these are in the data
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3254)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3195)
 
 Reading p-values from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues
-First few p-values are: chr1_4061687_C_A 1.3533e-04 | chr1_7786246_C_G 5.3093e-04 | chr1_7786247_T_A 5.3093e-04
+First few p-values are: chr1_4061687_C_A 7.3383e-05 | chr1_7770202_T_C 3.9856e-04 | chr1_7776738_A_G 4.9591e-04
 
 Will prune in two passes; first with windows of size 10kb, then 1000.00kb
 
 The bit-size will be set to 20 (you can change this using "--bit-size")
 
-Pass 1: Thinning for Chunk 1 of 163; stay tuned for updates ;)
+Pass 1: Thinning for Chunk 1 of 160; stay tuned for updates ;)
 
 The bit-size has now been set to 20
 
-Pass 2: Thinning for Chunk 1 of 40; stay tuned for updates ;)
+Pass 2: Thinning for Chunk 1 of 41; stay tuned for updates ;)
 
-Thinning complete: 489 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.in), 2765 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.trivial)
+Thinning complete: 499 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.in), 2696 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.trivial)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:51 2025 and ended at Mon May 12 20:59:17 2025
+This command started at Sun May 25 09:07:37 2025 and ended at Sun May 25 09:08:15 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2547,9 +2477,9 @@ Checking responses for 1018 samples from ./results/final_results/analysis_full_d
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-Reading list of 489 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.in
+Reading list of 499 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.001_predictors.in
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 489)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 499)
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2569,7 +2499,7 @@ Main results saved in ./results/final_results/analysis_full_data/beep_change/clu
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:17 2025 and ended at Mon May 12 20:59:21 2025
+This command started at Sun May 25 09:08:15 2025 and ended at Sun May 25 09:08:22 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2611,7 +2541,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 489 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_linear_clump_thresholding_0.001.score
+Reading details for 499 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_linear_clump_thresholding_0.001.score
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2619,11 +2549,11 @@ Calculating scores for Chunk 1 of 22
 
 Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_linear_clump_thresholding_0.001_prs_calc_with_pheno.profile
 
-Correlations between 7 scores and phenotype range from 0.3007 to 0.8179, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_linear_clump_thresholding_0.001_prs_calc_with_pheno.cors
+Correlations between 7 scores and phenotype range from 0.2437 to 0.8139, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_linear_clump_thresholding_0.001_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:21 2025 and ended at Mon May 12 20:59:25 2025
+This command started at Sun May 25 09:08:22 2025 and ended at Sun May 25 09:08:29 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2664,7 +2594,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 489 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_linear_clump_thresholding_0.001.score
+Reading details for 499 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.001/beep_change_linear_clump_thresholding_0.001.score
 
 Calculating scores for Chunk 1 of 22
 
@@ -2672,7 +2602,7 @@ Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_t
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:25 2025 and ended at Mon May 12 20:59:29 2025
+This command started at Sun May 25 09:08:29 2025 and ended at Sun May 25 09:08:36 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2710,29 +2640,29 @@ Reading IDs for 1018 samples from ./data/plink_filesets/small_set_predictors/bee
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-217 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-04
+221 of the 3189219 predictors in ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues have P <= 1.00e-04
 All of these are in the data
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 217)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 221)
 
 Reading p-values from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues
-First few p-values are: chr1_68384728_T_A 6.0154e-05 | chr1_68384919_G_C 6.0154e-05 | chr1_68385124_T_C 6.0154e-05
+First few p-values are: chr1_4061687_C_A 7.3383e-05 | chr1_68384728_T_A 2.7984e-05 | chr1_68384919_G_C 2.7984e-05
 
 Will prune in two passes; first with windows of size 10kb, then 1000.00kb
 
 The bit-size will be set to 20 (you can change this using "--bit-size")
 
-Pass 1: Thinning for Chunk 1 of 11; stay tuned for updates ;)
+Pass 1: Thinning for Chunk 1 of 12; stay tuned for updates ;)
 
 The bit-size has now been set to 20
 
 Pass 2: Thinning for Chunk 1 of 4; stay tuned for updates ;)
 
-Thinning complete: 38 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.in), 179 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.trivial)
+Thinning complete: 44 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.in), 177 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.trivial)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:29 2025 and ended at Mon May 12 20:59:54 2025
+This command started at Sun May 25 09:08:36 2025 and ended at Sun May 25 09:09:14 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2780,9 +2710,9 @@ Checking responses for 1018 samples from ./results/final_results/analysis_full_d
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-Reading list of 38 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.in
+Reading list of 44 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_small_set_predictors_set_linear_clump_thresholding_0.0001_predictors.in
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 38)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 44)
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2801,7 +2731,7 @@ Main results saved in ./results/final_results/analysis_full_data/beep_change/clu
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:54 2025 and ended at Mon May 12 20:59:58 2025
+This command started at Sun May 25 09:09:14 2025 and ended at Sun May 25 09:09:21 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2843,7 +2773,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 38 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_linear_clump_thresholding_0.0001.score
+Reading details for 44 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_linear_clump_thresholding_0.0001.score
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -2851,11 +2781,11 @@ Calculating scores for Chunk 1 of 17
 
 Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_linear_clump_thresholding_0.0001_prs_calc_with_pheno.profile
 
-Correlations between 7 scores and phenotype range from 0.3007 to 0.5566, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_linear_clump_thresholding_0.0001_prs_calc_with_pheno.cors
+Correlations between 7 scores and phenotype range from 0.2437 to 0.5632, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_linear_clump_thresholding_0.0001_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:58 2025 and ended at Mon May 12 21:00:02 2025
+This command started at Sun May 25 09:09:21 2025 and ended at Sun May 25 09:09:28 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2896,7 +2826,7 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 38 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_linear_clump_thresholding_0.0001.score
+Reading details for 44 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_0.0001/beep_change_linear_clump_thresholding_0.0001.score
 
 Calculating scores for Chunk 1 of 17
 
@@ -2904,7 +2834,7 @@ Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_t
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 21:00:02 2025 and ended at Mon May 12 21:00:06 2025
+This command started at Sun May 25 09:09:28 2025 and ended at Sun May 25 09:09:34 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2948,7 +2878,7 @@ All of these are in the data
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 28)
 
 Reading p-values from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_linear_raw.pvalues
-First few p-values are: chr3_187336176_T_C 1.6773e-06 | chr3_187336418_T_C 1.9805e-06 | chr3_187336496_T_C 2.9909e-06
+First few p-values are: chr3_187336176_T_C 5.1538e-06 | chr3_187336418_T_C 5.0764e-06 | chr3_187336496_T_C 7.7543e-06
 
 Will prune in two passes; first with windows of size 10kb, then 1000.00kb
 
@@ -2960,11 +2890,11 @@ The bit-size has now been set to 20
 
 Pass 2: Thinning for Chunk 1 of 1; stay tuned for updates ;)
 
-Thinning complete: 6 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.in), 22 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.trivial)
+Thinning complete: 4 predictors kept (saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.in), 24 lost (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.out) and 0 trivial (./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.trivial)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 21:00:06 2025 and ended at Mon May 12 21:00:29 2025
+This command started at Sun May 25 09:09:34 2025 and ended at Sun May 25 09:10:13 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -3012,9 +2942,9 @@ Checking responses for 1018 samples from ./results/final_results/analysis_full_d
 
 Reading details for 3189219 predictors from ./data/plink_filesets/small_set_predictors/beep_change_filesets/beep_change_subset_missing_clean_maf_hwe_sample_snp_missing.bim
 
-Reading list of 6 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.in
+Reading list of 4 predictors to extract from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_small_set_predictors_set_linear_clump_thresholding_1e-05_predictors.in
 
-Data contain 1018 samples and 3189219 predictors (will be using 1018 and 6)
+Data contain 1018 samples and 3189219 predictors (will be using 1018 and 4)
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
@@ -3026,13 +2956,13 @@ Reading 4 covariates for 1018 samples from ./results/final_results/analysis_full
 
 Note that a combined covariate file has been saved to ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.combined (this contains both the quantitative covariates and the indicator variables corresponding to the factors; it would be equivalent to repeat this analysis replacing "--covar ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_covars_cont.tsv" and "--factors ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_covars_factors.tsv" with "--covar ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.combined")
 
-Performing linear regression for Chunk 1 of 6
+Performing linear regression for Chunk 1 of 4
 
 Main results saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.assoc, with a summary version in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.summaries, p-values in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.pvalues and score file in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.score
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 21:00:29 2025 and ended at Mon May 12 21:00:32 2025
+This command started at Sun May 25 09:10:13 2025 and ended at Sun May 25 09:10:19 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -3074,19 +3004,19 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 6 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.score
+Reading details for 4 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.score
 
 Reading phenotypes for 1018 samples from ./results/final_results/analysis_full_data/beep_change/beep_change_small_set_predictors_set_transform_subset_response.tsv
 
-Calculating scores for Chunk 1 of 6
+Calculating scores for Chunk 1 of 4
 
 Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05_prs_calc_with_pheno.profile
 
-Correlations between 7 scores and phenotype range from 0.3007 to 0.3007, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05_prs_calc_with_pheno.cors
+Correlations between 7 scores and phenotype range from 0.2437 to 0.2437, saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 21:00:32 2025 and ended at Mon May 12 21:00:36 2025
+This command started at Sun May 25 09:10:19 2025 and ended at Sun May 25 09:10:26 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -3127,15 +3057,15 @@ Reading details for 3189219 predictors from ./data/plink_filesets/small_set_pred
 
 Data contain 1018 samples and 3189219 predictors (will be using 1018 and 3189219)
 
-Reading details for 6 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.score
+Reading details for 4 predictors from ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05.score
 
-Calculating scores for Chunk 1 of 6
+Calculating scores for Chunk 1 of 4
 
 Profiles saved in ./results/final_results/analysis_full_data/beep_change/clump_thresholding_1e-05/beep_change_linear_clump_thresholding_1e-05_prs_calc_without_pheno.profile
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 21:00:36 2025 and ended at Mon May 12 21:00:40 2025
+This command started at Sun May 25 09:10:26 2025 and ended at Sun May 25 09:10:33 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -3196,26 +3126,26 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0          7           -0.37750             0.40              1.1550
-1          3           -1.07500             0.01              0.9500
-2          1           -2.90000            -0.99              0.3750
-3         10           -0.21750             0.70              1.5750
-4          4           -0.97500             0.10              1.0250
-5         20            1.30000             2.60              4.9250
-6         16            0.45000             1.40              2.0000
-7         12            0.32500             1.10              1.7750
-8         15            0.40000             1.20              1.7750
-9         19            1.00000             2.00              3.0500
-10        17            0.67500             1.50              2.4000
-11         6           -0.45000             0.20              0.8000
-12         2           -1.37250             0.00              0.6750
-13         5           -0.70000             0.20              0.9750
-14        18            1.12500             1.70              3.0250
-15        11            0.20000             0.90              1.5750
-16        13            0.07500             0.90              1.7000
-17         9            0.00000             0.90              1.6000
-18         8           -0.30000             0.50              1.4000
-19        14            0.45975             1.10              2.2875
+0          5            -0.9450            0.020             0.99500
+1          3            -1.0075            0.020             0.99500
+2          2            -1.7000           -0.010             0.97750
+3          1            -2.9900           -1.000             0.03750
+4          9            -0.0450            0.960             1.02000
+5          4            -1.0075            0.010             1.00500
+6         15             0.9400            1.020             1.97750
+7         16             0.2725            1.040             2.01500
+8         11             0.0225            1.000             1.96750
+9         12             0.0325            1.000             1.98500
+10        19             1.0050            2.000             2.95750
+11        13             0.2250            1.010             1.98500
+12        17             0.9600            1.060             2.01500
+13         7            -0.7330            0.085             1.03775
+14         6            -0.7425            0.030             0.98000
+15        20             1.0150            2.920             4.76750
+16        10             0.0200            0.990             1.96000
+17         8            -0.9375            0.920             1.75000
+18        14             0.0300            1.010             1.98775
+19        18             0.9950            1.990             2.96750
 
 # plot the results #
 
@@ -3235,26 +3165,26 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0          8             0.0000              0.6              1.3000
-1          3            -1.2675              0.0              0.6750
-2          1            -2.9000             -1.0              0.3750
-3         11             0.1925              1.0              1.6750
-4          5            -0.5500              0.3              1.1000
-5         19             1.0000              2.0              3.3825
-6         14             0.6000              1.1              1.9000
-7          9             0.1000              0.8              1.7750
-8         12             0.0000              1.0              1.6750
-9         16             0.6500              1.4              2.1500
-10        17             0.6750              1.5              2.1750
-11        10            -0.1500              0.9              1.6000
-12         4            -0.8750              0.1              0.9500
-13         6            -0.7250              0.3              0.8000
-14         7            -0.6875              0.4              0.8000
-15        20             1.5000              2.6              4.9250
-16        18             0.9500              1.8              2.7500
-17        13             0.3000              1.0              1.5750
-18         2            -1.5500             -0.1              0.6000
-19        15             0.7000              1.3              1.9000
+0          6           -0.96750            0.040             1.00750
+1          3           -1.00000            0.010             0.98000
+2          1           -2.99000           -0.990             0.03750
+3          9            0.00000            0.970             1.98750
+4          4           -0.95000            0.020             0.98000
+5         13            0.90750            1.010             1.96750
+6         14            0.30675            1.010             1.99000
+7         17            0.98250            1.060             2.00000
+8         11            0.02250            1.000             1.96750
+9          5           -0.94750            0.020             0.99500
+10         8           -0.72000            0.100             1.03000
+11        20            1.95250            2.920             4.76750
+12        10            0.00250            0.980             1.04250
+13        16            0.96000            1.040             1.99750
+14        19            0.98500            2.000             2.96750
+15        12            0.00750            1.000             1.96750
+16         2           -1.95000           -0.010             0.97000
+17         7           -0.97650            0.075             1.03325
+18        15            0.94500            1.030             2.05000
+19        18            1.02000            1.980             2.97500
 
 # plot the results #
 
@@ -3274,26 +3204,26 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0          8            -0.2750              0.5               1.300
-1          4            -1.2750              0.1               0.800
-2          3            -1.0000              0.1               0.675
-3          1            -2.9000             -1.0               0.375
-4         11             0.2250              1.0               1.600
-5          5            -0.5500              0.3               0.975
-6         19             1.0500              2.0               2.675
-7         14             0.5450              1.1               1.900
-8          9             0.1000              0.7               1.400
-9         12             0.0000              1.0               1.700
-10        16             0.6250              1.4               2.150
-11        17             0.6750              1.5               2.350
-12        10            -0.1500              0.8               1.750
-13         7            -0.7325              0.4               0.800
-14         6            -0.8000              0.3               1.075
-15        18             1.0250              1.7               2.550
-16        20             1.3750              2.6               4.925
-17        13             0.3500              1.1               1.600
-18         2            -1.5000              0.0               0.675
-19        15             0.7000              1.2               1.900
+0          6           -0.93000            0.050              1.0075
+1          3           -1.00000            0.020              0.9750
+2          1           -2.99000           -0.990              0.0375
+3         10            0.00000            0.970              1.9575
+4          5           -0.97250            0.020              0.9950
+5         13            0.31500            1.000              1.9675
+6         14            0.95000            1.015              1.9855
+7          9            0.01250            0.970              1.7525
+8         12            0.02250            1.010              1.9700
+9         17            0.96500            1.110              2.0200
+10        18            1.02000            1.970              2.7325
+11        11            0.02250            1.000              1.9600
+12         8           -0.69750            0.930              1.0275
+13        19            0.98500            2.000              2.9675
+14         7           -0.98775            0.055              1.0255
+15         4           -0.96750            0.030              0.9800
+16        16            0.96250            1.040              2.0150
+17        20            1.25250            2.900              4.7675
+18         2           -1.95000           -0.030              0.9700
+19        15            0.94750            1.020              2.0425
 
 # plot the results #
 
@@ -3313,26 +3243,26 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0          9             0.0075             0.70              1.8000
-1          3            -1.2000             0.00              0.8750
-2          4            -1.0750             0.00              0.8000
-3          1            -2.9000            -0.99              0.3750
-4         12             0.1250             1.00              1.6000
-5          5            -0.8750             0.20              1.0000
-6         19             1.1250             2.00              3.4075
-7         15             0.6250             1.20              2.3750
-8         16             0.8250             1.30              2.1750
-9         18             0.9000             1.80              2.5750
-10        10             0.0000             0.70              1.6000
-11        17             0.8250             1.50              2.1500
-12         7            -0.3000             0.40              1.3100
-13         2            -1.5500            -0.10              0.6750
-14        20             1.3500             2.60              4.9250
-15        13             0.2175             1.10              1.7000
-16        11             0.1250             1.00              1.7000
-17         8            -0.3000             0.60              1.4500
-18         6            -0.7750             0.30              1.1750
-19        14             0.3225             1.06              1.7000
+0          7            -0.9455            0.055             1.01775
+1          2            -1.9750           -0.010             0.96000
+2          4            -0.9975            0.020             0.99500
+3          1            -2.9900           -1.000             0.04000
+4         11             0.0025            1.000             1.96000
+5          6            -0.9850            0.070             1.00750
+6         14             0.9445            1.005             1.98325
+7         10             0.0000            0.980             1.97750
+8         12             0.0300            1.000             1.95750
+9         17             0.9650            1.060             2.00000
+10        18             0.9950            1.980             2.95750
+11         5            -0.0300            0.020             0.98000
+12        20             1.2525            2.920             4.76750
+13         9            -0.0125            0.940             1.72750
+14         3            -1.0175            0.000             0.98000
+15        16             0.9700            1.030             2.01750
+16        19             1.0025            2.000             2.97500
+17        13             0.0375            1.010             1.97750
+18        15             0.9525            1.020             2.03000
+19         8            -0.7050            0.930             1.02750
 
 # plot the results #
 
@@ -3352,26 +3282,26 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0         10             0.2000             0.90              1.8250
-1          4            -1.4475             0.20              1.0750
-2          3            -1.1750             0.00              0.8000
-3          1            -2.9000            -0.60              0.3750
-4         13             0.1750             1.02              1.7000
-5          5            -1.0000             0.20              0.9500
-6         19             1.0000             1.80              2.7500
-7         15             0.4000             1.20              2.4000
-8          7            -1.0775             0.35              1.2775
-9         17             0.7250             1.50              2.8925
-10         9             0.0000             0.70              1.7750
-11        16             0.1500             1.50              2.2750
-12        11            -0.0750             0.80              1.5000
-13        12             0.1225             0.92              1.8750
-14        14             0.3000             1.10              1.7000
-15        20             1.2000             2.50              4.9250
-16         2            -1.7500             0.00              0.8000
-17         6            -0.9000             0.40              1.0750
-18        18             0.7500             1.60              2.6250
-19         8            -0.1000             0.60              1.5000
+0          9            -0.0100            0.970              1.9575
+1          4            -1.0150            0.010              0.9950
+2          2            -1.7250           -0.010              0.9975
+3         11            -0.0150            0.990              1.9700
+4          3            -1.0325            0.000              1.0025
+5         12             0.0300            1.000              1.9675
+6         16             0.9700            1.060              2.9400
+7          6            -1.0000            0.030              1.7175
+8         14             0.0445            1.010              1.9700
+9         18             0.9825            1.930              2.9750
+10        10             0.0100            0.970              1.9600
+11        19             1.0000            2.000              3.6850
+12         1            -2.9900           -0.990              0.9525
+13         7            -0.7330            0.915              1.7310
+14         8            -0.9275            0.960              1.9500
+15        17             0.2350            1.920              2.0475
+16        13             0.0325            1.020              1.9975
+17        20             1.0300            2.900              4.7675
+18        15             0.0150            1.020              1.9875
+19         5            -0.6800            0.050              0.9975
 
 # plot the results #
 
@@ -3391,26 +3321,26 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0         10            -0.7500             0.70              2.0250
-1          4            -1.3450             0.30              1.8975
-2          1            -2.5750             0.10              1.0000
-3          9            -0.8250             0.70              1.9500
-4         14            -0.6100             1.15              2.7550
-5         16             0.0000             1.30              3.0500
-6         18             0.2750             1.40              3.6075
-7         13            -0.8000             0.80              1.9500
-8         15            -0.8250             1.10              2.1000
-9         11            -0.2750             0.60              2.0000
-10        17            -0.4675             1.10              2.6000
-11         6            -1.1750             0.60              1.8500
-12        19             0.4000             1.40              2.7500
-13        20             0.8000             2.00              4.8500
-14         8            -1.0500             0.80              2.0000
-15        12            -0.4000             1.00              2.1500
-16         2            -1.6250             0.30              1.7000
-17         5            -1.3250             0.60              1.5750
-18         7            -1.5550             0.55              2.1550
-19         3            -1.1750             0.30              1.5500
+0          4            -1.0000             0.07              2.7275
+1          3            -1.7775             0.04              1.0550
+2          6            -1.7125             0.05              1.9700
+3         10            -0.9475             0.99              2.0200
+4         13            -0.0075             0.99              2.9550
+5          7            -1.0100             0.95              2.0155
+6         14            -0.0200             1.00              2.0155
+7         17             0.0350             1.06              2.7100
+8         18             0.9325             1.06              3.7225
+9         19            -0.0075             1.03              2.9225
+10         1            -2.9900             0.01              1.0000
+11         8            -1.6950             0.94              1.9550
+12        11            -0.7225             1.00              1.9950
+13        20            -0.0600             2.00              4.7675
+14         2            -1.9725             0.05              1.9600
+15         5            -1.7000             0.04              1.9500
+16        16             0.0000             1.02              2.9475
+17        12             0.0000             0.99              2.6800
+18         9            -0.0475             0.97              1.9775
+19        15             0.0125             1.01              2.9975
 
 # plot the results #
 
@@ -3430,25 +3360,18 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0         14           -0.56250             1.00             2.66250
-1          6           -1.66000             0.70             2.16000
-2          1           -1.97500             0.40             1.78750
-3          7           -1.45250             0.80             1.90500
-4         10           -0.99500             0.70             1.98500
-5          9           -1.32000             0.70             2.76950
-6         15           -0.18525             1.00             2.40000
-7          4           -0.85500             0.70             2.20000
-8         17           -0.06500             1.10             3.76500
-9         19            0.00000             1.50             4.75000
-10         3           -1.08250             0.80             2.20000
-11         5           -0.93000             0.90             2.02000
-12        16           -1.08000             0.90             2.08000
-13         2           -2.16000             0.50             1.93500
-14        12           -1.33500             0.65             3.40175
-15        18           -0.55500             1.40             3.04000
-16        13           -0.84500             1.00             2.80000
-17        11           -1.00000             0.80             2.30000
-18         8            0.12750             0.65             1.17250
+0          7           -1.01700            1.010             3.97000
+1          3           -1.00000            0.975             2.03325
+2          1           -1.92000            0.960             2.02000
+3          8           -1.21800            1.000             2.93300
+4          5           -1.00000            0.970             2.05950
+5          2           -1.95000            0.970             2.04900
+6          4           -0.98800            0.960             2.02800
+7          6            0.01650            1.000             1.99675
+8          9            0.00000            1.050             3.84700
+9         11           -0.81000            1.030             2.05600
+10        12           -0.79375            1.030             3.78025
+11        10           -0.02775            1.010             3.73500
 
 # plot the results #
 

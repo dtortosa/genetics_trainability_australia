@@ -18,13 +18,11 @@ check behaviour run_bash
 #######################################
 
 ###### see working directory ######
-/home/dftortosa/diego_docs/science/other_projects/australian_army_bishop/heavy_analyses/australian_army_bishop/association_studies
+/home/UGR002/dsalazar/climahealth/combat_genes
 
 
 ###### list files/folders there ######
 03a_association_analyses.sif
-03a_phenotype_prep.out
-03aa_final_pca_calc.out
 03b_prs_calculation_100_iter_large_set_predictors_beep_change.out
 03b_prs_calculation_100_iter_large_set_predictors_distance_change.out
 03b_prs_calculation_100_iter_large_set_predictors_vo2_change.out
@@ -33,17 +31,12 @@ check behaviour run_bash
 03b_prs_calculation_100_iter_small_set_predictors_distance_change.out
 03b_prs_calculation_100_iter_small_set_predictors_vo2_change.out
 03b_prs_calculation_100_iter_small_set_predictors_weight_change.out
-03c_prepare_slurm_files.out
 03d_processing_results.out
 03e_manhattan_plots_beep_change.out
 03e_manhattan_plots_distance_change.out
 03e_manhattan_plots_vo2_change.out
 03e_manhattan_plots_weight_change.out
-03f_bat_smt_analyses_bat.out
-03f_bat_smt_analyses_metabolic.out
-03f_bat_smt_analyses_smt.out
 data
-literature
 results
 scripts
 
@@ -216,9 +209,9 @@ Calculating traces for Chunk 12001 of 12452
 Calculating traces for Chunk 12201 of 12452
 Calculating traces for Chunk 12401 of 12452
 
-Best power is 0.0000 and estimated heritability is 0.4643
+Best power is 0.0000 and estimated heritability is 0.7791
 
-Time check: have so far spent 0.01 hours
+Time check: have so far spent 0.02 hours
 
 Constructing 10 PRS using training samples
 Will also make 33 MCMC REML models (using all samples)
@@ -286,7 +279,7 @@ Scan 1: estimating training effect sizes for Chunk 11801 of 12452
 Scan 1: estimating training effect sizes for Chunk 12001 of 12452
 Scan 1: estimating training effect sizes for Chunk 12201 of 12452
 Scan 1: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.86
+Average number of iterations per chunk: 3.71
 
 Scan 2: estimating training effect sizes for Chunk 1 of 12452
 Scan 2: estimating training effect sizes for Chunk 201 of 12452
@@ -351,7 +344,7 @@ Scan 2: estimating training effect sizes for Chunk 11801 of 12452
 Scan 2: estimating training effect sizes for Chunk 12001 of 12452
 Scan 2: estimating training effect sizes for Chunk 12201 of 12452
 Scan 2: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.37
+Average number of iterations per chunk: 3.51
 
 Scan 3: estimating training effect sizes for Chunk 1 of 12452
 Scan 3: estimating training effect sizes for Chunk 201 of 12452
@@ -416,7 +409,7 @@ Scan 3: estimating training effect sizes for Chunk 11801 of 12452
 Scan 3: estimating training effect sizes for Chunk 12001 of 12452
 Scan 3: estimating training effect sizes for Chunk 12201 of 12452
 Scan 3: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.08
+Average number of iterations per chunk: 3.30
 
 Scan 4: estimating training effect sizes for Chunk 1 of 12452
 Scan 4: estimating training effect sizes for Chunk 201 of 12452
@@ -481,7 +474,7 @@ Scan 4: estimating training effect sizes for Chunk 11801 of 12452
 Scan 4: estimating training effect sizes for Chunk 12001 of 12452
 Scan 4: estimating training effect sizes for Chunk 12201 of 12452
 Scan 4: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.01
+Average number of iterations per chunk: 3.08
 
 Scan 5: estimating training effect sizes for Chunk 1 of 12452
 Scan 5: estimating training effect sizes for Chunk 201 of 12452
@@ -546,7 +539,7 @@ Scan 5: estimating training effect sizes for Chunk 11801 of 12452
 Scan 5: estimating training effect sizes for Chunk 12001 of 12452
 Scan 5: estimating training effect sizes for Chunk 12201 of 12452
 Scan 5: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.90
 
 Scan 6: estimating training effect sizes for Chunk 1 of 12452
 Scan 6: estimating training effect sizes for Chunk 201 of 12452
@@ -611,7 +604,7 @@ Scan 6: estimating training effect sizes for Chunk 11801 of 12452
 Scan 6: estimating training effect sizes for Chunk 12001 of 12452
 Scan 6: estimating training effect sizes for Chunk 12201 of 12452
 Scan 6: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.74
 
 Scan 7: estimating training effect sizes for Chunk 1 of 12452
 Scan 7: estimating training effect sizes for Chunk 201 of 12452
@@ -676,7 +669,7 @@ Scan 7: estimating training effect sizes for Chunk 11801 of 12452
 Scan 7: estimating training effect sizes for Chunk 12001 of 12452
 Scan 7: estimating training effect sizes for Chunk 12201 of 12452
 Scan 7: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.59
 
 Scan 8: estimating training effect sizes for Chunk 1 of 12452
 Scan 8: estimating training effect sizes for Chunk 201 of 12452
@@ -741,25 +734,157 @@ Scan 8: estimating training effect sizes for Chunk 11801 of 12452
 Scan 8: estimating training effect sizes for Chunk 12001 of 12452
 Scan 8: estimating training effect sizes for Chunk 12201 of 12452
 Scan 8: estimating training effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.00
+Average number of iterations per chunk: 2.46
 
-The revised estimate of heritability is 0.8000
+Scan 9: estimating training effect sizes for Chunk 1 of 12452
+Scan 9: estimating training effect sizes for Chunk 201 of 12452
+Scan 9: estimating training effect sizes for Chunk 401 of 12452
+Scan 9: estimating training effect sizes for Chunk 601 of 12452
+Scan 9: estimating training effect sizes for Chunk 801 of 12452
+Scan 9: estimating training effect sizes for Chunk 1001 of 12452
+Scan 9: estimating training effect sizes for Chunk 1201 of 12452
+Scan 9: estimating training effect sizes for Chunk 1401 of 12452
+Scan 9: estimating training effect sizes for Chunk 1601 of 12452
+Scan 9: estimating training effect sizes for Chunk 1801 of 12452
+Scan 9: estimating training effect sizes for Chunk 2001 of 12452
+Scan 9: estimating training effect sizes for Chunk 2201 of 12452
+Scan 9: estimating training effect sizes for Chunk 2401 of 12452
+Scan 9: estimating training effect sizes for Chunk 2601 of 12452
+Scan 9: estimating training effect sizes for Chunk 2801 of 12452
+Scan 9: estimating training effect sizes for Chunk 3001 of 12452
+Scan 9: estimating training effect sizes for Chunk 3201 of 12452
+Scan 9: estimating training effect sizes for Chunk 3401 of 12452
+Scan 9: estimating training effect sizes for Chunk 3601 of 12452
+Scan 9: estimating training effect sizes for Chunk 3801 of 12452
+Scan 9: estimating training effect sizes for Chunk 4001 of 12452
+Scan 9: estimating training effect sizes for Chunk 4201 of 12452
+Scan 9: estimating training effect sizes for Chunk 4401 of 12452
+Scan 9: estimating training effect sizes for Chunk 4601 of 12452
+Scan 9: estimating training effect sizes for Chunk 4801 of 12452
+Scan 9: estimating training effect sizes for Chunk 5001 of 12452
+Scan 9: estimating training effect sizes for Chunk 5201 of 12452
+Scan 9: estimating training effect sizes for Chunk 5401 of 12452
+Scan 9: estimating training effect sizes for Chunk 5601 of 12452
+Scan 9: estimating training effect sizes for Chunk 5801 of 12452
+Scan 9: estimating training effect sizes for Chunk 6001 of 12452
+Scan 9: estimating training effect sizes for Chunk 6201 of 12452
+Scan 9: estimating training effect sizes for Chunk 6401 of 12452
+Scan 9: estimating training effect sizes for Chunk 6601 of 12452
+Scan 9: estimating training effect sizes for Chunk 6801 of 12452
+Scan 9: estimating training effect sizes for Chunk 7001 of 12452
+Scan 9: estimating training effect sizes for Chunk 7201 of 12452
+Scan 9: estimating training effect sizes for Chunk 7401 of 12452
+Scan 9: estimating training effect sizes for Chunk 7601 of 12452
+Scan 9: estimating training effect sizes for Chunk 7801 of 12452
+Scan 9: estimating training effect sizes for Chunk 8001 of 12452
+Scan 9: estimating training effect sizes for Chunk 8201 of 12452
+Scan 9: estimating training effect sizes for Chunk 8401 of 12452
+Scan 9: estimating training effect sizes for Chunk 8601 of 12452
+Scan 9: estimating training effect sizes for Chunk 8801 of 12452
+Scan 9: estimating training effect sizes for Chunk 9001 of 12452
+Scan 9: estimating training effect sizes for Chunk 9201 of 12452
+Scan 9: estimating training effect sizes for Chunk 9401 of 12452
+Scan 9: estimating training effect sizes for Chunk 9601 of 12452
+Scan 9: estimating training effect sizes for Chunk 9801 of 12452
+Scan 9: estimating training effect sizes for Chunk 10001 of 12452
+Scan 9: estimating training effect sizes for Chunk 10201 of 12452
+Scan 9: estimating training effect sizes for Chunk 10401 of 12452
+Scan 9: estimating training effect sizes for Chunk 10601 of 12452
+Scan 9: estimating training effect sizes for Chunk 10801 of 12452
+Scan 9: estimating training effect sizes for Chunk 11001 of 12452
+Scan 9: estimating training effect sizes for Chunk 11201 of 12452
+Scan 9: estimating training effect sizes for Chunk 11401 of 12452
+Scan 9: estimating training effect sizes for Chunk 11601 of 12452
+Scan 9: estimating training effect sizes for Chunk 11801 of 12452
+Scan 9: estimating training effect sizes for Chunk 12001 of 12452
+Scan 9: estimating training effect sizes for Chunk 12201 of 12452
+Scan 9: estimating training effect sizes for Chunk 12401 of 12452
+Average number of iterations per chunk: 2.36
+
+Scan 10: estimating training effect sizes for Chunk 1 of 12452
+Scan 10: estimating training effect sizes for Chunk 201 of 12452
+Scan 10: estimating training effect sizes for Chunk 401 of 12452
+Scan 10: estimating training effect sizes for Chunk 601 of 12452
+Scan 10: estimating training effect sizes for Chunk 801 of 12452
+Scan 10: estimating training effect sizes for Chunk 1001 of 12452
+Scan 10: estimating training effect sizes for Chunk 1201 of 12452
+Scan 10: estimating training effect sizes for Chunk 1401 of 12452
+Scan 10: estimating training effect sizes for Chunk 1601 of 12452
+Scan 10: estimating training effect sizes for Chunk 1801 of 12452
+Scan 10: estimating training effect sizes for Chunk 2001 of 12452
+Scan 10: estimating training effect sizes for Chunk 2201 of 12452
+Scan 10: estimating training effect sizes for Chunk 2401 of 12452
+Scan 10: estimating training effect sizes for Chunk 2601 of 12452
+Scan 10: estimating training effect sizes for Chunk 2801 of 12452
+Scan 10: estimating training effect sizes for Chunk 3001 of 12452
+Scan 10: estimating training effect sizes for Chunk 3201 of 12452
+Scan 10: estimating training effect sizes for Chunk 3401 of 12452
+Scan 10: estimating training effect sizes for Chunk 3601 of 12452
+Scan 10: estimating training effect sizes for Chunk 3801 of 12452
+Scan 10: estimating training effect sizes for Chunk 4001 of 12452
+Scan 10: estimating training effect sizes for Chunk 4201 of 12452
+Scan 10: estimating training effect sizes for Chunk 4401 of 12452
+Scan 10: estimating training effect sizes for Chunk 4601 of 12452
+Scan 10: estimating training effect sizes for Chunk 4801 of 12452
+Scan 10: estimating training effect sizes for Chunk 5001 of 12452
+Scan 10: estimating training effect sizes for Chunk 5201 of 12452
+Scan 10: estimating training effect sizes for Chunk 5401 of 12452
+Scan 10: estimating training effect sizes for Chunk 5601 of 12452
+Scan 10: estimating training effect sizes for Chunk 5801 of 12452
+Scan 10: estimating training effect sizes for Chunk 6001 of 12452
+Scan 10: estimating training effect sizes for Chunk 6201 of 12452
+Scan 10: estimating training effect sizes for Chunk 6401 of 12452
+Scan 10: estimating training effect sizes for Chunk 6601 of 12452
+Scan 10: estimating training effect sizes for Chunk 6801 of 12452
+Scan 10: estimating training effect sizes for Chunk 7001 of 12452
+Scan 10: estimating training effect sizes for Chunk 7201 of 12452
+Scan 10: estimating training effect sizes for Chunk 7401 of 12452
+Scan 10: estimating training effect sizes for Chunk 7601 of 12452
+Scan 10: estimating training effect sizes for Chunk 7801 of 12452
+Scan 10: estimating training effect sizes for Chunk 8001 of 12452
+Scan 10: estimating training effect sizes for Chunk 8201 of 12452
+Scan 10: estimating training effect sizes for Chunk 8401 of 12452
+Scan 10: estimating training effect sizes for Chunk 8601 of 12452
+Scan 10: estimating training effect sizes for Chunk 8801 of 12452
+Scan 10: estimating training effect sizes for Chunk 9001 of 12452
+Scan 10: estimating training effect sizes for Chunk 9201 of 12452
+Scan 10: estimating training effect sizes for Chunk 9401 of 12452
+Scan 10: estimating training effect sizes for Chunk 9601 of 12452
+Scan 10: estimating training effect sizes for Chunk 9801 of 12452
+Scan 10: estimating training effect sizes for Chunk 10001 of 12452
+Scan 10: estimating training effect sizes for Chunk 10201 of 12452
+Scan 10: estimating training effect sizes for Chunk 10401 of 12452
+Scan 10: estimating training effect sizes for Chunk 10601 of 12452
+Scan 10: estimating training effect sizes for Chunk 10801 of 12452
+Scan 10: estimating training effect sizes for Chunk 11001 of 12452
+Scan 10: estimating training effect sizes for Chunk 11201 of 12452
+Scan 10: estimating training effect sizes for Chunk 11401 of 12452
+Scan 10: estimating training effect sizes for Chunk 11601 of 12452
+Scan 10: estimating training effect sizes for Chunk 11801 of 12452
+Scan 10: estimating training effect sizes for Chunk 12001 of 12452
+Scan 10: estimating training effect sizes for Chunk 12201 of 12452
+Scan 10: estimating training effect sizes for Chunk 12401 of 12452
+Average number of iterations per chunk: 2.26
+
+Warning, Variational Bayes did not converge after 10 scans (this is not normally a problem)
+
+The revised estimate of heritability is 0.0100
 
 Measuring accuracy of each model
-Model 1: heritability 0.8000, p 0.0000, f2 1.0000, mean squared error 1.0192
-Model 2: heritability 0.8000, p 0.5000, f2 0.5000, mean squared error 1.0192
-Model 3: heritability 0.8000, p 0.5000, f2 0.3000, mean squared error 1.0219
-Model 4: heritability 0.8000, p 0.5000, f2 0.1000, mean squared error 1.0250
-Model 5: heritability 0.8000, p 0.1000, f2 0.5000, mean squared error 1.0228
-Model 6: heritability 0.8000, p 0.1000, f2 0.3000, mean squared error 1.0242
-Model 7: heritability 0.8000, p 0.1000, f2 0.1000, mean squared error 1.0261
-Model 8: heritability 0.8000, p 0.0100, f2 0.5000, mean squared error 1.0224
-Model 9: heritability 0.8000, p 0.0100, f2 0.3000, mean squared error 1.0141
-Model 10: heritability 0.8000, p 0.0100, f2 0.1000, mean squared error 1.0108
+Model 1: heritability 0.0100, p 0.0000, f2 1.0000, mean squared error 1.0104
+Model 2: heritability 0.0100, p 0.5000, f2 0.5000, mean squared error 1.0118
+Model 3: heritability 0.0100, p 0.5000, f2 0.3000, mean squared error 1.0190
+Model 4: heritability 0.0100, p 0.5000, f2 0.1000, mean squared error 1.0269
+Model 5: heritability 0.0100, p 0.1000, f2 0.5000, mean squared error 1.0159
+Model 6: heritability 0.0100, p 0.1000, f2 0.3000, mean squared error 1.0202
+Model 7: heritability 0.0100, p 0.1000, f2 0.1000, mean squared error 1.0226
+Model 8: heritability 0.0100, p 0.0100, f2 0.5000, mean squared error 1.0107
+Model 9: heritability 0.0100, p 0.0100, f2 0.3000, mean squared error 1.0115
+Model 10: heritability 0.0100, p 0.0100, f2 0.1000, mean squared error 1.0122
 
-Time check: have so far spent 0.12 hours
+Time check: have so far spent 0.32 hours
 
-Constructing final PRS (heritability 0.8000, p 0.0100, f2 0.1000) using all samples
+Constructing final PRS (heritability 0.0100, p 0.0000, f2 1.0000) using all samples
 
 Scan 1: estimating final effect sizes for Chunk 1 of 12452
 Scan 1: estimating final effect sizes for Chunk 201 of 12452
@@ -824,150 +949,82 @@ Scan 1: estimating final effect sizes for Chunk 11801 of 12452
 Scan 1: estimating final effect sizes for Chunk 12001 of 12452
 Scan 1: estimating final effect sizes for Chunk 12201 of 12452
 Scan 1: estimating final effect sizes for Chunk 12401 of 12452
-Average number of iterations per chunk: 2.01
+Average number of iterations per chunk: 1.99
 
-Scan 2: estimating final effect sizes for Chunk 1 of 12446
-Scan 2: estimating final effect sizes for Chunk 201 of 12446
-Scan 2: estimating final effect sizes for Chunk 401 of 12446
-Scan 2: estimating final effect sizes for Chunk 601 of 12446
-Scan 2: estimating final effect sizes for Chunk 801 of 12446
-Scan 2: estimating final effect sizes for Chunk 1001 of 12446
-Scan 2: estimating final effect sizes for Chunk 1201 of 12446
-Scan 2: estimating final effect sizes for Chunk 1401 of 12446
-Scan 2: estimating final effect sizes for Chunk 1601 of 12446
-Scan 2: estimating final effect sizes for Chunk 1801 of 12446
-Scan 2: estimating final effect sizes for Chunk 2001 of 12446
-Scan 2: estimating final effect sizes for Chunk 2201 of 12446
-Scan 2: estimating final effect sizes for Chunk 2401 of 12446
-Scan 2: estimating final effect sizes for Chunk 2601 of 12446
-Scan 2: estimating final effect sizes for Chunk 2801 of 12446
-Scan 2: estimating final effect sizes for Chunk 3001 of 12446
-Scan 2: estimating final effect sizes for Chunk 3201 of 12446
-Scan 2: estimating final effect sizes for Chunk 3401 of 12446
-Scan 2: estimating final effect sizes for Chunk 3601 of 12446
-Scan 2: estimating final effect sizes for Chunk 3801 of 12446
-Scan 2: estimating final effect sizes for Chunk 4001 of 12446
-Scan 2: estimating final effect sizes for Chunk 4201 of 12446
-Scan 2: estimating final effect sizes for Chunk 4401 of 12446
-Scan 2: estimating final effect sizes for Chunk 4601 of 12446
-Scan 2: estimating final effect sizes for Chunk 4801 of 12446
-Scan 2: estimating final effect sizes for Chunk 5001 of 12446
-Scan 2: estimating final effect sizes for Chunk 5201 of 12446
-Scan 2: estimating final effect sizes for Chunk 5401 of 12446
-Scan 2: estimating final effect sizes for Chunk 5601 of 12446
-Scan 2: estimating final effect sizes for Chunk 5801 of 12446
-Scan 2: estimating final effect sizes for Chunk 6001 of 12446
-Scan 2: estimating final effect sizes for Chunk 6201 of 12446
-Scan 2: estimating final effect sizes for Chunk 6401 of 12446
-Scan 2: estimating final effect sizes for Chunk 6601 of 12446
-Scan 2: estimating final effect sizes for Chunk 6801 of 12446
-Scan 2: estimating final effect sizes for Chunk 7001 of 12446
-Scan 2: estimating final effect sizes for Chunk 7201 of 12446
-Scan 2: estimating final effect sizes for Chunk 7401 of 12446
-Scan 2: estimating final effect sizes for Chunk 7601 of 12446
-Scan 2: estimating final effect sizes for Chunk 7801 of 12446
-Scan 2: estimating final effect sizes for Chunk 8001 of 12446
-Scan 2: estimating final effect sizes for Chunk 8201 of 12446
-Scan 2: estimating final effect sizes for Chunk 8401 of 12446
-Scan 2: estimating final effect sizes for Chunk 8601 of 12446
-Scan 2: estimating final effect sizes for Chunk 8801 of 12446
-Scan 2: estimating final effect sizes for Chunk 9001 of 12446
-Scan 2: estimating final effect sizes for Chunk 9201 of 12446
-Scan 2: estimating final effect sizes for Chunk 9401 of 12446
-Scan 2: estimating final effect sizes for Chunk 9601 of 12446
-Scan 2: estimating final effect sizes for Chunk 9801 of 12446
-Scan 2: estimating final effect sizes for Chunk 10001 of 12446
-Scan 2: estimating final effect sizes for Chunk 10201 of 12446
-Scan 2: estimating final effect sizes for Chunk 10401 of 12446
-Scan 2: estimating final effect sizes for Chunk 10601 of 12446
-Scan 2: estimating final effect sizes for Chunk 10801 of 12446
-Scan 2: estimating final effect sizes for Chunk 11001 of 12446
-Scan 2: estimating final effect sizes for Chunk 11201 of 12446
-Scan 2: estimating final effect sizes for Chunk 11401 of 12446
-Scan 2: estimating final effect sizes for Chunk 11601 of 12446
-Scan 2: estimating final effect sizes for Chunk 11801 of 12446
-Scan 2: estimating final effect sizes for Chunk 12001 of 12446
-Scan 2: estimating final effect sizes for Chunk 12201 of 12446
-Scan 2: estimating final effect sizes for Chunk 12401 of 12446
-Average number of iterations per chunk: 1.64
+Scan 2: estimating final effect sizes for Chunk 1 of 12359
+Scan 2: estimating final effect sizes for Chunk 201 of 12359
+Scan 2: estimating final effect sizes for Chunk 401 of 12359
+Scan 2: estimating final effect sizes for Chunk 601 of 12359
+Scan 2: estimating final effect sizes for Chunk 801 of 12359
+Scan 2: estimating final effect sizes for Chunk 1001 of 12359
+Scan 2: estimating final effect sizes for Chunk 1201 of 12359
+Scan 2: estimating final effect sizes for Chunk 1401 of 12359
+Scan 2: estimating final effect sizes for Chunk 1601 of 12359
+Scan 2: estimating final effect sizes for Chunk 1801 of 12359
+Scan 2: estimating final effect sizes for Chunk 2001 of 12359
+Scan 2: estimating final effect sizes for Chunk 2201 of 12359
+Scan 2: estimating final effect sizes for Chunk 2401 of 12359
+Scan 2: estimating final effect sizes for Chunk 2601 of 12359
+Scan 2: estimating final effect sizes for Chunk 2801 of 12359
+Scan 2: estimating final effect sizes for Chunk 3001 of 12359
+Scan 2: estimating final effect sizes for Chunk 3201 of 12359
+Scan 2: estimating final effect sizes for Chunk 3401 of 12359
+Scan 2: estimating final effect sizes for Chunk 3601 of 12359
+Scan 2: estimating final effect sizes for Chunk 3801 of 12359
+Scan 2: estimating final effect sizes for Chunk 4001 of 12359
+Scan 2: estimating final effect sizes for Chunk 4201 of 12359
+Scan 2: estimating final effect sizes for Chunk 4401 of 12359
+Scan 2: estimating final effect sizes for Chunk 4601 of 12359
+Scan 2: estimating final effect sizes for Chunk 4801 of 12359
+Scan 2: estimating final effect sizes for Chunk 5001 of 12359
+Scan 2: estimating final effect sizes for Chunk 5201 of 12359
+Scan 2: estimating final effect sizes for Chunk 5401 of 12359
+Scan 2: estimating final effect sizes for Chunk 5601 of 12359
+Scan 2: estimating final effect sizes for Chunk 5801 of 12359
+Scan 2: estimating final effect sizes for Chunk 6001 of 12359
+Scan 2: estimating final effect sizes for Chunk 6201 of 12359
+Scan 2: estimating final effect sizes for Chunk 6401 of 12359
+Scan 2: estimating final effect sizes for Chunk 6601 of 12359
+Scan 2: estimating final effect sizes for Chunk 6801 of 12359
+Scan 2: estimating final effect sizes for Chunk 7001 of 12359
+Scan 2: estimating final effect sizes for Chunk 7201 of 12359
+Scan 2: estimating final effect sizes for Chunk 7401 of 12359
+Scan 2: estimating final effect sizes for Chunk 7601 of 12359
+Scan 2: estimating final effect sizes for Chunk 7801 of 12359
+Scan 2: estimating final effect sizes for Chunk 8001 of 12359
+Scan 2: estimating final effect sizes for Chunk 8201 of 12359
+Scan 2: estimating final effect sizes for Chunk 8401 of 12359
+Scan 2: estimating final effect sizes for Chunk 8601 of 12359
+Scan 2: estimating final effect sizes for Chunk 8801 of 12359
+Scan 2: estimating final effect sizes for Chunk 9001 of 12359
+Scan 2: estimating final effect sizes for Chunk 9201 of 12359
+Scan 2: estimating final effect sizes for Chunk 9401 of 12359
+Scan 2: estimating final effect sizes for Chunk 9601 of 12359
+Scan 2: estimating final effect sizes for Chunk 9801 of 12359
+Scan 2: estimating final effect sizes for Chunk 10001 of 12359
+Scan 2: estimating final effect sizes for Chunk 10201 of 12359
+Scan 2: estimating final effect sizes for Chunk 10401 of 12359
+Scan 2: estimating final effect sizes for Chunk 10601 of 12359
+Scan 2: estimating final effect sizes for Chunk 10801 of 12359
+Scan 2: estimating final effect sizes for Chunk 11001 of 12359
+Scan 2: estimating final effect sizes for Chunk 11201 of 12359
+Scan 2: estimating final effect sizes for Chunk 11401 of 12359
+Scan 2: estimating final effect sizes for Chunk 11601 of 12359
+Scan 2: estimating final effect sizes for Chunk 11801 of 12359
+Scan 2: estimating final effect sizes for Chunk 12001 of 12359
+Scan 2: estimating final effect sizes for Chunk 12201 of 12359
+Average number of iterations per chunk: 1.00
 
-Scan 3: estimating final effect sizes for Chunk 1 of 7890
-Scan 3: estimating final effect sizes for Chunk 201 of 7890
-Scan 3: estimating final effect sizes for Chunk 401 of 7890
-Scan 3: estimating final effect sizes for Chunk 601 of 7890
-Scan 3: estimating final effect sizes for Chunk 801 of 7890
-Scan 3: estimating final effect sizes for Chunk 1001 of 7890
-Scan 3: estimating final effect sizes for Chunk 1201 of 7890
-Scan 3: estimating final effect sizes for Chunk 1401 of 7890
-Scan 3: estimating final effect sizes for Chunk 1601 of 7890
-Scan 3: estimating final effect sizes for Chunk 1801 of 7890
-Scan 3: estimating final effect sizes for Chunk 2001 of 7890
-Scan 3: estimating final effect sizes for Chunk 2201 of 7890
-Scan 3: estimating final effect sizes for Chunk 2401 of 7890
-Scan 3: estimating final effect sizes for Chunk 2601 of 7890
-Scan 3: estimating final effect sizes for Chunk 2801 of 7890
-Scan 3: estimating final effect sizes for Chunk 3001 of 7890
-Scan 3: estimating final effect sizes for Chunk 3201 of 7890
-Scan 3: estimating final effect sizes for Chunk 3401 of 7890
-Scan 3: estimating final effect sizes for Chunk 3601 of 7890
-Scan 3: estimating final effect sizes for Chunk 3801 of 7890
-Scan 3: estimating final effect sizes for Chunk 4001 of 7890
-Scan 3: estimating final effect sizes for Chunk 4201 of 7890
-Scan 3: estimating final effect sizes for Chunk 4401 of 7890
-Scan 3: estimating final effect sizes for Chunk 4601 of 7890
-Scan 3: estimating final effect sizes for Chunk 4801 of 7890
-Scan 3: estimating final effect sizes for Chunk 5001 of 7890
-Scan 3: estimating final effect sizes for Chunk 5201 of 7890
-Scan 3: estimating final effect sizes for Chunk 5401 of 7890
-Scan 3: estimating final effect sizes for Chunk 5601 of 7890
-Scan 3: estimating final effect sizes for Chunk 5801 of 7890
-Scan 3: estimating final effect sizes for Chunk 6001 of 7890
-Scan 3: estimating final effect sizes for Chunk 6201 of 7890
-Scan 3: estimating final effect sizes for Chunk 6401 of 7890
-Scan 3: estimating final effect sizes for Chunk 6601 of 7890
-Scan 3: estimating final effect sizes for Chunk 6801 of 7890
-Scan 3: estimating final effect sizes for Chunk 7001 of 7890
-Scan 3: estimating final effect sizes for Chunk 7201 of 7890
-Scan 3: estimating final effect sizes for Chunk 7401 of 7890
-Scan 3: estimating final effect sizes for Chunk 7601 of 7890
-Scan 3: estimating final effect sizes for Chunk 7801 of 7890
-Average number of iterations per chunk: 1.48
-
-Scan 4: estimating final effect sizes for Chunk 1 of 3780
-Scan 4: estimating final effect sizes for Chunk 201 of 3780
-Scan 4: estimating final effect sizes for Chunk 401 of 3780
-Scan 4: estimating final effect sizes for Chunk 601 of 3780
-Scan 4: estimating final effect sizes for Chunk 801 of 3780
-Scan 4: estimating final effect sizes for Chunk 1001 of 3780
-Scan 4: estimating final effect sizes for Chunk 1201 of 3780
-Scan 4: estimating final effect sizes for Chunk 1401 of 3780
-Scan 4: estimating final effect sizes for Chunk 1601 of 3780
-Scan 4: estimating final effect sizes for Chunk 1801 of 3780
-Scan 4: estimating final effect sizes for Chunk 2001 of 3780
-Scan 4: estimating final effect sizes for Chunk 2201 of 3780
-Scan 4: estimating final effect sizes for Chunk 2401 of 3780
-Scan 4: estimating final effect sizes for Chunk 2601 of 3780
-Scan 4: estimating final effect sizes for Chunk 2801 of 3780
-Scan 4: estimating final effect sizes for Chunk 3001 of 3780
-Scan 4: estimating final effect sizes for Chunk 3201 of 3780
-Scan 4: estimating final effect sizes for Chunk 3401 of 3780
-Scan 4: estimating final effect sizes for Chunk 3601 of 3780
-Average number of iterations per chunk: 1.07
-
-Scan 5: estimating final effect sizes for Chunk 1 of 276
-Scan 5: estimating final effect sizes for Chunk 201 of 276
-Average number of iterations per chunk: 1.04
-
-Scan 6: estimating final effect sizes for Chunk 1 of 10
+Scan 3: estimating final effect sizes for Chunk 1 of 1
 Average number of iterations per chunk: 1.00
 
 Best-fitting model saved in ./results/final_results/analysis_full_data/weight_change/weight_change_small_set_predictors_set_elastic.effects, with posterior probabilities in ./results/final_results/analysis_full_data/weight_change/weight_change_small_set_predictors_set_elastic.probs
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:46:46 2025 and ended at Mon May 12 20:54:05 2025
-The elapsed time was 0.12 hours
-Given the command used one thread, this means the CPU time was also 0.12 hours
+This command started at Sun May 25 08:45:25 2025 and ended at Sun May 25 09:04:46 2025
+The elapsed time was 0.32 hours
+Given the command used one thread, this means the CPU time was also 0.32 hours
 Mission completed. All your basepair are belong to us :)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -1078,11 +1135,11 @@ Calculating scores for Chunk 3151 of 3197
 
 Profile saved in ./results/final_results/analysis_full_data/weight_change/weight_change_small_set_predictors_set_elastic_prs_calc_with_pheno.profile
 
-Correlation between score and phenotype is 0.8522, saved in ./results/final_results/analysis_full_data/weight_change/weight_change_small_set_predictors_set_elastic_prs_calc_with_pheno.cors
+Correlation between score and phenotype is 0.8357, saved in ./results/final_results/analysis_full_data/weight_change/weight_change_small_set_predictors_set_elastic_prs_calc_with_pheno.cors
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:54:06 2025 and ended at Mon May 12 20:54:24 2025
+This command started at Sun May 25 09:04:46 2025 and ended at Sun May 25 09:05:19 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -1194,7 +1251,7 @@ Profile saved in ./results/final_results/analysis_full_data/weight_change/weight
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:54:24 2025 and ended at Mon May 12 20:54:42 2025
+This command started at Sun May 25 09:05:19 2025 and ended at Sun May 25 09:05:50 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -1583,7 +1640,7 @@ Main results saved in ./results/final_results/analysis_full_data/weight_change/w
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:54:42 2025 and ended at Mon May 12 20:55:00 2025
+This command started at Sun May 25 09:05:50 2025 and ended at Sun May 25 09:06:22 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -1719,9 +1776,9 @@ Thinning complete: 102282 predictors kept (saved in ./results/final_results/anal
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:55:01 2025 and ended at Mon May 12 20:55:51 2025
-The elapsed time was 0.01 hours
-Given the command used one thread, this means the CPU time was also 0.01 hours
+This command started at Sun May 25 09:06:24 2025 and ended at Sun May 25 09:07:59 2025
+The elapsed time was 0.03 hours
+Given the command used one thread, this means the CPU time was also 0.03 hours
 Mission completed. All your basepair are belong to us :)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -1798,7 +1855,7 @@ Main results saved in ./results/final_results/analysis_full_data/weight_change/c
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:55:51 2025 and ended at Mon May 12 20:55:57 2025
+This command started at Sun May 25 09:07:59 2025 and ended at Sun May 25 09:08:07 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -1854,7 +1911,7 @@ Correlations between 7 scores and phenotype range from 0.2275 to 0.8466, saved i
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:55:57 2025 and ended at Mon May 12 20:56:02 2025
+This command started at Sun May 25 09:08:07 2025 and ended at Sun May 25 09:08:15 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -1905,7 +1962,7 @@ Profiles saved in ./results/final_results/analysis_full_data/weight_change/clump
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:02 2025 and ended at Mon May 12 20:56:07 2025
+This command started at Sun May 25 09:08:15 2025 and ended at Sun May 25 09:08:23 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -1972,7 +2029,7 @@ Thinning complete: 24825 predictors kept (saved in ./results/final_results/analy
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:07 2025 and ended at Mon May 12 20:56:36 2025
+This command started at Sun May 25 09:08:23 2025 and ended at Sun May 25 09:09:07 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2043,7 +2100,7 @@ Main results saved in ./results/final_results/analysis_full_data/weight_change/c
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:36 2025 and ended at Mon May 12 20:56:40 2025
+This command started at Sun May 25 09:09:07 2025 and ended at Sun May 25 09:09:14 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2097,7 +2154,7 @@ Correlations between 7 scores and phenotype range from 0.2275 to 0.8462, saved i
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:40 2025 and ended at Mon May 12 20:56:45 2025
+This command started at Sun May 25 09:09:14 2025 and ended at Sun May 25 09:09:21 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2146,7 +2203,7 @@ Profiles saved in ./results/final_results/analysis_full_data/weight_change/clump
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:45 2025 and ended at Mon May 12 20:56:50 2025
+This command started at Sun May 25 09:09:21 2025 and ended at Sun May 25 09:09:28 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2206,7 +2263,7 @@ Thinning complete: 3751 predictors kept (saved in ./results/final_results/analys
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:56:50 2025 and ended at Mon May 12 20:57:17 2025
+This command started at Sun May 25 09:09:28 2025 and ended at Sun May 25 09:10:08 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2276,7 +2333,7 @@ Main results saved in ./results/final_results/analysis_full_data/weight_change/c
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:17 2025 and ended at Mon May 12 20:57:21 2025
+This command started at Sun May 25 09:10:08 2025 and ended at Sun May 25 09:10:15 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2330,7 +2387,7 @@ Correlations between 7 scores and phenotype range from 0.2275 to 0.8408, saved i
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:21 2025 and ended at Mon May 12 20:57:26 2025
+This command started at Sun May 25 09:10:15 2025 and ended at Sun May 25 09:10:21 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2379,7 +2436,7 @@ Profiles saved in ./results/final_results/analysis_full_data/weight_change/clump
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:26 2025 and ended at Mon May 12 20:57:30 2025
+This command started at Sun May 25 09:10:21 2025 and ended at Sun May 25 09:10:28 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2439,7 +2496,7 @@ Thinning complete: 518 predictors kept (saved in ./results/final_results/analysi
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:30 2025 and ended at Mon May 12 20:57:57 2025
+This command started at Sun May 25 09:10:28 2025 and ended at Sun May 25 09:11:07 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2509,7 +2566,7 @@ Main results saved in ./results/final_results/analysis_full_data/weight_change/c
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:57:57 2025 and ended at Mon May 12 20:58:02 2025
+This command started at Sun May 25 09:11:07 2025 and ended at Sun May 25 09:11:14 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2563,7 +2620,7 @@ Correlations between 7 scores and phenotype range from 0.2275 to 0.7930, saved i
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:02 2025 and ended at Mon May 12 20:58:06 2025
+This command started at Sun May 25 09:11:14 2025 and ended at Sun May 25 09:11:21 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2612,7 +2669,7 @@ Profiles saved in ./results/final_results/analysis_full_data/weight_change/clump
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:06 2025 and ended at Mon May 12 20:58:11 2025
+This command started at Sun May 25 09:11:21 2025 and ended at Sun May 25 09:11:28 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2672,7 +2729,7 @@ Thinning complete: 62 predictors kept (saved in ./results/final_results/analysis
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:11 2025 and ended at Mon May 12 20:58:37 2025
+This command started at Sun May 25 09:11:28 2025 and ended at Sun May 25 09:12:06 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2742,7 +2799,7 @@ Main results saved in ./results/final_results/analysis_full_data/weight_change/c
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:37 2025 and ended at Mon May 12 20:58:41 2025
+This command started at Sun May 25 09:12:06 2025 and ended at Sun May 25 09:12:13 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2796,7 +2853,7 @@ Correlations between 7 scores and phenotype range from 0.2275 to 0.6014, saved i
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:42 2025 and ended at Mon May 12 20:58:46 2025
+This command started at Sun May 25 09:12:13 2025 and ended at Sun May 25 09:12:20 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2845,7 +2902,7 @@ Profiles saved in ./results/final_results/analysis_full_data/weight_change/clump
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:46 2025 and ended at Mon May 12 20:58:50 2025
+This command started at Sun May 25 09:12:20 2025 and ended at Sun May 25 09:12:26 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -2905,7 +2962,7 @@ Thinning complete: 4 predictors kept (saved in ./results/final_results/analysis_
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:58:50 2025 and ended at Mon May 12 20:59:15 2025
+This command started at Sun May 25 09:12:26 2025 and ended at Sun May 25 09:13:04 2025
 The elapsed time was 0.01 hours
 Given the command used one thread, this means the CPU time was also 0.01 hours
 Mission completed. All your basepair are belong to us :)
@@ -2973,7 +3030,7 @@ Main results saved in ./results/final_results/analysis_full_data/weight_change/c
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:15 2025 and ended at Mon May 12 20:59:20 2025
+This command started at Sun May 25 09:13:04 2025 and ended at Sun May 25 09:13:11 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -3027,7 +3084,7 @@ Correlations between 7 scores and phenotype range from 0.2275 to 0.2275, saved i
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:20 2025 and ended at Mon May 12 20:59:24 2025
+This command started at Sun May 25 09:13:11 2025 and ended at Sun May 25 09:13:18 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -3076,7 +3133,7 @@ Profiles saved in ./results/final_results/analysis_full_data/weight_change/clump
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
-This command started at Mon May 12 20:59:24 2025 and ended at Mon May 12 20:59:28 2025
+This command started at Sun May 25 09:13:18 2025 and ended at Sun May 25 09:13:24 2025
 The elapsed time was 0.00 hours
 Given the command used one thread, this means the CPU time was also 0.00 hours
 Mission completed. All your basepair are belong to us :)
@@ -3137,26 +3194,26 @@ Mission completed. All your basepair are belong to us :)
 
 # print the results #
     quantile  lower_ci_response  median_response  higher_ci_response
-0          6            -4.7000            -1.65              1.2300
-1         11            -2.9000             0.20              2.9000
-2         14            -1.4425             1.30              3.9650
-3         13            -2.0650             1.40              4.6900
-4          9            -4.2950            -0.65              2.1125
-5         17            -1.0650             2.75              7.0775
-6          2            -9.0375            -4.05              0.2650
-7         12            -2.3825             0.60              3.3475
-8          8            -5.4300            -1.55              2.0000
-9         18            -0.7300             3.70              6.9775
-10        10            -3.4300             0.35              3.5000
-11         3            -7.3475            -3.30             -0.0350
-12        19             1.4000             4.10             10.2675
-13        15            -1.1825             2.00              4.8250
-14         5            -5.4125            -1.80              0.6650
-15        16            -2.0825             2.00              4.8825
-16        20             3.1350             7.10             24.5350
-17         7            -4.4475            -1.45              2.0000
-18         4            -6.0000            -2.75              0.8775
-19         1           -23.1900            -6.10             -0.0100
+0          4            -5.4825            -2.70              0.6300
+1         14            -1.9000             1.90              4.1300
+2         15            -0.6825             1.45              5.7425
+3         13            -2.1000             1.40              5.6500
+4          9            -4.3475            -0.45              2.8825
+5         17            -1.8425             2.95              5.4950
+6          2            -9.2475            -4.40             -0.0925
+7         11            -2.9000             0.30              2.9000
+8         10            -3.7475            -0.50              2.6125
+9          8            -5.0300            -0.90              1.9475
+10        19             1.4000             3.95              9.6250
+11         7            -5.4425            -1.90              2.5125
+12        16            -3.1325             1.85              4.8825
+13        18            -0.8825             3.60              8.5600
+14        20             1.8700             6.40             24.5350
+15        12            -2.7825             1.05              3.5000
+16         3            -7.3475            -3.45             -0.2000
+17         6            -5.5025            -1.60              2.1650
+18         1           -23.1900            -5.85              0.7125
+19         5            -5.9300            -1.40              1.3000
 
 # plot the results #
 

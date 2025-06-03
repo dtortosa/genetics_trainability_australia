@@ -162,11 +162,11 @@ Check that the subset has as many rows as unique gene IDs in the original file. 
 
 # convert the results into a DataFrame #
              phenotype chromosome_name          gene_id  mean_effect  sd_effect
-0      distance_change            chr1  ENSG00000000457     0.032467   0.027405
-1      distance_change            chr1  ENSG00000000460     0.032298   0.027055
-2      distance_change            chr1  ENSG00000000938     0.044956   0.037533
-3      distance_change            chr1  ENSG00000000971     0.043216   0.028425
-4      distance_change            chr1  ENSG00000001460     0.029291   0.020493
+0      distance_change            chr1  ENSG00000000457     0.035467   0.026916
+1      distance_change            chr1  ENSG00000000460     0.035568   0.027019
+2      distance_change            chr1  ENSG00000000938     0.039562   0.040417
+3      distance_change            chr1  ENSG00000000971     0.037883   0.031684
+4      distance_change            chr1  ENSG00000001460     0.029587   0.021945
 ...                ...             ...              ...          ...        ...
 71535    weight_change            chr9  ENSG00000269305     0.036932   0.028022
 71536    weight_change            chr9  ENSG00000269408     0.038330   0.027623
@@ -230,15 +230,15 @@ Name: hgnc_symbol, Length: 1038, dtype: object
 
 # convert the results into a DataFrame #
              pheno  random_lower_95CI  random_upper_95CI  connectome_median  \
-0  distance_change           0.041985           0.043247           0.042149   
-1       vo2_change           0.041253           0.042440           0.040987   
-2      beep_change           0.041384           0.042520           0.041613   
+0  distance_change           0.041605           0.042817           0.041662   
+1       vo2_change           0.041264           0.042524           0.041371   
+2      beep_change           0.040929           0.042108           0.041146   
 3    weight_change           0.040532           0.041738           0.041759   
 
    empirical_p_value  
-0           0.918295  
-1           0.996426  
-2           0.880546  
+0           0.958256  
+1           0.942285  
+2           0.903257  
 3           0.021020  
 
 #######################################
