@@ -8,7 +8,7 @@ This project presents a large-scale genomic analysis investigating genetic facto
 
 ### Large-Scale Data Management
 - **1,422 participants** with complete genomic and phenotypic data
-- **~540,000 genetic markers** initially genotyped (Infinium CoreExome-24 Kit)
+- **~540,000 genetic markers** initially genotyped (~800 million across all participants; Infinium CoreExome-24 Kit)
 - **~3.2 million genetic variants** after quality control and imputation
 - Multiple phenotypes tracked: VO2max changes, Multistage Fitness Test (MSFT) scores, and total distance covered
 - Longitudinal fitness assessments (Week 2 and Week 9 of training)
